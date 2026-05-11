@@ -87,6 +87,7 @@ setup.cfg
 ./research_agent/inno/workflow/flowcache.py
 ./research_agent/inno/workflow/flowgraph.py
 ./research_agent/inno/workflow/utils.py
+./research_agent/workplace_paper/task_one_layer_vq_openrouter__openai__gpt-oss-120b_free/workplace/workplace/dataset_candidate/metaprompt.py
 ai_researcher.egg-info/PKG-INFO
 ai_researcher.egg-info/SOURCES.txt
 ai_researcher.egg-info/dependency_links.txt
@@ -180,3 +181,4 @@ research_agent/inno/workflow/__init__.py
 research_agent/inno/workflow/flowcache.py
 research_agent/inno/workflow/flowgraph.py
 research_agent/inno/workflow/utils.py
+research_agent/workplace_paper/task_one_layer_vq_openrouter__openai__gpt-oss-120b_free/workplace/workplace/dataset_candidate/metaprompt.py
