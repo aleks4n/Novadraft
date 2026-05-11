@@ -1,0 +1,19 @@
+2026-05-10 17:19:13,752 - root - INFO - Logging system initialized, log file: /Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 17-19-13.log
+2026-05-10 17:19:13,753 - root - INFO - Log reading thread started
+2026-05-10 17:19:22,174 - root - INFO - Processing question: 'Write a hello world python file and save it in local file', using module: Detailed Idea Description
+************************** Log Path **************************
+[2026-05-10 17:19:23]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 17-19-13.log
+...
+************************** Log Path **************************
+[2026-05-10 17:19:26]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 17-19-13.log
+...
+2026-05-10 17:19:29,521 - sentence_transformers.base.model - INFO - Loading SentenceTransformer model from sentence-transformers/all-MiniLM-L6-v2.
+2026-05-10 17:19:32,929 - root - ERROR - Error occurred while running Researcher: Failed to start container: docker: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint paper_eval_one_layer_vq_openrouter__openai__gpt-oss-120b_free (2bd5427664e37c19d862877c497c9e12d1f9db6564b309f48529b8f50484f797): Bind for 0.0.0.0:7020 failed: port is already allocated
+
+Run 'docker run --help' for more information
+
+2026-05-10 17:20:18,359 - root - INFO - Application closed

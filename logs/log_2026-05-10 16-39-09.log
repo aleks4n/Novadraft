@@ -1,0 +1,27 @@
+2026-05-10 16:39:09,837 - root - INFO - Logging system initialized, log file: /Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 16-39-09.log
+2026-05-10 16:39:09,838 - root - INFO - Log reading thread started
+2026-05-10 16:39:19,064 - root - INFO - Processing question: 'Write a hello world python file and save it in local file', using module: Detailed Idea Description
+************************** Log Path **************************
+[2026-05-10 16:39:20]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 16-39-09.log
+...
+************************** Log Path **************************
+[2026-05-10 16:39:23]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 16-39-09.log
+...
+2026-05-10 16:39:27,671 - sentence_transformers.base.model - INFO - Loading SentenceTransformer model from sentence-transformers/all-MiniLM-L6-v2.
+************************** Log Path **************************
+[2026-05-10 16:39:43]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 16-39-09.log
+...
+2026-05-10 16:39:43,983 - arxiv - INFO - Requesting page (first: True, try: 0): https://export.arxiv.org/api/query?search_query=&id_list=2411.02038&sortBy=relevance&sortOrder=descending&start=0&max_results=100
+2026-05-10 16:39:44,252 - arxiv - INFO - Got first page: 1 of 1 total results
+2026-05-10 16:39:44,460 - root - ERROR - Error occurred while running Researcher: GitHub API request failed with status code 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+2026-05-10 16:40:07,674 - root - INFO - Application closed

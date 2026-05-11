@@ -1,0 +1,14 @@
+2026-05-05 08:12:07,431 - root - INFO - Logging system initialized, log file: /Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-05 08-12-07.log
+2026-05-05 08:12:07,431 - root - INFO - Log reading thread started
+2026-05-05 08:12:21,079 - root - INFO - Processing question: 'Write a hello world python file and save it in local file', using module: Detailed Idea Description
+************************** Log Path **************************
+[2026-05-05 08:12:27]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-05 08-12-07.log
+...
+************************** Log Path **************************
+[2026-05-05 08:12:28]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-05 08-12-07.log
+...
+2026-05-05 08:12:33,432 - root - ERROR - Error occurred while running Researcher: cannot import name 'gen_code_tree_structure' from 'research_agent.inno.tools' (/Users/aliihsangungoren/Desktop/AI-Researcher/research_agent/inno/tools/__init__.py)

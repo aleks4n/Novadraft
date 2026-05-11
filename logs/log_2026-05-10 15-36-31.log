@@ -1,0 +1,19 @@
+2026-05-10 15:36:31,286 - root - INFO - Logging system initialized, log file: /Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 15-36-31.log
+2026-05-10 15:36:31,286 - root - INFO - Log reading thread started
+2026-05-10 15:37:07,234 - root - INFO - Processing question: 'Write a hello world python file and save it in local file', using module: Detailed Idea Description
+************************** Log Path **************************
+[2026-05-10 15:37:08]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 15-36-31.log
+...
+************************** Log Path **************************
+[2026-05-10 15:37:16]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 15-36-31.log
+...
+2026-05-10 15:37:24,090 - sentence_transformers.base.model - INFO - Loading SentenceTransformer model from sentence-transformers/all-MiniLM-L6-v2.
+2026-05-10 15:37:31,424 - root - ERROR - Error occurred while running Researcher: Failed to start container: docker: Error response from daemon: failed to discover GPU vendor from CDI: no known GPU vendor found
+
+Run 'docker run --help' for more information
+
+2026-05-10 15:40:06,442 - root - INFO - Application closed

@@ -18,9 +18,10 @@ import base64
 os.environ["PYTHONIOENCODING"] = "utf-8"
 
 # If you want to use proxy, please uncomment the following lines
-os.environ['https_proxy'] = 'http://100.68.161.73:3128'
-os.environ['http_proxy'] = 'http://100.68.161.73:3128'
+#os.environ['https_proxy'] = 'http://100.68.161.73:3128'
+#os.environ['http_proxy'] = 'http://100.68.161.73:3128'
 os.environ['no_proxy'] = 'localhost,127.0.0.1,0.0.0.0'
+#os.environ['CURL_CA_BUNDLE'] = '/Users/aliihsangungoren/Downloads/huggingface-co.pem'
 
 def setup_path():
     # logs_dir = os.path.join("casestudy_results", f'agent_{container_name}', 'logs')
@@ -956,24 +957,25 @@ def create_ui():
                     (f"Error occurred: {str(e)}", "0", f"❌ Error: {str(e)}")
                 )
 
-        # 过滤空内容的对话记录
         def filter_empty_conversations(conversations):
-            """过滤掉完全空的对话记录，并处理部分空内容"""
+            """Converts legacy tuples to Gradio message format while filtering empty content"""
             filtered = []
             for user_msg, bot_msg in conversations:
-                # 检查是否两者都为空
-                user_empty = not user_msg.strip()
-                bot_empty = not bot_msg.strip()
+                # Check if both are empty/None
+                user_val = str(user_msg).strip() if user_msg else ""
+                bot_val = str(bot_msg).strip() if bot_msg else ""
                 
-                # 如果两者都为空，则跳过这个对话记录
-                if user_empty and bot_empty:
+                if not user_val and not bot_val:
                     continue
                 
-                # 如果只有一个为空，保留非空的那个，空的用None替代
-                processed_user = user_msg if not user_empty else None
-                processed_bot = bot_msg if not bot_empty else None
+                # Add User message if it exists
+                if user_val:
+                    filtered.append({"role": "user", "content": user_val})
                 
-                filtered.append((processed_user, processed_bot))
+                # Add Assistant message if it exists
+                if bot_val:
+                    filtered.append({"role": "assistant", "content": bot_val})
+                    
             return filtered
 
         # 启动后台处理线程
@@ -1408,7 +1410,7 @@ def create_ui():
                     placeholder="Please enter your questions...",
                     label="Prompt",
                     elem_id="question_input",
-                    show_copy_button=True,
+   
                     # elem_classes="scrolling-textbox",
                     value="Write a hello world python file and save it in local file",
                 )
@@ -1419,7 +1421,7 @@ def create_ui():
                     placeholder="Please enter your reference papers...",
                     label="Reference",
                     elem_id="reference_input",
-                    show_copy_button=True,
+   
                     # elem_classes="scrolling-textbox",
                     value="1. Attention is all you need. ",
                 )

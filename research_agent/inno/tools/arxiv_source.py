@@ -8,50 +8,44 @@ import os
 from typing import List
 def search_arxiv(query, max_results=10):
     """
-    search arxiv papers
-    
-    Args:
-        query (str): search keyword
-        max_results (int): max return results
-        
-    Returns:
-        list: list of papers info
+    Search arXiv papers
     """
-    # 构建API URL
-    base_url = 'http://export.arxiv.org/api/query?'
-    search_query = urllib.parse.quote(query)
-    
-    # 设置API参数
+    base_url = "http://export.arxiv.org/api/query?"
+
     params = {
-        'search_query': f'ti:{search_query}',
-        'start': 0,
-        'max_results': max_results,
-        'sortBy': 'relevance',
-        'sortOrder': 'descending'
+        "search_query": f"(ti:{query} OR abs:{query})",
+        "start": 0,
+        "max_results": max_results,
+        "sortBy": "relevance",
+        "sortOrder": "descending",
     }
-    
-    # 构建完整的查询URL
+
     query_url = base_url + urllib.parse.urlencode(params)
-    
-    # 发送请求并解析结果
+
     response = feedparser.parse(query_url)
-    
-    # 提取论文信息
+
     papers = []
+
     for entry in response.entries:
+        pdf_url = None
+        for link in entry.links:
+            if getattr(link, "type", "") == "application/pdf":
+                pdf_url = link.href
+                break
+
         paper = {
-            'title': entry.title,
-            'author': [author.name for author in entry.authors],
-            'published': entry.published,
-            'summary': entry.summary,
-            'url': entry.link,
-            'pdf_url': next(link.href for link in entry.links if link.type == 'application/pdf')
+            "title": entry.get("title", ""),
+            "author": [a.name for a in entry.get("authors", [])],
+            "published": entry.get("published", ""),
+            "summary": entry.get("summary", ""),
+            "url": entry.get("link", ""),
+            "pdf_url": pdf_url,
         }
+
         papers.append(paper)
-        
-        # 遵守API速率限制
-        time.sleep(0.5)
-    
+
+        time.sleep(0.2)  # lighter rate limit
+
     return papers
 
 def extract_tex_content(tar_path, ):

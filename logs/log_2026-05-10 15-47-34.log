@@ -1,0 +1,25 @@
+2026-05-10 15:47:34,647 - root - INFO - Logging system initialized, log file: /Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 15-47-34.log
+2026-05-10 15:47:34,647 - root - INFO - Log reading thread started
+2026-05-10 15:47:54,285 - root - INFO - Processing question: 'Write a hello world python file and save it in local file', using module: Detailed Idea Description
+************************** Log Path **************************
+[2026-05-10 15:47:55]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 15-47-34.log
+...
+************************** Log Path **************************
+[2026-05-10 15:47:58]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 15-47-34.log
+...
+2026-05-10 15:48:01,854 - sentence_transformers.base.model - INFO - Loading SentenceTransformer model from sentence-transformers/all-MiniLM-L6-v2.
+************************** Log Path **************************
+[2026-05-10 15:48:13]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 15-47-34.log
+...
+2026-05-10 15:48:23,506 - root - ERROR - Error occurred while running Researcher: GitHub API request failed with status code 401: {
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+2026-05-10 15:49:06,762 - root - INFO - Application closed

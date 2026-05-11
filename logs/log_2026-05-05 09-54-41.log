@@ -1,0 +1,24 @@
+2026-05-05 09:54:41,499 - root - INFO - Logging system initialized, log file: /Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-05 09-54-41.log
+2026-05-05 09:54:41,499 - root - INFO - Log reading thread started
+2026-05-05 09:54:48,439 - root - INFO - Processing question: 'Write a hello world python file and save it in local file', using module: Detailed Idea Description
+************************** Log Path **************************
+[2026-05-05 09:54:49]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-05 09-54-41.log
+...
+************************** Log Path **************************
+[2026-05-05 09:54:53]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-05 09-54-41.log
+...
+2026-05-05 09:54:55,836 - huggingface_hub.utils._http - WARNING - '(MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1016)')))"), '(Request ID: 6fd7fe2f-4b0c-49be-8f4a-4f4ac71fa800)')' thrown while requesting HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/./modules.json
+2026-05-05 09:54:55,836 - huggingface_hub.utils._http - WARNING - Retrying in 1s [Retry 1/5].
+2026-05-05 09:54:56,906 - huggingface_hub.utils._http - WARNING - '(MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1016)')))"), '(Request ID: af0ab10c-4817-4597-9082-6d535d2997c4)')' thrown while requesting HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/./modules.json
+2026-05-05 09:54:56,907 - huggingface_hub.utils._http - WARNING - Retrying in 2s [Retry 2/5].
+2026-05-05 09:54:58,974 - huggingface_hub.utils._http - WARNING - '(MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1016)')))"), '(Request ID: cd837d73-fabf-4683-b695-8eeea9ce6a36)')' thrown while requesting HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/./modules.json
+2026-05-05 09:54:58,975 - huggingface_hub.utils._http - WARNING - Retrying in 4s [Retry 3/5].
+2026-05-05 09:55:03,036 - huggingface_hub.utils._http - WARNING - '(MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1016)')))"), '(Request ID: 5992916f-dfa5-44c9-b5f4-96def52647d3)')' thrown while requesting HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/./modules.json
+2026-05-05 09:55:03,037 - huggingface_hub.utils._http - WARNING - Retrying in 8s [Retry 4/5].
+2026-05-05 09:55:11,110 - huggingface_hub.utils._http - WARNING - '(MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1016)')))"), '(Request ID: a2e8a4ce-5c06-4790-816a-8bc0ba23888d)')' thrown while requesting HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/./modules.json
+2026-05-05 09:55:11,110 - huggingface_hub.utils._http - WARNING - Retrying in 8s [Retry 5/5].
+2026-05-05 09:55:11,876 - root - INFO - Application closed

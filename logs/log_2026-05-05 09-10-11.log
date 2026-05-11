@@ -1,0 +1,15 @@
+2026-05-05 09:10:11,648 - root - INFO - Logging system initialized, log file: /Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-05 09-10-11.log
+2026-05-05 09:10:11,649 - root - INFO - Log reading thread started
+2026-05-05 09:10:25,679 - root - INFO - Processing question: 'Write a hello world python file and save it in local file', using module: Detailed Idea Description
+************************** Log Path **************************
+[2026-05-05 09:10:31]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-05 09-10-11.log
+...
+************************** Log Path **************************
+[2026-05-05 09:10:35]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-05 09-10-11.log
+...
+2026-05-05 09:10:47,944 - huggingface_hub.utils._http - WARNING - '(MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json (Caused by ProxyError('Unable to connect to proxy', ConnectTimeoutError(<HTTPSConnection(host='100.68.161.73', port=3128) at 0x3027c7a90>, 'Connection to 100.68.161.73 timed out. (connect timeout=10)')))"), '(Request ID: 9803b2ae-f727-4f01-aaad-9361885bebad)')' thrown while requesting HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/./modules.json
+2026-05-05 09:10:47,945 - huggingface_hub.utils._http - WARNING - Retrying in 1s [Retry 1/5].

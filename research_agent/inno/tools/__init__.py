@@ -1,13 +1,10 @@
-# from .code_knowledge import gen_code_tree_structure
-# from .execution import execute_command
-# from .files import read_file, create_file, write_file, list_files, create_directory
-# from .PythonAction import run_python
-# from .rag_code import code_rag
-# from .tool_retriever import get_api_doc
-# from .rag_code_tree import code_tree_rag
-# from .inner import case_resolved
-# from .code_report import check_tool, check_agent
-# from .github_ops import get_current_branch, get_diff, push_changes, submit_pull_request
+from .terminal_tools import gen_code_tree_structure
+from .rag_code import code_rag
+from .tool_retriever import get_api_doc
+from .rag_code_tree import code_tree_rag
+from .inner import case_resolved
+from .code_report import check_tool, check_agent
+from .github_ops import get_current_branch, get_diff, push_changes, submit_pull_request
 
 # import os
 # import importlib

@@ -558,8 +558,9 @@ def main(args, references):
 
 
 if __name__ == "__main__":
+    sample_references = "Paper 1: Attention is All You Need; Paper 2: Deep Residual Learning..."
     args = get_args()
-    main(args)
+    main(args, references=sample_references)
 
 
 

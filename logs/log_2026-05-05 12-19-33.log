@@ -1,0 +1,50 @@
+2026-05-05 12:19:33,360 - root - INFO - Logging system initialized, log file: /Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-05 12-19-33.log
+2026-05-05 12:19:33,360 - root - INFO - Log reading thread started
+2026-05-05 12:19:42,421 - root - INFO - Processing question: 'Write a hello world python file and save it in local file', using module: Detailed Idea Description
+************************** Log Path **************************
+[2026-05-05 12:19:44]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-05 12-19-33.log
+...
+************************** Log Path **************************
+[2026-05-05 12:19:49]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-05 12-19-33.log
+...
+2026-05-05 12:19:54,296 - sentence_transformers.base.model - INFO - Loading SentenceTransformer model from sentence-transformers/all-MiniLM-L6-v2.
+2026-05-05 12:20:10,789 - root - ERROR - Error occurred while running Researcher: Failed to start container: Unable to find image 'tjbtech1/airesearcher:v1' locally
+v1: Pulling from tjbtech1/airesearcher
+03af3cdf20a8: Pulling fs layer
+c9e6a4dc6792: Pulling fs layer
+750ca1ba59c4: Pulling fs layer
+4f4fb700ef54: Pulling fs layer
+333e1f114b91: Pulling fs layer
+815d20c9ca1b: Pulling fs layer
+42a8919f2ed9: Pulling fs layer
+caf38853f87a: Pulling fs layer
+3d552c93e873: Pulling fs layer
+0bfad82c3fd8: Pulling fs layer
+4f4fb700ef54: Pulling fs layer
+78f01a1b5533: Pulling fs layer
+e5bb4b46366a: Pulling fs layer
+8c20b3f47849: Pulling fs layer
+998668088895: Pulling fs layer
+c9d01dc95ee7: Pulling fs layer
+4f4fb700ef54: Pulling fs layer
+400bf2569377: Pulling fs layer
+e5bb4b46366a: Already exists
+03af3cdf20a8: Already exists
+815d20c9ca1b: Already exists
+0bfad82c3fd8: Already exists
+333e1f114b91: Already exists
+750ca1ba59c4: Already exists
+4f4fb700ef54: Already exists
+42a8919f2ed9: Already exists
+c9d01dc95ee7: Already exists
+78f01a1b5533: Already exists
+8c20b3f47849: Already exists
+400bf2569377: Already exists
+c9e6a4dc6792: Already exists
+998668088895: Already exists
+
+2026-05-05 12:20:10,977 - root - INFO - Application closed

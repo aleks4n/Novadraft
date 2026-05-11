@@ -1,0 +1,19 @@
+2026-05-10 16:54:12,171 - root - INFO - Logging system initialized, log file: /Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 16-54-12.log
+2026-05-10 16:54:12,172 - root - INFO - Log reading thread started
+2026-05-10 16:54:19,239 - root - INFO - Processing question: 'Write a hello world python file and save it in local file', using module: Detailed Idea Description
+************************** Log Path **************************
+[2026-05-10 16:54:20]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 16-54-12.log
+...
+************************** Log Path **************************
+[2026-05-10 16:54:23]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 16-54-12.log
+...
+2026-05-10 16:54:27,116 - sentence_transformers.base.model - INFO - Loading SentenceTransformer model from sentence-transformers/all-MiniLM-L6-v2.
+2026-05-10 16:54:30,071 - root - ERROR - Error occurred while running Researcher: Failed to start container: docker: Error response from daemon: Invalid container name (paper_eval_one_layer_vq_openai__gpt-oss-120b:free), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed
+
+Run 'docker run --help' for more information
+
+2026-05-10 17:02:21,692 - root - INFO - Application closed

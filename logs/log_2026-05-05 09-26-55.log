@@ -1,0 +1,22 @@
+2026-05-05 09:26:55,451 - root - INFO - Logging system initialized, log file: /Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-05 09-26-55.log
+2026-05-05 09:26:55,451 - root - INFO - Log reading thread started
+2026-05-05 09:27:06,677 - root - INFO - Processing question: 'Write a hello world python file and save it in local file', using module: Detailed Idea Description
+************************** Log Path **************************
+[2026-05-05 09:27:12]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-05 09-26-55.log
+...
+************************** Log Path **************************
+[2026-05-05 09:27:16]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-05 09-26-55.log
+...
+2026-05-05 09:27:29,020 - huggingface_hub.utils._http - WARNING - '(MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x31d5eff10>, 'Connection to 100.68.161.73 timed out. (connect timeout=10)'))"), '(Request ID: e32a9f3a-4f25-44ab-9d06-5fe66d45bb5d)')' thrown while requesting HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/./modules.json
+2026-05-05 09:27:29,020 - huggingface_hub.utils._http - WARNING - Retrying in 1s [Retry 1/5].
+2026-05-05 09:27:40,028 - huggingface_hub.utils._http - WARNING - '(MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x31d70d850>, 'Connection to 100.68.161.73 timed out. (connect timeout=10)'))"), '(Request ID: e480d4d5-3f98-4039-97d6-b51634e1281a)')' thrown while requesting HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/./modules.json
+2026-05-05 09:27:40,029 - huggingface_hub.utils._http - WARNING - Retrying in 2s [Retry 2/5].
+2026-05-05 09:27:52,041 - huggingface_hub.utils._http - WARNING - '(MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x31d70e4d0>, 'Connection to 100.68.161.73 timed out. (connect timeout=10)'))"), '(Request ID: d89fb28c-2c23-41c7-8d63-9b3faf08b667)')' thrown while requesting HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/./modules.json
+2026-05-05 09:27:52,041 - huggingface_hub.utils._http - WARNING - Retrying in 4s [Retry 3/5].
+2026-05-05 09:28:06,054 - huggingface_hub.utils._http - WARNING - '(MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x31d70fc10>, 'Connection to 100.68.161.73 timed out. (connect timeout=10)'))"), '(Request ID: 7da2900b-a8ce-4eba-a809-58834baba0c3)')' thrown while requesting HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/./modules.json
+2026-05-05 09:28:06,063 - huggingface_hub.utils._http - WARNING - Retrying in 8s [Retry 4/5].
+2026-05-05 09:28:06,969 - root - INFO - Application closed

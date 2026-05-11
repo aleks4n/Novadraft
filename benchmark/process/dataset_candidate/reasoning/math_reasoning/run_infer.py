@@ -102,7 +102,7 @@ if __name__ == "__main__":
     parser.add_argument("--stride", type=int, default=None)
     parser.add_argument("--offset", type=int, default=None)
     parser.add_argument("--save_dir", type=str, default="evaluation_results/math500")
-    parser.add_argument("--model", type=str, default="deepseek-chat")
+    parser.add_argument("--model", type=str, default="deepseek/deepseek-chat")
     parser.add_argument("--base_url", type=str, default="https://api.deepseek.com")
     args = parser.parse_args()
     asyncio.run(main(args))

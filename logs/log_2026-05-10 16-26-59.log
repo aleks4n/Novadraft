@@ -1,0 +1,15 @@
+2026-05-10 16:26:59,802 - root - INFO - Logging system initialized, log file: /Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 16-26-59.log
+2026-05-10 16:26:59,802 - root - INFO - Log reading thread started
+2026-05-10 16:27:05,371 - root - INFO - Processing question: 'Write a hello world python file and save it in local file', using module: Detailed Idea Description
+************************** Log Path **************************
+[2026-05-10 16:27:06]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 16-26-59.log
+...
+************************** Log Path **************************
+[2026-05-10 16:27:10]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 16-26-59.log
+...
+2026-05-10 16:27:13,229 - sentence_transformers.base.model - INFO - Loading SentenceTransformer model from sentence-transformers/all-MiniLM-L6-v2.
+2026-05-10 16:27:30,288 - root - INFO - Application closed

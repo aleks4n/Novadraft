@@ -65,3 +65,5 @@ if EVAL_MODE:
 #     os.environ["https_proxy"] = "http://127.0.0.1:7890"
 
 
+
+PLATFORM = "linux/amd64"  # or whatever your project expects

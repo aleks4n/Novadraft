@@ -1,0 +1,19 @@
+2026-05-10 17:02:25,479 - root - INFO - Logging system initialized, log file: /Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 17-02-25.log
+2026-05-10 17:02:25,479 - root - INFO - Log reading thread started
+2026-05-10 17:02:39,087 - root - INFO - Processing question: 'Write a hello world python file and save it in local file', using module: Detailed Idea Description
+************************** Log Path **************************
+[2026-05-10 17:02:40]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 17-02-25.log
+...
+************************** Log Path **************************
+[2026-05-10 17:02:43]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 17-02-25.log
+...
+2026-05-10 17:02:46,988 - sentence_transformers.base.model - INFO - Loading SentenceTransformer model from sentence-transformers/all-MiniLM-L6-v2.
+2026-05-10 17:02:49,812 - root - ERROR - Error occurred while running Researcher: Failed to start container: docker: Error response from daemon: invalid mode: /workplace
+
+Run 'docker run --help' for more information
+
+2026-05-10 17:07:27,875 - root - INFO - Application closed

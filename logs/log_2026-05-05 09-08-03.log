@@ -1,0 +1,21 @@
+2026-05-05 09:08:03,339 - root - INFO - Logging system initialized, log file: /Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-05 09-08-03.log
+2026-05-05 09:08:03,339 - root - INFO - Log reading thread started
+2026-05-05 09:08:19,026 - root - INFO - Processing question: 'Write a hello world python file and save it in local file', using module: Detailed Idea Description
+************************** Log Path **************************
+[2026-05-05 09:08:25]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-05 09-08-03.log
+...
+************************** Log Path **************************
+[2026-05-05 09:08:28]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-05 09-08-03.log
+...
+2026-05-05 09:08:41,030 - huggingface_hub.utils._http - WARNING - '(MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json (Caused by ProxyError('Unable to connect to proxy', ConnectTimeoutError(<HTTPSConnection(host='100.68.161.73', port=3128) at 0x320442450>, 'Connection to 100.68.161.73 timed out. (connect timeout=10)')))"), '(Request ID: 9d53a589-8573-4b4a-a729-ead729a3c8d2)')' thrown while requesting HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/./modules.json
+2026-05-05 09:08:41,031 - huggingface_hub.utils._http - WARNING - Retrying in 1s [Retry 1/5].
+2026-05-05 09:08:52,040 - huggingface_hub.utils._http - WARNING - '(MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json (Caused by ProxyError('Unable to connect to proxy', ConnectTimeoutError(<HTTPSConnection(host='100.68.161.73', port=3128) at 0x320428750>, 'Connection to 100.68.161.73 timed out. (connect timeout=10)')))"), '(Request ID: c65d6cf2-efbc-490d-94ec-7b178cfdf91c)')' thrown while requesting HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/./modules.json
+2026-05-05 09:08:52,041 - huggingface_hub.utils._http - WARNING - Retrying in 2s [Retry 2/5].
+2026-05-05 09:09:04,050 - huggingface_hub.utils._http - WARNING - '(MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json (Caused by ProxyError('Unable to connect to proxy', ConnectTimeoutError(<HTTPSConnection(host='100.68.161.73', port=3128) at 0x320443bd0>, 'Connection to 100.68.161.73 timed out. (connect timeout=10)')))"), '(Request ID: 7fce6996-b874-40a7-9691-86c46c2249df)')' thrown while requesting HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/./modules.json
+2026-05-05 09:09:04,051 - huggingface_hub.utils._http - WARNING - Retrying in 4s [Retry 3/5].
+2026-05-05 09:09:18,057 - huggingface_hub.utils._http - WARNING - '(MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json (Caused by ProxyError('Unable to connect to proxy', ConnectTimeoutError(<HTTPSConnection(host='100.68.161.73', port=3128) at 0x320428750>, 'Connection to 100.68.161.73 timed out. (connect timeout=10)')))"), '(Request ID: 80de3072-9665-4bff-9518-fe674bb68e40)')' thrown while requesting HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/./modules.json
+2026-05-05 09:09:18,058 - huggingface_hub.utils._http - WARNING - Retrying in 8s [Retry 4/5].

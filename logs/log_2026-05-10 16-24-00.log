@@ -1,0 +1,21 @@
+2026-05-10 16:24:00,027 - root - INFO - Logging system initialized, log file: /Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 16-24-00.log
+2026-05-10 16:24:00,028 - root - INFO - Log reading thread started
+2026-05-10 16:24:06,823 - root - INFO - Processing question: 'Write a hello world python file and save it in local file', using module: Detailed Idea Description
+************************** Log Path **************************
+[2026-05-10 16:24:07]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 16-24-00.log
+...
+************************** Log Path **************************
+[2026-05-10 16:24:11]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 16-24-00.log
+...
+2026-05-10 16:24:14,376 - sentence_transformers.base.model - INFO - Loading SentenceTransformer model from sentence-transformers/all-MiniLM-L6-v2.
+2026-05-10 16:24:17,543 - root - ERROR - Error occurred while running Researcher: Failed to start container: invalid argument "\"None\"" for "--gpus" flag: invalid count (None): value must be either "all" or an integer: invalid syntax
+
+Usage:  docker run [OPTIONS] IMAGE [COMMAND] [ARG...]
+
+Run 'docker run --help' for more information
+
+2026-05-10 16:25:31,488 - root - INFO - Application closed

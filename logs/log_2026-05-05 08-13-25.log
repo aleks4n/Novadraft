@@ -1,0 +1,14 @@
+2026-05-05 08:13:25,181 - root - INFO - Logging system initialized, log file: /Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-05 08-13-25.log
+2026-05-05 08:13:25,181 - root - INFO - Log reading thread started
+2026-05-05 08:13:43,624 - root - INFO - Processing question: 'Write a hello world python file and save it in local file', using module: Detailed Idea Description
+************************** Log Path **************************
+[2026-05-05 08:13:49]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-05 08-13-25.log
+...
+************************** Log Path **************************
+[2026-05-05 08:13:49]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-05 08-13-25.log
+...
+2026-05-05 08:13:56,262 - root - ERROR - Error occurred while running Researcher: module 'pyarrow' has no attribute 'PyExtensionType'

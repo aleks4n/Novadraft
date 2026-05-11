@@ -1,0 +1,23 @@
+2026-05-05 10:32:16,262 - root - INFO - Logging system initialized, log file: /Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-05 10-32-16.log
+2026-05-05 10:32:16,263 - root - INFO - Log reading thread started
+2026-05-05 10:32:25,509 - root - INFO - Processing question: 'Write a hello world python file and save it in local file', using module: Detailed Idea Description
+************************** Log Path **************************
+[2026-05-05 10:32:26]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-05 10-32-16.log
+...
+************************** Log Path **************************
+[2026-05-05 10:32:30]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-05 10-32-16.log
+...
+2026-05-05 10:32:33,533 - sentence_transformers.base.model - INFO - Loading SentenceTransformer model from sentence-transformers/all-MiniLM-L6-v2.
+2026-05-05 10:32:38,295 - root - ERROR - Error occurred while running Researcher: Failed to start container: Unable to find image 'tjbtech1/airesearcher:v1' locally
+v1: Pulling from tjbtech1/airesearcher
+Digest: sha256:82ac65712eb504f100bff34448004004bb6e16fb6bf1e8f4cf8d37a60b0f8345
+Status: Image is up to date for tjbtech1/airesearcher:v1
+docker: Error response from daemon: image with reference tjbtech1/airesearcher:v1 was found but does not provide the specified platform (darwin/arm64)
+
+Run 'docker run --help' for more information
+
+2026-05-05 10:32:46,779 - root - INFO - Application closed

@@ -1,0 +1,4 @@
+[console_scripts]
+ai-researcher = research_agent.cli:cli
+benchmark = benchmark_collection.cli:cli
+paper-agent = paper_agent.cli:cli

@@ -15,5 +15,5 @@ category=vq
 instance_id=one_layer_vq
 export GPUS='"device=0,1"'
 
-python run_infer_plan.py --instance_path ../benchmark/final/${category}/${instance_id}.json --container_name test_eval --task_level task1 --model $COMPLETION_MODEL --workplace_name workplace --cache_path cache --port 12380 --max_iter_times 0 --category ${category}
+python run_infer_plan.py --instance_path ../benchmark/final/${category}/${instance_id}.json --container_name test_eval --task_level task1 --model $COMPLETION_MODEL --workplace_name workplace --cache_path cache --port 12380 --max_iter_times 0 --category ${category} 
 

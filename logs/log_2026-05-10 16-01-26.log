@@ -1,0 +1,21 @@
+2026-05-10 16:01:26,596 - root - INFO - Logging system initialized, log file: /Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 16-01-26.log
+2026-05-10 16:01:26,597 - root - INFO - Log reading thread started
+2026-05-10 16:01:33,647 - root - INFO - Processing question: 'Write a hello world python file and save it in local file', using module: Detailed Idea Description
+************************** Log Path **************************
+[2026-05-10 16:01:34]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 16-01-26.log
+...
+************************** Log Path **************************
+[2026-05-10 16:01:38]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 16-01-26.log
+...
+2026-05-10 16:01:41,545 - sentence_transformers.base.model - INFO - Loading SentenceTransformer model from sentence-transformers/all-MiniLM-L6-v2.
+************************** Log Path **************************
+[2026-05-10 16:01:53]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-10 16-01-26.log
+...
+2026-05-10 16:02:02,000 - root - ERROR - Error occurred while running Researcher: 'reference_papers'
+2026-05-10 16:02:18,390 - root - INFO - Application closed
