@@ -528,8 +528,13 @@ def main(args, ideas, references):
 
 if __name__ == "__main__":
     args = get_args()
-    main(args)
 
+    with open(args.instance_path, "r", encoding="utf-8") as f:
+        eval_instance = json.load(f)
+    ideas = eval_instance["ideas"]
+    references = eval_instance["references"]
+
+    main(args, ideas, references)
 
 
 
