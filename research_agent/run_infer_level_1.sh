@@ -8,8 +8,8 @@ export BASE_IMAGES=tjbtech1/metachain:amd64_latest
 # export COMPLETION_MODEL=openai/claude-3-5-sonnet-20241022
 # export CHEEP_MODEL=openai/claude-3-5-haiku-20241022
 
-export COMPLETION_MODEL=anthropic/claude-3-5-sonnet-20241022
-export CHEEP_MODEL=anthropic/claude-3-5-haiku-20241022
+COMPLETION_MODEL=openrouter/openai/gpt-oss-120b:free
+CHEEP_MODEL=openrouter/openai/gpt-oss-120b:free
 
 category=vq
 instance_id=one_layer_vq
