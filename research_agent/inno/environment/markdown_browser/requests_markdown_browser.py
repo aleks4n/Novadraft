@@ -20,7 +20,7 @@ from .markdown_search import AbstractMarkdownSearch, BingMarkdownSearch
 
 # TODO: Fix unfollowed import
 from .mdconvert import FileConversionException, MarkdownConverter, UnsupportedFormatException  # type: ignore
-from inno.memory.paper_memory import PaperMemory
+from research_agent.inno.memory.paper_memory import PaperMemory
 from constant import API_BASE_URL
 def normalize_collection_name(name: str) -> str:
     """

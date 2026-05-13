@@ -16,6 +16,9 @@ from inspect import signature
 from research_agent.inno.environment.docker_env import with_env as with_env_docker
 from research_agent.inno.environment.docker_env import DockerEnv
 from research_agent.inno.environment.markdown_browser import RequestsMarkdownBrowser
+from research_agent.inno.tools import (
+    gen_code_tree_structure, execute_command, read_file, create_file, write_file, list_files, create_directory, run_python, terminal_page_down, terminal_page_up, terminal_page_to
+)
 
 def case_resolved(context_variables: dict, analysis_report: str, further_plan: dict[str, str]):
     """
@@ -95,7 +98,15 @@ AVAILABLE TOOLS:
         with_env_docker(code_env)(tool) if "env" in signature(tool).parameters else tool
         for tool in tool_codes
     ]
-    tools = tool_files + tool_codes + [case_resolved]
+
+    tool_codes2 = [gen_code_tree_structure, execute_command, read_file, create_file, write_file, list_files, create_directory, run_python, case_resolved, terminal_page_down, terminal_page_up, terminal_page_to]
+
+    tool_codes2 = [
+        with_env_docker(code_env)(tool) if "env" in signature(tool).parameters else tool
+        for tool in tool_codes2
+    ]
+
+    tools = tool_files + tool_codes + tool_codes2 + [case_resolved]
     return Agent(
         name="Experiment Analysis Agent",
         model=model,

@@ -427,7 +427,7 @@ After you get the result, you should return the result with your analysis and su
         judge_messages, context_variables = await self.ml_agent(judge_messages, context_variables, iter_times="submit")
         submit_res = judge_messages[-1]["content"]
 
-        EXP_ITER_TIMES = 2
+        EXP_ITER_TIMES = 1
         for i in range(EXP_ITER_TIMES):
             exp_planner_query = f"""\
 You are given an innovative idea:

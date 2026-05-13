@@ -1,0 +1,113 @@
+2026-05-11 18:38:38,857 - root - INFO - Logging system initialized, log file: /Users/aliihsangungoren/Desktop/novadraft/logs/log_2026-05-11 18-38-38.log
+2026-05-11 18:38:38,857 - root - INFO - Log reading thread started
+/Users/aliihsangungoren/Desktop/novadraft/web_ai_researcher.py:1044: UserWarning: The parameters have been moved from the Blocks constructor to the launch() method in Gradio 6.0: theme. Please pass these parameters to launch() instead.
+  with gr.Blocks(theme=gr.themes.Soft(primary_hue="amber")) as app:
+/Users/aliihsangungoren/Desktop/AI-Researcher/.venv/lib/python3.11/site-packages/gradio/layouts/column.py:59: UserWarning: 'scale' value should be an integer. Using 0.5 will cause issues.
+  warnings.warn(
+/Users/aliihsangungoren/Desktop/AI-Researcher/.venv/lib/python3.11/site-packages/gradio/components/dataframe.py:192: UserWarning: The `col_count` parameter is deprecated and will be removed. Please use `column_count` instead.
+  warnings.warn(
+2026-05-11 18:38:58,933 - root - INFO - Processing question: '1. The proposed model designed in this paper is designed to improve the performance of Vector Quantized Variational AutoEncoders (VQ-VAEs) by addressing issues with gradient propagation through the non-differentiable vector quantization layer.
+
+2. The core methodologies utilized include:
+   - **Rotation and Rescaling Transformation**: A linear transformation that alters the encoder output to align it with the nearest codebook vector without changing the forward pass output.
+   - **Gradient Propagation Method**: The proposed model ensures that gradients flow from the decoder to the encoder while preserving the angle between the gradient and codebook vector.
+   - **Codebook Management**: Utilizes the connection between the encoder output and the corresponding codebook vectors to mitigate codebook collapse and improve utilization.
+
+3. The primary functions of these components are:
+   - The rotation and rescaling transformation modifies how the encoder output is quantized and how information is retained during backpropagation, enabling gradients to reflect the true positioning of the encoder output relative to the codebook vectors.
+   - The gradient propagation method redefines how gradients are transported back to the encoder, allowing for an enhanced and nuanced movement through the quantization layer, which leads to a better performance during training.
+   - Codebook management practices help in maintaining a diverse set of codebook vectors throughout training, avoiding scenarios where multiple vectors become redundant or unused.
+
+4. Implementation details for each component:
+   - **Key Parameters**: 
+     - Codebook size should be configured based on the complexity of the dataset (e.g., 1024 or 8192).
+     - Commitment loss coefficient (β) is typically set within [0.25, 2].
+   - **Input/Output Specifications**: 
+     - Input to the encoder is a continuous high-dimensional vector, while the output is a corresponding quantized vector from the codebook.
+     - The output for reconstruction is generated using the decoder applied to the transformed codebook vectors.
+   - **Important Constraints**: 
+     - Ensure that the codebook is updated correctly with an exponential moving average procedure, and treat both rotation and rescaling during the forward pass as constants with respect to the gradient.
+
+5. Step-by-Step Integration of Components:
+   - **Step 1**: Input the data vector into the encoder to obtain the continuous representation.
+   - **Step 2**: Identify the nearest codebook vector to the encoder output.
+   - **Step 3**: Compute the rotation matrix that aligns the encoder output to the codebook vector.
+   - **Step 4**: Apply the rotation and rescaling transformation to obtain the modified output for the decoder (i.e., `˜ q`).
+   - **Step 5**: Feed `˜ q` into the decoder to produce the reconstructed output.
+   - **Step 6**: Compute the loss using the reconstruction and apply backpropagation.
+   - **Step 7**: During backpropagation, modify the gradient transfer process to maintain the angle using the proposed model, replacing traditional shortcuts in gradient computation.
+
+6. Critical implementation details affecting performance:
+   - The choice of rotation matrix calculation should ensure computational efficiency—using Householder transformations to minimize resource demands.
+   - The deployment of the stop-gradient technique effectively turns off the back-propagation through the quantization layer, which is essential to reflect the intended change without inducing undesired noise in the gradient updates.
+   - Monitor the codebook usage regularly during training to detect any potential collapse early and adjust the training dynamics (e.g., learning rate) accordingly to maintain effective utilization throughout the training period.', using module: Reference-Based Ideation
+* Running on local URL:  http://127.0.0.1:7039
+* To create a public link, set `share=True` in `launch()`.
+************************** Log Path **************************
+[2026-05-11 18:39:05]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/novadraft/logs/log_2026-05-11 
+18-38-38.log
+...
+************************** Log Path **************************
+[2026-05-11 18:39:08]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/novadraft/logs/log_2026-05-11 18-38-38.log
+...
+2026-05-11 18:39:12,607 - sentence_transformers.base.model - INFO - Loading SentenceTransformer model from sentence-transformers/all-MiniLM-L6-v2.
+Container 'paper_eval_gnn_nodeformer_idea_openrouter__openai__gpt-oss-120b_free' is already running. Skipping creation.
+dataset_candidate exists
+____________________Browser Env____________________
+[2026-05-11 18:39:16]
+Starting browser env...
+************************** Log Path **************************
+[2026-05-11 18:39:19]
+Log file is saved to
+
+...
+************************** Log Path **************************
+[2026-05-11 18:39:19]
+Log file is saved to
+
+...
+____________________Browser Env____________________
+[2026-05-11 18:39:26]
+Browser env started.
+************************** Log Path **************************
+[2026-05-11 18:39:26]
+Log file is saved to
+/Users/aliihsangungoren/Desktop/novadraft/logs/log_2026-05-11 18-38-38.log
+...
+
+[?] The tool 'load_instance' cache file exists, do you want to use it?: 
+ > Yes
+   No
+____________________Browser Env____________________
+[2026-05-11 18:40:02]
+Browser env process interrupted by user.
+2026-05-11 18:40:03,187 - root - INFO - Application closed
+Keyboard interruption in main thread... closing server.
+Traceback (most recent call last):
+  File "/Users/aliihsangungoren/Desktop/AI-Researcher/.venv/lib/python3.11/site-packages/gradio/blocks.py", line 3109, in block_thread
+    time.sleep(0.1)
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/aliihsangungoren/Desktop/novadraft/web_ai_researcher.py", line 1683, in <module>
+    main()
+  File "/Users/aliihsangungoren/Desktop/novadraft/web_ai_researcher.py", line 1659, in main
+    app.launch(
+  File "/Users/aliihsangungoren/Desktop/AI-Researcher/.venv/lib/python3.11/site-packages/gradio/blocks.py", line 3016, in launch
+    self.block_thread()
+  File "/Users/aliihsangungoren/Desktop/AI-Researcher/.venv/lib/python3.11/site-packages/gradio/blocks.py", line 3113, in block_thread
+    self.server.close()
+  File "/Users/aliihsangungoren/Desktop/AI-Researcher/.venv/lib/python3.11/site-packages/gradio/http_server.py", line 82, in close
+    self.thread.join(timeout=5)
+  File "/Users/aliihsangungoren/.local/share/uv/python/cpython-3.11.15-macos-aarch64-none/lib/python3.11/threading.py", line 1123, in join
+    self._wait_for_tstate_lock(timeout=max(timeout, 0))
+  File "/Users/aliihsangungoren/.local/share/uv/python/cpython-3.11.15-macos-aarch64-none/lib/python3.11/threading.py", line 1139, in _wait_for_tstate_lock
+    if lock.acquire(block, timeout):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
