@@ -1,2 +1,5 @@
 ai_researcher.egg-info/
 *.log
+/gnn
+agents/
+workplace/

@@ -24,7 +24,7 @@ def setup_logging(research_field):
     )
 
 class SectionComposer(ABC):
-    def __init__(self, research_field: str, section_name: str, structure_iterations: int = 3, gpt_model='gpt-4o-mini-2024-07-18'):
+    def __init__(self, research_field: str, section_name: str, structure_iterations: int = 3, gpt_model=None):
         self.gpt_client = GPTClient(model=gpt_model)
         self.structure_iterations = structure_iterations
         self.research_field = research_field
@@ -51,6 +51,9 @@ class SectionComposer(ABC):
     def write_temp_log(self, content: str, step: str):
         """Write intermediate results to temporary log file"""
         filename = f"{self.research_field}/temp/{self.timestamp}_{step}.log"
+        if content is None:
+            logging.warning(f"Skipping write_temp_log for step {step}: content is None")
+            return
         with open(filename, 'w', encoding='utf-8') as f:
             f.write(content)
         logging.info(f"Written intermediate result to {filename}")

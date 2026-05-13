@@ -208,9 +208,24 @@ Output the revised related work section incorporating all these improvements. Re
             })
 
         # Step 2: Detailize subsections
-        subsections = [line.split('{')[1].split('}')[0] 
-                    for line in structure.split('\n') 
-                    if line.strip().startswith('\\subsection')]
+        # Check if structure is None or just whitespace
+        if not structure or not isinstance(structure, str):
+            logging.warning("Structure is None or empty. Skipping subsection extraction.")
+            subsections = []
+        else:
+            # Use a try-except or careful splits to handle malformed LaTeX lines
+            subsections = []
+            for line in structure.split('\n'):
+                line = line.strip()
+                if line.startswith('\\subsection') and '{' in line and '}' in line:
+                    try:
+                        # Extract content between the first { and }
+                        name = line.split('{', 1)[1].rsplit('}', 1)[0]
+                        subsections.append(name)
+                    except IndexError:
+                        logging.warning(f"Failed to parse subsection line: {line}")
+
+        # Now subsections is guaranteed to be a list, even if empty
         
         subsection_contents = {}
         subsection_checkpoint = self.load_checkpoint(target_paper, "subsections")
