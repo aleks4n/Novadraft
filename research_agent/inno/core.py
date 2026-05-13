@@ -295,7 +295,8 @@ class MetaChain:
         self.logger.info("Receiveing the task:", history[-1]['content'], title="Receive Task", color="green")
 
         while len(history) - init_len < max_turns and active_agent:
-
+            print("NUMBER OF TOOLS ALREADY CALLED FROM THE AGENT:")
+            print(len(history))
             # get completion with current history, agent
             completion = self.get_chat_completion(
                 agent=active_agent,
@@ -501,7 +502,8 @@ class MetaChain:
         self.logger.info("Receiveing the task:", history[-1]['content'], title="Receive Task", color="green")
 
         while len(history) - init_len < max_turns and active_agent:
-
+            print("NUMBER OF TOOLS ALREADY CALLED FROM THE AGENT ASYNC:")
+            print(len(history))
             # get completion with current history, agent
             try:
                 completion_response = await self.try_completion_with_truncation(
@@ -578,7 +580,7 @@ class MetaChain:
                     history.append({"role": "error", "content": f"Error: {e}"})
                     break
             else:
-                partial_response = Response(messages=[{"role": "user", "content": "Please use the tools provided to complete the task."}])
+                partial_response = Response(messages=[{"role": "user", "content": "Please use maximum 10 tools provided to complete the task."}])
             history.extend(partial_response.messages)
             context_variables.update(partial_response.context_variables)
             if partial_response.agent:

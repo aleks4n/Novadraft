@@ -47,7 +47,7 @@ You should choose at least 5 repositories as the reference codebases.
 
 I should use the determined repositories as reference codebases to implement the innovative ideas, so your decision should be as accurate as possible, and the number of repositories should be as less as possible. 
 
-During the decision process, you can use the following tools:
+During the decision process, you can use the following tools, however you can use this tools at most 40 times:
 1. You can use `execute_command` to git clone the repository to the working directory `/{working_dir}`. Choose 5-8 repositories you really need. And you should reserve the names of the repositories.
 
 2. You can use `gen_code_tree_structure` to generate the tree structure of the code in the repository.

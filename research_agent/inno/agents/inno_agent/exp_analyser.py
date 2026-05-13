@@ -71,7 +71,7 @@ AVAILABLE TOOLS:
    - `find_on_page_ctrl_f`/`find_next`: Search specific content
    - `visualizer`: use this tool to SEE the experimental results, the input should be a image or a video and a corresponding question. When the experimental results are image or video, like generated images or the visualization of the experimental results, you should use this tool to see the results and give a detailed analysis report about the results.
 
-[IMPORTANT] You should carefully and comprehensively analyze the experimental results and the reference codebases and papers, and give a detailed analysis report about the results and the further plan by use the `case_resolved` function. DO NOT use this function before you have carefully and comprehensively analyzed the experimental results and the reference codebases and papers.
+[IMPORTANT] You should carefully and comprehensively analyze the experimental results and the reference codebases and papers, and give a detailed analysis report about the results and the further plan by use the `case_resolved` function. DO NOT use this function before you have carefully and comprehensively analyzed the experimental results and the reference codebases and papers. - You are allowed to make at most 20 toolcalls not more
 """
     tool_files = [
         open_local_file,
@@ -99,14 +99,8 @@ AVAILABLE TOOLS:
         for tool in tool_codes
     ]
 
-    tool_codes2 = [gen_code_tree_structure, execute_command, read_file, create_file, write_file, list_files, create_directory, run_python, case_resolved, terminal_page_down, terminal_page_up, terminal_page_to]
 
-    tool_codes2 = [
-        with_env_docker(code_env)(tool) if "env" in signature(tool).parameters else tool
-        for tool in tool_codes2
-    ]
-
-    tools = tool_files + tool_codes + tool_codes2 + [case_resolved]
+    tools = tool_files + tool_codes + [case_resolved]
     return Agent(
         name="Experiment Analysis Agent",
         model=model,

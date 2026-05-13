@@ -243,7 +243,6 @@ PROJECT STRUCTURE REQUIREMENTS:
 2. Complete Implementation Requirements
    - MUST implement EVERY component from model survey notes
    - NO placeholder code (no `pass`, `...`, `raise NotImplementedError`)
-   - MUST include complete logic and mathematical operations
    - Each component MUST be fully functional and tested
 
 3. Dataset and Training Requirements
@@ -272,12 +271,6 @@ EXECUTION WORKFLOW:
    - Document mathematical operations
    - Add comprehensive docstrings
 
-3. Training Implementation
-   - Complete training loop
-   - Loss function implementation
-   - Optimization setup
-   - Progress monitoring
-
 4. Testing Setup
    - Implement evaluation metrics
    - Create testing procedures
@@ -286,9 +279,6 @@ EXECUTION WORKFLOW:
 
 5. Integration
    - Create run_training_testing.py
-   - Configure for 2 epoch training
-   - Add GPU support and OOM handling
-   - Implement full pipeline execution
 
 VERIFICATION CHECKLIST:
 1. Project Structure
@@ -312,8 +302,8 @@ Remember:
 - MUST use actual dataset (no toy data, download according to the reference codebases) [IMPORTANT!!!]
 - Implementation MUST strictly follow model survey notes
 - ALL components MUST be fully implemented
-- Project MUST run end-to-end without placeholders
-- MUST complete 2 epochs of training and testing
+- Project doesnt need to run end-to-end
+- Keep everything fest and simple, use as less tools as possible
 """
         messages = [{"role": "user", "content": ml_dev_query}]
         ml_dev_messages, context_variables = await self.ml_agent(messages, context_variables)
@@ -415,8 +405,8 @@ And your last implementation of the project:
 {ml_dev_res}
 The suggestion about your last implementation:
 {judge_res}
-You have run out the maximum iteration times to implement the idea by running the script `run_training_testing.py` with TWO epochs of training and testing on ONE ACTUAL dataset.
-Your task is to submit the code to the environment by running the script `run_training_testing.py` with APPROPRIATE epochs of training and testing on THIS ACTUAL dataset in order to get some stastical results. You must MODIFY the epochs in the script `run_training_testing.py` rather than use the 2 epochs.
+
+
 
 [IMPORTANT] In this stage, you are NOT allowed to modify the existing code in the script `run_training_testing.py` except for the epochs!
 
@@ -444,8 +434,7 @@ Your task is to:
     - Modify the implementation to better fit the idea.
     - Add more experiments to prove the effectiveness and superiority of the idea, including but not limited to: ablation studies, sensitivity analysis, etc. ()
     - Visualize the experimental results and give a detailed analysis report about the results.
-    - ANY other experiments that exsiting concurrent reference papers and codebases have done.
-DO NOT use the `case_resolved` function before you have carefully and comprehensively analyzed the experimental results and the reference codebases and papers.
+use the `case_resolved` function after you have carefully and comprehensively analyzed the experimental results and the reference codebases and papers once.
 """
             judge_messages.append({"role": "user", "content": exp_planner_query})
             judge_messages, context_variables = await self.exp_analyser(judge_messages, context_variables, iter_times=f"refine_{i+1}")
@@ -465,7 +454,7 @@ You have conducted the experiments and get the experimental results:
 {submit_res}
 And a detailed analysis report about the results are given by the `Experiment Planner Agent`:
 {analysis_report}
-Your task is to refine the experimental results according to the analysis report by modifying existing code in the directory `/{workplace_name}/project`. You should NOT stop util every experiment is done with ACTUAL results. If you encounter Out of Memory problem, you should try another specific GPU device. If you encounter ANY other problems, you should try your best to solve the problem by yourself.
+Your task is to refine the experimental results according to the analysis report by modifying existing code in the directory `/{workplace_name}/project`. You should stop after one feedback.
 
 Note that you should fully utilize the existing code in the directory `/{workplace_name}/project` as much as possible. If you want to add more experiments, you should add the python script in the directory `/{workplace_name}/project/`, like `run_training_testing.py`. Select and output the important results during the experiments into the log files, do NOT output them all in the terminal.
 """
@@ -567,18 +556,16 @@ REQUIREMENTS:
 3. Complete Implementation Requirements
    - MUST implement EVERY component from model survey notes
    - NO placeholder code (no `pass`, `...`, `raise NotImplementedError`)
-   - MUST include complete logic and mathematical operations
-   - Each module MUST be fully functional and tested
+   - should include complete logic and mathematical operations
+   - Each module doesnt need to be fully functional
    - Final model should inherit from nn.Module and combine all sub-modules
 
 Remember: 
 - Break down complex models into smaller, reusable modules
 - Each module should map to specific academic concepts
-- Implementation MUST strictly follow model survey notes
-- ALL components MUST be fully implemented
-- Project MUST run end-to-end without placeholders
+- Project doesnt need to run end-to-end
 
 Task: 
-Carefully go through the model survey notes, break down the model into logical modules based on academic definitions, and implement each module in a realistic way. NO placeholder code. 
-In this stage, you only care about the model implementation, and don't care about the dataset, training, testing.
+Carefully go through the model survey notes, break down the model into logical modules based on academic definitions, and implement each module in a realistic way.
+Keep everything simple and use a small number of tools
 """

@@ -148,6 +148,8 @@ Searching results of the papers on GitHub:
 Your task is to choose at least 5 repositories as the reference codebases. Note that this time there is no innovative ideas, you should choose the most valuable repositories as the reference codebases.
 """
         messages = [{"role": "user", "content": query}]
+
+
         prepare_messages, context_variables = await self.prepare_agent(messages, context_variables)
         prepare_res = prepare_messages[-1]["content"]
         prepare_dict = extract_json_from_output(prepare_res)
@@ -271,7 +273,6 @@ PROJECT STRUCTURE REQUIREMENTS:
     * Implement the data processing pipeline
 
 - Main Script: `/{workplace_name}/project/run_training_testing.py`
-    * Complete training and testing pipeline
     * Configuration management
     * Results logging
 
@@ -279,17 +280,14 @@ PROJECT STRUCTURE REQUIREMENTS:
    - MUST implement EVERY component from model survey notes
    - NO placeholder code (no `pass`, `...`, `raise NotImplementedError`)
    - MUST include complete logic and mathematical operations
-   - Each component MUST be fully functional and tested
+   - Each component doesn't need to be fully functional and tested
 
 3. Dataset and Training Requirements
    - Select and download ONE actual dataset from references
    - Implement full data processing pipeline
-   - Train for exactly 2 epochs
-   - Test model performance after training
-   - Log all metrics and results
+   - Dont train it just write the code for it
 
 4. Integration Requirements
-   - All components must work together seamlessly
    - Clear dependencies between modules
    - Consistent coding style and documentation
    - Proper error handling and GPU support
@@ -314,16 +312,10 @@ EXECUTION WORKFLOW:
    - Progress monitoring
 
 4. Testing Setup
-   - Implement evaluation metrics
-   - Create testing procedures
-   - Set up results logging
-   - Error handling
+   - dont test it
 
 5. Integration
    - Create run_training_testing.py
-   - Configure for 2 epoch training
-   - Add GPU support and OOM handling
-   - Implement full pipeline execution
 
 VERIFICATION CHECKLIST:
 1. Project Structure
@@ -339,16 +331,15 @@ VERIFICATION CHECKLIST:
 
 3. Functionality
    - Dataset downloads and loads correctly
-   - Training runs for 2 epochs
-   - Testing produces valid metrics
-   - GPU support is implemented
+   - Training runs for 1 epoch
+
 
 Remember: 
 - MUST use actual dataset (no toy data, download according to the reference codebases) [IMPORTANT!!!]
-- Implementation MUST strictly follow model survey notes
 - ALL components MUST be fully implemented
-- Project MUST run end-to-end without placeholders
-- MUST complete 2 epochs of training and testing
+- Project doesnt need to run end-to-end without placeholders
+- Keep it fast and small use as less tools as possible
+- Keep it really compact and finish as soon as possible
 """
         messages = [{"role": "user", "content": ml_dev_query}]
         ml_dev_messages, context_variables = await self.ml_agent(messages, context_variables)
@@ -374,6 +365,7 @@ Your task is to evaluate the implementation, and give a suggestion about the imp
 1. The implementation should carefully follow the plan. Please check every component in the plan step by step.
 2. The implementation should have the test process. All in all, you should train ONE dataset with TWO epochs, and finally test the model on the test dataset within one script. The test metrics should follow the plan.
 3. The model should be train on GPU device. If you meet Out of Memory problem, you should try another specific GPU device.
+4. Dont use more than 10 Tools, keep it simple and fast
 """
         input_messages = [{
             "role": "user",
@@ -383,6 +375,8 @@ Your task is to evaluate the implementation, and give a suggestion about the imp
         judge_res = judge_messages[-1]["content"]
 
         MAX_ITER_TIMES = max_iter_times
+        print(max_iter_times)
+        print(MAX_ITER_TIMES)
         for i in range(MAX_ITER_TIMES):
             query = f"""\
 You are given an innovative idea:
@@ -401,18 +395,14 @@ Your task is to modify the project according to the suggestion. Note that you sh
 
 [IMPORTANT] If you meet dataset missing problem, you should download the dataset from the reference codebases, and put the dataset in the directory `/{workplace_name}/project/data`. 
 
-[IMPORTANT] You CANNOT stop util you 2 epochs of training and testing on your model with the ACTUAL dataset.
-
 [IMPORTANT] You encounter ImportError while using `run_python()`, you should check whether every `__init__.py` file is correctly implemented in the directories in the `/{workplace_name}/project`!
 
-[IMPORTANT] Carefully check whether model and its components are correctly implemented according to the model survey notes!
 
 Remember: 
 - Implementation MUST strictly follow model survey notes
 - ALL components MUST be fully implemented
 - Project MUST run end-to-end without placeholders
 - MUST use actual dataset (no toy data)
-- MUST complete 2 epochs of training and testing
 """
             judge_messages.append({"role": "user", "content": query})
             judge_messages, context_variables = await self.ml_agent(judge_messages, context_variables, iter_times=i+1)
@@ -446,19 +436,17 @@ And your last implementation of the project:
 {ml_dev_res}
 The suggestion about your last implementation:
 {judge_res}
-You have run out the maximum iteration times to implement the idea by running the script `run_training_testing.py` with TWO epochs of training and testing on ONE ACTUAL dataset.
-Your task is to submit the code to the environment by running the script `run_training_testing.py` with APPROPRIATE epochs of training and testing on THIS ACTUAL dataset in order to get some stastical results. You must MODIFY the epochs in the script `run_training_testing.py` rather than use the 2 epochs.
 
 [IMPORTANT] In this stage, you are NOT allowed to modify the existing code in the script `run_training_testing.py` except for the epochs!
 
-Note that if your last implementation is not runable, you should finalize the submission with `case_not_resolved` function. But you can temporarily ignore the judgement of the `Judge Agent` which contains the suggestions about the implementation.
+Note that even if your last implementation is not runable, you should finalize the submission with `case_resolved` function. But you can temporarily ignore the judgement of the `Judge Agent` which contains the suggestions about the implementation.
 After you get the result, you should return the result with your analysis and suggestions about the implementation with `case_resolved` function.
 """
         judge_messages.append({"role": "user", "content": ml_submit_query})
         judge_messages, context_variables = await self.ml_agent(judge_messages, context_variables, iter_times="submit")
         submit_res = judge_messages[-1]["content"]
 
-        EXP_ITER_TIMES = 2
+        EXP_ITER_TIMES = 1
         for i in range(EXP_ITER_TIMES):
             exp_planner_query = f"""\
 You are given an innovative idea:
@@ -476,7 +464,7 @@ Your task is to:
     - Add more experiments to prove the effectiveness and superiority of the idea. 
     - Visualize the experimental results and give a detailed analysis report about the results.
     - ANY other experiments that exsiting concurrent reference papers and codebases have done.
-DO NOT use the `case_resolved` function before you have carefully and comprehensively analyzed the experimental results and the reference codebases and papers.
+use the `case_resolved` function after you have carefully and comprehensively analyzed the experimental results and the reference codebases and papers once.
 """
             judge_messages.append({"role": "user", "content": exp_planner_query})
             judge_messages, context_variables = await self.exp_analyser(judge_messages, context_variables, iter_times=f"refine_{i+1}")
@@ -496,7 +484,7 @@ You have conducted the experiments and get the experimental results:
 {submit_res}
 And a detailed analysis report about the results are given by the `Experiment Planner Agent`:
 {analysis_report}
-Your task is to refine the experimental results according to the analysis report by modifying existing code in the directory `/{workplace_name}/project`. You should NOT stop util every experiment is done with ACTUAL results. If you encounter Out of Memory problem, you should try another specific GPU device. If you encounter ANY other problems, you should try your best to solve the problem by yourself.
+Your task is to refine the experimental results according to the analysis report by modifying existing code in the directory `/{workplace_name}/project`. You should stop after one feedback.
 
 Note that you should fully utilize the existing code in the directory `/{workplace_name}/project` as much as possible. If you want to add more experiments, you should add the python script in the directory `/{workplace_name}/project/`, like `run_training_testing.py`. Select and output the important results during the experiments into the log files, do NOT output them all in the terminal.
 """

@@ -64,6 +64,7 @@ AVAILABLE TOOLS:
    - `run_python`: Run scripts without arguments
    - `execute_command`: Run with environment variables/arguments
    Note: When using `execute_command`, use `cd xx` instead of `cwd=xx`
+   - You are allowed to do at most 10 Tool calls not more
 
 IMPORTANT NOTES:
 1. Code Integration
