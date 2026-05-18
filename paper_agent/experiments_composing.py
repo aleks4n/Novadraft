@@ -295,7 +295,6 @@ Output the revised experiments section incorporating all these improvements. Rep
         if structure_checkpoint:
             structure = structure_checkpoint["final_structure"]
             logging.info("Loaded structure from checkpoint")
-            exit()
         else:
             for iteration in range(self.structure_iterations + 1):
                 if iteration < self.structure_iterations:
