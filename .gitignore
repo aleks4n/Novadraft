@@ -3,3 +3,4 @@ ai_researcher.egg-info/
 /gnn
 agents/
 workplace/
+*.DS_Store

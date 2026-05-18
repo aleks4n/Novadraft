@@ -183,7 +183,9 @@ Output the revised abstract section incorporating all these improvements. Reply 
 
 
         dst_dir = output_dir
+
         src_dir = "./paper_agent/final_paper"
+        os.makedirs(src_dir, exist_ok=True)
         for filename in os.listdir(src_dir):
             src_path = os.path.join(src_dir, filename)
             # dst_path = os.path.join(dst_dir, filename)
