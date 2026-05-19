@@ -135,13 +135,31 @@ class RequestsMarkdownBrowser(AbstractMarkdownBrowser):
         """Return the address of the current page."""
         return self.history[-1][0]
     def _convert_docker_to_local(self, path: str) -> str:
-        assert self.docker_workplace in path, f"The path must be a absolute path from `{self.docker_workplace}/` directory"
-        local_path = path.replace(self.docker_workplace, self.local_workplace)
+        local_workplace = os.path.abspath(self.local_workplace)
+        expanded_path = os.path.abspath(os.path.expanduser(path)) if path.startswith("~") else path
+        if expanded_path == local_workplace or expanded_path.startswith(local_workplace + os.sep):
+            return expanded_path
+        if path == self.docker_workplace:
+            rel_path = ""
+        elif path.startswith(self.docker_workplace + "/"):
+            rel_path = path[len(self.docker_workplace) + 1 :]
+        else:
+            raise ValueError(f"The path must be a absolute path from `{self.docker_workplace}/` directory")
+        local_path = os.path.abspath(os.path.join(local_workplace, rel_path))
+        if os.path.commonpath([local_workplace, local_path]) != local_workplace:
+            raise ValueError(f"The path must be a absolute path from `{self.docker_workplace}/` directory")
         return local_path
     def _convert_local_to_docker(self, path: str) -> str:
-        assert self.local_workplace in path, f"The path must be a absolute path from `{self.local_workplace}/` directory"
-        docker_path = path.replace(self.local_workplace, self.docker_workplace)
-        return docker_path
+        if path == self.docker_workplace or path.startswith(self.docker_workplace + "/"):
+            return path
+        parsed = urlparse(path)
+        local_path = unquote(parsed.path) if parsed.scheme == "file" else path
+        local_path = os.path.abspath(os.path.expanduser(local_path))
+        local_workplace = os.path.abspath(self.local_workplace)
+        if local_path != local_workplace and not local_path.startswith(local_workplace + os.sep):
+            raise ValueError(f"The path must be a absolute path from `{self.local_workplace}/` directory")
+        rel_path = os.path.relpath(local_path, local_workplace)
+        return self.docker_workplace if rel_path == "." else f"{self.docker_workplace}/{rel_path}"
 
     def set_address(self, uri_or_path: str) -> None:
         """Sets the address of the current page.

@@ -8,6 +8,11 @@ import asyncio
 import argparse
 from paper_agent.writing_fix import clean_tex_files_in_folder, process_tex_file
 from paper_agent.tex_writer import compile_latex_project
+from pathlib import Path
+from dotenv import load_dotenv
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(REPO_ROOT / ".env", override=True)
 
 async def writing(research_field: str, instance_id: str):
     await methodology_composing(research_field, instance_id)

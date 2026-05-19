@@ -16,7 +16,11 @@ class MetaChainLogger:
         with open(self.log_path, 'a') as f:
             f.write(message + '\n')
     def _warp_args(self, args_dict: str):
-        args_dict = json.loads(args_dict)
+        try:
+            args_dict = json.loads(args_dict)
+        except json.JSONDecodeError:
+            return f"raw_args={args_dict!r}"
+            
         args_str = ''
         for k, v in args_dict.items():
             args_str += f"{repr(k)}={repr(v)}, "

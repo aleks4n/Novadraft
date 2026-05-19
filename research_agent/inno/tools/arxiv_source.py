@@ -13,7 +13,7 @@ def search_arxiv(query, max_results=10):
     base_url = "http://export.arxiv.org/api/query?"
 
     params = {
-        "search_query": f"(ti:{query} OR abs:{query})",
+        "search_query": f'ti:"{query}"',
         "start": 0,
         "max_results": max_results,
         "sortBy": "relevance",
