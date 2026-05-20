@@ -6,7 +6,12 @@ from paper_agent.conclusion_composing import conclusion_composing
 from paper_agent.abstract_composing import abstract_composing
 import asyncio
 import argparse
-from paper_agent.writing_fix import clean_tex_files_in_folder, process_tex_file
+from paper_agent.writing_fix import (
+    clean_tex_files_in_folder,
+    collect_cite_keys,
+    collect_bib_from_folder,
+    generate_bib_for_keys,
+)
 from paper_agent.tex_writer import compile_latex_project
 from pathlib import Path
 from dotenv import load_dotenv
@@ -25,9 +30,15 @@ async def writing(research_field: str, instance_id: str):
     target_folder = f"{research_field}/target_sections/{instance_id}"
     clean_tex_files_in_folder(target_folder)
 
-    tex_file_path = f'{research_field}/target_sections/{instance_id}/related_work.tex'
     bib_file_path = f'{research_field}/target_sections/{instance_id}/iclr2025_conference.bib'
-    process_tex_file(tex_file_path, bib_file_path)
+
+    # Step 1: extract any @-style bib entries the LLM embedded in section files
+    collect_bib_from_folder(target_folder, bib_file_path)
+
+    # Step 2: collect all \cite{} keys and generate missing bib entries via LLM
+    cite_keys = collect_cite_keys(target_folder)
+    if cite_keys:
+        await generate_bib_for_keys(cite_keys, bib_file_path, existing_bib_path=bib_file_path)
 
     project_directory = f'{research_field}/target_sections/{instance_id}'
     main_file = "iclr2025_conference.tex"
@@ -37,8 +48,6 @@ async def writing(research_field: str, instance_id: str):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--research_field", type=str, default="vq")
-    parser.add_argument("--instance_id", type=str, default="rotation_vq")
+    parser.add_argument("--instance_id", type=str, default="one_layer_vq")
     args = parser.parse_args()
     asyncio.run(writing(args.research_field, args.instance_id))
-
-        

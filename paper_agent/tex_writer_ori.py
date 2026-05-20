@@ -55,5 +55,6 @@ def compile_latex_project(project_dir, main_tex_file):
 # project_directory = "/data2/tjb/writing_part/paper_agent/tex_project"
 # main_file = "main.tex"
 project_directory = "./paper_agent/final_paper"
+os.makedirs(project_directory, exist_ok=True)
 main_file = "iclr2025_conference.tex"
 compile_latex_project(project_directory, main_file)
