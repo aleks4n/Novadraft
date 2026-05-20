@@ -111,11 +111,11 @@ def compile_latex_project(project_dir, main_tex_file):
         # 再运行两次 pdflatex
         result2 = subprocess.run([pdflatex_cmd, '-interaction=nonstopmode', main_tex_file], capture_output=True, text=True)
         result3 = subprocess.run([pdflatex_cmd, '-interaction=nonstopmode', main_tex_file], capture_output=True, text=True)
-        # print(result2.stdout)
-        # print(result2.stderr)
+        print(result2.stdout)
+        print(result2.stderr)
         # print()
-        # print(result3.stdout)
-        # print(result3.stderr)
+        print(result3.stdout)
+        print(result3.stderr)
         
         # 检查PDF
         pdf_file = base_name + '.pdf'
