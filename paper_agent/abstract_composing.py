@@ -13,6 +13,98 @@ class AbstractComposer(SectionComposer):
     def __init__(self, research_field: str, structure_iterations: int = 2):
         super().__init__(research_field, "abstract", structure_iterations)
 
+    async def generate_title(self, content: str) -> str:
+        prompt = f"""Generate a concise, specific academic paper title based on the following paper content.
+
+Content:
+{content[:3000]}
+
+Requirements:
+- Specific and descriptive (not generic)
+- Reflects the core method and contribution
+- Academic style, suitable for a top ML venue
+- 8-15 words
+
+Output only the title, no quotes, no punctuation at the end."""
+        title = await self.gpt_client.chat(prompt=prompt)
+        return (title or "Research Paper").strip().strip('"').strip("'")
+
+    def _create_minimal_iclr_template(self, dst_dir: str, title: str = "Research Paper"):
+        """Create a minimal ICLR 2025 conference LaTeX template."""
+        main_tex = (
+            r"""\documentclass{article}
+\usepackage[final]{iclr2025_conference}
+\usepackage{lmodern}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{microtype}
+\usepackage{natbib}
+
+\title{"""
+            + title
+            + r"""}
+
+\author{AI-Researcher}
+
+\begin{document}
+
+\maketitle
+
+\input{abstract}
+
+\input{introduction}
+
+\input{methodology}
+
+\input{experiments}
+
+\input{related_work}
+
+\input{conclusion}
+
+\bibliography{iclr2025_conference}
+\bibliographystyle{plainnat}
+
+\end{document}
+"""
+        )
+        # Minimal style file placeholder
+        style_content = r"""\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{iclr2025_conference}[2024/01/01 ICLR 2025 Style]
+\DeclareOption{final}{}
+\DeclareOption{accepted}{}
+\DeclareOption{preprint}{}
+\DeclareOption*{}
+\ProcessOptions\relax
+\usepackage{geometry}
+\geometry{margin=1in}
+"""
+        # Minimal bib file
+        bib_content = r"""@article{vqvae,
+  title={Neural Discrete Representation Learning},
+  author={van den Oord, Aaron and Vinyals, Oriol and Kavukcuoglu, Koray},
+  journal={arXiv preprint arXiv:1711.00937},
+  year={2017}
+}
+@article{vqgan,
+  title={Taming Transformers for High-Resolution Image Synthesis},
+  author={Esser, Patrick and Rombach, Robin and Ommer, Bjorn},
+  journal={CVPR},
+  year={2021}
+}
+"""
+        with open(os.path.join(dst_dir, 'iclr2025_conference.tex'), 'w') as f:
+            f.write(main_tex)
+        with open(os.path.join(dst_dir, 'iclr2025_conference.sty'), 'w') as f:
+            f.write(style_content)
+        with open(os.path.join(dst_dir, 'iclr2025_conference.bib'), 'w') as f:
+            f.write(bib_content)
+        logging.info(f"Created minimal ICLR template in {dst_dir}")
+
     def read_section_content(self, target_paper: str, section_name: str) -> str:
         """Read content from an existing section file"""
         normalized_title = self.normalize_title(target_paper)
@@ -183,16 +275,17 @@ Output the revised abstract section incorporating all these improvements. Reply 
 
 
         dst_dir = output_dir
-
         src_dir = "./paper_agent/final_paper"
-        os.makedirs(src_dir, exist_ok=True)
-        for filename in os.listdir(src_dir):
-            src_path = os.path.join(src_dir, filename)
-            # dst_path = os.path.join(dst_dir, filename)
-
-            # 只复制文件，不复制子文件夹
-            if os.path.isfile(src_path):
-                shutil.copy2(src_path, dst_dir)  # copy2 会保留元数据（时间戳等）
+        if os.path.isdir(src_dir):
+            for filename in os.listdir(src_dir):
+                src_path = os.path.join(src_dir, filename)
+                if os.path.isfile(src_path):
+                    shutil.copy2(src_path, dst_dir)
+        else:
+            logging.warning(f"final_paper directory not found at {src_dir}. Creating minimal template.")
+            paper_title = await self.generate_title(content_bundle)
+            logging.info(f"Generated paper title: {paper_title}")
+            self._create_minimal_iclr_template(dst_dir, title=paper_title)
         
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(final_abstract)

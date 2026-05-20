@@ -35,6 +35,8 @@ def clean_tex_file(filepath):
     # Fix cite keys containing spaces (BibTeX doesn't support them).
     # Handle multi-key cites like \cite{keyA, keyB} by fixing each key individually.
     def _fix_cite_content(content):
+        # Normalise each key: strip whitespace, replace internal spaces with underscores,
+        # strip leading underscores, then lowercase for consistency.
         parts = [k.strip().replace(' ', '_').lstrip('_').lower() for k in content.split(',')]
         return ','.join(parts)
 
@@ -75,33 +77,23 @@ def process_tex_file(tex_path, bib_output_path):
     bib_lines = []
 
     for i, line in enumerate(lines):
-        # 删除以 \bib 开头的行
         if line.strip().startswith('\\bib'):
-            # print(f"删除行（\\bib 开头）: {line.strip()}")
             continue
-
-        # 查找第一个以 @ 开头的行，标志 bib 开始
         if not bib_started and line.strip().startswith('@'):
             bib_started = True
-            # print(f"检测到 bib 条目开始于第 {i+1} 行")
             bib_lines.append(line)
         elif bib_started:
             bib_lines.append(line)
         else:
             new_lines.append(line)
 
-    # 写回清理后的 .tex 文件
     with open(tex_path, 'w', encoding='utf-8') as f:
         f.writelines(new_lines)
-        # print(f"更新后的 tex 文件已写入：{tex_path}")
 
-    # 如果提取到了 bib 内容，写入 .bib 文件
     if bib_lines:
         with open(bib_output_path, 'w', encoding='utf-8') as f:
             f.writelines(bib_lines)
-            # print(f"BibTeX 条目已写入：{bib_output_path}")
     else:
-        # print("未找到任何以 @ 开头的 BibTeX 条目，未创建 .bib 文件。")
         print("all files are right")
 
 
@@ -126,7 +118,6 @@ def collect_cite_keys(folder_path):
 def collect_bib_from_folder(folder_path, bib_output_path):
     """Extract embedded @-style bib entries from ALL tex files in folder."""
     all_bib_lines = []
-    seen_keys = set()
     for root, _, files in os.walk(folder_path):
         for file in sorted(files):
             if file.endswith('.tex'):
@@ -159,13 +150,12 @@ def collect_bib_from_folder(folder_path, bib_output_path):
 
 async def generate_bib_for_keys(cite_keys, bib_output_path, existing_bib_path=None):
     """Ask the LLM to generate bibtex entries for all citation keys."""
-    import sys, os as _os
-    sys.path.append(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+    import sys
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from benchmark_collection.utils.openai_utils import GPTClient
 
-    # Find which keys are already covered
     covered = set()
-    if existing_bib_path and _os.path.exists(existing_bib_path):
+    if existing_bib_path and os.path.exists(existing_bib_path):
         with open(existing_bib_path, 'r', encoding='utf-8') as f:
             bib_text = f.read()
         for m in re.finditer(r'@\w+\{(\S+?),', bib_text):
@@ -173,8 +163,10 @@ async def generate_bib_for_keys(cite_keys, bib_output_path, existing_bib_path=No
 
     missing = sorted(cite_keys - covered)
     if not missing:
+        print(f"All {len(cite_keys)} citation keys already covered in bib file.")
         return
 
+    print(f"Generating bib entries for {len(missing)} missing citation keys...")
     gpt_client = GPTClient()
     keys_list = '\n'.join(missing)
     prompt = f"""Generate complete and accurate BibTeX entries for the following citation keys.
@@ -191,9 +183,9 @@ Output only the BibTeX entries, nothing else."""
     if not bib_content:
         return
 
-    # Append to existing bib or write new
-    mode = 'a' if existing_bib_path and _os.path.exists(existing_bib_path) else 'w'
+    mode = 'a' if existing_bib_path and os.path.exists(existing_bib_path) else 'w'
     with open(bib_output_path, mode, encoding='utf-8') as f:
         if mode == 'a':
             f.write('\n')
         f.write(bib_content)
+    print(f"Bib entries written to {bib_output_path}")

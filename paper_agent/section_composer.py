@@ -48,14 +48,14 @@ class SectionComposer(ABC):
             
 
 
-    def write_temp_log(self, content: str, step: str):
+    def write_temp_log(self, content, step: str):
         """Write intermediate results to temporary log file"""
-        filename = f"{self.research_field}/temp/{self.timestamp}_{step}.log"
         if content is None:
             logging.warning(f"Skipping write_temp_log for step {step}: content is None")
             return
+        filename = f"{self.research_field}/temp/{self.timestamp}_{step}.log"
         with open(filename, 'w', encoding='utf-8') as f:
-            f.write(content)
+            f.write(str(content))
         logging.info(f"Written intermediate result to {filename}")
 
     def get_checkpoint_path(self, target_paper: str) -> str:
@@ -100,12 +100,25 @@ class SectionComposer(ABC):
 
     def get_random_template(self) -> str:
         """Randomly select a writing template from the templates directory"""
-        template_dir = f"{self.research_field}/writing_templates/{self.section_name}"
-        template_files = [f for f in os.listdir(template_dir) if f.endswith('_template.txt')]
+        # Check both the output dir and the bundled paper_agent source dir
+        candidate_dirs = [
+            f"{self.research_field}/writing_templates/{self.section_name}",
+            f"paper_agent/{self.research_field}/writing_templates/{self.section_name}",
+        ]
+        template_files = []
+        template_dir = None
+        for d in candidate_dirs:
+            if os.path.isdir(d):
+                files = [f for f in os.listdir(d) if f.endswith('_template.txt')]
+                if files:
+                    template_files = files
+                    template_dir = d
+                    break
+
         if not template_files:
             logging.warning("No templates found. Will proceed without template.")
             return ""
-        
+
         selected_template = random.choice(template_files)
         try:
             with open(os.path.join(template_dir, selected_template), 'r', encoding='utf-8') as f:
