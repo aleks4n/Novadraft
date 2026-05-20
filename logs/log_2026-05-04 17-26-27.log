@@ -1,5 +1,0 @@
-2026-05-04 17:26:27,715 - root - INFO - Logging system initialized, log file: /Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-04 17-26-27.log
-2026-05-04 17:26:27,716 - root - INFO - Log reading thread started
-2026-05-04 17:27:01,286 - root - INFO - Processing question: 'Write a hello world python file and save it in local file', using module: Detailed Idea Description
-2026-05-04 17:27:01,288 - root - ERROR - Error occurred while running Researcher: int() argument must be a string, a bytes-like object or a real number, not 'NoneType'
-2026-05-04 17:28:16,210 - root - INFO - Application closed

@@ -1,4 +1,0 @@
-2026-05-05 08:24:32,562 - root - INFO - Logging system initialized, log file: /Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-05 08-24-32.log
-2026-05-05 08:24:32,563 - root - INFO - Log reading thread started
-2026-05-05 08:24:33,136 - root - ERROR - Error occurred while starting the application: Cannot find empty port in range: 7039-7039. You can specify a different port by setting the GRADIO_SERVER_PORT environment variable or passing the `server_port` parameter to `launch()`.
-2026-05-05 08:24:33,138 - root - INFO - Application closed

@@ -1,9 +1,0 @@
-2026-05-04 17:41:42,468 - root - INFO - Logging system initialized, log file: /Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-04 17-41-42.log
-2026-05-04 17:41:42,468 - root - INFO - Log reading thread started
-2026-05-04 17:41:52,469 - root - INFO - Processing question: 'Write a hello world python file and save it in local file', using module: Detailed Idea Description
-************************** Log Path **************************
-[2026-05-04 17:41:58]
-Log file is saved to
-/Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-04 17-41-42.log
-...
-2026-05-04 17:41:58,302 - root - ERROR - Error occurred while running Researcher: No module named 'research_agent.inno.rag_code_tree'

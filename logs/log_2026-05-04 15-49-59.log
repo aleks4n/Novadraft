@@ -1,4 +1,0 @@
-2026-05-04 15:49:59,427 - root - INFO - Logging system initialized, log file: /Users/aliihsangungoren/Desktop/AI-Researcher/logs/log_2026-05-04 15-49-59.log
-2026-05-04 15:49:59,427 - root - INFO - Log reading thread started
-2026-05-04 15:49:59,515 - root - ERROR - Error occurred while starting the application: Textbox.__init__() got an unexpected keyword argument 'show_copy_button'
-2026-05-04 15:49:59,516 - root - INFO - Application closed

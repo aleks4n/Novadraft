@@ -8,3 +8,4 @@ workplace/
 research_agent/paper_db
 __pycache__/
 .venv/
+logs/
