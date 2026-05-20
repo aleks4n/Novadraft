@@ -140,10 +140,13 @@ class PlainTextConverter(DocumentConverter):
 
     def convert(self, local_path: str, **kwargs: Any) -> Union[None, DocumentConverterResult]:
         # Guess the content type from any file extension that might be around
-        content_type, _ = mimetypes.guess_type("__placeholder" + kwargs.get("file_extension", ""))
+        file_extension = kwargs.get("file_extension", "").lower()
+        content_type, _ = mimetypes.guess_type("__placeholder" + file_extension)
 
         # Only accept text files
-        if content_type is None:
+        if file_extension in {".tex", ".bib", ".sty", ".cls"}:
+            pass
+        elif content_type is None:
             return None
         elif "text/" not in content_type.lower():
             return None

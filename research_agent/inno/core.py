@@ -204,7 +204,30 @@ class MetaChain:
                     }
                 )
                 continue
-            args = json.loads(tool_call.function.arguments)
+            
+            try:
+                args = json.loads(tool_call.function.arguments)
+            except json.JSONDecodeError as e:
+                self.logger.info(
+                    (
+                        f"[Tool Call Error] Invalid JSON arguments for tool {name}. "
+                        f"Error: {e}. Raw arguments: {tool_call.function.arguments!r}"
+                    ),
+                    title="Tool Call Error",
+                    color="red",
+                )
+                partial_response.messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool_call.id,
+                        "name": name,
+                        "content": (
+                            f"[Tool Call Error] Invalid JSON arguments for tool {name}: {e}. "
+                            "Please retry the tool call with valid JSON arguments."
+                        ),
+                    }
+                )
+                continue
             
             # debug_print(
             #     debug, f"Processing tool call: {name} with arguments {args}")

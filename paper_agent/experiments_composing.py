@@ -287,6 +287,12 @@ Output the revised experiments section incorporating all these improvements. Rep
             'experiment_analysis_agent_iter_refine_2.json',
             'machine_learning_agent_iter_refine_2.json',
         ]
+        agent_files = [
+            agent_file for agent_file in agent_files
+            if os.path.exists(os.path.join(agent_dir, agent_file))
+        ]
+        if not agent_files:
+            logging.warning("No experiment refinement agent files found; using project summary only.")
 
         # Step 1: Iterative structure generation
         structure = ""

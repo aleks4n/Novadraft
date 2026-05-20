@@ -3,4 +3,8 @@ ai_researcher.egg-info/
 /gnn
 agents/
 workplace/
-*.DS_Store
+*.pyc
+.DS_Store
+research_agent/paper_db
+__pycache__/
+.venv/
