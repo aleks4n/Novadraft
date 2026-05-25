@@ -292,7 +292,8 @@ Your goal is to create a complete knowledge base that bridges theoretical concep
 
     def transfer_back_to_survey_agent(academic_definition: str, code_implementation: str, reference_codebases: List[str], context_variables: dict):
         """
-        After you have carefully read the related paper, understood the academic definition, especially the math formula, and reviewed the corresponding code implementation, you should take notes about the specific academic definition, math formula, and code implementation for the further innovation.
+        After you have carefully read the related paper, understood the academic definition, especially the math formula, and reviewed the corresponding code implementation,
+        you should take notes about the specific academic definition, math formula, and code implementation for the further innovation.
         Args:
             academic_definition: the academic definition to be explored. It should be a single, atomic academic concept with a few words.
             code_implementation: the code implementation of the academic definition. [IMPORTANT] It should be as complete as possible and it should be the real code. 
