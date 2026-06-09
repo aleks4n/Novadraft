@@ -1,0 +1,7 @@
+{
+  "category": "efficient attention mechanisms",
+  "papers": [
+    "Title: Linformer. Abstract: linear-complexity self-attention via low-rank projection.",
+    "Title: Performer. Abstract: kernel-based approximation of softmax attention with FAVOR+."
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "paper_id": "doi_10_1109_tce_2025_3534859",
+  "metadata": {
+    "title": "DDCM: Cracking Anonymized Facial Images Using Denoising Diffusion Cryptanalytic Model",
+    "authors": [
+      "Donghua Jiang",
+      "Jiangqun Ni",
+      "Nada Alasbali",
+      "Ibtehal Nafea",
+      "Qingliang Liu",
+      "Jawad Ahmad",
+      "Wadii Boulila"
+    ],
+    "year": 2025,
+    "venue": "IEEE Transactions on Consumer Electronics",
+    "abstract": null,
+    "identifiers": {
+      "arxiv_id": null,
+      "doi": "10.1109/TCE.2025.3534859",
+      "semantic_scholar_id": null,
+      "openreview_id": null
+    }
+  },
+  "source": {
+    "input_query": "10.1109/TCE.2025.3534859",
+    "input_type": "doi",
+    "resolved_via": "crossref+unpaywall",
+    "source_url": "https://doi.org/10.1109/TCE.2025.3534859",
+    "files": {
+      "pdf": null,
+      "tex_dir": null,
+      "tex_main": null
+    },
+    "fetched_at": "2026-06-07T15:10:20Z"
+  },
+  "content": null,
+  "summary": null,
+  "gaps": {
+    "gap_ids": []
+  },
+  "processing": {
+    "fetched": true,
+    "extracted": false,
+    "summarized": false,
+    "gaps_extracted": false
+  },
+  "warnings": [
+    "no_open_access_pdf"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "gap_id": "gap_49dfa01e",
+  "status": "unchecked",
+  "title": "Embedding visualizations as tool for novel math objects is speculative",
+  "description": "The authors speculate that embedding visualizations could one day provide intuitions about novel mathematical objects, but this remains a speculative future direction.",
+  "type": "future_work",
+  "canonical_description": "embedding visualizations as a tool for gaining intuitions about novel mathematical objects is speculative",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2201.02177",
+      "section": "discussion",
+      "quote": "we speculate that such visualizations could one day be a useful way to gain intuitions about novel mathematical objects.",
+      "char_offset": [
+        862,
+        982
+      ]
+    }
+  ],
+  "extracted_at": "2026-06-09T09:17:34Z"
+}

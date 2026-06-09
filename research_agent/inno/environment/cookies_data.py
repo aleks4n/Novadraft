@@ -1,2 +1,0 @@
-COOKIES_LIST = [
-]

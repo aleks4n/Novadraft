@@ -1,0 +1,20 @@
+{
+  "gap_id": "gap_6ecf357e",
+  "status": "unchecked",
+  "title": "Network uses abstract symbols with no inherent structure",
+  "description": "The approach assumes that symbols representing elements have no internal structure; the network must learn all properties solely from interactions between symbols.",
+  "type": "assumption",
+  "canonical_description": "network uses abstract symbols with no inherent structure; all structure must be learned from interactions",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2201.02177",
+      "section": "introduction",
+      "quote": "the network is not made aware of any internal structure of the elements, and has to learn about their properties only from their interactions with other elements.",
+      "char_offset": [
+        2240,
+        2402
+      ]
+    }
+  ],
+  "extracted_at": "2026-06-09T09:17:34Z"
+}

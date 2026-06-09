@@ -1,0 +1,20 @@
+{
+  "gap_id": "gap_6c7dee08",
+  "status": "unchecked",
+  "title": "Grokking lacks theoretical explanation",
+  "description": "The paper conjectures that grokking may be due to SGD noise driving optimization to flatter minima, but this mechanism is not proven and is identified as an open question for future investigation.",
+  "type": "open_problem",
+  "canonical_description": "grokking phenomenon lacks theoretical explanation; mechanism is conjectured but not proven",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2201.02177",
+      "section": "appendix",
+      "quote": "We conjectured that the grokking phenomena we report in this work may be due to the noise from SGD driving the optimization to flatter/simpler solutions that generalize better and hope to investigate in future work whether any of these measures are predictive of grokking.",
+      "char_offset": [
+        7669,
+        7941
+      ]
+    }
+  ],
+  "extracted_at": "2026-06-09T09:17:34Z"
+}

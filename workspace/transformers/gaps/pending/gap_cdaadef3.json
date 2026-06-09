@@ -1,0 +1,17 @@
+{
+  "gap_id": "gap_cdaadef3",
+  "status": "unchecked",
+  "title": "Some binary operations resist generalization",
+  "description": "Certain operations (e.g., x^3+xy^2+y mod 97) did not lead to generalization within the allowed optimization budget at any training data percentage up to 95%, with models merely memorizing the training data.",
+  "type": "negative_result",
+  "canonical_description": "some binary operations resisted generalization within the optimization budget and data fraction range tested",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2201.02177",
+      "section": "experiments",
+      "quote": "Some operations (for example $x^3+xy^2+y \\pmod {97}$) didn't lead to generalization within the allowed optimization budget at any percentage of data up to 95%.",
+      "char_offset": null
+    }
+  ],
+  "extracted_at": "2026-06-09T09:17:34Z"
+}
