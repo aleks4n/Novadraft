@@ -1,0 +1,20 @@
+{
+  "gap_id": "gap_beee4703",
+  "status": "unchecked",
+  "title": "Dot-product compatibility function may be suboptimal",
+  "description": "Reducing attention key size hurts quality, suggesting that the dot-product compatibility function may not be optimal and a more sophisticated function could be beneficial.",
+  "type": "limitation",
+  "canonical_description": "dot-product compatibility function for attention may not be optimal",
+  "evidence": [
+    {
+      "paper_id": "hash_6b0297d5",
+      "section": "model_variations",
+      "quote": "This suggests that determining compatibility is not easy and that a more sophisticated compatibility function than dot product may be beneficial.",
+      "char_offset": [
+        1199,
+        1344
+      ]
+    }
+  ],
+  "extracted_at": "2026-06-15T15:05:40Z"
+}

@@ -1,0 +1,134 @@
+\clearpage
+\setcounter{page}{1}
+\maketitlesupplementary
+
+
+% The supplementary materials provide additional analysis to enrich the main paper, along with further results and insights.
+% This document is organized as follows: In Section~\ref{sec:sup_sourcecode} we provide the source code and demo resources, with implementation details in Section~\ref{sec:sup_sourcecode_details}. Section~\ref{sec:sup_results} presents additional results, including a time and memory analysis (Section~\ref{sec:sup_results_time}), guidance ablations (Section~\ref{sub:sup_results_ablation}), and a reconstruction evaluation (Section~\ref{sec:sup_reconstruction}). Finally, Sections~\ref{sec:sup_limitations_structure} and~\ref{sec:sup_limitations_failure} discuss limitations regarding structure preservation and failure cases.
+
+
+The supplementary materials provide additional analysis to enrich the main paper, along with further results and insights. This document is structured as follows: Section~\ref{sec:sup_sourcecode} contains the source code and demo resources, with implementation information provided in Section~\ref{sec:sup_sourcecode_details}. Section~\ref{sec:sup_results} presents additional experimental outcomes including time and memory requirements (Section~\ref{sec:sup_results_time}), guidance ablations (Section~\ref{sub:sup_results_ablation}), and an evaluation of reconstruction performance (Section~\ref{sec:sup_reconstruction}). Finally, Sections~\ref{sec:sup_limitations_structure} and~\ref{sec:sup_limitations_failure} discuss limitations regarding structure preservation and failure cases.
+
+
+
+
+
+
+
+
+
+\section{Source Code}
+\label{sec:sup_sourcecode}
+% The source code, the scripts to replicate the experiments, as well as a web demo both off-line (\textit{i.e.,} the Gradio app) and on-line (\textit{i.e.,} Huggingface demo) are available at \codeurl{}.The PIE-Bench images corresponding to the quantitative results in Tables \ref{tab:ablation_piebench}, \ref{tab:comparison_piebench}, and \ref{tab:user_study} of the main paper are available as well in a PNG file with all the parameters as metadata so further analysis can be performed on it if needed.
+
+The source code, scripts for replicating the experiments, and a web demo (including an offline version via the Gradio app and an online version hosted on Hugging Face) are available at \codeurl{}. Additionally, the PIE-Bench and MagicBrush images used for the quantitative results in Tables \ref{tab:ablation_piebench}, \ref{tab:comparison_piebench}, and \ref{tab:user_study} of the main paper are also accessible. These images are provided in PNG format, with all editing parameters embedded as metadata, facilitating further independent analysis.
+
+\subsection{Implementation Details}
+\label{sec:sup_sourcecode_details}
+
+In our preliminary analysis, best results for $512 \times 512$ images were achieved with $32 \times 32$ self-attention maps and $16 \times 16$ cross-attention maps, particularly from the second and third encoder blocks of the U-Net respectively and the corresponding upsampling block, similar to \cite{hertz2023prompt}. For $ 768 \times 768 $ images, the best results were obtained with $ 24 \times 24 $ self-attention and cross-attention maps, specifically from the third block. Additionally, our code supports FP16 computation, including gradient calculation, which significantly reduces time and memory consumption. To prevent gradients from becoming zero in half-precision floating-point arithmetic, the loss term is scaled by a factor of 500 prior to gradient computation, with the weighting factor $\lambda$ applied afterward (Sec.~\ref{sec:self_attention_guidance}).
+
+
+
+\section{Additional Results}
+\label{sec:sup_results}
+
+\subsection{Inference time and memory comparison}
+\label{sec:sup_results_time}
+\input{tables/comp_time.tex}
+
+% \begin{figure}
+%     \centering
+%     \includegraphics[width=0.99\linewidth]{fig/time.pdf}
+%     \caption{Running time required to generate\steph{edit?} 1, 2, and 5 images sequentially. For \method{} we describe two experimental settings, with 16FP and 32FP precision, named \textit{\method} and \textit{\method{} (FP32)} respectively.}
+%     \label{fig:comparison_time}
+% \end{figure}
+
+% In Table \ref{tab:comparison_time} we show that the FP16 version of \method{} has the smallest memory footprint among the compared methods and it is also the second fastest method by a tenth of a second. Meanwhile the FP32 version is still competitive with the other three best methods. The results for \nulltext{}, \pnp{}, \ptopzero, and \directinversion{} are obtained with \directinversion{}'s \cite{ju2023direct} source code \footnote{\url{https://github.com/cure-lab/DirectInversion}}, the results for \negative{} and \negprox{} are based on the source code from \cite{han2023proximal} \footnote{\url{https://github.com/phymhan/prompt-to-prompt}}. Every code is executed in the same conda environment on a NVIDIA A100-40GB GPU.
+
+% The underlying reasons for \method{}'s competitive performance in both processing speed and memory efficiency, despite employing a computationally intensive operation such as gradient-based guidance, are twofold. Primarily, the computation of guidance is limited to a subset of self-attention maps, significantly reducing the overall computational load. Secondly, and perhaps most notably, \method{} distinguishes itself from the remaining methods evaluated by omitting the input image reconstruction step entirely. This strategic omission not only streamlines the process, enhancing efficiency, but also contributes to the method's reduced memory usage. These innovations collectively underscore \method{}'s ability to deliver high performance while navigating the challenges of resource constraints.
+
+
+Table~\ref{tab:comparison_time} summarizes the performance of various prompt-based editing methods on a NVIDIA A100-40GB GPU. The Time column reports the additional time required to generate a second 512×512 image (isolating generation cost from model/data loading), and the Memory column indicates the peak memory allocated per image as measured using the command-line utility \texttt{nvidia-smi}.
+
+Our FP16 version of \method{} uses the least memory (7.4 GB) and is the second fastest (12.6 s), while the FP32 version also remains competitive. These advantages are primarily due to two factors: (i) gradient-based guidance is computed on only a subset of self-attention maps, greatly reducing computational load, and (ii) the complete omission of the input image reconstruction step streamlines processing and lowers memory usage. All methods were executed under identical conditions using their original codebases.
+
+
+\input{fig/cfg_self_matrix.tex}
+
+\subsection{Classifier-Free and Self-attention guidance} 
+
+\label{sub:sup_results_ablation}
+
+Figure~\ref{fig:supablation_cfg_guidance} evaluates the impact of both classifier-free guidance ($w$) and self-attention guidance ($\lambda$) on the generation process. It can be seen how a higher $\lambda$ value results in greater attention to the input structure, whereas greater $w$ values result in more plausible generation but also in more saturated colors (already discussed in \cite{ho2021classifier}). Higher self-attention guidance $\lambda$ values result in both better structure preservation and better color preservation as it reduces the negative impact of high CFG in natural looking colors. An appropiate balance is necessary to generate images that preserve the structure of the input image while performing deep, natural-looking transformations that reflect $\pout$.
+
+
+\input{fig/res_reconstruction}
+\input{fig/res_reconstruction_table.tex}
+
+\subsection{Self-attention guidance for reconstruction}
+\label{sec:sup_reconstruction}
+% In Fig \ref{fig:res_reconstruction} we compare SAGE's reconstruction performance when using the same input and editing prompt to the bare VAE reconstruction. In this evaluation, no local blending or other auxiliary techniques are applied, only self-attention guidance. The results demonstrate that SAGE can faithfully reconstruct fine details, despite not explicitly optimizing for reconstruction as \nulltextlong{} or accounting for the VAE reconstruction error as \directinversionlong{} methods do. Quantitatively, our method performs worse than these baselines in strict reconstruction metrics (see Table \ref{tab:res_reconstruction}), as they directly target the VAE latent space. However, this difference has no noticeable impact on the final editing quality, as it could be assessed in Tables \ref{tab:comparison_piebench}, \ref{tab:comparison_magicbrush} and \ref{tab:user_study} where \method{} outperform the compared methods, particularly on the reconstruction metrics.
+Figure~\ref{fig:res_reconstruction} compares the reconstruction performance of \method{} given the same input image and editing prompt against the baseline VAE reconstruction. This evaluation applies only self-attention guidance, without local blending or auxiliary techniques. The results clearly show that SAGE preserves fine details despite not explicitly optimizing for reconstruction like \nulltextlong{} or compensating for VAE reconstruction errors as \directinversionlong{} does. Although our method performs worse on strict reconstruction metrics (Table~\ref{tab:res_reconstruction}) due to its indirect approach, this has no noticeable impact on final editing quality. As shown in Tables~\ref{tab:comparison_piebench}, \ref{tab:comparison_magicbrush}, and \ref{tab:user_study}, the proposed method outperforms the compared methods, particularly in reconstruction-related evaluations.
+
+
+
+
+
+% \subsection{PieBench Examples}
+% \label{sec:sup_results_piebench}
+
+% \input{fig/ex_all1.tex}
+% % \input{fig/ex_all2.tex}
+
+% In Figure \ref{fig:sup_exall1} we show additional qualitative examples of the results corresponding to the images generated with the complete SAGE method variant \textit{(vi)} (see Table \ref{tab:ablation_piebench} of the main paper) and used for computing the metrics in Tables \ref{tab:ablation_piebench}, \ref{tab:comparison_piebench}, and \ref{tab:user_study} of the main manuscript. Our understanding is that as the self-attention maps mostly encode low-resolution semantic features instead of shapes, SAGE is able to generate images that better capture the style while changing the content (as the fox in the second row of Fig~\ref{fig:sup_exall1}), has more freedom to edit the shape of elements (as the tulips in the third row of Fig~\ref{fig:sup_exall1}), and is able to eliminate elements that are present in the original image while filling the gap with plausible content (as the camera in the last row of Figs~\ref{fig:sup_exall1} and~\ref{fig:sup_structpres}). Similarly, SAGE is the only method capable of applying pixel-art style (clown in Fig~\ref{fig:sup_exall1}). Further confirmation of our hypothesis that self-attention maps encode low-resolution semantic features is provided by the fact that SAGE changes not only the style of the last row of Fig~\ref{fig:sup_exall1} but also substantially changes the kind of chair (from modern to classic) to better fit the style of the new prompt.
+
+% \subsection{Direct Inversion comparison}
+% \label{sec:sup_results_di}
+
+% Discuss the results of the direct inversion comparison and include the discussion with the time/mem fp16 analysis. \ref{fig:sup_ex_di_comp}.
+% \directinversion{} exhibits competitive performance compared to \method{}, both in quantitative metrics and user evaluations. However, \directinversion{} struggles in specific scenarios due to its approach to content preservation through $\vz$-space reconstruction. \directinversion's performance is bound to reconstruction of the input image in the high-resolution latent $\vz$-space, which, while effective in many contexts, falls short when deviations from the source shape are required. Unlike \directinversion{}, \method{} operates on self-attention maps within a semantically-rich, lower-resolution space, affording it superior adaptability in situations where pixel-perfect accuracy is detrimental. For instance, \directinversion's limitations become evident when attempting pixel-art style transformations (as shown in Figure \ref{fig:sup_exall1}), where its inherent constraints on divergence hinder the editing of the target image style. Similarly, Figure \ref{fig:sup_ex_di_comp} highlights DI's inadequacies in image edits involving significant shape alterations or object removal, where its reliance on close adherence to the input image's structural integrity limits effective modifications.
+
+% Even though the simpler \textit{three-code-lines} approach of DI \cite{ju2023direct} grants it a slight edge in computational efficiency, \method{}'s superior adaptability and flexibility in image editing scenarios, as well as its competitive performance in time and memory consumption, position it as a more versatile and effective solution for prompt-guided image editing.
+
+% \input{fig/ex_di_comp.tex}
+
+% \newpage
+% \input{fig/selfreplace_fig.tex}
+% \subsection{Ablation Analysis}
+% \label{sec:sup_results_ablation}
+
+% \paragraph{Self-attention replace} In Figures \ref{fig:supablation_selfreplace} we show the results of replacing the self-attention (as in \cite{hertz2023prompt}) instead of guiding the reconstruction towards them as described in Sec~\ref{sec:self_attention_guidance}. CFG $w$ values between $0$ (only $\pin$) and $1$ (only $\pout$) are able to generate plausible interpolation between both but with really poor prompt fidelity (as expected), whereas for $w$ values higher than 1, the generation quality is really poor, with oversaturated colors and artifacts. This is most likely due to the fact that direction of the second added of Eq~\ref{eq:cfg} is too high as both $\pin$ and $\pout$ self-attention maps are misaligned (guidance results in a softer difference). To solve this, \cite{hertz2023prompt} replaces the self-attention maps of both $\pin$ (or $\varnothing$) and $\pout$ inducing the need of a whole reconstruction stage (see Fig~\ref{fig:related}), not only the $\pin$ branch as we do (see Fig~\ref{fig:method_diag}).
+
+
+% \paragraph{CFG and Attention reweighting} 
+% %In Figure \ref{fig:supablation_cfg_weight}, we show the impact of CFG (Sec \ref{sec:self_attention_guidance}) and Attention Reweighting (Sec \ref{sec:cross_attention_manipulation}) in the generation process. Both techniques are able to increase the attention to $\pout$ but their procedure and impact is different. We show how CFG achieves more natural looking result, whereas in our example attention reweighting results in dog-features leaking to the goat. In our experience, attention reweighting should be reserved to situations where further increasing the CFG would result in unnatural results and oversaturated colors or artifacts as it usually yields better editing. If CFG is not enough, then it is better to decrease the CFG and apply attention reweighting to increase the attention to some $\pout$ key words, otherwise unnatural-looking colors are amplified when both parameters are high.
+% \input{fig/competing_terms_fig.tex}
+% \input{fig/cfg_weight_matrix.tex}
+
+% In Figure \ref{fig:supablation_competing}, we illustrate the competing and coordinated nature of self-attention guidance and the Classifier-Free guidance. In Figure \ref{fig:supablation_competing_self}, we can see how self-attention guidance works through the entire image to reconstruct the input image, whereas in Figure \ref{fig:supablation_competing_cfg}, we can see how Classifier-Free guidance works only in the areas corresponding to semantic editing.
+
+\section{Limitations}
+\subsection{Structure Preservation}
+\label{sec:sup_limitations_structure}
+
+
+    Figure~\ref{fig:sup_structpres} shows that when objects are removed by omitting corresponding words from the prompt, \method{} fills the resulting gaps with content that maintains structural similarities to the removed elements. This behavior likely arises from a conflict between CFG—which pushes for object removal—and self-attention guidance—which favors preserving the original structure. Despite this unintended effect, \method{} is the only approach among those compared that actually removes objects, whereas other negative-prompt-based methods fail to do so. Future work may address this by selectively masking self-attention guidance in areas corresponding to the removed elements, similar to the local blending strategy.
+
+\input{fig/ex_structpres.tex}
+
+\subsection{Failure Cases}
+\label{sec:sup_limitations_failure}
+
+\input{fig/ex_fail_all.tex}
+
+% As discussed in Sections \ref{sec:limitations} of the main paper of supplementary materials, CFG-based methods are sensitive to the hyperparameters used for generation. This is specially true in the compared methods as they all include additional parameters for the editing or reconstruction. In Figure \ref{fig:sup_exfailall} we show some examples of the images corresponding to the PieBench dataset where the different methods strugle to achieve the required editing. In most of the cases, at least for SAGE, the problem can be solved by a different choice of parameters, but this is not plausible in large-scale quantitative evaluations.
+
+% \input{fig/ex_fail_us.tex}
+% In a smaller extent, we find examples where SAGE performs significantly worse than some other method. This is specially true for editings where changes are small or have fine details as \textit{spiderman} or the \textit{moon} in Figure \ref{fig:sup_exfailus}.
+
+% \input{fig/ex_fail_satur.tex}
+%Finally, we have observed that in a few cases, when all the methods fail (as happened in Fig~\ref{fig:sup_exfailall}), SAGE displays a failing behaviour different to the rest of methods. In Figure \ref{fig:sup_exfailsatur} we show some examples of this behaviour. The resulting images are oversaturated and poorly reconstructed. In these cases, the problem can be solved by reducing significantly both the CFG $w$ and Self-attention guidance $\lambda$ values.
+% Finally, we have observed distinct failure patterns in SAGE, particularly in scenarios where all methods struggle. In a few cases (only 6 out of the 700 PieBench examples), SAGE tends to produce oversaturated and poorly reconstructed images, as exemplified in the last row of Fig. \ref{fig:sup_exfailall}. These issues are notably different from the failure modes of other methods. Fortunately, we found that significantly reducing both CFG $w$ and self-attention guidance $\lambda$ values can effectively address these problems, offering a viable solution for these specific failure cases.
+
+CFG-based editing methods are inherently sensitive to hyperparameter settings, especially when additional parameters control editing or reconstruction. Figure~\ref{fig:sup_exfailall} presents examples from the PieBench dataset where various methods, including ours, struggle to achieve the intended edits. In many cases, tuning parameters can resolve the issues for SAGE, but such fine-tuning is impractical for large-scale evaluations. Notably, in a small fraction of cases (6 out of 700), SAGE produces oversaturated and poorly reconstructed images—a distinct failure mode compared to other methods. We found that significantly reducing both the CFG weight ($w$) and the self-attention guidance ($\lambda$) effectively mitigates these problems, indicating a promising direction for further refinement.

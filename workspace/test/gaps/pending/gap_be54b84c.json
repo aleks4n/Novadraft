@@ -1,0 +1,20 @@
+{
+  "gap_id": "gap_be54b84c",
+  "status": "unchecked",
+  "title": "Inherently sequential nature of recurrent models limits parallelization",
+  "description": "Recurrent models factor computation sequentially along symbol positions, precluding parallelization within training examples, a limitation that the Transformer addresses but is acknowledged as a fundamental constraint of prior approaches.",
+  "type": "limitation",
+  "canonical_description": "recurrent models sequential computation prevents parallel training within examples",
+  "evidence": [
+    {
+      "paper_id": "hash_6b0297d5",
+      "section": "introduction",
+      "quote": "This inherently sequential nature precludes parallelization within training examples, which becomes critical at longer sequence lengths, as memory constraints limit batching across examples.",
+      "char_offset": [
+        1737,
+        1927
+      ]
+    }
+  ],
+  "extracted_at": "2026-06-15T15:05:40Z"
+}

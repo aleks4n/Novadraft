@@ -1,0 +1,52 @@
+
+{ 
+    
+
+\begin{table}[htbp]
+    
+    \small
+    \centering
+      \renewcommand\arraystretch{1.}
+      \setlength{\tabcolsep}{0.7mm}{
+    \begin{threeparttable}
+    \begin{tabular}{ccccc}
+
+    \toprule
+    %\multicolumn{2}{c}{\textbf{Structure}}  &  \multicolumn{2}{c}{\textbf{Background}} & \multicolumn{2}{c}{\textbf{Prompt}} && \multicolumn{2}{c}{\textbf{Global}} \\ 
+    \textbf{\method~vs}& \textbf{Structure\%}  &  \textbf{Background\%} & \textbf{Prompt\%} & \textbf{Global\%} \\
+    \midrule
+    % \ptopzerolong~\cite{parmar2023zero} & 93.8\% &	92.0\% &	83.0\% &	75.9\% \\
+    % \nulltextlong~\cite{mokady2023null} & 70.5\% &	69.6\% &	52.7\% &	54.5\%  \\
+    %  \directinversionlong~\cite{ju2023direct} & 55.4\% / 1 &	62.5\% &	52.7\% &	52.7\% \\
+    %      \negproxlong~\cite{han2023proximal} & 58.9\% &	58.0\% &	62.5\% &	59.8\%  \\
+    \ptopzero~\cite{parmar2023zero} &       93.8 &	            92.0 &	    83.0 &	    75.9 \\
+    \nulltext~\cite{mokady2023null} &       70.5 &	            69.6 &	    52.7 &	    54.5  \\
+     \directinversion~\cite{ju2023direct} & 55.4 / 52.0 &	    62.5 / 55.3 &	    52.7 / 46.5 &	    52.7 / 52.7 \\
+         \negprox~\cite{han2023proximal} &  58.9 &	            58.0 &	    62.5 &	    59.8  \\
+    % \midrule
+    % Average & 69.6\% &	70.5\% &	62.7\% &	60.7\%  \\
+    \bottomrule
+    \end{tabular}
+    % \begin{tablenotes}
+    %    \footnotesize
+    %    \item[a] Without cross-attention manipulation described in \ref{sec:cross_attention_manipulation}
+    %    \item[b] Including cross-attention replacement
+    %     \end{tablenotes}
+    \end{threeparttable}
+    }
+        % \vspace{-0.2cm}
+% \caption{User study results showing the frequency with which our method, \method, was preferred over the comparative methods. A total of 1792 questions were answered by participants. Additionally, \directinversion{} was evaluated in a separate user study involving 1540 questions on MagicBrush to assess statistical significance. All method comparisons demonstrate statistical significance with $p < 0.01$, determined using a binomial test and the \textit{Fisher} combined method.}
+
+\caption{User study results showing the frequency with which {\modified{} the proposed method (\method{})} was preferred over {\modified{} compared methods}. A total of 1792 questions were answered by participants. For \directinversion{}, two results are reported: the first corresponds to the PieBench dataset{\modified{}}, consistent with other methods, while the second represents the user study conducted on MagicBrush with 1540 additional questions to assess statistical significance. All method comparisons demonstrate statistical significance with $p < 0.01$, determined using a binomial test and the \textit{Fisher} method for {\modified{}combining} \textit{p-values}.}
+
+
+
+            \label{tab:user_study}
+        % \vspace{-0.2cm}
+    \end{table}
+
+    
+    
+    
+    }
+    

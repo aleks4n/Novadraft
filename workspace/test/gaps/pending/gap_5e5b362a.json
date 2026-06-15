@@ -1,0 +1,20 @@
+{
+  "gap_id": "gap_5e5b362a",
+  "status": "unchecked",
+  "title": "Self-attention reduces effective resolution via averaging",
+  "description": "Averaging attention-weighted positions in self-attention reduces effective resolution, necessitating multi-head attention as a countermeasure.",
+  "type": "caveat",
+  "canonical_description": "self-attention averages over positions reducing effective resolution",
+  "evidence": [
+    {
+      "paper_id": "hash_6b0297d5",
+      "section": "background",
+      "quote": "albeit at the cost of reduced effective resolution due to averaging attention-weighted positions, an effect we counteract with Multi-Head Attention as described in section 3.2.",
+      "char_offset": [
+        649,
+        825
+      ]
+    }
+  ],
+  "extracted_at": "2026-06-15T15:05:40Z"
+}

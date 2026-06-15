@@ -1,0 +1,20 @@
+{
+  "gap_id": "gap_96780269",
+  "status": "unchecked",
+  "title": "Attention mechanisms typically used only as supplement to RNNs",
+  "description": "Prior to this work, attention mechanisms were almost always used in conjunction with a recurrent network rather than as the sole computational primitive.",
+  "type": "limitation",
+  "canonical_description": "attention mechanisms historically only supplement recurrent networks not replace them",
+  "evidence": [
+    {
+      "paper_id": "hash_6b0297d5",
+      "section": "introduction",
+      "quote": "In all but a few cases [22], however, such attention mechanisms are used in conjunction with a recurrent network.",
+      "char_offset": [
+        2442,
+        2555
+      ]
+    }
+  ],
+  "extracted_at": "2026-06-15T15:05:40Z"
+}

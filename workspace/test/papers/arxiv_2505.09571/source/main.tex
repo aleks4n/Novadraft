@@ -1,0 +1,159 @@
+\documentclass[journal]{IEEEtran}
+\usepackage{amsmath,amsfonts}
+\usepackage{algorithmic}
+\usepackage{algorithm}
+\usepackage{array}
+% \usepackage[caption=false,font=normalsize,labelfont=sf,textfont=sf]{subfig}
+\usepackage{textcomp}
+\usepackage{stfloats}
+\usepackage{url}
+\usepackage{verbatim}
+\usepackage{graphicx}
+\usepackage{cite}
+
+
+\usepackage[dvipsnames]{xcolor}
+% Import additional packages in the preamble file, before hyperref
+\input{preamble}
+\newcommand\steph[1]{\textcolor{red}{Steph: #1}}
+\newcommand\guille[1]{\textcolor{blue}{Guille: #1}}
+\newcommand\Rone[0]{\textcolor{red}{R1}}
+\newcommand\Rtwo[0]{\textcolor{blue}{R2}}
+\newcommand\Rthree[0]{\textcolor{orange}{R3}}
+% \newcommand\modified[0]{\color{teal}}
+\newcommand\modified[0]{}
+\usepackage[normalem]{ulem}
+\usepackage{threeparttable}
+\usepackage{adjustbox}
+\usepackage{wrapfig}
+
+
+
+\usepackage{tabularx,booktabs}
+\newcolumntype{Y}{>{\centering\arraybackslash}X}
+
+% It is strongly recommended to use hyperref, especially for the review version.
+% hyperref with option pagebackref eases the reviewers' job.
+% Please disable hyperref *only* if you encounter grave issues, 
+% e.g. with the file validation for the camera-ready version.
+%
+% If you comment hyperref and then uncomment it, you should delete *.aux before re-running LaTeX.
+% (Or just hit 'q' on the first LaTeX run, let it finish, and you should be clear).
+\definecolor{cvprblue}{rgb}{0.21,0.49,0.74}
+\usepackage[pagebackref,breaklinks,colorlinks,citecolor=cvprblue]{hyperref}
+\usepackage{xcolor} % Make sure to include this in your preamble if not already included
+\usepackage{maths}
+\newcommand{\note}[1]{\textcolor{red}{Note: #1}}
+
+\usepackage{array} 
+\usepackage{subcaption}
+\usepackage{multirow}
+\usepackage{soul}       % For strike-through
+\usepackage{amssymb}
+
+
+\hyphenation{op-tical net-works semi-conduc-tor IEEE-Xplore}
+% updated with editorial comments 8/9/2021
+
+\newcommand*{\affaddr}[1]{#1} 
+\newcommand*{\affmark}[1][*]{\textsuperscript{#1}}
+\newcommand*{\email}[1]{\texttt{#1}}
+\newcommand*\samethanks[1][\value{footnote}]{\footnotemark[#1]}
+
+% CVPR commands
+\def\onedot{.}
+\def\eg{\emph{e.g}\onedot} \def\Eg{\emph{E.g}\onedot}
+\def\ie{\emph{i.e}\onedot} \def\Ie{\emph{I.e}\onedot}
+\def\cf{\emph{cf}\onedot} \def\Cf{\emph{Cf}\onedot}
+\def\etc{\emph{etc}\onedot} \def\vs{\emph{vs}\onedot}
+\def\wrt{w.r.t\onedot} \def\dof{d.o.f\onedot}
+\def\iid{i.i.d\onedot} \def\wolog{w.l.o.g\onedot}
+\def\etal{\emph{et al}\onedot}
+
+\def\maketitlesupplementary
+   {
+   \newpage
+       \twocolumn[
+        \centering
+        \Large
+        \textbf{\thetitle}\\
+        \vspace{0.5em}Supplementary Material \\
+        \vspace{1.0em}
+       ] %< twocolumn
+   }
+
+%% redefine the \title command so that a variable name is saved in \thetitle, and provides the \maketitlesupplementary command 
+\let\titleold\title
+\renewcommand{\title}[1]{\titleold{#1}\newcommand{\thetitle}{#1}}
+\def\maketitlesupplementary
+   {
+   \newpage
+       \twocolumn[
+        \centering
+        \Large
+        \textbf{\thetitle}\\
+        \vspace{0.5em}Supplementary Material \\
+        \vspace{1.0em}
+       ] %< twocolumn
+   }
+
+\fboxsep=0.1mm%padding thickness
+\fboxrule=1pt%border thickness
+
+
+\author{
+Guillermo Gomez-Trenado\affmark[1]\affmark[2], Pablo Mesejo\affmark[1], Oscar Cordón\affmark[1], and Stéphane Lathuilière\affmark[3]\\
+% Guillermo Gómez-Trenado\affmark[1]\\
+\small{\affaddr{\affmark[1]University of Granada and DaSCI Research Institute, Granada 18014, Spain}}\\
+\small{\affaddr{\affmark[2]Panacea Cooperative Research, Ponferrada 24402, Spain}}\\
+\small{\affaddr{\affmark[3]Inria at University Grenoble Alpes, Montbonnot-Saint-Martin, 38330, France}}\\
+
+}
+
+\begin{document}
+
+\title{Don't Forget your Inverse DDIM for Image Editing}
+
+
+
+\maketitle
+
+% full‑width footnote at bottom of first page
+\IEEEpubid{%
+  \makebox[\columnwidth]{\hfill Corresponding author: Guillermo Gomez‑Trenado (guillermogomez@ugr.es) \hfill}%
+  \hspace{\columnsep}%
+  \makebox[\columnwidth]{}%
+}
+\IEEEpubidadjcol
+
+\input{sec/0_abstract}    
+
+\begin{IEEEkeywords}
+Diffusion Model, Image Editing, Image Generation, Image Synthesis, Prompt-Based Editing, Generative Models
+\end{IEEEkeywords}
+
+
+\input{sec/1_intro}
+\input{sec/2_related}
+\input{sec/3_method}
+\input{sec/4_experiments} 
+\input{sec/5_limitations}
+\input{sec/6_conclusions}
+\input{sec/7_acknowledgements}
+% {
+%     \small
+%     \bibliographystyle{ieeenat_fullname}
+%     \bibliography{main}
+% }
+
+\bibliographystyle{IEEEtran}
+\bibliography{main}
+
+% \input{sec/8_bio}
+
+% WARNING: do not forget to delete the supplementary pages from your submission 
+\input{sec/X_suppl}
+% \input{sec/X_rebuttal_2.tex}
+
+
+\end{document}
