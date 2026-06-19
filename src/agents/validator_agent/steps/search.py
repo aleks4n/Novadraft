@@ -14,7 +14,7 @@ from src.agents.validator_agent.schemas import SearchQuery
 from src.agents.validator_agent.state import ValidatorState
 
 _ARXIV_API = "https://export.arxiv.org/api/query?"
-_MAX_RESULTS = 25
+_MAX_RESULTS = 50
 _QUERY_SPACING = 3.0  # seconds between queries — arXiv rate-limits
 
 _RETRYABLE_STATUS = {429, 500, 502, 503, 504} # permanent error (e.g. 400 bad query) is not retried.

@@ -31,6 +31,18 @@ gap → query_gen → search → rrf → screen → deep_read → verdict → EN
   multiple `partial_solution`s may or may not add up to `solved`, which a label map can't capture.
 - **Empty short-circuit:** if `deep_read` produced no assessments, `verdict` returns a
   deterministic `open` verdict and skips the LLM call.
+- **Search/fusion favour recall, not precision.** Downstream steps (screen, deep_read)
+  re-read and filter, so a missed paper is lost for good while a loosely-relevant one is
+  harmless. Two consequences:
+  - query_gen `broad` is a genuine high-recall query (1–2 short, high-level terms, *not*
+    `literal` with synonyms stripped); group count may vary per query (more AND-groups =
+    narrower). Tuned over repeated runs where `broad` kept collapsing into `literal`.
+  - RRF uses `k=10` (not the standard 60). High k flattens the rank curve so cross-query
+    *consensus* wins and a unique-angle query gets buried (observed: a query contributing
+    0 of 15 candidates). k=10 lets a strong single-list hit survive. Not lower (k≤5):
+    a thin query list — e.g. 4 papers — would then flood the candidate pool, since rank
+    within a short list is a weak signal. k=10 fixes the shut-out without the flooding.
+    Tuned via an offline k-sweep over saved `step_02_search.json` traces.
 
 ## Deferred (NOT in V1)
 

@@ -86,7 +86,9 @@ if __name__ == "__main__":
 
     from src.common.schemas.gap import Gap
 
-    gap_path = Path(__file__).parent / "test_gaps" / "cot_reasoning.json"
+    # Optional CLI arg: a test_gaps filename (with or without .json). Defaults to CoT.
+    gap_name = sys.argv[1] if len(sys.argv) > 1 else "cot_reasoning"
+    gap_path = Path(__file__).parent / "test_gaps" / f"{gap_name.removesuffix('.json')}.json"
     gap = Gap.model_validate_json(gap_path.read_text(encoding="utf-8"))
 
     base_name = f"{gap_path.stem}-{_slugify(gap.title)[:20]}"
@@ -109,5 +111,12 @@ if __name__ == "__main__":
             )
 
             now = time.perf_counter()
-            print(f"[{node}]  {now - last:.1f}s")
+            for key, value in update.items():
+                print(f"[{node}]  {now - last:.1f}s  {key}: {_preview(value)}")
             last = now
+
+    verdict_path = run_dir / f"step_{step_counter:02d}_verdict.json"
+    if verdict_path.exists():
+        v = json.loads(verdict_path.read_text(encoding="utf-8"))["state_update"]["verdict"]
+        print(f"\nVERDICT: {v['status']} (confidence {v['confidence']:.2f})")
+        print(f"REASONING: {v['reasoning']}")
