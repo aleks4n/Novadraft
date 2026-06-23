@@ -1,0 +1,20 @@
+{
+  "gap_id": "gap_test_similarity_merge",
+  "status": "unchecked",
+  "title": "Embedding visualizations as tool for novel math objects is speculative",
+  "description": "Dummy test gap to verify that similar gaps merge evidence into the master list.",
+  "type": "future_work",
+  "canonical_description": "embedding visualizations as a tool for gaining intuitions about novel mathematical objects is speculative",
+  "evidence": [
+    {
+      "paper_id": "arxiv_test_similarity_merge",
+      "section": "dummy_section",
+      "quote": "Dummy evidence entry for merge behavior validation.",
+      "char_offset": [
+        0,
+        52
+      ]
+    }
+  ],
+  "extracted_at": "2026-06-23T10:00:00Z"
+}
