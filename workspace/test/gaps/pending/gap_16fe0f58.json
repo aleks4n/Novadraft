@@ -1,0 +1,23 @@
+{
+  "gap_id": "gap_16fe0f58",
+  "status": "unchecked",
+  "title": "Self-attention restricted to neighborhood for long sequences",
+  "description": "The authors note that to improve computational performance for tasks involving very long sequences, self-attention could be restricted to considering only a neighborhood of size r in the input sequence, and state they plan to investigate this in future work.",
+  "type": "future_work",
+  "canonical_description": "restricting self-attention to local neighborhoods for long sequences",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1706.03762",
+      "section": "why_self_attention",
+      "anchor": "We plan to investigate this approach further in future work",
+      "quote": "We plan to investigate this approach further in future work.",
+      "char_offset": [
+        2192,
+        2252
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-06-24T08:19:31Z"
+}

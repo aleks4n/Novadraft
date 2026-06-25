@@ -1,0 +1,23 @@
+{
+  "gap_id": "gap_1aef6bdc",
+  "status": "unchecked",
+  "title": "Reduced effective resolution from averaging in attention",
+  "description": "The authors note that the Transformer reduces path length to a constant number of operations at the cost of reduced effective resolution due to averaging attention-weighted positions, which they counteract with Multi-Head Attention.",
+  "type": "limitation",
+  "canonical_description": "averaging in attention reduces effective resolution",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1706.03762",
+      "section": "background",
+      "anchor": "at the cost of reduced effective resolution due to averaging attention-weighted positions",
+      "quote": "In the Transformer this is reduced to a constant number of operations, albeit at the cost of reduced effective resolution due to averaging attention-weighted positions, an effect we counteract with Multi-Head Attention as described in section~[REF:sec:attention].",
+      "char_offset": [
+        655,
+        918
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-06-24T08:19:31Z"
+}

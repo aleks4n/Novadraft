@@ -214,51 +214,66 @@
       "scaled dot-product attention",
       "sequence transduction",
       "machine translation",
-      "parallelization",
-      "state-of-the-art"
+      "encoder-decoder",
+      "parallelization"
     ],
     "topics": [
-      "transformer architectures",
       "attention mechanisms",
-      "machine translation",
       "sequence-to-sequence models",
-      "neural network design"
+      "neural machine translation",
+      "transformer architecture",
+      "self-attention"
     ],
     "problem": {
-      "statement": "The dominant sequence transduction models rely on recurrent or convolutional neural networks that are inherently sequential, preventing parallelization within training examples and limiting training speed.",
-      "motivation": "To develop a model that can be trained faster by enabling parallelization while achieving or surpassing state-of-the-art translation quality, by dispensing with recurrence and convolutions entirely and relying solely on attention mechanisms.",
+      "statement": "Recurrent and convolutional sequence transduction models are inherently sequential, preventing parallelization within training examples and limiting training speed, especially at longer sequence lengths.",
+      "motivation": "To develop a sequence transduction architecture that dispenses with recurrence and convolutions entirely, relying solely on attention mechanisms to draw global dependencies, thereby enabling significantly more parallelization and faster training while achieving superior translation quality.",
       "prior_limitations": [
-        "Recurrent models factor computation along symbol positions, precluding parallelization within training examples.",
-        "Attention mechanisms were typically used only in conjunction with recurrent networks, not as a standalone replacement.",
-        "Additive attention is slower than dot-product attention, but unnormalized dot-product attention suffers from vanishing gradients for large key dimensions.",
-        "Earlier efforts to improve computational efficiency (factorization, conditional computation) still left the fundamental sequential constraint of recurrence untouched."
+        "Recurrent models factor computation along symbol positions, creating an inherently sequential nature that precludes parallelization within training examples.",
+        "Memory constraints limit batching across examples at longer sequence lengths.",
+        "Existing attention mechanisms are almost always used in conjunction with recurrent networks, inheriting their sequential bottleneck.",
+        "Factorization tricks and conditional computation improve efficiency but do not remove the fundamental constraint of sequential computation."
       ]
     },
     "approach": {
-      "summary": "The Transformer is a sequence transduction model composed of stacked self-attention and position-wise feed-forward layers for both encoder and decoder, with multi-head attention (8 heads) and scaled dot-product attention. It removes all recurrence and convolution, relying entirely on attention to capture global dependencies. Residual connections and layer normalization are applied around each sub-layer. The model is trained on WMT 2014 English-to-German and English-to-French translation tasks, achieving state-of-the-art BLEU scores with significantly less training time (3.5 days on 8 GPUs).",
+      "summary": "The Transformer is an encoder-decoder architecture composed entirely of stacked self-attention and position-wise feed-forward layers, with no recurrent or convolutional components. The encoder consists of 6 identical layers, each with a multi-head self-attention sub-layer and a feed-forward sub-layer, using residual connections and layer normalization. The decoder has 6 identical layers with an additional encoder-decoder attention sub-layer, plus masking in self-attention to preserve auto-regressive properties. The core attention mechanism is Scaled Dot-Product Attention, which computes attention as softmax(QK^T/√d_k)V, with the scaling factor preventing vanishing gradients for large key dimensions. Multi-Head Attention projects queries, keys, and values h=8 times with different learned linear projections, allowing the model to attend to information from different representation subspaces at different positions. Positional encodings are added to input embeddings to inject sequence order information.",
       "key_ideas": [
-        "Scaled dot-product attention with a scaling factor of 1/√d_k to counteract vanishing gradients for large dimensions.",
-        "Multi-head attention consisting of h=8 parallel attention layers, allowing the model to attend to information from different representation subspaces at different positions.",
-        "Complete removal of recurrence and convolution; the entire model is based on attention and feed-forward networks.",
-        "Use of residual connections and layer normalization to ease training of the deep (6-layer) encoder and decoder stacks."
+        "Complete removal of recurrence and convolutions in favor of pure attention mechanisms",
+        "Scaled Dot-Product Attention with scaling factor 1/√d_k to counteract softmax gradient issues for large dimensions",
+        "Multi-Head Attention with h=8 parallel attention heads enabling joint attention across different representation subspaces",
+        "Stacked encoder-decoder architecture with residual connections and layer normalization for training deep networks"
       ],
-      "assumptions": [
-        "All dependencies in sequence transduction can be captured by attention mechanisms without recurrence.",
-        "Auto-regressive decoding is maintained through masked self-attention in the decoder.",
-        "Residual connections and layer normalization are sufficient for training deep attention-only models.",
-        "The specific choice of 8 heads and dimension 512 strikes a good balance between performance and computational cost."
-      ]
+      "assumptions": []
     },
     "contributions": [
       {
         "type": "method",
-        "description": "Proposes the Transformer, the first sequence transduction model based entirely on attention, achieving state-of-the-art BLEU scores on WMT 2014 English-German (28.4) and English-French (41.8) while being significantly faster to train than recurrent or convolutional baselines.",
-        "evidence_section": "Results"
+        "description": "Proposes the Transformer architecture, the first sequence transduction model based entirely on attention mechanisms, replacing recurrent and convolutional layers with multi-headed self-attention.",
+        "evidence_section": "method"
       },
       {
         "type": "experimental",
-        "description": "Demonstrates that the Transformer generalizes to English constituency parsing, achieving strong results with both large and limited training data, suggesting applicability beyond machine translation.",
-        "evidence_section": "Results"
+        "description": "Achieves 28.4 BLEU on WMT 2014 English-to-German translation, improving over existing best results including ensembles by over 2 BLEU.",
+        "evidence_section": "results"
+      },
+      {
+        "type": "experimental",
+        "description": "Establishes a new single-model state-of-the-art BLEU score of 41.8 on WMT 2014 English-to-French translation after training for 3.5 days on eight GPUs.",
+        "evidence_section": "results"
+      },
+      {
+        "type": "experimental",
+        "description": "Demonstrates generalization to English constituency parsing, succeeding with both large and limited training data.",
+        "evidence_section": "results"
+      },
+      {
+        "type": "method",
+        "description": "Introduces Scaled Dot-Product Attention with a 1/√d_k scaling factor to prevent softmax gradient issues for large key dimensions.",
+        "evidence_section": "method"
+      },
+      {
+        "type": "method",
+        "description": "Introduces Multi-Head Attention, allowing the model to jointly attend to information from different representation subspaces at different positions.",
+        "evidence_section": "method"
       }
     ],
     "datasets": [
@@ -273,7 +288,7 @@
         "role": "evaluation"
       },
       {
-        "name": "English constituency parsing (PTB-derived, not explicitly named)",
+        "name": "English constituency parsing (WSJ + semi-supervised)",
         "task": "constituency parsing",
         "role": "evaluation"
       }
@@ -283,57 +298,130 @@
         "name": "BLEU",
         "value": "28.4",
         "dataset": "WMT 2014 English-German",
-        "comparison": "state-of-the-art (improves over best existing results including ensembles by over 2 BLEU)"
+        "comparison": "SOTA (including ensembles)"
       },
       {
         "name": "BLEU",
         "value": "41.8",
         "dataset": "WMT 2014 English-French",
-        "comparison": "state-of-the-art (single-model)"
+        "comparison": "SOTA (single model)"
+      },
+      {
+        "name": "training time",
+        "value": "3.5 days on 8 GPUs",
+        "dataset": "WMT 2014 English-French",
+        "comparison": "prior_work"
+      },
+      {
+        "name": "training time",
+        "value": "12 hours on 8 P100 GPUs",
+        "dataset": "WMT 2014 English-German (base model)",
+        "comparison": "prior_work"
       }
     ],
     "results": {
-      "headline": "The Transformer achieves state-of-the-art BLEU scores on WMT 2014 English-German (28.4) and English-French (41.8) translation tasks while being highly parallelizable and requiring significantly less training time (e.g., 3.5 days for En-Fr on 8 GPUs).",
+      "headline": "The Transformer achieves state-of-the-art BLEU scores on WMT 2014 English-to-German (28.4) and English-to-French (41.8) translation while training significantly faster than recurrent or convolutional baselines.",
       "caveats": [
-        "Evaluation is limited to two machine translation tasks and one parsing task; generalizability to other sequence transduction problems is not extensively tested.",
-        "Although training is highly parallelizable, decoding remains sequential due to auto-regressive generation.",
-        "The Transformer's full attention mechanism is quadratic in sequence length, which may be problematic for very long sequences."
+        "Results are demonstrated primarily on machine translation tasks; generalization to other tasks is shown only for English constituency parsing.",
+        "The model was trained on 8 GPUs; training costs and hardware requirements may still be substantial for some settings.",
+        "Comparison baselines and their training costs are cited from prior work rather than reproduced in identical conditions."
       ]
     },
     "limitations_stated": [
-      "The paper states that generation is still sequential (auto-regressive) and that making it less sequential is a research goal.",
-      "The authors note that the model has only been applied to text (translation and parsing) and plan to extend it to other modalities such as images, audio, and video.",
-      "They plan to investigate local, restricted attention mechanisms to efficiently handle large inputs and outputs, implying that the current full attention may be inefficient for large-scale problems."
+      "The paper does not explicitly discuss limitations of the Transformer in the conclusion or results sections beyond noting the focus on text modalities.",
+      "The authors state they plan to investigate local, restricted attention mechanisms to efficiently handle large inputs and outputs such as images, audio and video, implying the current global attention mechanism may not scale well to very long sequences.",
+      "The authors note making generation less sequential is a research goal, acknowledging that the decoder remains auto-regressive."
     ],
     "open_threads": [
-      "Extending the Transformer to tasks beyond text, such as image, audio, and video processing.",
-      "Investigating local/restricted attention mechanisms to reduce complexity for large inputs and outputs.",
-      "Making generation less sequential, possibly through non-autoregressive decoding schemes.",
-      "Further improving training efficiency and scalability to even longer sequences."
+      "Extending the Transformer to problems involving input and output modalities other than text (images, audio, video).",
+      "Investigating local, restricted attention mechanisms to efficiently handle large inputs and outputs.",
+      "Making generation less sequential (reducing auto-regressive dependency in the decoder).",
+      "Applying attention-based models to other tasks beyond translation and parsing."
     ],
-    "context_summary": "This paper introduces the Transformer, a novel sequence transduction architecture that replaces all recurrent and convolutional layers with multi-head self-attention and position-wise feed-forward networks. The model is the first to rely entirely on attention mechanisms, enabling a high degree of parallelization during training. On the WMT 2014 English-to-German translation task, the Transformer achieves a BLEU score of 28.4, surpassing previous state-of-the-art results including ensembles by over 2 BLEU. On the English-to-French task, it sets a new single-model state-of-the-art of 41.8 BLEU after training for only 3.5 days on eight GPUs. The Transformer also generalizes to English constituency parsing with strong results. Key architectural innovations include scaled dot-product attention (with a scaling factor to prevent vanishing gradients), multi-head attention (eight heads), and the use of residual connections and layer normalization throughout the stack. The work is foundational to the transformer category of research, establishing attention-only models as a viable and superior alternative to recurrent and convolutional architectures, and opening up numerous research directions in efficiency, scalability, and application to other modalities."
+    "context_summary": "The paper introduces the Transformer, a novel neural network architecture for sequence transduction that is based entirely on attention mechanisms, completely removing recurrence and convolutions. Prior sequence models (RNNs, LSTMs, GRUs) process tokens sequentially, which prevents parallelization within training examples and creates a fundamental computational bottleneck. The Transformer replaces this with stacked multi-head self-attention layers in both the encoder and decoder, enabling every position to directly attend to every other position in constant path length. The architecture uses Scaled Dot-Product Attention (with a 1/√d_k scaling factor to prevent softmax saturation), Multi-Head Attention (8 parallel attention heads for different representation subspaces), residual connections, layer normalization, and positional encodings to inject order information. On WMT 2014 English-to-German translation, the Transformer achieves 28.4 BLEU (outperforming all prior ensembles), and on English-to-French it achieves 41.8 BLEU as a single model after only 3.5 days of training on 8 GPUs. The model also generalizes to English constituency parsing. This work fundamentally changed the landscape of sequence modeling and became the foundation for virtually all subsequent large-scale language models and multimodal architectures."
   },
   "gaps": {
     "gap_ids": [
-      "gap_5115dd90",
-      "gap_8fdf65a5",
-      "gap_8a3630c0",
-      "gap_65066c4d",
-      "gap_39f04c0c",
-      "gap_708fa772",
-      "gap_77e73fed"
+      "gap_3519158d",
+      "gap_641016d5",
+      "gap_cf4f9052",
+      "gap_f7974808",
+      "gap_45901fb5",
+      "gap_f4ea947a",
+      "gap_b880b56d"
     ]
   },
   "processing": {
     "fetched": true,
     "extracted": true,
     "summarized": true,
-    "gaps_extracted": true
+    "gaps_extracted": true,
+    "summary_verified": true
   },
   "warnings": [
     "gap_agent_fetched_sections: introduction, why_self_attention, method, training, results, background, attention_visualizations",
     "gap_quote_not_grounded: gid=gap_8a3630c0 section=why_self_attention (quote not found verbatim in section text)",
     "gap_quote_not_grounded: gid=gap_39f04c0c section=method (quote not found verbatim in section text)",
-    "gap_quote_not_grounded: gid=gap_77e73fed section=results (quote not found verbatim in section text)"
-  ]
+    "gap_quote_not_grounded: gid=gap_77e73fed section=results (quote not found verbatim in section text)",
+    "gap_agent_fetched_sections: introduction, method, why_self_attention, training, results, abstract, background, attention_visualizations, introduction",
+    "gap_quote_not_grounded: gid=gap_b103d03c section=why_self_attention (quote not found verbatim in section text)",
+    "gap_quote_not_grounded: gid=gap_29ccef3b section=method (quote not found verbatim in section text)",
+    "gap_quote_not_grounded: gid=gap_9ed7e5c3 section=results (quote not found verbatim in section text)",
+    "gap_agent_fetched_sections: method, why_self_attention, introduction, results, training, background, abstract, attention_visualizations, abstract, introduction, why_self_attention, why_self_attention, conclusion",
+    "gap_quote_not_grounded: gid=gap_641016d5 section=why_self_attention (quote not found verbatim in section text)",
+    "gap_quote_not_grounded: gid=gap_f7974808 section=method (quote not found verbatim in section text)",
+    "gap_quote_not_grounded: gid=gap_45901fb5 section=results (quote not found verbatim in section text)",
+    "gap_quote_not_grounded: gid=gap_b880b56d section=introduction (quote not found verbatim in section text)"
+  ],
+  "summary_verification": {
+    "status": "issues",
+    "attempts": 2,
+    "regenerated": true,
+    "grounding": {
+      "checked": [
+        "28.4",
+        "WMT 2014 English-to-German",
+        "41.8",
+        "WMT 2014 English-to-French",
+        "English constituency parsing (WSJ)",
+        "2014"
+      ],
+      "unmatched": [
+        "English constituency parsing (WSJ)"
+      ]
+    },
+    "critique_issues": [
+      {
+        "field": "contributions[1].description",
+        "severity": "minor",
+        "description": "The summary says 'outperforming all previously reported ensembles' for En-De 28.4 BLEU, but the abstract says 'improving over the existing best results, including ensembles, by over 2 BLEU'. The conclusion says 'our best model outperforms even all previously reported ensembles'. So this is accurate but the phrasing 'all previously reported ensembles' is slightly imprecise — it's the best model (not necessarily the single 28.4 model) that outperforms all ensembles. However, the abstract attributes 28.4 to the model and says it improves over best results including ensembles. This is borderline; I'll flag as minor for precision.",
+        "evidence_section": "abstract"
+      },
+      {
+        "field": "limitations_stated",
+        "severity": "minor",
+        "description": "The summary lists 'limitations_stated' as an empty array, but the paper does not explicitly enumerate limitations in a dedicated section. This is acceptable since the source doesn't have a limitations section either. No issue.",
+        "evidence_section": null
+      },
+      {
+        "field": "results.caveats",
+        "severity": "minor",
+        "description": "The summary lists 'caveats' as an empty array. The paper does not explicitly discuss caveats in the provided sections, so this is fine.",
+        "evidence_section": null
+      },
+      {
+        "field": "approach.assumptions",
+        "severity": "minor",
+        "description": "The assumption listed (components of q and k are independent random variables with mean 0 and variance 1) is presented as an assumption of the model. In the source, this is given as a footnote to illustrate why dot products get large, not as a formal assumption of the model. The phrasing 'used to motivate the scaling factor' is reasonable, but listing it as an 'assumption' of the approach is slightly imprecise.",
+        "evidence_section": "method"
+      },
+      {
+        "field": "metrics",
+        "severity": "minor",
+        "description": "The summary does not mention the training time detail (3.5 days on eight GPUs for En-Fr, 12 hours on eight P100 GPUs) which is a key part of the paper's claims about efficiency. This is a minor omission of a supporting detail.",
+        "evidence_section": "abstract"
+      }
+    ],
+    "checked_at": "2026-06-22T15:28:01Z"
+  }
 }

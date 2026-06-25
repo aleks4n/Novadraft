@@ -12,6 +12,7 @@ from pathlib import Path
 
 from . import pdf_path
 from ...utils import storage
+from ...utils.runlog import log_event
 from . import tex_path
 
 
@@ -30,6 +31,7 @@ def extract(category_slug: str, paper_id: str, force: bool = False) -> dict:
         raise PaperNotFoundError(f"{category_slug}/{paper_id}")
 
     if record.get("processing", {}).get("extracted") and not force:
+        log_event("already extracted, skipping", paper_id=paper_id)
         return {"status": "skipped", "paper_id": paper_id, "reason": "already_extracted"}
 
     pdir = storage.paper_dir(category_slug, paper_id)
@@ -42,12 +44,15 @@ def extract(category_slug: str, paper_id: str, force: bool = False) -> dict:
     result = None
     via = None
     if tex_dir and tex_main and (pdir / tex_main).exists():
+        log_event("extracting from latex source", tex_main=tex_main)
         result = tex_path.extract_tex(pdir / tex_main, pdir / tex_dir)
         via = "tex"
     elif pdf and (pdir / pdf).exists():
+        log_event("no latex source available, extracting from pdf", pdf=pdf)
         result = pdf_path.extract_pdf(pdir / pdf)
         via = "pdf"
     else:
+        log_event("no source files to extract from, skipping")
         record.setdefault("warnings", []).append("extraction_skipped: no source files")
         _write(category_slug, record)
         return {"status": "skipped", "paper_id": paper_id, "reason": "no_source_files"}
@@ -74,6 +79,7 @@ def extract(category_slug: str, paper_id: str, force: bool = False) -> dict:
 
     record["processing"]["extracted"] = True
     _write(category_slug, record)
+    log_event("extraction complete", via=via, section_count=len(result["sections"]))
     return {
         "status": "ok",
         "paper_id": paper_id,

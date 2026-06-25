@@ -103,11 +103,13 @@ def new_paper_record(paper_id: str, classified_type: str, query: str) -> dict:
         },
         "content": None,
         "summary": None,
+        "summary_verification": None,
         "gaps": {"gap_ids": []},
         "processing": {
             "fetched": True,
             "extracted": False,
             "summarized": False,
+            "summary_verified": False,
             "gaps_extracted": False,
         },
         "warnings": [],
@@ -133,23 +135,3 @@ def read_paper_json(category_slug: str, paper_id: str) -> dict | None:
     return json.loads(p.read_text())
 
 
-# --- Logging -------------------------------------------------------------------
-
-def log_fetch(category_slug: str, query: str, input_type: str, outcome: str,
-              paper_id: str | None = None, error: str | None = None, extra: dict | None = None):
-    """Log a fetch attempt to fetch_log.jsonl.
-
-    outcome: "success", "ambiguous", "error", "duplicate"
-    """
-    log_path = category_dir(category_slug) / "fetch_log.jsonl"
-    entry = {
-        "timestamp": now_iso(),
-        "query": query,
-        "input_type": input_type,
-        "outcome": outcome,
-        "paper_id": paper_id,
-        "error": error,
-        **(extra or {}),
-    }
-    with open(log_path, "a") as f:
-        f.write(json.dumps(entry, ensure_ascii=False) + "\n")

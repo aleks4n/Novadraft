@@ -9,16 +9,16 @@ Raises:
   - PaperAlreadyExistsError  — paper already in the workspace
 
 In both the returned dicts and the raised exceptions, a ``log_entry`` is
-attached describing the fetch attempt. This tool does not write to
-fetch_log.jsonl itself — the caller (e.g. the paper agent) owns logging via
-``storage.log_fetch(destination, **log_entry)``.
+attached describing the fetch attempt, captured by the caller's runlog step.
 """
 from __future__ import annotations
 
 from ...utils import storage
+from ...utils.runlog import log_event
 from .classify import classify
 from .errors import PaperAlreadyExistsError, PaperFetchError
 from .fetchers.arxiv import fetch_arxiv
+from .fetchers.arxiv_lookup import arxiv_id_for_doi
 from .fetchers.candidate import fetch_candidate
 from .fetchers.doi import fetch_doi
 from .fetchers.landing import resolve_landing
@@ -175,57 +175,98 @@ def _do_pdf(url, destination, input_type, query):
 def fetch(destination: str, query: str) -> dict:
     storage.ensure_category(destination)
     c = classify(query)
+    log_event("classified query", query=query, input_type=c.input_type, value=c.value)
 
     try:
         if c.input_type in ("arxiv_id", "arxiv_url"):
             source = "arxiv"
+            log_event("fetching via arxiv", arxiv_id=c.value)
             rec = _do_arxiv(c.value, destination, c.input_type, query)
             _check_usable(rec, query, source, destination)
             return _ok(rec, query, c.input_type, source)
 
         if c.input_type in ("doi", "doi_url"):
-            source = "doi"
-            rec = _do_doi(c.value, destination, c.input_type, query)
+            arxiv_id = arxiv_id_for_doi(c.value)
+            if arxiv_id:
+                source = "doi->arxiv"
+                log_event("doi resolved to an arxiv id, fetching via arxiv",
+                          doi=c.value, arxiv_id=arxiv_id)
+                rec = _do_arxiv(arxiv_id, destination, c.input_type, query)
+            else:
+                source = "doi"
+                log_event("fetching via doi (no arxiv mirror)", doi=c.value)
+                rec = _do_doi(c.value, destination, c.input_type, query)
             _check_usable(rec, query, source, destination)
             return _ok(rec, query, c.input_type, source)
 
         if c.input_type == "pdf_url":
             source = "pdf_url"
+            log_event("fetching pdf directly from url", url=c.value)
             rec = _do_pdf(c.value, destination, c.input_type, query)
             _check_usable(rec, query, source, destination)
             return _ok(rec, query, c.input_type, source)
 
         if c.input_type in ("landing_url", "url"):
+            log_event("resolving landing page", url=c.value)
             resolved = resolve_landing(c.value)
             if "arxiv_id" in resolved:
                 source = "landing->arxiv"
+                log_event("landing page resolved to an arxiv id", arxiv_id=resolved["arxiv_id"])
                 rec = _do_arxiv(resolved["arxiv_id"], destination, c.input_type, query)
             elif "doi" in resolved:
-                source = "landing->doi"
-                rec = _do_doi(resolved["doi"], destination, c.input_type, query)
+                doi = resolved["doi"]
+                arxiv_id = arxiv_id_for_doi(doi)
+                if arxiv_id:
+                    source = "landing->doi->arxiv"
+                    log_event("landing page resolved to a doi with an arxiv mirror",
+                              doi=doi, arxiv_id=arxiv_id)
+                    rec = _do_arxiv(arxiv_id, destination, c.input_type, query)
+                else:
+                    source = "landing->doi"
+                    log_event("landing page resolved to a doi (no arxiv mirror)", doi=doi)
+                    rec = _do_doi(doi, destination, c.input_type, query)
             elif "pdf_url" in resolved:
                 source = "landing->pdf"
+                log_event("landing page resolved to a pdf url", pdf_url=resolved["pdf_url"])
                 rec = _do_pdf(resolved["pdf_url"], destination, c.input_type, query)
             else:
                 source = "url_as_pdf"
+                log_event("landing page did not resolve, treating url as a pdf directly")
                 rec = _do_pdf(c.value, destination, c.input_type, query)
             _check_usable(rec, query, source, destination)
             return _ok(rec, query, c.input_type, source)
 
         # Title path: search → match-or-disambiguate
+        log_event("searching by title", title=c.value)
         chosen, candidates = resolve_title(c.value, query)
         if chosen is None:
+            log_event("no exact title match, returning candidates for disambiguation",
+                      n_candidates=len(candidates))
             return _ambiguous(candidates, query, c.input_type)
 
         if chosen.get("arxiv_id"):
             source = f"title->arxiv ({chosen['source']})"
+            log_event("title search matched an arxiv id", arxiv_id=chosen["arxiv_id"],
+                      via=chosen["source"])
             rec = _do_arxiv(chosen["arxiv_id"], destination, c.input_type, query)
         elif chosen.get("doi"):
-            source = f"title->doi ({chosen['source']})"
-            rec = _do_doi(chosen["doi"], destination, c.input_type, query,
-                           fallback_pdf_url=chosen.get("pdf_url"))
+            doi = chosen["doi"]
+            arxiv_id = arxiv_id_for_doi(doi)
+            if arxiv_id:
+                source = f"title->doi->arxiv ({chosen['source']})"
+                log_event("title search matched a doi with an arxiv mirror",
+                          doi=doi, arxiv_id=arxiv_id, via=chosen["source"])
+                rec = _do_arxiv(arxiv_id, destination, c.input_type, query)
+            else:
+                source = f"title->doi ({chosen['source']})"
+                log_event("title search matched a doi (no arxiv mirror)",
+                          doi=doi, via=chosen["source"])
+                rec = _do_doi(doi, destination, c.input_type, query,
+                               fallback_pdf_url=chosen.get("pdf_url"))
         elif chosen.get("pdf_url"):
             source = f"title->pdf ({chosen['source']})"
+            log_event("title search matched a pdf url", pdf_url=chosen["pdf_url"],
+                      via=chosen["source"])
             rec = _do_candidate(chosen, destination, c.input_type, query)
         else:
             # Matched candidate had no identifier or PDF — we cannot reliably fetch the content.
@@ -235,9 +276,11 @@ def fetch(destination: str, query: str) -> dict:
         return _ok(rec, query, c.input_type, source)
     except PaperAlreadyExistsError:
         # log_entry already attached in _guard_existing
+        log_event("paper already exists in this workspace")
         raise
     except PaperFetchError as e:
         attempts_str = "; ".join(f"{src}: {reason}" for src, reason in e.attempts)
+        log_event("all fetchers failed", attempts=attempts_str)
         e.log_entry = {
             "query": query,
             "input_type": c.input_type,
@@ -247,6 +290,7 @@ def fetch(destination: str, query: str) -> dict:
         raise
     except Exception as e:
         # Catch-all for unexpected errors
+        log_event("unexpected error", error=f"{type(e).__name__}: {e}")
         e.log_entry = {
             "query": query,
             "input_type": c.input_type,

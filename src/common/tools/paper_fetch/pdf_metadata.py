@@ -1,8 +1,7 @@
-"""Fallback metadata extraction from a downloaded PDF's /Info dictionary.
+"""Metadata and identifier extraction from a downloaded PDF's /Info dictionary.
 
-Used when a fetcher couldn't fill in title/authors/year from an API (e.g. a
-bare PDF URL with no Crossref/arXiv record). Best-effort and cheap — reads
-only the PDF's document-info dictionary, no full parse/OCR.
+Best-effort and cheap — reads only the PDF's document-info dictionary, no
+full parse/OCR.
 """
 from __future__ import annotations
 
@@ -11,6 +10,11 @@ from pathlib import Path
 
 _AUTHOR_SPLIT_RE = re.compile(r"\s*(?:,|;|\band\b|&)\s*")
 _YEAR_RE = re.compile(r"(\d{4})")
+_ARXIV_ID_RE = re.compile(
+    r"arXiv[:\s]+(\d{4}\.\d{4,5}(?:v\d+)?|[a-z\-]+(?:\.[A-Z]{2})?/\d{7}(?:v\d+)?)",
+    re.IGNORECASE,
+)
+_DOI_RE = re.compile(r"\b(10\.\d{4,9}/\S+)")
 
 
 def _as_text(value) -> str | None:
@@ -62,4 +66,33 @@ def extract_pdf_metadata(pdf_path: Path) -> dict:
                 out["year"] = int(m.group(1))
                 break
 
+    return out
+
+
+def extract_pdf_identifiers(pdf_path: Path) -> dict:
+    """Extract arXiv ID and/or DOI from a PDF's Info dictionary fields.
+
+    Checks Subject, Keywords, Creator, Producer, and Title fields (in that
+    order). Returns a dict containing any of: {"arxiv_id": ..., "doi": ...}.
+    """
+    from pdfminer.pdfdocument import PDFDocument
+    from pdfminer.pdfparser import PDFParser
+
+    with open(pdf_path, "rb") as f:
+        doc = PDFDocument(PDFParser(f))
+        info = doc.info[0] if doc.info else {}
+
+    out: dict = {}
+    for field in ("Subject", "Keywords", "Creator", "Producer", "Title"):
+        text = _as_text(info.get(field)) or ""
+        if not text:
+            continue
+        if "arxiv_id" not in out:
+            m = _ARXIV_ID_RE.search(text)
+            if m:
+                out["arxiv_id"] = re.sub(r"v\d+$", "", m.group(1))
+        if "doi" not in out:
+            m = _DOI_RE.search(text)
+            if m:
+                out["doi"] = m.group(1).rstrip(".,)")
     return out

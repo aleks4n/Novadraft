@@ -1,0 +1,20 @@
+{
+  "gap_id": "gap_7b2f69ff",
+  "status": "unchecked",
+  "title": "Extension to conditional generative modeling",
+  "description": "The adversarial framework can be extended to conditional generation by adding conditioning information as input to both the generator and discriminator.",
+  "type": "future_work",
+  "canonical_description": "adversarial framework can be extended to conditional generative modeling",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1406.2661",
+      "section": "conclusions_and_future_work",
+      "quote": "A { conditional generative} model $p(\\bm{x} \\mid \\bm{c})$ can be obtained by adding $\\bm{c}$ as input to both $G$ and $D$.",
+      "char_offset": [
+        107,
+        229
+      ]
+    }
+  ],
+  "extracted_at": "2026-06-22T13:16:03Z"
+}

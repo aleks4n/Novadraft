@@ -50,7 +50,7 @@ def _log(record: dict, name: str) -> Path:
     return path
 
 
-def _run(kind: str, name: str, inputs: dict, on_step=None) -> dict:
+def _run(kind: str, name: str, inputs: dict) -> dict:
     table = TABLES.get(kind)
     if table is None:
         raise SystemExit(f"Unknown kind: {kind}. Available: {sorted(TABLES)}")
@@ -66,12 +66,9 @@ def _run(kind: str, name: str, inputs: dict, on_step=None) -> dict:
         "error": None,
         "duration_s": None,
     }
-    kwargs = dict(inputs)
-    if on_step is not None:
-        kwargs["on_step"] = on_step
     t0 = time.time()
     try:
-        record["output"] = fn(**kwargs)
+        record["output"] = fn(**inputs)
     except Exception as e:
         record["error"] = f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
     record["duration_s"] = round(time.time() - t0, 3)

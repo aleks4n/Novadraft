@@ -35,23 +35,54 @@
   .panel h2 { display:flex; justify-content:space-between; align-items:center; }
   .list-item { display:flex; gap:6px; align-items:flex-start; margin-bottom:6px; }
   .list-item textarea { flex: 1; }
-  .visual { background: white; border: 1px solid var(--bd); border-radius: 4px; padding: 12px; }
-  .visual h3 { color: var(--muted); font-weight: 600; }
-  .visual .item { border-bottom: 1px dashed var(--bd); padding: 8px 0; }
-  .visual .item:last-child { border-bottom: 0; }
   .badge { display:inline-block; font-size:11px; padding:1px 6px; border-radius:8px; background:#eef; color:#226; margin-left:6px; }
   .badge.err { background:#fee; color:#b00; }
   .steps { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
-  .step { display:flex; align-items:center; justify-content:space-between; padding: 6px 10px; border-radius: 4px; border: 1px solid var(--bd); background: white; font-family: var(--mono); font-size: 12px; }
-  .step .step-status { font-size: 11px; padding: 1px 8px; border-radius: 8px; text-transform: uppercase; letter-spacing: .03em; }
-  .step.pending .step-status { background: #eee; color: #888; }
-  .step.running { border-color: #0a66c2; }
-  .step.running .step-status { background: #e6f0fb; color: #0a66c2; animation: pulse 1.2s infinite; }
-  .step.done .step-status { background: #e6f7ed; color: #1a7f37; }
-  .step.error { border-color: #b00; }
-  .step.error .step-status { background: #fee; color: #b00; }
-  .step.skipped .step-status { background: #eee; color: #999; }
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+
+  .lognode { border: 1px solid var(--bd); border-radius: 5px; margin: 6px 0; background: white; }
+  .lognode-header { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-family: var(--mono); font-size: 12px; cursor: pointer; }
+  .lognode-type { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); width: 52px; flex-shrink: 0; }
+  .lognode-name { flex: 1; font-weight: 600; }
+  .lognode-duration { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .lognode-status { font-size: 11px; padding: 1px 8px; border-radius: 8px; text-transform: uppercase; letter-spacing: .03em; }
+  .lognode.status-pending .lognode-status, .lognode.status-running .lognode-status { background: #e6f0fb; color: #0a66c2; }
+  .lognode.status-running .lognode-status { animation: pulse 1.2s infinite; }
+  .lognode.status-done .lognode-status, .lognode.status-ok .lognode-status, .lognode.status-info .lognode-status { background: #e6f7ed; color: #1a7f37; }
+  .lognode.status-error .lognode-status { background: #fee; color: #b00; }
+  .lognode.status-skipped .lognode-status { background: #eee; color: #999; }
+  .lognode.status-error { border-color: #b00; }
+  .lognode.status-running { border-color: #0a66c2; }
+  .lognode-body { padding: 4px 10px 8px 10px; display: none; }
+  .lognode-body.open { display: block; }
+  .lognode-children { margin-left: 18px; border-left: 1px dashed var(--bd); padding-left: 10px; }
+  .lognode-section { margin: 6px 0; }
+  .lognode-section h4 { font-size: 11px; text-transform: uppercase; color: var(--muted); margin: 0 0 4px; letter-spacing: .03em; }
+  .lognode-prompt { background: var(--bg); border-radius: 4px; padding: 8px; font-family: var(--mono); font-size: 11.5px; white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; }
+  .lognode-toggle { width: 14px; flex-shrink: 0; color: var(--muted); font-family: var(--mono); }
+
+  .lognode-event { font-family: var(--mono); font-size: 12px; padding: 2px 10px 2px 4px; white-space: pre-wrap; word-break: break-word; }
+  .lognode-event-glyph { color: #0a66c2; margin-right: 6px; }
+  .lognode-event-msg { color: #222; }
+  .lognode-event-kv { color: var(--muted); }
+
+  .json-tree { background: var(--bg); border-radius: 4px; padding: 10px; font-family: var(--mono); font-size: 12px; }
+  .json-tree details { display: inline; }
+  .json-tree summary { cursor: pointer; display: inline; }
+  .json-tree summary::marker { color: #999; }
+  .json-children { margin-left: 14px; border-left: 1px dotted var(--bd); padding-left: 10px; }
+  .json-row { padding: 1px 0; white-space: pre-wrap; word-break: break-word; }
+  .json-close { padding-left: 0; }
+  .json-key { color: #905; }
+  .jv-str { color: #1a7f37; }
+  .jv-num { color: #0a66c2; }
+  .jv-bool { color: #8250df; }
+  .jv-null { color: #999; }
+  .jv-punct { color: var(--muted); }
+  .json-preview { color: var(--muted); font-style: italic; }
+  details[open] > summary > .json-preview { display: none; }
+  .panel-actions { display: flex; gap: 6px; }
+  .eval-progress { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 6px; }
 </style>
 </head>
 <body>
@@ -67,6 +98,7 @@
         <option value="agent">agent</option>
         <option value="subagent">subagent</option>
         <option value="flow">flow</option>
+        <option value="evaluation">evaluation</option>
       </select>
       <select id="name" style="flex:2"></select>
     </div>
@@ -88,26 +120,50 @@
       <ul id="steps" class="steps"></ul>
     </div>
 
+    <div class="panel" id="eval-panel" style="display:none">
+      <h2>Eval report <span id="eval-badge"></span></h2>
+      <div class="eval-progress" id="eval-progress"></div>
+      <pre id="eval-report">—</pre>
+      <h3 style="margin-top:14px">Eval raw output (JSON)</h3>
+      <div class="panel-actions" style="margin-bottom:6px">
+        <button class="small" id="eval-raw-expand">expand all</button>
+        <button class="small" id="eval-raw-collapse">collapse all</button>
+      </div>
+      <div id="eval-raw-json" class="json-tree">—</div>
+    </div>
+
     <div class="panel">
-      <h2>Visual output <span id="vis-badge"></span></h2>
-      <div id="visual" class="visual">—</div>
+      <h2>JSON input <span id="vis-badge"></span></h2>
+      <div class="panel-actions" style="margin-bottom:6px">
+        <button class="small" id="json-input-expand">expand all</button>
+        <button class="small" id="json-input-collapse">collapse all</button>
+      </div>
+      <div id="json-input" class="json-tree">—</div>
       <div class="meta" id="output-meta"></div>
     </div>
 
     <div class="panel">
-      <h2>JSON input</h2>
-      <pre id="json-input">—</pre>
-    </div>
-
-    <div class="panel">
       <h2>JSON output (raw record)</h2>
-      <pre id="json-output">—</pre>
+      <div class="panel-actions" style="margin-bottom:6px">
+        <button class="small" id="json-output-expand">expand all</button>
+        <button class="small" id="json-output-collapse">collapse all</button>
+      </div>
+      <div id="json-output" class="json-tree">—</div>
     </div>
   </section>
 </main>
 
 <script>
-let CATALOG = { agents: [], subagents: [], flows: [], schemas: { agent: {}, subagent: {}, flow: {} }, agent_steps: {} };
+let CATALOG = { agents: [], subagents: [], flows: [], schemas: { agent: {}, subagent: {}, flow: {} }, agent_steps: {}, logged_agents: {} };
+let WORKSPACE_CACHE = null;
+let LIVE_TIMER = null;
+
+const WORKSPACE_FIELD_NAMES = new Set(["category_slug", "workspace"]);
+
+const EVAL_PIPELINES = [
+  { value: "summary", label: "Summary agent eval" },
+  { value: "gap", label: "Gap agent eval" },
+];
 
 const $ = id => document.getElementById(id);
 const el = (tag, attrs={}, ...kids) => {
@@ -117,7 +173,10 @@ const el = (tag, attrs={}, ...kids) => {
     else if (k.startsWith("on")) e[k] = v;
     else e.setAttribute(k, v);
   }
-  for (const k of kids) e.append(k?.nodeType ? k : document.createTextNode(k));
+  for (const k of kids) {
+    if (k === null || k === undefined) continue;
+    e.append(k?.nodeType ? k : document.createTextNode(k));
+  }
   return e;
 };
 
@@ -132,49 +191,209 @@ function currentSchema() {
   return CATALOG.schemas?.[kind]?.[name] || [];
 }
 
-function currentSteps() {
+function isLoggedAgent() {
   const kind = $("kind").value, name = $("name").value;
-  if (kind !== "agent") return [];
-  return CATALOG.agent_steps?.[name] || [];
+  return kind === "agent" && !!CATALOG.logged_agents?.[name];
 }
 
-function renderSteps(stepNames) {
-  const panel = $("steps-panel");
-  const ul = $("steps");
-  ul.innerHTML = "";
-  if (!stepNames.length) {
-    panel.style.display = "none";
-    return;
+// --- recursive run-log tree (steps / llm calls / tool calls / events) ------
+//
+// Renders the JSON written by src/common/utils/runlog.py: a recursive tree
+// of nodes ({type, name, status, started_at, duration_s, data, children}).
+// Each node becomes one collapsible block; llm/tool nodes get a readable
+// prompt/output sub-section instead of a generic JSON dump.
+
+function fmtDuration(node) {
+  if (node.duration_s != null) return node.duration_s + "s";
+  if (node.status === "running" && node.started_at) {
+    const elapsed = (Date.now() - new Date(node.started_at).getTime()) / 1000;
+    return Math.max(0, elapsed).toFixed(1) + "s";
   }
-  panel.style.display = "";
-  for (const name of stepNames) {
-    ul.append(el("li", { class: "step pending", "data-step": name },
-      el("span", { class: "step-name" }, name),
-      el("span", { class: "step-status" }, "pending")
+  return "";
+}
+
+// Open/closed state survives re-renders: keyed by a positional path (e.g.
+// "2.0.1") rather than the DOM node, since the whole tree is rebuilt from
+// scratch on every poll. Children are append-only, so a node's path is
+// stable across polls even as later siblings/descendants are added.
+let OPEN_PATHS = new Set();
+
+// Events (``log_event`` calls) are rendered as plain terminal-style lines —
+// no click-to-expand, no "Input" JSON box. The message string is the whole
+// point; any extra kwargs are just inline context for it, so they're shown
+// as ``key=value`` on the same line rather than a generic JSON tree (which
+// reads as noise for a one-line decision like "fetching via arxiv").
+function formatEventKV(data) {
+  const parts = [];
+  for (const [k, v] of Object.entries(data || {})) {
+    if (v === null || v === undefined) continue;
+    const isScalar = typeof v !== "object";
+    parts.push(`${k}=${isScalar ? v : JSON.stringify(v)}`);
+  }
+  return parts.join("  ");
+}
+
+function eventLine(node) {
+  const kv = formatEventKV(node.data);
+  return el("div", { class: "lognode-event" },
+    el("span", { class: "lognode-event-glyph" }, "›"),
+    el("span", { class: "lognode-event-msg" }, node.name),
+    kv ? el("span", { class: "lognode-event-kv" }, "  " + kv) : null,
+  );
+}
+
+// Returns {inputSections, outputSections} separately (rather than one flat
+// list) so the caller can place children — anything that happened *during*
+// the step, e.g. nested LLM/tool calls — between them: input is known at
+// the start, output only exists once everything nested has finished.
+function logNodeSections(node) {
+  const inputSections = [];
+  const outputSections = [];
+  const data = node.data || {};
+  const rest = { ...data };
+
+  if (node.type === "llm" && rest.prompt) {
+    inputSections.push(el("div", { class: "lognode-section" },
+      el("h4", {}, `Prompt${rest.role ? ` · role=${rest.role}` : ""}${rest.schema ? ` · schema=${rest.schema}` : ""}`),
+      el("div", { class: "lognode-prompt" }, `SYSTEM:\n${rest.prompt.system}\n\nUSER:\n${rest.prompt.user}`)
     ));
+    delete rest.prompt;
   }
+  if (node.type === "tool" && rest.args !== undefined) {
+    inputSections.push(el("div", { class: "lognode-section" },
+      el("h4", {}, "Input"),
+      el("div", { class: "lognode-prompt" }, JSON.stringify(rest.args, null, 2))
+    ));
+    delete rest.args;
+  }
+
+  // Whichever of these is present is the node's output; everything else
+  // left in `rest` is treated as its input/parameters.
+  let output;
+  if ("result" in rest) { output = rest.result; delete rest.result; }
+  else if ("output" in rest) { output = rest.output; delete rest.output; }
+
+  if (Object.keys(rest).length) {
+    const wrap = el("div", { class: "lognode-section" }, el("h4", {}, "Input"));
+    const tree = el("div", { class: "json-tree" });
+    tree.append(jsonNode(rest, 1));
+    wrap.append(tree);
+    inputSections.push(wrap);
+  }
+  if (output !== undefined) {
+    const wrap = el("div", { class: "lognode-section" }, el("h4", {}, "Output"));
+    const tree = el("div", { class: "json-tree" });
+    tree.append(jsonNode(output, 1));
+    wrap.append(tree);
+    outputSections.push(wrap);
+  }
+  return { inputSections, outputSections };
 }
 
-function updateStep({ step, status }) {
-  const li = document.querySelector(`#steps li[data-step="${step}"]`);
-  if (!li) return;
-  li.className = "step " + status;
-  li.querySelector(".step-status").textContent = status;
+function logNodeHeader(node, label, path, body, toggle) {
+  return el("div", {
+    class: "lognode-header",
+    onclick: () => {
+      const open = body.classList.toggle("open");
+      toggle.textContent = open ? "▾" : "▸";
+      if (open) OPEN_PATHS.add(path); else OPEN_PATHS.delete(path);
+    },
+  },
+    toggle,
+    el("span", { class: "lognode-type" }, node.type || "run"),
+    el("span", { class: "lognode-name" }, label),
+    el("span", { class: "lognode-duration" }, fmtDuration(node)),
+    el("span", { class: "lognode-status" }, node.status),
+  );
+}
+
+function logNode(node, path) {
+  if (node.type === "event") return eventLine(node);
+
+  const isOpen = OPEN_PATHS.has(path);
+  const div = el("div", { class: `lognode status-${node.status}`, "data-started": node.started_at || "" });
+  const body = el("div", { class: isOpen ? "lognode-body open" : "lognode-body" });
+  const toggle = el("span", { class: "lognode-toggle" }, isOpen ? "▾" : "▸");
+  const header = logNodeHeader(node, node.name, path, body, toggle);
+  const { inputSections, outputSections } = logNodeSections(node);
+  for (const section of inputSections) body.append(section);
+  if (node.children && node.children.length) {
+    const kids = el("div", { class: "lognode-children" });
+    node.children.forEach((child, i) => kids.append(logNode(child, `${path}.${i}`)));
+    body.append(kids);
+  }
+  for (const section of outputSections) body.append(section);
+  div.append(header, body);
+  return div;
+}
+
+function renderLogTree(payload) {
+  renderJsonTree("json-input", payload.inputs ?? {});
+
+  const panel = $("steps-panel");
+  const container = $("steps");
+  panel.style.display = "";
+  container.innerHTML = "";
+
+  const path = "root";
+  const root = el("div", { class: `lognode status-${payload.status}`, "data-started": payload.started_at || "" });
+  const body = el("div", { class: "lognode-body open" });
+  const toggle = el("span", { class: "lognode-toggle" }, "▾");
+  const header = logNodeHeader(payload, `${payload.agent} [${payload.workspace}]`, path, body, toggle);
+  if (payload.error) {
+    body.append(el("div", { class: "lognode-section" }, el("h4", {}, "Error"), el("div", { class: "lognode-prompt err" }, payload.error)));
+  }
+  const kids = el("div", { class: "lognode-children" });
+  (payload.children || []).forEach((child, i) => kids.append(logNode(child, `${path}.${i}`)));
+  body.append(kids);
+  root.append(header, body);
+  container.append(root);
+}
+
+function startLiveTimer() {
+  stopLiveTimer();
+  LIVE_TIMER = setInterval(() => {
+    // Scope to each running node's *own* header span — a plain descendant
+    // selector would also match already-finished children nested inside a
+    // still-running ancestor (e.g. the root run node), overwriting their
+    // frozen duration_s with a live elapsed time.
+    document.querySelectorAll("#steps .lognode.status-running").forEach(node => {
+      const span = node.querySelector(":scope > .lognode-header > .lognode-duration");
+      const started = node.dataset.started;
+      if (!span || !started) return;
+      const elapsed = (Date.now() - new Date(started).getTime()) / 1000;
+      span.textContent = Math.max(0, elapsed).toFixed(1) + "s";
+    });
+  }, 1000);
+}
+
+function stopLiveTimer() {
+  if (LIVE_TIMER) { clearInterval(LIVE_TIMER); LIVE_TIMER = null; }
 }
 
 function refreshNameOptions() {
   const kind = $("kind").value;
+  if (kind === "evaluation") {
+    $("name").innerHTML = EVAL_PIPELINES.map(p => `<option value="${p.value}">${p.label}</option>`).join("");
+    renderForm();
+    return;
+  }
   const opts = { agent: CATALOG.agents, subagent: CATALOG.subagents, flow: CATALOG.flows }[kind] || [];
   $("name").innerHTML = opts.map(n => `<option>${n}</option>`).join("");
   renderForm();
 }
 
 function renderForm() {
+  const kind = $("kind").value;
+  $("steps-panel").style.display = "none";
+  $("steps").innerHTML = "";
+  if (kind === "evaluation") {
+    renderEvalForm();
+    return;
+  }
   const schema = currentSchema();
   const form = $("form");
   form.innerHTML = "";
-  $("steps-panel").style.display = "none";
-  $("steps").innerHTML = "";
   $("schema-tag").textContent = schema.length ? `· ${schema.length} field${schema.length>1?"s":""}` : "· no schema";
   if (!schema.length) {
     form.append(el("div", { class: "meta" }, "No schema defined. Add one in registry.SCHEMAS."));
@@ -188,6 +407,10 @@ function renderForm() {
     form.append(label);
     if (field.type === "textarea") {
       form.append(el("textarea", { "data-name": field.name, placeholder: field.placeholder || "" }));
+    } else if (field.type === "text" && WORKSPACE_FIELD_NAMES.has(field.name)) {
+      const select = el("select", { "data-name": field.name, style: "width:100%" });
+      form.append(select);
+      populateWorkspaceSelect(select);
     } else if (field.type === "text") {
       form.append(el("input", { type: "text", "data-name": field.name, placeholder: field.placeholder || "" }));
     } else if (field.type === "list[textarea]") {
@@ -198,6 +421,32 @@ function renderForm() {
       addListItem(wrap);
     }
   }
+}
+
+function renderEvalForm() {
+  const form = $("form");
+  form.innerHTML = "";
+  $("schema-tag").textContent = "· evaluation pipeline";
+
+  const wsSelect = el("select", { id: "eval-workspace", style: "width:100%" });
+  const papersSelect = el("select", { id: "eval-papers", multiple: "", style: "width:100%; min-height:70px" });
+  const queriesTa = el("textarea", { id: "eval-queries", placeholder: "Attention Is All You Need\n1406.2661" });
+  const labelInput = el("input", { id: "eval-label", type: "text", placeholder: "baseline" });
+
+  form.append(
+    el("label", {}, "Workspace ", el("span", { class: "opt" }, "(extracted papers)")),
+    wsSelect,
+    el("label", {}, "Papers ", el("span", { class: "opt" }, "(optional, default = all extracted)")),
+    papersSelect,
+    el("label", {}, "New paper queries ",
+      el("span", { class: "opt" }, "(optional — name/arXiv-ID/URL/DOI per line; fetched+extracted into the workspace first, then overrides the selection above)")),
+    queriesTa,
+    el("label", {}, "Label ", el("span", { class: "opt" }, "(optional)")),
+    labelInput,
+  );
+
+  wsSelect.onchange = refreshEvalPapers;
+  refreshWorkspaces();
 }
 
 function addListItem(wrap) {
@@ -265,59 +514,95 @@ async function loadRun(name) {
   applyInputs(rec.inputs || {});
   render(rec);
   $("status").textContent = "viewing " + name;
-}
 
-function renderValue(val) {
-  if (val == null) return el("div", { class: "meta" }, "—");
-  if (typeof val === "string") return el("div", {}, val);
-  if (Array.isArray(val)) {
-    const wrap = el("div", {});
-    val.forEach((s, i) => wrap.append(
-      el("div", { class: "meta" }, `[${i}]`),
-      renderValue(s)
-    ));
-    return wrap;
-  }
-  if (typeof val === "object") {
-    // nested object → render as its own sub-panel of key/value sections
-    const wrap = el("div", {});
-    for (const [k, v] of Object.entries(val)) {
-      wrap.append(el("div", { class: "item" },
-        el("h3", {}, k),
-        renderValue(v)
-      ));
+  // The flat dev/runs/ record above only has input/output. The actual step
+  // tree (fetch → extract → ... with nested events) lives in the per-agent
+  // run log this record points to via `run_log` — reload it the same way
+  // the live stream does, so reopening a past run looks identical to
+  // watching it run.
+  OPEN_PATHS = new Set();
+  $("steps-panel").style.display = "none";
+  $("steps").innerHTML = "";
+  const workspaceField = rec.kind === "agent" ? CATALOG.logged_agents?.[rec.name] : null;
+  const workspace = workspaceField ? rec.inputs?.[workspaceField] : null;
+  if (workspace && rec.run_log) {
+    try {
+      const payload = await api(
+        `/api/workspaces/${encodeURIComponent(workspace)}/logs/${encodeURIComponent(rec.name)}/${encodeURIComponent(rec.run_log)}`
+      );
+      renderLogTree(payload);
+    } catch (e) {
+      // run log file may no longer exist — fall back to input/output only.
     }
-    return wrap;
   }
-  return el("pre", {}, JSON.stringify(val, null, 2));
 }
 
-function renderVisual(rec) {
-  const v = $("visual");
-  v.innerHTML = "";
-  if (rec.error) {
-    v.append(el("pre", { class: "err" }, rec.error));
-    return;
+// --- collapsible JSON tree (VS Code-style) ----------------------------------
+
+function keyLabel(key) {
+  if (key === null) return document.createTextNode("");
+  if (typeof key === "number") return el("span", { class: "json-key" }, `${key}: `);
+  return el("span", { class: "json-key" }, `${JSON.stringify(key)}: `);
+}
+
+function jsonRow(key, valueNode, comma) {
+  const row = el("div", { class: "json-row" });
+  row.append(keyLabel(key), valueNode, document.createTextNode(comma));
+  return row;
+}
+
+function jsonNode(value, depth = 0, key = null, isLast = true) {
+  const comma = isLast ? "" : ",";
+  if (value === null || value === undefined) return jsonRow(key, el("span", { class: "jv jv-null" }, "null"), comma);
+  const t = typeof value;
+  if (t === "string") return jsonRow(key, el("span", { class: "jv jv-str" }, JSON.stringify(value)), comma);
+  if (t === "number") return jsonRow(key, el("span", { class: "jv jv-num" }, String(value)), comma);
+  if (t === "boolean") return jsonRow(key, el("span", { class: "jv jv-bool" }, String(value)), comma);
+
+  const isArr = Array.isArray(value);
+  if ((isArr && value.length === 0) || (!isArr && t === "object" && Object.keys(value).length === 0)) {
+    return jsonRow(key, el("span", { class: "jv-punct" }, isArr ? "[]" : "{}"), comma);
   }
-  const out = rec.output;
-  if (out == null) { v.textContent = "—"; return; }
-  if (typeof out === "string") {
-    v.append(el("div", {}, out));
-    return;
-  }
-  // object → render each key as a top-level section (recursing into nested
-  // step results, e.g. paper_agent's {fetch, extract, summary, gaps})
-  for (const [k, val] of Object.entries(out)) {
-    const section = el("div", { class: "item" }, el("h3", {}, k));
-    section.append(renderValue(val));
-    v.append(section);
-  }
+  if (t !== "object") return jsonRow(key, el("span", {}, String(value)), comma);
+
+  const open = isArr ? "[" : "{";
+  const close = isArr ? "]" : "}";
+  const entries = isArr ? value.map((v, i) => [i, v]) : Object.entries(value);
+
+  const attrs = { class: "json-node" };
+  if (depth < 1) attrs.open = "";
+  const summary = el("summary", {},
+    keyLabel(key),
+    el("span", { class: "jv-punct" }, open),
+    el("span", { class: "json-preview" }, ` … ${entries.length} ${isArr ? "items" : "keys"} ${close}${comma}`)
+  );
+  const det = el("details", attrs, summary);
+  const body = el("div", { class: "json-children" });
+  entries.forEach(([k, v], i) => body.append(jsonNode(v, depth + 1, k, i === entries.length - 1)));
+  body.append(el("div", { class: "json-row json-close" }, el("span", { class: "jv-punct" }, close + comma)));
+  det.append(body);
+
+  return el("div", { class: "json-row" }, det);
+}
+
+function renderJsonTree(containerId, value) {
+  const c = $(containerId);
+  c.innerHTML = "";
+  c.append(jsonNode(value, 0));
+}
+
+function wireExpandCollapse(containerId, expandBtnId, collapseBtnId) {
+  $(expandBtnId).onclick = () => {
+    $(containerId).querySelectorAll("details").forEach(d => d.open = true);
+  };
+  $(collapseBtnId).onclick = () => {
+    $(containerId).querySelectorAll("details").forEach(d => d.open = false);
+  };
 }
 
 function render(rec) {
-  renderVisual(rec);
-  $("json-input").textContent = JSON.stringify(rec.inputs ?? {}, null, 2);
-  $("json-output").textContent = JSON.stringify(rec, null, 2);
+  renderJsonTree("json-input", rec.inputs ?? {});
+  renderJsonTree("json-output", rec);
   $("output-meta").textContent =
     `${rec.kind}:${rec.name} · ${rec.duration_s}s · ${rec.timestamp}`;
   $("vis-badge").innerHTML = rec.error
@@ -334,7 +619,7 @@ async function init() {
 $("kind").onchange = refreshNameOptions;
 $("name").onchange = renderForm;
 
-async function runStreaming(body, onStep) {
+async function runStreaming(body, onLog) {
   const resp = await fetch("/api/run/stream", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -355,7 +640,7 @@ async function runStreaming(body, onStep) {
       const line = chunk.split("\n").find(l => l.startsWith("data: "));
       if (!line) continue;
       const evt = JSON.parse(line.slice(6));
-      if (evt.type === "step") onStep(evt);
+      if (evt.type === "log") onLog(evt.log);
       else if (evt.type === "done") return evt.record;
     }
   }
@@ -363,32 +648,154 @@ async function runStreaming(body, onStep) {
 }
 
 $("run").onclick = async () => {
+  if ($("kind").value === "evaluation") {
+    await runEval();
+    return;
+  }
   const btn = $("run");
   btn.disabled = true;
   $("status").textContent = "running…";
-  const stepNames = currentSteps();
-  renderSteps(stepNames);
+  $("steps-panel").style.display = "none";
+  $("steps").innerHTML = "";
+  OPEN_PATHS = new Set();
+  if (isLoggedAgent()) startLiveTimer();
   try {
     const inputs = readForm();
     // client-side required check
     const missing = currentSchema().filter(f => f.required && (inputs[f.name] === undefined)).map(f => f.name);
     if (missing.length) throw new Error("missing required: " + missing.join(", "));
+    // Show this run's own inputs right away, and blank the output panel —
+    // otherwise the previous run's rendering lingers on screen until this
+    // one finishes, which reads as if nothing happened yet.
+    renderJsonTree("json-input", inputs);
+    renderJsonTree("json-output", {});
+    $("output-meta").textContent = "running…";
+    $("vis-badge").innerHTML = "";
     const rec = await runStreaming(
       { kind: $("kind").value, name: $("name").value, inputs },
-      updateStep
+      renderLogTree
     );
+    stopLiveTimer();
     render(rec);
     await refreshRuns();
     $("status").textContent = rec.error ? "error" : "done";
   } catch (e) {
-    $("visual").innerHTML = "";
-    $("visual").append(el("pre", { class: "err" }, String(e)));
+    stopLiveTimer();
+    renderJsonTree("json-output", { error: String(e) });
     $("vis-badge").innerHTML = '<span class="badge err">error</span>';
     $("status").textContent = "error";
   } finally {
     btn.disabled = false;
   }
 };
+
+wireExpandCollapse("json-input", "json-input-expand", "json-input-collapse");
+wireExpandCollapse("json-output", "json-output-expand", "json-output-collapse");
+wireExpandCollapse("eval-raw-json", "eval-raw-expand", "eval-raw-collapse");
+
+// --- evaluation pipelines ----------------------------------------------------
+
+async function populateWorkspaceSelect(select, currentValue) {
+  const { workspaces } = await api("/api/workspaces");
+  select.innerHTML = workspaces
+    .map(w => `<option value="${w.category_slug}">${w.category_slug} (${w.n_extracted_papers} extracted)</option>`)
+    .join("");
+  if (currentValue && [...select.options].some(o => o.value === currentValue)) {
+    select.value = currentValue;
+  }
+}
+
+async function refreshWorkspaces() {
+  await populateWorkspaceSelect($("eval-workspace"));
+  await refreshEvalPapers();
+}
+
+async function refreshEvalPapers() {
+  const slug = $("eval-workspace").value;
+  const sel = $("eval-papers");
+  sel.innerHTML = "";
+  if (!slug) return;
+  const { paper_ids } = await api(`/api/workspaces/${encodeURIComponent(slug)}/papers`);
+  sel.innerHTML = paper_ids.map(p => `<option value="${p}">${p}</option>`).join("");
+}
+
+async function evalStreaming(body, onStep) {
+  const resp = await fetch("/api/eval/stream", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) throw new Error(await resp.text());
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let idx;
+    while ((idx = buf.indexOf("\n\n")) >= 0) {
+      const chunk = buf.slice(0, idx);
+      buf = buf.slice(idx + 2);
+      const line = chunk.split("\n").find(l => l.startsWith("data: "));
+      if (!line) continue;
+      const evt = JSON.parse(line.slice(6));
+      if (evt.type === "step") onStep(evt);
+      else if (evt.type === "done") return evt;
+      else if (evt.type === "error") throw new Error(evt.error);
+    }
+  }
+  throw new Error("stream ended without a result");
+}
+
+async function runEval() {
+  const btn = $("run");
+  btn.disabled = true;
+  const slug = $("eval-workspace").value;
+  if (!slug) { btn.disabled = false; return; }
+  const papers = [...$("eval-papers").selectedOptions].map(o => o.value);
+  const queries = $("eval-queries").value.split("\n").map(s => s.trim()).filter(Boolean);
+  const mode = $("name").value;
+  const label = $("eval-label").value.trim() || "web";
+
+  $("eval-panel").style.display = "";
+  $("eval-progress").textContent = "starting…";
+  $("eval-badge").innerHTML = "";
+  $("status").textContent = "running eval…";
+
+  try {
+    const evt = await evalStreaming(
+      {
+        mode, category_slug: slug, label,
+        papers: papers.length ? papers : null,
+        queries: queries.length ? queries : null,
+      },
+      (step) => {
+        $("eval-progress").textContent = step.phase === "fetch"
+          ? `[fetch ${step.index + 1}/${step.total}] ${step.query} — ${step.status}`
+          : `[eval ${step.index + 1}/${step.total}] ${step.paper_id} — ${step.status}`;
+      }
+    );
+    $("eval-report").textContent = evt.report_md;
+    renderJsonTree("eval-raw-json", evt.raw);
+    let note = `done · saved to dev/eval_runs/${evt.run_dir}`;
+    if (evt.fetch_issues && evt.fetch_issues.length) {
+      note += ` · ${evt.fetch_issues.length} query(ies) unresolved (see console)`;
+      console.warn("eval fetch issues:", evt.fetch_issues);
+    }
+    $("eval-progress").textContent = note;
+    $("eval-badge").innerHTML = '<span class="badge">ok</span>';
+    $("status").textContent = "done";
+    await refreshEvalPapers();
+  } catch (e) {
+    $("eval-report").textContent = String(e);
+    $("eval-badge").innerHTML = '<span class="badge err">error</span>';
+    $("eval-progress").textContent = "";
+    $("status").textContent = "error";
+  } finally {
+    btn.disabled = false;
+  }
+}
 
 init();
 </script>

@@ -16,3 +16,6 @@ pylatexenc
 bibtexparser
 pdfminer.six
 marker-pdf
+
+# Gap evidence grounding (sentence segmentation)
+pysbd

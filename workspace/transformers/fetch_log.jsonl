@@ -22,3 +22,4 @@
 {"timestamp": "2026-06-15T11:50:03Z", "query": "1706.03762", "input_type": "arxiv_id", "outcome": "duplicate", "paper_id": "arxiv_1706.03762", "error": "already exists"}
 {"timestamp": "2026-06-15T11:51:47Z", "query": "a totally made up nonexistent paper title xyz123", "input_type": "title", "outcome": "error", "paper_id": null, "error": "no_results: semantic_scholar: <HTTPError 429: ''>; openalex: no_results; arxiv: no_results"}
 {"timestamp": "2026-06-15T11:59:38Z", "query": "1706.03762", "input_type": "arxiv_id", "outcome": "duplicate", "paper_id": "arxiv_1706.03762", "error": "already exists"}
+{"timestamp": "2026-06-22T15:28:40Z", "query": "1706.03762", "input_type": "arxiv_id", "outcome": "duplicate", "paper_id": "arxiv_1706.03762", "error": "already exists"}

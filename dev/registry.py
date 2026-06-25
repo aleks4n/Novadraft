@@ -5,8 +5,12 @@ Three kinds of entries:
                 fetch -> extract -> summarize -> gap into one call). These
                 return all sub-results (one JSON blob per step) so the dev UI
                 can show what each step produced.
-  - SUBAGENTS: the individual steps/subagents (fetch, extract, summarize, gap)
-                kept for isolated testing of a single stage.
+  - SUBAGENTS: the individual stages kept for isolated testing
+                (``paper_fetch``, ``paper_extract``, ``summarize``, ``gap``).
+                ``summarize`` and ``gap`` each run their own bounded
+                extractor<->critic loop internally — there's no separate
+                "critique-only" or "loop-only" entry, since the loop isn't
+                exposed outside either subagent.
   - FLOWS:     multi-agent flows spanning more than one top-level agent.
 
 Add new entries here. Each entry is a callable that takes a dict of kwargs
@@ -25,8 +29,8 @@ if str(ROOT) not in sys.path:
 from src.common.tools.paper_fetch import fetch as paper_fetch  # noqa: E402
 from src.common.tools.paper_extract import extract as paper_extract  # noqa: E402
 from src.agents.paper_agent import run as paper_agent  # noqa: E402
-from src.agents.paper_agent.subagents.paper_summary import summarize as paper_summary  # noqa: E402
-from src.agents.paper_agent.subagents.gap_agent import extract_gaps as gap_extract  # noqa: E402
+from src.agents.paper_agent.subagents.gap import extract_gaps  # noqa: E402
+from src.agents.paper_agent.subagents.summarize import summarize  # noqa: E402
 
 
 def _truthy(v) -> bool:
@@ -36,24 +40,36 @@ def _truthy(v) -> bool:
 
 
 AGENTS = {
-    "paper_agent": lambda category_slug, query, force=False, on_step=None, **_:
-        paper_agent(category_slug, query, force=_truthy(force), on_step=on_step),
+    "paper_agent": lambda category_slug, query, force=False, **_:
+        paper_agent(category_slug, query, force=_truthy(force)),
 }
 
-# Steps reported via ``on_step`` for agents that support live progress, in
-# pipeline order. Used by the dev UI to render a steps panel.
+# Agents that call ``runlog.start_run`` internally (see
+# src/common/utils/runlog.py) and so write a live-tailable JSON log to
+# workspace/<category_slug>/logs/<agent>/. The dev UI polls that file for
+# progress instead of a bespoke callback. Keyed by the input field that
+# holds the workspace/category slug.
+LOGGED_AGENTS = {
+    "paper_agent": "category_slug",
+}
+
+# Steps a logged agent is expected to go through, in pipeline order. Purely
+# a display hint for the dev UI (e.g. to label what's still pending) — the
+# authoritative step list is whatever actually shows up in the run's JSON
+# log, since not every run takes the same path (e.g. an ambiguous fetch
+# skips everything downstream).
 AGENT_STEPS = {
-    "paper_agent": ["fetch", "extract", "summary", "gaps"],
+    "paper_agent": ["fetch", "extract", "summarize", "gap"],
 }
 
 SUBAGENTS = {
     "paper_fetch": lambda category_slug, query, **_: paper_fetch(category_slug, query),
     "paper_extract": lambda category_slug, paper_id, force=False, **_:
         paper_extract(category_slug, paper_id, force=_truthy(force)),
-    "paper_summary": lambda category_slug, paper_id, force=False, **_:
-        paper_summary(category_slug, paper_id, force=_truthy(force)),
-    "gap_extract": lambda category_slug, paper_id, force=False, **_:
-        gap_extract(category_slug, paper_id, force=_truthy(force)),
+    "summarize": lambda category_slug, paper_id, force=False, **_:
+        summarize(category_slug, paper_id, force=_truthy(force)),
+    "gap": lambda category_slug, paper_id, force=False, **_:
+        extract_gaps(category_slug, paper_id, force=_truthy(force)),
 }
 
 FLOWS = {}
@@ -86,7 +102,7 @@ SCHEMAS = {
             {"name": "force", "type": "text", "required": False,
              "placeholder": "false"},
         ],
-        "paper_summary": [
+        "summarize": [
             {"name": "category_slug", "type": "text", "required": True,
              "placeholder": "transformers"},
             {"name": "paper_id", "type": "text", "required": True,
@@ -94,7 +110,7 @@ SCHEMAS = {
             {"name": "force", "type": "text", "required": False,
              "placeholder": "false"},
         ],
-        "gap_extract": [
+        "gap": [
             {"name": "category_slug", "type": "text", "required": True,
              "placeholder": "transformers"},
             {"name": "paper_id", "type": "text", "required": True,
@@ -114,4 +130,5 @@ def list_all() -> dict:
         "flows": sorted(FLOWS),
         "schemas": SCHEMAS,
         "agent_steps": AGENT_STEPS,
+        "logged_agents": LOGGED_AGENTS,
     }

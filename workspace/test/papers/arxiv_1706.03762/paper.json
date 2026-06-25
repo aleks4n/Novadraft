@@ -32,7 +32,7 @@
       "tex_dir": "source",
       "tex_main": "source/ms.tex"
     },
-    "fetched_at": "2026-06-15T11:53:04Z"
+    "fetched_at": "2026-06-23T14:54:48Z"
   },
   "content": {
     "sections": {
@@ -208,82 +208,86 @@
   "summary": {
     "paper_type": "method",
     "keywords": [
-      "transformer",
+      "Transformer",
       "self-attention",
       "multi-head attention",
       "scaled dot-product attention",
-      "encoder-decoder",
-      "feed-forward networks",
-      "residual connections",
-      "layer normalization",
-      "machine translation",
-      "parallelization"
+      "positional encoding",
+      "sequence transduction",
+      "machine translation"
     ],
     "topics": [
-      "transformers",
-      "sequence-to-sequence models",
       "attention mechanisms",
+      "sequence-to-sequence models",
+      "transformer architecture",
       "machine translation",
-      "encoder-decoder architectures"
+      "parallelization in deep learning"
     ],
     "problem": {
-      "statement": "Dominant sequence transduction models rely on recurrent or convolutional neural networks with sequential computation, which precludes parallelization within training examples and becomes critical at longer sequence lengths.",
-      "motivation": "To design a model that is more parallelizable, requires significantly less training time, and achieves superior translation quality by relying solely on attention mechanisms.",
+      "statement": "Recurrent and convolutional sequence transduction models are inherently sequential, preventing parallelization within training examples and limiting computational efficiency, especially at longer sequence lengths.",
+      "motivation": "To design a sequence transduction architecture that dispenses with recurrence and convolutions entirely, relying solely on attention mechanisms to achieve greater parallelizability, faster training, and superior translation quality.",
       "prior_limitations": [
-        "Recurrent models factor computation along symbol positions, making them inherently sequential and hard to parallelize.",
-        "Attention mechanisms were typically used in conjunction with recurrent networks, not as a standalone replacement.",
-        "Memory constraints limit batching across examples for long sequences."
+        "Recurrent models factor computation sequentially along symbol positions, precluding parallelization within training examples.",
+        "Memory constraints limit batching across examples at longer sequence lengths.",
+        "Existing attention mechanisms are almost always used in conjunction with recurrent networks, inheriting their sequential bottleneck.",
+        "Factorization tricks and conditional computation improve efficiency but do not remove the fundamental constraint of sequential computation."
       ]
     },
     "approach": {
-      "summary": "The Transformer is an encoder-decoder architecture composed entirely of stacked self-attention and position-wise fully connected layers, dispensing with recurrence and convolutions. It uses multi-head self-attention in both encoder and decoder, scaled dot-product attention for efficiency, and employs residual connections and layer normalization. The decoder includes masked self-attention to preserve auto-regressive property. Positional encodings (not shown in provided text but part of full paper) are added to inject sequence order information.",
+      "summary": "The Transformer follows the standard encoder-decoder architecture for sequence transduction, using stacked self-attention and position-wise feed-forward layers instead of recurrence or convolutions. The encoder consists of N=6 identical layers, each with a multi-head self-attention sub-layer and a feed-forward sub-layer, both followed by residual connections and layer normalization. The decoder also has N=6 identical layers, with an additional encoder-decoder multi-head attention sub-layer and masking in self-attention to preserve auto-regressive generation. Scaled dot-product attention computes attention as softmax(QK^T/√d_k)V, with the scaling factor introduced to counteract vanishing gradients for large key dimensions. Multi-head attention (h=8 heads) projects queries, keys, and values h times with different learned linear projections, allowing the model to attend to information from different representation subspaces at similar computational cost to single-head attention.",
       "key_ideas": [
-        "Multi-head self-attention allows the model to attend to information from different representation subspaces at different positions.",
-        "Scaled dot-product attention (scaling by 1/√d_k) prevents softmax gradients from vanishing for large key dimensions.",
-        "Parallelization across sequence positions is achieved by eliminating recurrence; all positions are processed simultaneously.",
-        "Stacked layers with residual connections and layer normalization enable deep architectures."
+        "Replace recurrence entirely with multi-head self-attention and encoder-decoder attention, enabling full parallelization across sequence positions.",
+        "Scaled dot-product attention with scaling factor 1/√d_k to counteract softmax gradient vanishing for large key dimensions.",
+        "Multi-head attention with h=8 parallel heads, each operating on reduced dimensions (d_k=d_v=64), allowing joint attention across different representation subspaces.",
+        "Sinusoidal positional encodings added to input embeddings to inject sequence order information, chosen because they may allow extrapolation to unseen sequence lengths."
       ],
       "assumptions": [
-        "The input and output sequences are of varying lengths but can be packed into fixed-size matrices with masking.",
-        "Position information can be injected via simple additive positional encodings (not detailed in provided excerpt).",
-        "Self-attention can capture global dependencies without explicit sequential processing."
+        "The paper assumes the standard encoder-decoder architecture for sequence transduction, mapping input sequences to continuous representations and then auto-regressively generating output sequences.",
+        "The paper assumes that residual connections and layer normalization are sufficient to train deep stacks (N=6) of attention and feed-forward layers.",
+        "The paper assumes that dot-product attention, when scaled by 1/√d_k, performs comparably or better than additive attention for large key dimensions.",
+        "The paper assumes that sinusoidal positional encodings provide enough positional information; it notes that learned positional embeddings produce nearly identical results."
       ]
     },
     "contributions": [
       {
         "type": "method",
-        "description": "Propose the Transformer, the first sequence transduction model based entirely on attention, replacing recurrent and convolutional layers with multi-headed self-attention.",
-        "evidence_section": "abstract / method / results"
+        "description": "Proposes the Transformer architecture, the first sequence transduction model based entirely on attention mechanisms, dispensing with recurrence and convolutions.",
+        "evidence_section": "method"
       },
       {
         "type": "experimental",
-        "description": "Achieve state-of-the-art BLEU scores of 28.4 on WMT 2014 English-German and 41.8 on WMT 2014 English-French translation, surpassing prior best results including ensembles.",
+        "description": "Achieves 28.4 BLEU on WMT 2014 English-to-German translation, outperforming all previously reported ensembles by over 2 BLEU.",
         "evidence_section": "results"
       },
       {
         "type": "experimental",
-        "description": "Demonstrate faster training: the model reaches SOTA in 3.5 days on 8 GPUs (English-French) and as little as 12 hours (English-German), a small fraction of prior training costs.",
+        "description": "Establishes a new single-model state-of-the-art BLEU score of 41.8 on WMT 2014 English-to-French translation after 3.5 days of training on 8 GPUs.",
         "evidence_section": "results"
       },
       {
         "type": "experimental",
-        "description": "Show generalization to English constituency parsing, performing well with both large and limited training data.",
-        "evidence_section": "abstract / results (implied)"
+        "description": "Demonstrates generalization to English constituency parsing, succeeding with both large and limited training data.",
+        "evidence_section": "results"
+      },
+      {
+        "type": "method",
+        "description": "Introduces scaled dot-product attention with multi-head attention, enabling the model to jointly attend to information from different representation subspaces.",
+        "evidence_section": "method"
       }
     ],
     "datasets": [
       {
         "name": "WMT 2014 English-German",
-        "task": "machine translation (English-to-German)",
+        "task": "machine translation",
         "role": "evaluation"
       },
       {
         "name": "WMT 2014 English-French",
-        "task": "machine translation (English-to-French)",
+        "task": "machine translation",
         "role": "evaluation"
       },
       {
-        "name": "English constituency parsing dataset (not specified further)",
+        "name": "English constituency parsing (WSJ + additional data)",
         "task": "constituency parsing",
         "role": "evaluation"
       }
@@ -293,66 +297,263 @@
         "name": "BLEU",
         "value": "28.4",
         "dataset": "WMT 2014 English-German",
-        "comparison": "SOTA (previous best including ensembles)"
+        "comparison": "SOTA (outperforms all previously reported ensembles by >2 BLEU)"
       },
       {
         "name": "BLEU",
         "value": "41.8",
         "dataset": "WMT 2014 English-French",
-        "comparison": "SOTA (single-model; previous best likely higher with ensembles)"
+        "comparison": "SOTA (new single-model state-of-the-art)"
       },
       {
-        "name": "training time",
+        "name": "Training time",
         "value": "3.5 days on 8 GPUs",
         "dataset": "WMT 2014 English-French",
-        "comparison": "prior work (not quantified but described as 'small fraction')"
+        "comparison": "prior_work (small fraction of training costs of best models)"
       }
     ],
     "results": {
-      "headline": "The Transformer achieves new state-of-the-art translation quality on two WMT benchmarks while training significantly faster than recurrent or convolutional baselines, and generalizes well to constituency parsing.",
+      "headline": "The Transformer achieves 28.4 BLEU on WMT 2014 English-to-German translation, outperforming all previously reported ensembles by over 2 BLEU, and establishes a new single-model state-of-the-art BLEU of 41.8 on WMT 2014 English-to-French translation after training for 3.5 days on eight GPUs.",
       "caveats": [
-        "The decoder remains auto-regressive and generates symbols one at a time, limiting parallelization during inference.",
-        "Experiments are limited to text-based tasks; application to other modalities (images, audio, video) is not evaluated in this paper.",
-        "The model's computational cost for very long sequences (e.g., full-document translation) is not discussed."
+        "Results are demonstrated primarily on machine translation tasks; generalization to other tasks is shown only for English constituency parsing.",
+        "The model still uses an auto-regressive decoder, so generation is not fully parallelized.",
+        "The paper does not explore scaling to very long sequences or the quadratic complexity of full self-attention."
       ]
     },
     "limitations_stated": [
-      "Making generation less sequential is a research goal, acknowledging the decoder's sequential nature.",
-      "The paper notes the need for local, restricted attention mechanisms to efficiently handle large inputs and outputs such as images, audio and video.",
-      "No explicit limitations are listed in the provided sections, but the conclusion suggests current work is limited to text and sequential decoding."
+      "The decoder remains auto-regressive, generating outputs one element at a time, so generation is not fully parallelized.",
+      "The paper notes that making generation less sequential is a future research goal.",
+      "The sinusoidal positional encoding was chosen partly because it 'may allow the model to extrapolate to sequence lengths longer than the ones encountered during training' — this is a hypothesis, not a demonstrated result.",
+      "The paper only evaluates on text tasks (translation and parsing) and explicitly states plans to extend to other modalities (images, audio, video)."
     ],
     "open_threads": [
-      "Apply the Transformer to tasks involving input and output modalities other than text (e.g., images, audio, video).",
-      "Develop local, restricted attention mechanisms to handle large inputs and outputs efficiently.",
-      "Make generation less sequential (e.g., fully parallel decoding)."
+      "Extending the Transformer to problems involving input and output modalities other than text (images, audio, video).",
+      "Investigating local, restricted attention mechanisms to efficiently handle large inputs and outputs.",
+      "Making generation less sequential (fully parallelized decoding).",
+      "Extrapolation to sequence lengths longer than those seen during training.",
+      "Application of attention-based models to tasks beyond sequence transduction."
     ],
-    "context_summary": "This paper introduces the Transformer, a novel sequence transduction architecture that eliminates recurrence and convolutions entirely, relying solely on attention mechanisms. The encoder-decoder model uses stacked multi-head self-attention layers combined with position-wise feed-forward networks, residual connections, and layer normalization. Scaled dot-product attention (dividing by sqrt(d_k)) prevents gradient vanishing in softmax for large key dimensions. Multi-head attention allows the model to attend jointly to different representation subspaces. The decoder masks future positions to preserve auto-regressive generation. Experiments on WMT 2014 English-German and English-French translation achieve state-of-the-art BLEU scores (28.4 and 41.8 respectively) with substantially reduced training time—3.5 days on 8 GPUs for English-French. The model also generalizes to English constituency parsing with both large and limited training data. The Transformer's fully parallelizable encoder and attention layers mark a departure from sequential RNNs, enabling faster training and strong performance on sequence transduction tasks. The paper sets the foundation for subsequent transformer-based architectures across NLP and beyond."
+    "context_summary": "The Transformer, introduced by Vaswani et al. (2017), is a sequence transduction architecture that replaces recurrent and convolutional layers entirely with attention mechanisms. The model follows an encoder-decoder structure with stacks of N=6 identical layers on each side. Each encoder layer contains a multi-head self-attention sub-layer and a position-wise feed-forward network, both with residual connections and layer normalization. The decoder adds a third sub-layer for encoder-decoder attention and uses masking in self-attention to preserve auto-regressive generation. The core innovation is scaled dot-product attention (softmax(QK^T/√d_k)V), where the scaling factor 1/√d_k prevents vanishing gradients for large key dimensions. Multi-head attention with h=8 parallel heads allows the model to attend to information from different representation subspaces. Since the architecture has no inherent notion of sequence order, sinusoidal positional encodings are added to input embeddings. On WMT 2014 English-to-German translation, the Transformer achieves 28.4 BLEU, outperforming all previously reported ensembles by over 2 BLEU. On English-to-French translation, it achieves a single-model state-of-the-art BLEU of 41.8 after 3.5 days of training on 8 GPUs. The model also generalizes successfully to English constituency parsing. This work fundamentally shifted sequence modeling away from recurrent architectures and established the Transformer as the dominant paradigm in NLP and beyond."
+  },
+  "summary_verification": {
+    "status": "issues",
+    "attempts": 3,
+    "regenerated": true,
+    "grounding": {
+      "checked": [
+        "28.4",
+        "WMT 2014 English-German",
+        "41.8",
+        "WMT 2014 English-French",
+        "3.5 days on 8 GPUs",
+        "English constituency parsing (WSJ + additional data)",
+        "2014",
+        "3.5"
+      ],
+      "unmatched": [
+        "3.5 days on 8 GPUs",
+        "English constituency parsing (WSJ + additional data)"
+      ]
+    },
+    "issues": [
+      {
+        "id": "fcff026570",
+        "resolved": false,
+        "created_round": 1,
+        "resolved_round": null,
+        "field": "metrics",
+        "severity": "minor",
+        "description": "The metric entry for 'BLEU' with value '27.3 (base model)' on WMT 2014 English-German is listed as a metric, but the source sections provided do not contain this specific value. The source only mentions 28.4 BLEU for the big model on En-De. The 27.3 base model value may come from a table not included in the provided source sections, so it cannot be verified against the given source text.",
+        "evidence_section": "results"
+      },
+      {
+        "id": "8e17f1d971",
+        "resolved": false,
+        "created_round": 1,
+        "resolved_round": null,
+        "field": "results.caveats",
+        "severity": "minor",
+        "description": "The caveat 'Comparison baselines are from 2017-era models; absolute BLEU numbers have since been surpassed' is not stated or implied in the source text. This is an external judgment not supported by the paper.",
+        "evidence_section": "results"
+      },
+      {
+        "id": "bea9da162b",
+        "resolved": false,
+        "created_round": 1,
+        "resolved_round": null,
+        "field": "approach.assumptions",
+        "severity": "minor",
+        "description": "The assumptions listed (e.g., 'The compatibility function between queries and keys can be effectively learned via dot products in a shared embedding space') are not explicitly stated as assumptions in the source. They are reasonable inferences but go beyond what the paper itself articulates as assumptions.",
+        "evidence_section": "method"
+      }
+    ],
+    "missing_hints": [],
+    "checked_at": "2026-06-24T08:27:46Z"
   },
   "gaps": {
     "gap_ids": [
-      "gap_88001080",
-      "gap_a357fb32",
-      "gap_08af5017",
-      "gap_8d4c6197",
-      "gap_a06f88a2",
-      "gap_a8d9c23a",
-      "gap_62fa7442",
-      "gap_adf762fd",
-      "gap_1aa0b1d5"
+      "gap_0a9574d2",
+      "gap_2daccdd9",
+      "gap_3377edc5",
+      "gap_156fe429",
+      "gap_3cd1e5e1",
+      "gap_a5a46aa2",
+      "gap_94361724",
+      "gap_4cf4c8f9",
+      "gap_cd623e13"
     ]
   },
   "processing": {
     "fetched": true,
     "extracted": true,
     "summarized": true,
+    "summary_verified": true,
     "gaps_extracted": true
   },
   "warnings": [
-    "gap_agent_fetched_sections: why_self_attention, method, introduction, background, training, results, background, attention_visualizations, method",
-    "gap_quote_not_grounded: gid=gap_8d4c6197 section=why_self_attention (quote not found verbatim in section text)",
-    "gap_quote_not_grounded: gid=gap_a06f88a2 section=results (quote not found verbatim in section text)",
-    "gap_quote_not_grounded: gid=gap_a8d9c23a section=training (quote not found verbatim in section text)",
-    "gap_quote_not_grounded: gid=gap_62fa7442 section=method (quote not found verbatim in section text)",
-    "gap_quote_not_grounded: gid=gap_1aa0b1d5 section=introduction (quote not found verbatim in section text)"
-  ]
+    "summary_failed: empty LLM response",
+    "gap_rejected_by_critic: gid=gap_3752ad66 reason=The quoted sentence is empty (not_found) and the description reads as an inference by the extractor, not something the paper itself states as an assumption. The paper simply describes using residual connections and layer normalization as part of the architecture; it never frames this as an assumption or limitation.",
+    "gap_rejected_by_critic: gid=gap_351f7686 reason=This gap is essentially a duplicate of gap_0a9574d2 — both describe the same limitation (decoder auto-regressiveness / generation not fully parallelized) using the same anchor sentence from the conclusion. Having two separate gap entries for the same point is redundant and inflates the gap list.",
+    "gap_rejected_by_critic: gid=gap_3d546b83 reason=This candidate is a near-duplicate of gap_cd623e13 — both describe the same finding about reducing attention key size d_k hurting quality, with nearly identical quotes and descriptions. Having two separate gap entries for the same evidence is redundant and should be merged or one removed."
+  ],
+  "gap_verification": {
+    "status": "issues",
+    "attempts": 10,
+    "loop_trail": [
+      {
+        "attempt": 1,
+        "n_candidates": 10,
+        "n_new_or_fixed": 10,
+        "n_major_issues": 1,
+        "n_open_minor_issues": 1,
+        "coverage_complete": true
+      },
+      {
+        "attempt": 2,
+        "n_candidates": 1,
+        "n_new_or_fixed": 1,
+        "n_major_issues": 0,
+        "n_open_minor_issues": 1,
+        "coverage_complete": true
+      },
+      {
+        "attempt": 3,
+        "n_candidates": 10,
+        "n_new_or_fixed": 2,
+        "n_major_issues": 0,
+        "n_open_minor_issues": 1,
+        "coverage_complete": true
+      },
+      {
+        "attempt": 4,
+        "n_candidates": 1,
+        "n_new_or_fixed": 1,
+        "n_major_issues": 0,
+        "n_open_minor_issues": 1,
+        "coverage_complete": true
+      },
+      {
+        "attempt": 5,
+        "n_candidates": 1,
+        "n_new_or_fixed": 1,
+        "n_major_issues": 0,
+        "n_open_minor_issues": 1,
+        "coverage_complete": true
+      },
+      {
+        "attempt": 6,
+        "n_candidates": 1,
+        "n_new_or_fixed": 1,
+        "n_major_issues": 1,
+        "n_open_minor_issues": 1,
+        "coverage_complete": true
+      },
+      {
+        "attempt": 7,
+        "n_candidates": 10,
+        "n_new_or_fixed": 2,
+        "n_major_issues": 1,
+        "n_open_minor_issues": 1,
+        "coverage_complete": true
+      },
+      {
+        "attempt": 8,
+        "n_candidates": 9,
+        "n_new_or_fixed": 1,
+        "n_major_issues": 0,
+        "n_open_minor_issues": 2,
+        "coverage_complete": true
+      },
+      {
+        "attempt": 9,
+        "n_candidates": 2,
+        "n_new_or_fixed": 2,
+        "n_major_issues": 0,
+        "n_open_minor_issues": 2,
+        "coverage_complete": true
+      },
+      {
+        "attempt": 10,
+        "n_candidates": 2,
+        "n_new_or_fixed": 2,
+        "n_major_issues": 0,
+        "n_open_minor_issues": 2,
+        "coverage_complete": true
+      }
+    ],
+    "rejected": {
+      "residual connections and layer normalization assumed sufficient for training deep stacks": "The quoted sentence is empty (not_found) and the description reads as an inference by the extractor, not something the paper itself states as an assumption. The paper simply describes using residual connections and layer normalization as part of the architecture; it never frames this as an assumption or limitation.",
+      "making generation less sequential is a future research goal": "This gap is essentially a duplicate of gap_0a9574d2 — both describe the same limitation (decoder auto-regressiveness / generation not fully parallelized) using the same anchor sentence from the conclusion. Having two separate gap entries for the same point is redundant and inflates the gap list.",
+      "reducing attention key dimension degrades model quality, suggesting dot-product compatibility may be insufficient": "This candidate is a near-duplicate of gap_cd623e13 — both describe the same finding about reducing attention key size d_k hurting quality, with nearly identical quotes and descriptions. Having two separate gap entries for the same evidence is redundant and should be merged or one removed."
+    },
+    "issues": [
+      {
+        "id": "6da5aa8230",
+        "resolved": true,
+        "created_round": 1,
+        "resolved_round": 1,
+        "gap_id": "gap_3752ad66",
+        "severity": "major",
+        "reason": "The quoted sentence is empty (not_found) and the description reads as an inference by the extractor, not something the paper itself states as an assumption. The paper simply describes using residual connections and layer normalization as part of the architecture; it never frames this as an assumption or limitation."
+      },
+      {
+        "id": "5263afe004",
+        "resolved": false,
+        "created_round": 1,
+        "resolved_round": null,
+        "gap_id": "gap_a5a46aa2",
+        "severity": "minor",
+        "reason": "The description reads as the paper citing a known property of dot-product attention (from prior work) and presenting their scaling fix — it's more of a design motivation than a caveat/limitation of the Transformer itself. The type 'caveat' is debatable but not wrong enough to be major."
+      },
+      {
+        "id": "76be6c63d2",
+        "resolved": true,
+        "created_round": 6,
+        "resolved_round": 6,
+        "gap_id": "gap_351f7686",
+        "severity": "major",
+        "reason": "This gap is essentially a duplicate of gap_0a9574d2 — both describe the same limitation (decoder auto-regressiveness / generation not fully parallelized) using the same anchor sentence from the conclusion. Having two separate gap entries for the same point is redundant and inflates the gap list."
+      },
+      {
+        "id": "dbcd7d3a64",
+        "resolved": true,
+        "created_round": 7,
+        "resolved_round": 7,
+        "gap_id": "gap_3d546b83",
+        "severity": "major",
+        "reason": "This candidate is a near-duplicate of gap_cd623e13 — both describe the same finding about reducing attention key size d_k hurting quality, with nearly identical quotes and descriptions. Having two separate gap entries for the same evidence is redundant and should be merged or one removed."
+      },
+      {
+        "id": "56666acd6f",
+        "resolved": false,
+        "created_round": 8,
+        "resolved_round": null,
+        "gap_id": "gap_94361724",
+        "severity": "minor",
+        "reason": "Label smoothing hurting perplexity while improving BLEU is presented as an observed trade-off the authors deliberately chose, not a 'negative result' in the sense of an experiment that failed. The type 'caveat' would be more precise, but this is a minor labeling issue."
+      }
+    ],
+    "missing_hints": [],
+    "checked_at": "2026-06-24T08:29:13Z"
+  }
 }
