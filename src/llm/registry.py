@@ -12,6 +12,15 @@ def _has_real_key() -> bool:
     return bool(os.getenv("OPENAI_API_KEY") or os.getenv("DEEPSEEK_API_KEY"))
 
 
+def _model_for_role(role: str) -> str:
+    if os.getenv("DEEPSEEK_API_KEY") and not os.getenv("OPENAI_API_KEY"):
+        if role == "reasoner":
+            return "deepseek:deepseek-chat"
+        if role == "cheap":
+            return "deepseek:deepseek-chat"
+    return MODELS[role]
+
+
 def get_llm(role: str):
     """Return a chat model for the given role.
 
@@ -23,9 +32,9 @@ def get_llm(role: str):
 
     from langchain.chat_models import init_chat_model
 
-    llm = init_chat_model(MODELS[role])
+    llm = init_chat_model(_model_for_role(role))
     # Automatic failover: reasoner down -> retry on the cheap model.
     if role == "reasoner":
-        llm = llm.with_fallbacks([init_chat_model(MODELS["cheap"])])
+        llm = llm.with_fallbacks([init_chat_model(_model_for_role("cheap"))])
     return llm
 

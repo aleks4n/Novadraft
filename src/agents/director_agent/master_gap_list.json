@@ -1,81 +1,12 @@
 [
   {
-    "gap_id": "gap_6c7dee08",
+    "gap_id": "gap_test_similarity_merge",
     "status": "unchecked",
-    "title": "Grokking lacks theoretical explanation",
-    "description": "The paper conjectures that grokking may be due to SGD noise driving optimization to flatter minima, but this mechanism is not proven and is identified as an open question for future investigation.",
-    "type": "open_problem",
-    "canonical_description": "grokking phenomenon lacks theoretical explanation; mechanism is conjectured but not proven",
-    "evidence": [
-      {
-        "paper_id": "arxiv_2201.02177",
-        "section": "appendix",
-        "quote": "We conjectured that the grokking phenomena we report in this work may be due to the noise from SGD driving the optimization to flatter/simpler solutions that generalize better and hope to investigate in future work whether any of these measures are predictive of grokking.",
-        "char_offset": [
-          7669,
-          7941
-        ]
-      }
-    ],
-    "extracted_at": "2026-06-09T09:17:34Z"
-  },
-  {
-    "gap_id": "gap_7d3a48ba",
-    "status": "unchecked",
-    "title": "Flatness measures not yet tested for correlation with generalization",
-    "description": "The authors plan to test whether various proposed measures of minima flatness correlate with generalization in their setting, indicating this connection has not been established.",
-    "type": "future_work",
-    "canonical_description": "correlation between minima flatness measures and generalization not yet tested",
-    "evidence": [
-      {
-        "paper_id": "arxiv_2201.02177",
-        "section": "discussion",
-        "quote": "we plan to test whether various proposed measures of minima flatness correlate with generalization in our setting.",
-        "char_offset": [
-          344,
-          458
-        ]
-      }
-    ],
-    "extracted_at": "2026-06-09T09:17:34Z"
-  },
-  {
-    "gap_id": "gap_af7b8dd1",
-    "status": "unchecked",
-    "title": "Compute-time tradeoff not validated on other datasets",
-    "description": "The finding that optimization steps needed for generalization increase quickly as dataset size decreases has only been observed on algorithmic datasets; whether this effect generalizes to other datasets is left for future work.",
-    "type": "future_work",
-    "canonical_description": "whether optimization-time-vs-dataset-size tradeoff generalizes to other datasets is unknown",
-    "evidence": [
-      {
-        "paper_id": "arxiv_2201.02177",
-        "section": "discussion",
-        "quote": "it would be useful to investigate in future work whether the effect is also present for other datasets.",
-        "char_offset": [
-          1271,
-          1374
-        ]
-      }
-    ],
-    "extracted_at": "2026-06-09T09:17:34Z"
-  },
-  {
-    "gap_id": "gap_49dfa01e",
-    "status": "unchecked",
-    "title": "Embedding visualizations as tool for novel math objects is speculative",
-    "description": "The authors speculate that embedding visualizations could one day provide intuitions about novel mathematical objects, but this remains a speculative future direction.",
+    "title": "Visualizations as a medium in regard of math is problematic",
+    "description": "Dummy test gap to verify that similar gaps merge evidence into the master list.",
     "type": "future_work",
     "canonical_description": "embedding visualizations as a tool for gaining intuitions about novel mathematical objects is speculative",
     "evidence": [
-      {
-        "paper_id": "arxiv_2201.02177",
-        "section": "discussion",
-        "quote": "we speculate that such visualizations could one day be a useful way to gain intuitions about novel mathematical objects.",
-        "char_offset": [
-          862,
-          982
-        ]
-      },
       {
         "paper_id": "arxiv_test_similarity_merge",
         "section": "dummy_section",
@@ -84,85 +15,37 @@
           0,
           52
         ]
-      }
-    ],
-    "extracted_at": "2026-06-09T09:17:34Z"
-  },
-  {
-    "gap_id": "gap_6ecf357e",
-    "status": "unchecked",
-    "title": "Network uses abstract symbols with no inherent structure",
-    "description": "The approach assumes that symbols representing elements have no internal structure; the network must learn all properties solely from interactions between symbols.",
-    "type": "assumption",
-    "canonical_description": "network uses abstract symbols with no inherent structure; all structure must be learned from interactions",
-    "evidence": [
+      },
       {
-        "paper_id": "arxiv_2201.02177",
-        "section": "introduction",
-        "quote": "the network is not made aware of any internal structure of the elements, and has to learn about their properties only from their interactions with other elements.",
+        "paper_id": "arxiv_test_similarity_merge_2",
+        "section": "dummy_section",
+        "quote": "Second dummy evidence entry for merge behavior validation.",
         "char_offset": [
-          2240,
-          2402
+          0,
+          58
         ]
       }
     ],
-    "extracted_at": "2026-06-09T09:17:34Z"
+    "extracted_at": "2026-06-23T10:00:00Z"
   },
   {
-    "gap_id": "gap_cdaadef3",
+    "gap_id": "gap_test_new_gap",
     "status": "unchecked",
-    "title": "Some binary operations resist generalization",
-    "description": "Certain operations (e.g., x^3+xy^2+y mod 97) did not lead to generalization within the allowed optimization budget at any training data percentage up to 95%, with models merely memorizing the training data.",
-    "type": "negative_result",
-    "canonical_description": "some binary operations resisted generalization within the optimization budget and data fraction range tested",
+    "title": "New dummy gap for append testing",
+    "description": "This dummy gap is intentionally different from the existing master gaps so it should be appended as a new item.",
+    "type": "future_work",
+    "canonical_description": "this dummy gap should not match existing master gaps",
     "evidence": [
       {
-        "paper_id": "arxiv_2201.02177",
-        "section": "experiments",
-        "quote": "Some operations (for example $x^3+xy^2+y \\pmod {97}$) didn't lead to generalization within the allowed optimization budget at any percentage of data up to 95%.",
-        "char_offset": null
-      }
-    ],
-    "extracted_at": "2026-06-09T09:17:34Z"
-  },
-  {
-    "gap_id": "gap_fd324629",
-    "status": "unchecked",
-    "title": "Learning rate requires narrow tuning for generalization",
-    "description": "The authors found that the learning rate had to be tuned within a relatively narrow window (one order of magnitude) for generalization to occur, indicating sensitivity to this hyperparameter.",
-    "type": "caveat",
-    "canonical_description": "learning rate requires narrow tuning for generalization to occur",
-    "evidence": [
-      {
-        "paper_id": "arxiv_2201.02177",
-        "section": "experiments",
-        "quote": "We found that learning rate had to be tuned in a relatively narrow window for the generalization to happen (within 1 order of magnitude).",
+        "paper_id": "arxiv_test_new_gap",
+        "section": "dummy_section",
+        "quote": "Dummy evidence entry to test appending a new gap.",
         "char_offset": [
-          7167,
-          7304
+          0,
+          49
         ]
       }
     ],
-    "extracted_at": "2026-06-09T09:17:34Z"
-  },
-  {
-    "gap_id": "gap_bb606112",
-    "status": "unchecked",
-    "title": "Some effects may be architecture-dependent",
-    "description": "The observation that symmetric operations require less data for generalization may be partially dependent on the transformer architecture, since transformers can easily learn symmetric functions by ignoring positional embeddings.",
-    "type": "caveat",
-    "canonical_description": "some observed effects may be partially dependent on transformer architecture",
-    "evidence": [
-      {
-        "paper_id": "arxiv_2201.02177",
-        "section": "experiments",
-        "quote": "We believe this effect might be partially architecture-dependent, since it's easy for a transformer to learn a symmetric function of the operands by ignoring positional embedding.",
-        "char_offset": [
-          4020,
-          4199
-        ]
-      }
-    ],
-    "extracted_at": "2026-06-09T09:17:34Z"
+    "extracted_at": "2026-06-23T11:00:00Z"
   }
 ]

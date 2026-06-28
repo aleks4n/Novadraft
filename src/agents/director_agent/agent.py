@@ -51,6 +51,7 @@ def ensure_master_gap_list() -> Path:
 	master_gap_list_path = Path(__file__).resolve().parent / "master_gap_list.json"
 	if not master_gap_list_path.exists():
 		master_gap_list_path.write_text("[]\n", encoding="utf-8")
+		print(f"Created {master_gap_list_path.name}")
 	return master_gap_list_path
 
 
@@ -154,11 +155,12 @@ def main(paper_json_path: str) -> str:
 	llm = _safe_get_reasoner()
 
 	if not master_gaps:
-		# First initialization: store incoming gaps directly as JSON array.
+		
 		master_gap_list_path.write_text(
 			json.dumps(incoming_gaps, indent=2, ensure_ascii=False) + "\n",
 			encoding="utf-8",
 		)
+		print(f"Initialized {master_gap_list_path.name} with {len(incoming_gaps)} gap(s)")
 		return all_gaps_text
 
 	master_gaps_text = json.dumps(master_gaps, ensure_ascii=False, indent=2)
