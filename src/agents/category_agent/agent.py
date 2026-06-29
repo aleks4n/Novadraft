@@ -199,6 +199,10 @@ def _parse_args() -> argparse.Namespace:
 	return parser.parse_args()
 
 
+def run(topic: str) -> str:
+    return main(topic)
+
+
 if __name__ == "__main__":
 	args = _parse_args()
 	topic_value = " ".join(args.topic)
