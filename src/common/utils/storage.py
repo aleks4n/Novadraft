@@ -171,3 +171,32 @@ def list_idea_ids(category_slug: str) -> list[str]:
     return sorted(p.stem for p in d.glob("*.json"))
 
 
+# --- verdicts/<gap_id>.json --------------------------------------------------
+# One validator Verdict per gap, keyed by gap_id — the handoff the ranking agent reads.
+
+def verdicts_dir(category_slug: str) -> Path:
+    return category_dir(category_slug) / "verdicts"
+
+
+def write_verdict_json(category_slug: str, record: dict) -> Path:
+    d = verdicts_dir(category_slug)
+    d.mkdir(parents=True, exist_ok=True)
+    out = d / f"{record['gap_id']}.json"
+    out.write_text(json.dumps(record, indent=2, ensure_ascii=False))
+    return out
+
+
+def read_verdict_json(category_slug: str, gap_id: str) -> dict | None:
+    p = verdicts_dir(category_slug) / f"{gap_id}.json"
+    if not p.exists():
+        return None
+    return json.loads(p.read_text())
+
+
+def list_verdict_ids(category_slug: str) -> list[str]:
+    d = verdicts_dir(category_slug)
+    if not d.exists():
+        return []
+    return sorted(p.stem for p in d.glob("*.json"))
+
+

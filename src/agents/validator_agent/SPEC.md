@@ -8,7 +8,7 @@ run standalone (`python src/agents/validator_agent/agent.py`).
 ## Pipeline
 
 ```
-gap → query_gen → search → rrf → screen → deep_read → verdict → END
+gap → query_gen → search → rrf → screen → deep_read → verdict → finalize → END
 ```
 
 | Node | Kind | Role |
@@ -19,6 +19,17 @@ gap → query_gen → search → rrf → screen → deep_read → verdict → EN
 | `screen` | LLM (cheap) | Abstract-level triage → ranked shortlist (≤ 8). |
 | `deep_read` | LLM (reasoner) | Fetch each shortlisted candidate into `_validator_cache` (paper_fetch + paper_extract, cache-reused), read its full text → `PaperAssessment` (≤ 5; fetch misses backfilled). |
 | `verdict` | LLM (reasoner) | Synthesize the assessments → one `Verdict` for the gap. |
+| `finalize` | deterministic | Persist the `Verdict` to `verdicts/<gap_id>.json` — the handoff the ranking agent reads. |
+
+## Entrypoint & outputs
+
+- **`run(category_slug, gap_id)`** is the standard entrypoint: loads the gap from
+  `gaps/pending/<gap_id>.json`, streams the graph through a `GraphRunLog` (so it writes the
+  standard per-run `.jsonl` to `workspace/<cat>/logs/validator_agent/` and echoes to a TTY),
+  and returns the `Verdict`. `stream=False` gives a quiet, log-free `.invoke()`.
+- **Verdict persistence** is a `finalize` node, not the `run()` boundary, so it also fires
+  when the validator is mounted as a subgraph node in the main pipeline. The scoring nodes
+  stay pure; `run()` reads the persisted verdict back to return it.
 
 ## Key decisions
 
@@ -75,10 +86,9 @@ Built first against interim stub schemas; migrated to the real shared contracts 
   old self-contained `test_gaps` no longer suffice — need either a small fixture workspace
   (source-paper stubs with `metadata.year` + `summary.keywords`; the validator never reads
   source content) or mocked `paper_access`, plus the gaps re-expressed as `GapRecord`.
-- **Workflow conformance (pending).** Adopt the README's main-agent contract: a `run()`
-  entrypoint that streams through `GraphRunLog` (writes the `.jsonl`, renders in the dev UI)
-  in place of the current `__main__` manual step-JSON runner, plus registration in
-  `dev/registry.py`. This is the "connect to the workflow" step.
+- **Dev-UI registration (pending).** `run()` + `GraphRunLog` + `verdicts/`
+  persistence are done; what remains is registering `validator_agent` in `dev/registry.py`
+  (`GRAPH_BUILDERS` + `LOGGED_AGENTS`) so the dev harness/UI list and render its runs. 
 - **Gap refinement.** Dropped `Verdict.refined_gap` entirely (was always `None`). Preferred
   future design: an **additive "coverage" array parallel to `evidence`** — each entry names a
   sub-part of the gap and the paper that addresses it — leaving the original gap text stable.

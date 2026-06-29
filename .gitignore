@@ -81,6 +81,9 @@ workspace/knowledge/*.md
 # Validator prior-art fetch cache (runtime, regenerable — not a committed fixture)
 workspace/_validator_cache/
 
+# Per-run agent logs (runtime, regenerable; the dev UI replays local copies)
+workspace/*/logs/
+
 # Data / models (uncomment as needed)
 # *.csv
 # *.parquet
