@@ -18,7 +18,6 @@ import _env_bootstrap  # noqa: F401,E402
 
 import json  # noqa: E402
 import queue  # noqa: E402
-import re  # noqa: E402
 import threading  # noqa: E402
 import time  # noqa: E402
 from datetime import datetime  # noqa: E402
@@ -29,7 +28,7 @@ from pydantic import BaseModel
 
 from dev.registry import GRAPH_BUILDERS, INPUT_ADAPTERS, LOGGED_AGENTS, _truthy, list_all
 from dev.run import _log, _run, FIXTURES_DIR, RUNS_DIR, TABLES
-from dev.runlog import RunRecorder, read_run
+from dev.runlog import GraphRunLog, read_run
 from dev.eval_paper_pipeline import (
     ensure_papers_fetched, list_workspaces, run_pipeline, write_report,
 )
@@ -94,11 +93,12 @@ def _sse(obj: dict) -> str:
     return f"data: {json.dumps(obj, default=str)}\n\n"
 
 
-def _run_slug(inputs: dict) -> str:
-    """Filename hint from the first string-ish input (e.g. a query/paper id)."""
-    hint = next((v for v in inputs.values() if isinstance(v, str)), "")
-    s = re.sub(r"[^A-Za-z0-9]+", "-", hint).strip("-").lower()
-    return s[:40] or "run"
+def _sse_type(ev: dict) -> str:
+    """Map a recorded event's ``kind`` to the SSE envelope type the frontend
+    expects: ``run_start`` / ``run_end`` pass through, everything else (node /
+    llm / tool / event leaves) is a plain ``event``."""
+    kind = ev.get("kind")
+    return kind if kind in ("run_start", "run_end") else "event"
 
 
 @app.post("/api/run/stream")
@@ -149,37 +149,25 @@ def api_run_stream(req: RunRequest):
         graph_inputs = adapter(inputs) if adapter else inputs
 
         graph = builder()
-        mermaid = graph.get_graph(xray=True).draw_mermaid()
-
-        run_id = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{_run_slug(inputs)}"
-        log_dir = (storage.agent_log_dir(workspace, req.name) if workspace
-                   else RUNS_DIR / "graph_logs")
-        log_dir.mkdir(parents=True, exist_ok=True)
-        log_path = log_dir / f"{run_id}.jsonl"
+        hint = next((v for v in inputs.values() if isinstance(v, str)), "")
+        # Same stream→record→file engine the agents and app backend use. With no
+        # workspace slug, fall back to the harness' shared graph_logs dir.
+        rl = GraphRunLog(
+            req.name, workspace=workspace,
+            log_dir=None if workspace else RUNS_DIR / "graph_logs",
+            run_hint=hint, recursion_limit=GRAPH_RECURSION_LIMIT,
+        )
 
         t0 = time.time()
-        error = None
-        with open(log_path, "w") as fh:
-            rec = RunRecorder(fh, req.name, workspace, inputs)
-            yield _sse({"type": "run_start", "event": rec.start(mermaid)})
-            try:
-                for ns, mode, data in graph.stream(
-                    graph_inputs, stream_mode=["updates", "custom"], subgraphs=True,
-                    config={"recursion_limit": GRAPH_RECURSION_LIMIT},
-                ):
-                    for ev in rec.record(ns, mode, data):
-                        yield _sse({"type": "event", "event": ev})
-            except Exception as e:  # noqa: BLE001
-                error = f"{type(e).__name__}: {e}"
-            footer = rec.finish(error=error)
-            yield _sse({"type": "run_end", "event": footer})
+        for ev in rl.stream(graph, graph_inputs, log_inputs=inputs):
+            yield _sse({"type": _sse_type(ev), "event": ev})
 
         record = {
             "name": req.name, "kind": req.kind, "inputs": inputs,
             "timestamp": datetime.now().isoformat(),
-            "output": footer.get("output"), "error": error,
+            "output": rl.output, "error": rl.error,
             "duration_s": round(time.time() - t0, 3),
-            "run_log": f"{run_id}.jsonl",
+            "run_log": rl.log_path.name,
         }
         path = _log(record, req.name)
         record["log_file"] = path.name

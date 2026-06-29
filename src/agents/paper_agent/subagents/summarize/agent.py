@@ -28,7 +28,7 @@ import json
 from langgraph.graph import END, START, StateGraph
 
 from src.common.utils import storage
-from src.common.utils.trace import emit as emit_trace
+from src.common.utils.logging.trace import emit as emit_trace
 from .state import SummarizeState
 from .subagents.critic.agent import run_critic
 from .subagents.extractor.agent import PaperNotFoundError, run_extract

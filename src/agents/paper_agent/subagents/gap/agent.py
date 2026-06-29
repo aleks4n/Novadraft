@@ -38,7 +38,7 @@ from pathlib import Path
 from langgraph.graph import END, START, StateGraph
 
 from src.common.utils import storage
-from src.common.utils.trace import emit as emit_trace
+from src.common.utils.logging.trace import emit as emit_trace
 from src.common.schemas.gap import GapEvidence, GapRecord
 from .state import GapState
 from .subagents.critic.agent import run_critic

@@ -15,7 +15,7 @@ attached describing the fetch attempt; progress notes stream into the caller's
 from __future__ import annotations
 
 from ...utils import storage
-from ...utils.trace import log_event
+from ...utils.logging.trace import log_event
 from .classify import classify
 from .errors import PaperAlreadyExistsError, PaperFetchError
 from .fetchers.arxiv import fetch_arxiv

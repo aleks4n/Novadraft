@@ -19,7 +19,7 @@ from __future__ import annotations
 from src.common.utils import storage
 from src.common.utils.issue_tracking import merge_items
 from src.common.utils.prompts import load_prompt
-from src.common.utils.trace import emit as emit_trace
+from src.common.utils.logging.trace import emit as emit_trace
 from src.llm.registry import chat_with_structured_output, get_llm
 from src.common.schemas.summary_verify import SummaryCritique
 from ...tools.grounding import check_grounding

@@ -23,7 +23,7 @@ import json
 
 from src.common.utils.issue_tracking import merge_items
 from src.common.utils.prompts import load_prompt
-from src.common.utils.trace import emit as emit_trace
+from src.common.utils.logging.trace import emit as emit_trace
 from src.llm.registry import chat_with_structured_output, get_llm
 from src.common.schemas.gap_verify import GapCritique
 from ...tools.sections import DEFAULT_SECTION_CHAR_LIMIT, truncate

@@ -11,16 +11,18 @@ Wires the stages in sequence:
   `get_graph(xray=True).draw_mermaid()` expands them inline inside this graph's
   diagram, and with `stream(stream_mode=[...], subgraphs=True)` every internal
   extractor/critic step and LLM call streams through nested under this graph
-  (see `src/common/utils/trace.py` and `dev/runlog.py`).
+  (see `src/common/utils/logging/trace.py` and `src/common/utils/logging/runlog.py`).
 
   The subgraphs share state keys with `PaperState`: the inputs
   (`category_slug`/`paper_id`/`force`) flow in, and each writes back exactly one
   output key — `summary_result` / `gaps_result`. Their loop-internal keys are
   private to each subgraph and never touch this state (see their `state.py`).
 
-`run(category_slug, query, force=False)` compiles and invokes the graph and
-returns the same result dict as before. The dev UI instead *streams* the graph
-to render progress live.
+`run(category_slug, query, force=False)` streams the graph through a
+`GraphRunLog` (the shared stream→record→file engine), writing the same per-run
+`.jsonl` the dev harness/app produce and echoing progress to the terminal, then
+returns the result dict. The dev UI and app backend stream the same graph the
+same way to render progress live — one logging implementation for all three.
 """
 from __future__ import annotations
 
@@ -36,6 +38,7 @@ if str(REPO_ROOT) not in sys.path:
 from src.common.tools.paper_extract import extract
 from src.common.tools.paper_fetch import PaperAlreadyExistsError, fetch
 from src.common.utils import storage
+from src.common.utils.logging.runlog import GraphRunLog
 from src.agents.paper_agent.state import PaperState
 from src.agents.paper_agent.subagents.summarize.agent import build_summarize_graph
 from src.agents.paper_agent.subagents.gap.agent import build_gap_graph
@@ -144,17 +147,40 @@ def build_paper_graph():
 _GRAPH = None
 
 
-def run(category_slug: str, query: str, force: bool = False) -> dict:
-    """Fetch a paper into ``category_slug`` and run it through extract,
-    summarize+critique, and gap extraction+critique. Returns the fetch result
-    as-is if the fetch was ambiguous (no paper stored). Standalone-callable
-    (the dev harness and eval pipeline import it directly)."""
+def _get_graph():
     global _GRAPH
     if _GRAPH is None:
         _GRAPH = build_paper_graph()
-    final = _GRAPH.invoke({"category_slug": category_slug, "query": query, "force": force},
-                          config={"recursion_limit": _RECURSION_LIMIT})
-    return final["result"]
+    return _GRAPH
+
+
+def run(category_slug: str, query: str, force: bool = False, *,
+        stream: bool = True, echo: bool | None = None) -> dict:
+    """Fetch a paper into ``category_slug`` and run it through extract,
+    summarize+critique, and gap extraction+critique. Returns the fetch result
+    as-is if the fetch was ambiguous (no paper stored). Standalone-callable
+    (the dev harness and eval pipeline import it directly).
+
+    By default (``stream=True``) the agent owns its own logging: it streams the
+    graph through a :class:`~src.common.utils.logging.runlog.GraphRunLog`, writing the
+    *same* per-run ``.jsonl`` the dev harness/app produce to
+    ``workspace/<slug>/logs/paper_agent/``, and echoes progress to the terminal
+    when attached to a TTY (override with ``echo=True/False``). Pass
+    ``stream=False`` for a quiet, log-free ``.invoke()`` (used by the eval
+    pipeline, which does its own reporting)."""
+    graph = _get_graph()
+    inputs = {"category_slug": category_slug, "query": query, "force": force}
+    if not stream:
+        return graph.invoke(inputs, config={"recursion_limit": _RECURSION_LIMIT})["result"]
+
+    if echo is None:
+        echo = sys.stderr.isatty()
+    rl = GraphRunLog("paper_agent", workspace=category_slug, run_hint=query,
+                     recursion_limit=_RECURSION_LIMIT)
+    rl.run(graph, inputs, echo=echo)
+    if rl.error:
+        raise RuntimeError(rl.error)
+    return rl.output
 
 
 if __name__ == "__main__":

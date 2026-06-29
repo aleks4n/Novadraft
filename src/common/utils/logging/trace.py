@@ -10,11 +10,12 @@ Each event is auto-tagged with the executing node name (``_node``), read from
 LangGraph's run config, so the UI can attach the leaf to the right step without
 any contextvar bookkeeping of our own.
 
-Outside a graph run — standalone subagent calls, the CLI, the eval harness,
-tests — there is no active stream, so :func:`emit` is a silent no-op. This
-mirrors the old ``runlog`` behaviour ("standalone = no log, terminal only"),
-except there is no terminal tree anymore: the tree is purely a streaming/UI
-concern now.
+Outside a graph run — a leaf subagent called directly, the eval harness's
+``.invoke()`` path, tests — there is no active stream, so :func:`emit` is a
+silent no-op and nothing is recorded. A main agent's ``run()`` instead streams
+the graph through :class:`src.common.utils.logging.runlog.GraphRunLog`, which makes the
+custom stream live: the same ``emit`` calls then land in the run's ``.jsonl``
+and on the terminal (and over SSE in the dev UI / app).
 
 LLM and tool calls are emitted centrally from ``src/llm/registry.py`` (every
 agent calls the LLM exclusively through that module), so prompts/responses show

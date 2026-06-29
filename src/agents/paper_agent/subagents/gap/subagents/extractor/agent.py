@@ -16,7 +16,7 @@ from __future__ import annotations
 import hashlib
 
 from src.common.utils.prompts import load_prompt
-from src.common.utils.trace import emit as emit_trace
+from src.common.utils.logging.trace import emit as emit_trace
 from src.llm.registry import chat_with_structured_output, get_llm
 from src.common.schemas.gap import GAP_TYPES, LLMGapList
 from ...tools.grounding import find_anchor

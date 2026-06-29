@@ -27,7 +27,7 @@ from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from pydantic import BaseModel
 
-from ..common.utils.trace import emit as emit_trace
+from ..common.utils.logging.trace import emit as emit_trace
 
 _ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(_ROOT / ".env")

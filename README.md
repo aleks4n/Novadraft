@@ -29,7 +29,9 @@ src/
 │   └── utils/
 │       ├── storage.py      # workspace paths + paper.json read/write (the only path-builder)
 │       ├── prompts.py      # load_prompt(__file__) → reads a sibling prompt.md
-│       └── trace.py        # emit() / log_event() — LangGraph custom-stream tracing
+│       └── logging/        # run logging — two halves of one pipeline
+│           ├── trace.py    # PRODUCER: emit() / log_event() — push a leaf into the live stream (from inside a node)
+│           └── runlog.py   # CONSUMER: GraphRunLog / RunRecorder / read_run — drive the run, write the .jsonl, replay it
 │
 └── agents/
     ├── paper_agent/                # main agent with subagents
@@ -93,11 +95,15 @@ Every `agent.py` exposes two things:
    their internal steps under their parent node automatically.
 
 2. **A standalone entrypoint** (`run(...)` / `summarize(...)`) — compiles the
-   graph once (cached in a module-level `_GRAPH`), invokes it, and returns the
-   result dict. This is what the dev harness and eval pipeline import directly.
+   graph once (cached in a module-level `_GRAPH`) and **streams** it through a
+   `GraphRunLog`, so it writes its own `.jsonl` and echoes progress to the
+   terminal (see Logging). Returns the result dict. This is what the dev harness
+   and eval pipeline import directly.
 
 ```python
 # paper_agent/agent.py — minimal skeleton
+from src.common.utils.logging.runlog import GraphRunLog
+
 def build_paper_graph():
     g = StateGraph(PaperState)
     g.add_node("fetch",     fetch_node)
@@ -114,13 +120,24 @@ def build_paper_graph():
     return g.compile()
 
 _GRAPH = None
-def run(category_slug: str, query: str, force: bool = False) -> dict:
+def _get_graph():
     global _GRAPH
     if _GRAPH is None:
         _GRAPH = build_paper_graph()
-    final = _GRAPH.invoke({"category_slug": category_slug, "query": query, "force": force},
-                          config={"recursion_limit": 60})
-    return final["result"]
+    return _GRAPH
+
+def run(category_slug: str, query: str, force: bool = False, *,
+        stream: bool = True, echo: bool | None = None) -> dict:
+    graph  = _get_graph()
+    inputs = {"category_slug": category_slug, "query": query, "force": force}
+    if not stream:                              # quiet path (eval): no log, no stream
+        return graph.invoke(inputs, config={"recursion_limit": 60})["result"]
+    rl = GraphRunLog("paper_agent", workspace=category_slug, run_hint=query,
+                     recursion_limit=60)
+    rl.run(graph, inputs, echo=echo)            # streams, writes the .jsonl, echoes to terminal
+    if rl.error:
+        raise RuntimeError(rl.error)
+    return rl.output
 ```
 
 ### `state.py`
@@ -271,12 +288,27 @@ result: PaperSummary = chat_with_structured_output(llm, SYSTEM_PROMPT, user_prom
 ```
 
 Both functions call `_trace()` internally, which calls `emit()` in
-`src/common/utils/trace.py` — the LLM call becomes a leaf in the run tree
+`src/common/utils/logging/trace.py` — the LLM call becomes a leaf in the run tree
 under whichever graph node called the registry.
 
 ---
 
-## Logging (`src/common/utils/trace.py`)
+## Logging (`src/common/utils/logging/`)
+
+Run logging lives in one folder, `src/common/utils/logging/`, split into **two
+files that are opposite ends of the same pipe** — keep them straight:
+
+| File | Role | Who calls it | Depends on |
+|------|------|--------------|------------|
+| `trace.py` | **Producer** — `emit()` / `log_event()` push a fine-grained leaf into the live custom stream, called *from inside a running node* | deep leaf code: tools, fetchers, the LLM registry, subagents | only `langgraph.config` (featherweight on purpose) |
+| `runlog.py` | **Consumer / orchestrator** — `GraphRunLog` drives the whole run (stream → `RunRecorder` normalizes → write `.jsonl`), and `read_run` replays it | entrypoints only: an agent's `run()`, the dev harness, the app backend | `storage` (+ json/datetime/pathlib) |
+
+A node *emits* (trace); the run *records and replays* (runlog). They're kept as
+separate modules so importing `trace` from the lowest-level code never drags in
+`runlog`'s heavier dependencies — the package `__init__` is intentionally empty
+(no re-exports), so import the specific submodule:
+`from src.common.utils.logging.trace import log_event` /
+`from src.common.utils.logging.runlog import GraphRunLog`.
 
 There is no separate logging system. Progress **is** the LangGraph stream.
 Graphs are run with:
@@ -301,7 +333,7 @@ typically only call `emit` yourself for domain-specific events that need custom
 `data` fields.
 
 ```python
-from src.common.utils.trace import emit as emit_trace
+from src.common.utils.logging.trace import emit as emit_trace
 
 emit_trace({"type": "event",  "name": "no progress since last round, stopping",
             "data": {"attempt": attempt, "n_unmatched": len(unmatched)}})
@@ -315,7 +347,7 @@ simple informational notes. The equivalent of a `print` that ends up in the
 run tree. Use this in deterministic tool functions that want to narrate progress.
 
 ```python
-from src.common.utils.trace import log_event
+from src.common.utils.logging.trace import log_event
 
 log_event("already summarized, skipping", paper_id=paper_id)
 # equivalent: emit({"type": "event", "name": "already summarized, skipping",
@@ -336,6 +368,107 @@ Both `emit` and `log_event` are **no-ops** when called outside a running graph
 (standalone subagent calls, the CLI, the eval harness, tests). No guard needed
 — the same code path is safe everywhere.
 
+### Persisting the stream to a `.jsonl` (`src/common/utils/logging/runlog.py`)
+
+A main agent **owns its own logging** — it does not depend on the dev harness to
+get a log. The streaming → record → file loop lives in one place,
+`GraphRunLog`, and *every* caller uses it: the agent's standalone `run()`, the
+dev harness, and the app backend. They therefore all write **byte-identical**
+`.jsonl` files, so a run renders the same whether it was launched from a python
+file, the dev UI, or the app — and the harness can always replay it.
+
+**A main agent's `run()` is the canonical caller.** This is the whole logging
+integration — pass the compiled graph and the inputs, get the output back:
+
+```python
+from src.common.utils.logging.runlog import GraphRunLog
+
+def run(category_slug, query, force=False, *, stream=True, echo=None):
+    graph  = _get_graph()
+    inputs = {"category_slug": category_slug, "query": query, "force": force}
+    if not stream:                                   # quiet path (eval): no log, no stream
+        return graph.invoke(inputs, config={"recursion_limit": 60})["result"]
+
+    rl = GraphRunLog("paper_agent", workspace=category_slug,
+                     run_hint=query, recursion_limit=60)
+    rl.run(graph, inputs, echo=echo)                 # streams, writes the .jsonl, echoes to terminal
+    if rl.error:
+        raise RuntimeError(rl.error)
+    return rl.output                                 # the top-level "result" delta
+```
+
+`GraphRunLog(agent, workspace=…)` picks the folder via
+`storage.agent_log_dir(slug, agent)` → `workspace/<slug>/logs/<agent>/`, names
+the file `<timestamp>_<run_hint>.jsonl`, and exposes `.log_path` / `.output` /
+`.error` / `.run_id` after the run. It has two drivers:
+
+- **`rl.run(graph, inputs, echo=True)`** — consume the stream to completion,
+  return the output. `echo=True` prints one line per event to stderr (a terminal
+  view of the run tree); `run()` above defaults it to "on when attached to a
+  TTY". This is what makes a plain `python -m src.agents.paper_agent.agent`
+  stream its progress live.
+- **`rl.stream(graph, inputs)`** — a generator that yields every event
+  (`run_start`, the node/llm/tool/event leaves, then `run_end`). The dev harness
+  and app backend iterate it and forward each over SSE. Pass `log_inputs=` when
+  the recorded form inputs differ from the graph inputs (an input adapter).
+
+Internally `GraphRunLog` runs the LangGraph stream and feeds each chunk to a
+`RunRecorder`, which normalizes it and writes **one flushed JSON line**:
+
+- `mode == "updates"` → `{node: state_delta}` becomes a `kind:"node"` line; the
+  top-level `result` delta is remembered as the run's `output`.
+- `mode == "custom"` → a `trace.emit` leaf (auto-tagged with `_node`) becomes a
+  `kind:"llm"` / `"tool"` / `"event"` line.
+
+Each line carries a `gnode` (e.g. `summarize:extractor`) so the frontend lights
+up the matching box in the Mermaid diagram. A crash inside the graph is caught,
+stored on `.error`, and the `run_end` footer is still written — the log is
+always complete up to the failure.
+
+**The resulting file** — one self-contained JSON object per line:
+
+```jsonc
+{"seq":0,"t":"…Z","kind":"run_start","agent":"paper_agent","workspace":"transformers","inputs":{…},"mermaid":"graph TD; …"}
+{"seq":1,"kind":"node","ns":"","node":"fetch","gnode":"fetch","status":"done","result":{…}}
+{"seq":7,"kind":"llm","ns":"summarize:<uuid>","node":"extractor","gnode":"summarize:extractor","name":"chat_with_structured_output","duration_s":3.8,"data":{"schema":"PaperSummary","prompt":{"system":"…","user":"…"},"output":{…}}}
+{"seq":8,"kind":"event","ns":"summarize:<uuid>","node":"critic","gnode":"summarize:critic","name":"will regenerate","data":{…}}
+{"seq":12,"kind":"run_end","status":"done","output":{…},"error":null,"duration_s":17.4}
+```
+
+**Read it back** with `read_run(path)` → `{header, events, footer}` (`footer` is
+`None` if the run never finished) — the read-time counterpart to the live stream,
+so a reopened run renders exactly as it did live.
+
+### Every main agent must stream through `GraphRunLog`
+
+Driving the graph with `graph.invoke(...)` produces **no log and no terminal
+stream** (and `trace.emit` leaves vanish, since nothing consumes the custom
+stream). So the contract for a main agent is: its `run()` streams through
+`GraphRunLog` (as above), keeping `invoke` only as an opt-in quiet path. That is
+what lets the dev harness render the process correctly — it relies on the same
+event stream the agent itself produces.
+
+| How you run it | `.jsonl` event log | Terminal stream | `dev/runs/*.json` summary |
+|---|---|---|---|
+| `run()` directly / `python …/agent.py` | ✅ | ✅ (TTY) | ❌ |
+| `python -m dev.run agent …` | ✅ | ✅ (TTY) | ✅ |
+| Dev web UI / app backend | ✅ | ✅ (live SSE) | ✅ |
+| `run(..., stream=False)` (eval) | ❌ | ❌ | ❌ |
+
+### What "logged" means: agent vs. subagent
+
+- **Top-level agent** — streamed through its own `GraphRunLog`, gets its own
+  `.jsonl`. Register it in `dev/registry.py` (`GRAPH_BUILDERS` + `LOGGED_AGENTS`)
+  so the dev UI/app can also stream it.
+- **Subagent mounted as a subgraph node** (normal case) — *no separate file*; its
+  internal steps stream into the **parent's** `.jsonl`, namespaced (`summarize:extractor`).
+  Surfaced only because the parent streams with `subgraphs=True`.
+- **Standalone subagent call** (outside any graph) — *no log*: `emit`/`log_event`
+  are no-ops. Stream it as a top-level agent or mount it as a node to log it.
+
+> Full schema, the subgraph-as-node pattern, and field-by-field details:
+> `planning/technical-discussions/LOGGING_SYSTEM.md`.
+
 ---
 
 ## Workspace layout
@@ -353,7 +486,7 @@ workspace/<category_slug>/
 │       └── <gap_id>.json  # one GapRecord per extracted gap
 └── logs/
     └── <agent>/
-        └── <run_id>.json  # one finished run tree per top-level agent run
+        └── <run_id>.jsonl  # one flat event stream per top-level agent run
 ```
 
 `paper_id` is derived deterministically from the input (`arxiv_<id>`,
@@ -393,7 +526,8 @@ registered in `dev/registry.py`, not hardcoded into `dev/run.py`.
 ### Adding a new agent checklist
 
 1. Build it as a `StateGraph` in `src/agents/<name>/agent.py` — expose
-   `build_<name>_graph()` and a standalone `run(...)` entrypoint.
+   `build_<name>_graph()` and a standalone `run(...)` entrypoint that streams
+   through `GraphRunLog` (see Logging) so it logs + streams on its own.
 2. Add `state.py` with a `TypedDict(total=False)`.
 3. Leaf subagents: `subagents/<name>/agent.py` + `prompt.md`. Call the LLM
    via `chat_with_structured_output(get_llm("reasoner"), ...)`.

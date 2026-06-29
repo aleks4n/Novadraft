@@ -68,7 +68,9 @@ def ensure_papers_fetched(
         if on_progress:
             on_progress({"phase": "fetch", "query": query, "index": i, "total": total,
                           "status": "running"})
-        result = paper_agent_run(category_slug, query, force=False)
+        # Quiet, log-free invoke — the eval harness does its own reporting and
+        # drives many papers in a row (no per-run .jsonl / terminal stream).
+        result = paper_agent_run(category_slug, query, force=False, stream=False)
         if result.get("status") == "ambiguous":
             issues.append({"query": query, "candidates": result.get("candidates")})
             if on_progress:
