@@ -1,0 +1,299 @@
+/* Additions on top of the ported design system (design.css). Kept separate so
+   the design tokens/components stay byte-faithful to the source. */
+
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+/* Amber "working" state for the agent status LED (design ships green/red). */
+.status-led--amber { background: var(--accent-amber); box-shadow: 0 0 0 3px #d9a04c22; }
+.status-led--red { background: var(--accent-warm); box-shadow: 0 0 0 3px #c75b5b22; }
+
+/* Inline paper-agent run panel, shown inside the Add-paper step. */
+.run-panel {
+  margin-top: 16px; padding: 14px 16px; border-radius: var(--radius);
+  background: var(--bg-panel); border: 1px solid var(--border);
+}
+.run-panel-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.run-panel-title { font-weight: 600; font-size: 13px; color: var(--text); }
+.run-panel-query {
+  margin-left: auto; font-family: var(--font-mono); font-size: 11.5px;
+  color: var(--text-3); background: var(--bg-inset); padding: 2px 8px; border-radius: 6px;
+}
+
+/* Live paper-agent run transcript. */
+.run-transcript { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; }
+.run-line { display: flex; align-items: baseline; gap: 7px; line-height: 1.4; }
+.run-glyph { flex-shrink: 0; width: 12px; text-align: center; font-weight: 600; }
+.run-text { color: var(--text); font-weight: 500; }
+.run-sub {
+  color: var(--text-4); font-family: var(--font-mono); font-size: 11px;
+  margin-left: auto; padding-left: 8px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; max-width: 140px;
+}
+
+/* Add-paper run banner */
+.addpaper-status {
+  margin-top: 14px; padding: 12px 14px; border-radius: var(--radius);
+  background: var(--accent-ai-soft); border: 1px solid var(--border);
+  color: var(--text-2); font-size: 13px;
+}
+
+/* Generic centered empty/loading state for list/detail views. */
+.empty-state {
+  text-align: center; color: var(--text-4); padding: 40px 20px;
+  font-size: 13px;
+}
+
+/* Status chip on paper rows (fetched / extracted / summarized / verified / complete). */
+.paper-status {
+  display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 8px;
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600;
+  background: var(--bg-inset); color: var(--text-3); border: 1px solid var(--border);
+}
+.paper-status--complete { background: #e7f3ec; color: var(--accent-green); border-color: #cfe6d8; }
+.paper-status--summarized { background: var(--accent-soft); color: var(--accent); border-color: #d9d9fb; }
+
+/* ===== Paper lifecycle pipeline (PaperPipeline.tsx) ========================= */
+/* Wider pipe column on the list rows. */
+.paper-row { grid-template-columns: 32px 1fr 128px 24px; }
+.paper-row-pipe { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+
+/* Compact variant: five segments that fill as stages complete. */
+.ppipe--compact { display: flex; gap: 3px; width: 100%; }
+.ppipe-seg {
+  flex: 1; height: 4px; border-radius: 2px; background: var(--border);
+}
+.ppipe-seg--done { background: var(--accent-green); }
+
+/* Full variant: labelled horizontal stepper on the detail view. */
+.pipeline-strip {
+  margin: 4px 0 18px; padding: 14px 18px; background: var(--bg-panel);
+  border: 1px solid var(--border); border-radius: var(--radius);
+}
+.ppipe { display: flex; align-items: flex-start; }
+.ppipe-step {
+  position: relative; display: flex; flex-direction: column; align-items: center;
+  flex: 1; gap: 6px; text-align: center;
+}
+.ppipe-node {
+  width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; background: var(--bg-inset); border: 1.5px solid var(--border);
+  color: var(--text-4); z-index: 1;
+}
+.ppipe-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.ppipe-label { font-size: 11.5px; color: var(--text-4); font-weight: 500; }
+.ppipe-bar {
+  position: absolute; top: 12px; left: 50%; width: 100%; height: 2px;
+  background: var(--border); z-index: 0;
+}
+.ppipe-step--done .ppipe-node { background: #e7f3ec; border-color: #bfe0cd; color: var(--accent-green); }
+.ppipe-step--done .ppipe-label { color: var(--text-2); }
+.ppipe-step--done .ppipe-bar { background: #bfe0cd; }
+.ppipe-step--current .ppipe-node { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.ppipe-step--current .ppipe-label { color: var(--accent); font-weight: 600; }
+
+/* Tag variants on paper rows. */
+.tag--gap { color: var(--accent); background: var(--accent-soft); border-color: #d9d9fb; }
+.tag--warn { color: var(--accent-warm); background: #fbeaea; border-color: #f0d2d2; }
+
+/* Inline notice (e.g. ingestion warnings). */
+.notice {
+  display: flex; gap: 10px; align-items: flex-start; margin-bottom: 16px;
+  padding: 12px 14px; border-radius: var(--radius); font-size: 12.5px;
+}
+.notice .icon { flex-shrink: 0; margin-top: 1px; }
+.notice--warn { background: #fbeaea; border: 1px solid #f0d2d2; color: #8a3b3b; }
+.notice--resume {
+  background: var(--accent-soft); border: 1px solid #d6d6fb; color: var(--text-2);
+  align-items: center;
+}
+.notice.notice--resume b { display: inline; color: var(--text); }
+.notice--resume .btn { flex-shrink: 0; }
+.notice b { display: block; }
+.notice ul { margin: 8px 0 0; padding-left: 16px; color: var(--text-2); }
+.notice li { font-family: var(--font-mono); font-size: 11.5px; margin-bottom: 2px; }
+.notice-toggle {
+  display: flex; align-items: center; gap: 6px; background: none; border: none;
+  padding: 0; cursor: pointer; color: inherit; font: inherit;
+}
+
+/* Summary-verification card. */
+.card-head-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.card-sublabel {
+  font-size: 11px; color: var(--text-4); text-transform: uppercase;
+  letter-spacing: 0.03em; margin-bottom: 6px;
+}
+.verify-badge {
+  font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 8px;
+  text-transform: uppercase; letter-spacing: 0.03em;
+}
+.verify-badge--ok { background: #e7f3ec; color: var(--accent-green); }
+.verify-badge--issues { background: #fcf1dc; color: #8b6014; }
+
+/* Reported-results metric grid. */
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+.metric { padding: 10px 12px; background: var(--bg-inset); border-radius: var(--radius-sm); }
+.metric-val { font-family: var(--font-mono); font-size: 18px; color: var(--accent); letter-spacing: -0.02em; }
+.metric-name { font-size: 12px; color: var(--text-2); font-weight: 500; margin-top: 2px; }
+.metric-ds { font-size: 11px; color: var(--text-4); margin-top: 1px; }
+.metric-cmp { font-size: 10.5px; color: var(--text-4); margin-top: 2px; font-style: italic; }
+
+/* ===== Gaps ================================================================ */
+/* Gap type leads; colour is the derived severity accent. */
+.gap-type {
+  display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 8px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.01em; text-transform: capitalize;
+}
+.gap-type--high   { background: #FCE4E4; color: #A03B3B; }
+.gap-type--medium { background: #FCF1DC; color: #8B6014; }
+.gap-type--low    { background: #E4F0DA; color: #4E7639; }
+.gap-status {
+  font-size: 11px; color: var(--text-4); text-transform: capitalize;
+}
+
+/* Sortable gaps table. Header cells toggle sort; rows route to the gap detail. */
+.gaps-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.gaps-th {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-4);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.gaps-th:hover { color: var(--text-2); }
+.gaps-th--active { color: var(--text); }
+.gaps-th--num { text-align: right; }
+.gaps-th-inner { display: inline-flex; align-items: center; gap: 4px; }
+.gaps-th--num .gaps-th-inner { flex-direction: row-reverse; }
+.gaps-sort-caret {
+  width: 12px; height: 12px;
+  opacity: 0;
+  transition: opacity 80ms, transform 120ms;
+}
+.gaps-th:hover .gaps-sort-caret { opacity: 0.4; }
+.gaps-sort-caret.is-active { opacity: 1; }
+.gaps-sort-caret.is-asc { transform: rotate(180deg); }
+.gaps-row {
+  cursor: pointer;
+  transition: background 80ms;
+  border-bottom: 1px solid var(--border);
+}
+.gaps-row:hover { background: var(--bg-soft); }
+.gaps-row td { padding: 10px 12px; color: var(--text-3); vertical-align: middle; }
+.gaps-cell-title {
+  color: var(--text);
+  font-weight: 500;
+  max-width: 480px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.gaps-cell-num {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-2);
+  letter-spacing: -0.02em;
+}
+
+/* Evidence blocks on the gap detail. */
+.evidence {
+  border-left: 3px solid var(--border-strong); padding-left: 12px;
+  margin: 0 0 12px;
+}
+.evidence:last-child { margin-bottom: 0; }
+.evidence-quote { color: var(--text-2); font-size: 13px; line-height: 1.5; }
+.evidence-meta { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+.evidence-section { font-size: 11px; color: var(--text-4); font-family: var(--font-mono); }
+.ground-chip {
+  font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 7px;
+  text-transform: uppercase; letter-spacing: 0.03em;
+}
+.ground--ok { background: #e7f3ec; color: var(--accent-green); }
+.ground--warn { background: #fcf1dc; color: #8b6014; }
+.ground--bad { background: #fbeaea; color: #a03b3b; }
+
+/* ===== Agent run pipeline (RunTranscript.tsx) ============================== */
+.run-pipe { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; }
+.run-stage { display: flex; gap: 11px; align-items: flex-start; padding: 5px 0; position: relative; }
+/* connector line between stage nodes */
+.run-stage:not(:last-child)::before {
+  content: ""; position: absolute; left: 10px; top: 26px; bottom: -5px; width: 2px;
+  background: var(--border);
+}
+.run-stage--done:not(:last-child)::before { background: #bfe0cd; }
+.run-stage-node {
+  width: 21px; height: 21px; border-radius: 50%; flex-shrink: 0; z-index: 1;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-inset); border: 1.5px solid var(--border); color: var(--text-4);
+}
+.run-stage-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.run-stage-spin {
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 2px solid var(--accent-soft); border-top-color: var(--accent);
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.run-stage-body { padding-top: 1px; min-width: 0; }
+.run-stage-label { font-size: 13px; font-weight: 500; color: var(--text-3); display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.run-stage-pass { font-size: 11px; font-weight: 500; color: var(--accent); font-family: var(--font-mono); }
+.run-stage-hint { font-size: 11.5px; color: var(--text-4); margin-top: 1px; }
+.run-stage--done .run-stage-node { background: #e7f3ec; border-color: #bfe0cd; color: var(--accent-green); }
+.run-stage--done .run-stage-label { color: var(--text-2); }
+.run-stage--active .run-stage-node { border-color: var(--accent); }
+.run-stage--active .run-stage-label { color: var(--text); font-weight: 600; }
+.run-stage--error .run-stage-node { background: #fbeaea; border-color: #f0d2d2; color: var(--accent-warm); }
+.run-stage--error .run-stage-label { color: var(--accent-warm); }
+
+.run-error { color: var(--accent-warm); margin: 10px 0 0; font-size: 12.5px; }
+.run-done { margin: 10px 0 0; color: var(--text-3); font-size: 12.5px; }
+.run-log-toggle {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 10px;
+  background: none; border: none; cursor: pointer; padding: 0;
+  font-size: 12px; color: var(--text-4); font-family: inherit;
+}
+.run-log-toggle:hover { color: var(--text-2); }
+.run-transcript {
+  display: flex; flex-direction: column; gap: 3px; font-size: 12.5px;
+  margin-top: 8px; max-height: 220px; overflow-y: auto;
+  padding: 8px 10px; background: var(--bg-inset); border-radius: var(--radius-sm);
+}
+
+/* --- Paper-agent pause states: ambiguous picker & missing-source drop zone --- */
+
+/* Wraps the interactive resolution UI under the run pipeline. */
+.run-resolve { margin-top: 14px; }
+.run-note { font-size: 12.5px; color: var(--text-2); margin: 0 0 10px; line-height: 1.5; }
+
+/* Candidate picker for an ambiguous title fetch. */
+.run-candidates { display: grid; gap: 8px; }
+.candidate-card {
+  text-align: left; padding: 10px 12px; border-radius: var(--radius-sm);
+  background: var(--bg-inset); border: 1px solid var(--border); cursor: pointer;
+  transition: border-color .12s ease, background .12s ease;
+}
+.candidate-card:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); }
+.candidate-card:disabled { opacity: .55; cursor: not-allowed; }
+.candidate-title { font-weight: 600; font-size: 13px; color: var(--text); }
+.candidate-meta { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.candidate-id { font-family: var(--font-mono); font-size: 11px; color: var(--text-4); margin-top: 4px; }
+
+/* Drag-and-drop target for supplying a missing pdf/tex source. */
+.source-drop {
+  display: flex; align-items: center; gap: 12px; padding: 16px;
+  border-radius: var(--radius); border: 1.5px dashed var(--border-strong);
+  background: var(--bg-inset); cursor: pointer; margin-top: 4px;
+  transition: border-color .12s ease, background .12s ease;
+}
+.source-drop--over { border-color: var(--accent); background: var(--accent-soft); }
+.source-drop--busy { cursor: default; opacity: .7; }
+.source-drop-body { display: flex; flex-direction: column; gap: 2px; }
+.source-drop-body b { font-size: 13px; color: var(--text); }
+.source-drop-body span { font-size: 12px; color: var(--text-3); }
