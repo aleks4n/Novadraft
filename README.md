@@ -428,12 +428,3 @@ OPENAI_API_KEY=...     # optional fallback
 
 When no key is set, `get_llm` returns a deterministic `_MockChat` and all
 runs complete without network access (LLM responses are empty stubs).
-
----
-
-## Further reference
-
-- **Architecture decisions**: `planning/INDEX.md` (source of truth for design)
-- **Logging system schema**: `planning/technical-discussions/LOGGING_SYSTEM.md`
-- **Phase breakdown**: `planning/AGENT_ARCHITECTURE_PHASES.md`
-- **Paper agent spec**: `src/agents/paper_agent/SPEC.md`
