@@ -28,6 +28,9 @@ def collect_gap_strings(paper_json_path: str | Path) -> str:
 
 	return "\n".join(gap_strings)
 
+def run(paper_json_paths: list[str]) -> str:
+    return main(paper_json_paths)
+
 
 def collect_gap_objects(paper_json_path: str | Path) -> list[dict[str, Any]]:
 	paper_path = Path(paper_json_path)
@@ -203,6 +206,10 @@ def _load_master_gaps(master_gap_list_path: Path) -> list[dict[str, Any]]:
 
 
 def main(paper_json_paths: list[str]) -> str:
+
+	if isinstance(paper_json_paths, str):
+		paper_json_paths = [paper_json_paths]
+
 	master_gap_list_path = ensure_master_gap_list()
 	master_gaps = _load_master_gaps(master_gap_list_path)
 	all_gaps_text_parts: list[str] = []
