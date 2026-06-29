@@ -165,7 +165,7 @@ def _gaps_are_similar(
 	try:
 		left_vector, right_vector = embeddings.embed_documents([left_text, right_text])
 		distance = _cosine_distance(left_vector, right_vector)
-		threshold = float(os.getenv("NOVADRAFT_GAP_COSINE_DISTANCE_THRESHOLD", "0.18"))
+		threshold = float(os.getenv("NOVADRAFT_GAP_COSINE_DISTANCE_THRESHOLD", "0.12"))
 		return distance <= threshold
 	except Exception:
 		# Deterministic fallback if the embedding endpoint is unavailable or malformed.
@@ -208,7 +208,11 @@ def _load_master_gaps(master_gap_list_path: Path) -> list[dict[str, Any]]:
 def main(paper_json_paths: list[str]) -> str:
 
 	if isinstance(paper_json_paths, str):
-		paper_json_paths = [paper_json_paths]
+        # Split by comma if multiple paths are passed, otherwise wrap the single path
+		if "," in paper_json_paths:
+			paper_json_paths = [p.strip() for p in paper_json_paths.split(",")]
+		else:
+			paper_json_paths = [paper_json_paths]
 
 	master_gap_list_path = ensure_master_gap_list()
 	master_gaps = _load_master_gaps(master_gap_list_path)

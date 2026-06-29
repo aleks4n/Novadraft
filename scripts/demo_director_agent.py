@@ -11,9 +11,9 @@ if str(ROOT_DIR) not in sys.path:
 from src.agents.director_agent.agent import main as run_director_agent
 
 
-SIMILAR_PAPER = ROOT_DIR / "workspace/transformers/papers/arxiv_test_similarity_merge/paper.json"
-SIMILAR_PAPER_2 = ROOT_DIR / "workspace/transformers/papers/arxiv_test_similarity_merge_2/paper.json"
-NEW_PAPER = ROOT_DIR / "workspace/transformers/papers/arxiv_test_new_gap/paper.json"
+SIMILAR_PAPER = ROOT_DIR / "/Users/aliihsangungoren/Desktop/novadraft/workspace/test/papers/doi_10_1038_nature14539/paper.json"
+SIMILAR_PAPER_2 = ROOT_DIR / "/Users/aliihsangungoren/Desktop/novadraft/workspace/test/papers/arxiv_1706.03762/paper.json"
+NEW_PAPER = ROOT_DIR / "/Users/aliihsangungoren/Desktop/novadraft/workspace/test/papers/arxiv_2010.11929/paper.json"
 
 
 def run_demo() -> None:
@@ -21,7 +21,7 @@ def run_demo() -> None:
 	run_director_agent([
 		str(SIMILAR_PAPER),
 		str(SIMILAR_PAPER_2),
-		str(NEW_PAPER),
+		str(NEW_PAPER)
 	])
 
 	print()
