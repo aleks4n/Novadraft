@@ -74,6 +74,9 @@ outputs/
 tmp/
 .tmp/
 
+# Generated knowledge files
+workspace/knowledge/*.md
+
 # Data / models (uncomment as needed)
 # *.csv
 # *.parquet
