@@ -1,0 +1,85 @@
+{
+  "gaps": [
+    {
+      "gap_id": "g_abstention",
+      "title": "Calibrated abstention to eliminate confident LLM hallucination",
+      "description": "Large language models answer confidently even when they lack the knowledge. No method lets a model reliably recognize the boundary of its own knowledge and abstain, calibrated to its actual likelihood of being correct, without an external verifier.",
+      "canonical_description": "calibrated self-knowledge for LLM abstention without external tools",
+      "type": "future_work",
+      "status": "unchecked",
+      "evidence": [{"paper_id": "arxiv_2604_00001", "published_date": "2026-04-15"}],
+      "source_keywords": ["large language models", "hallucination", "calibration"]
+    },
+    {
+      "gap_id": "g_faithful_cot",
+      "title": "Provably faithful chain-of-thought reasoning",
+      "description": "No method guarantees that an LLM's stated reasoning steps causally determine its final answer (faithfulness) with a formal proof rather than empirical correlation. Current work only measures unfaithfulness post-hoc.",
+      "canonical_description": "formally provable causal faithfulness of LLM chain-of-thought",
+      "type": "future_work",
+      "status": "unchecked",
+      "evidence": [{"paper_id": "arxiv_2503_00002", "published_date": "2025-03-10"}],
+      "source_keywords": ["chain-of-thought", "faithfulness", "interpretability"]
+    },
+    {
+      "gap_id": "g_aug_ner",
+      "title": "Cheap data augmentation for low-resource NER",
+      "description": "No systematic study compares simple back-translation versus synonym-replacement data augmentation for named-entity recognition in low-resource languages, leaving practitioners without guidance on the cheapest effective method.",
+      "canonical_description": "which cheap data augmentation helps low-resource NER most",
+      "type": "future_work",
+      "status": "unchecked",
+      "evidence": [
+        {"paper_id": "arxiv_2306_00003", "published_date": "2023-06-01"},
+        {"paper_id": "arxiv_2308_00004", "published_date": "2023-08-15"},
+        {"paper_id": "arxiv_2211_00005", "published_date": "2022-11-01"}
+      ],
+      "source_keywords": ["named entity recognition", "data augmentation", "low-resource"]
+    },
+    {
+      "gap_id": "g_adv_robust",
+      "title": "Robustness of image classifiers to adversarial perturbations",
+      "description": "No training method reliably hardens image classifiers against adversarial perturbations without large clean-accuracy loss or across different threat models.",
+      "canonical_description": "reliable adversarial robustness without accuracy loss or across threat models",
+      "type": "limitation",
+      "status": "unchecked",
+      "evidence": [{"paper_id": "arxiv_1412_6572", "published_date": "2014-12-20"}],
+      "source_keywords": ["adversarial examples", "robustness", "image classification"]
+    },
+    {
+      "gap_id": "g_transformer_solved",
+      "title": "Sequence transduction without recurrence",
+      "description": "No competitive sequence transduction architecture dispenses with recurrence and convolution while modeling long-range dependencies.",
+      "canonical_description": "high-performing non-recurrent sequence transduction model",
+      "type": "limitation",
+      "status": "unchecked",
+      "evidence": [{"paper_id": "arxiv_1609_08144", "published_date": "2016-09-26"}],
+      "source_keywords": ["sequence to sequence", "attention", "recurrent neural networks"]
+    }
+  ],
+  "verdicts": {
+    "g_abstention": {
+      "gap_id": "g_abstention", "status": "open", "confidence": 0.9,
+      "reasoning": "Recent work measures LLM calibration and proposes selective-answering heuristics, but none achieves calibrated abstention tied to true knowledge boundaries without an external verifier. The gap is open.",
+      "assessments": [], "metadata": {}
+    },
+    "g_faithful_cot": {
+      "gap_id": "g_faithful_cot", "status": "open", "confidence": 0.7,
+      "reasoning": "Several papers empirically measure chain-of-thought unfaithfulness, but none provides a formal guarantee that reasoning steps causally determine the answer. The gap remains open and appears very hard.",
+      "assessments": [], "metadata": {}
+    },
+    "g_aug_ner": {
+      "gap_id": "g_aug_ner", "status": "open", "confidence": 0.85,
+      "reasoning": "No paper systematically benchmarks back-translation versus synonym-replacement augmentation for low-resource NER under matched conditions. The comparison is open.",
+      "assessments": [], "metadata": {}
+    },
+    "g_adv_robust": {
+      "gap_id": "g_adv_robust", "status": "partially_solved", "confidence": 0.75,
+      "reasoning": "Adversarial training and certified defenses make meaningful progress, but each trades clean accuracy or covers only specific threat models. Substantial progress exists; the full gap is partially solved.",
+      "assessments": [], "metadata": {}
+    },
+    "g_transformer_solved": {
+      "gap_id": "g_transformer_solved", "status": "solved", "confidence": 0.95,
+      "reasoning": "The Transformer architecture dispenses with recurrence and convolution entirely while modeling long-range dependencies via self-attention, and is the dominant competitive approach. The gap is solved.",
+      "assessments": [], "metadata": {}
+    }
+  }
+}

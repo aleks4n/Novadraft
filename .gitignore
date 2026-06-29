@@ -74,6 +74,7 @@ outputs/
 tmp/
 .tmp/
 src/agents/validator_agent/test_runs/
+src/agents/ranking_agent/test_runs/
 
 # Data / models (uncomment as needed)
 # *.csv

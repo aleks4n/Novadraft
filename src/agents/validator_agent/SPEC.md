@@ -53,3 +53,22 @@ gap → query_gen → search → rrf → screen → deep_read → verdict → EN
   the paper that addresses it — leaving the original gap text stable.
 - HyDE, rerankers, ChromaDB, PDF full-text (interim downloader is LaTeX-only) — see
   project memory.
+
+## Open items — validator ↔ ranking integration (TODO)
+
+1. **Talk with Denny about OpenAlex attributes in `paper.json`.** Add a `metrics` block
+   at fetch time (one free OpenAlex call): `citation_normalized_percentile` (age/field-
+   normalized — the citation signal the ranking agent uses), plus `venue` and
+   `publication_date`. Store raw facts, not computed scores. `fwci`/`cited_by_count` not
+   needed for scoring (display-only at most). Plus the `get_paper_metrics(paper_id)` getter.
+2. **Save verdicts in a `verdicts/` folder** (validator output, one per gap, keyed by
+   `gap_id`). The validator currently produces the `Verdict` but doesn't persist it — full
+   verdict must be saved (not just status+confidence) or the assessments/reasoning are lost.
+   Separate from `gaps/` to avoid the validator writing another agent's gap files.
+3. **Routing of gaps + verdicts (open vs solved).** Decided: the master gap list keeps
+   **all** gaps; the validator does **not** prune solved ones. Ranking filters solved via
+   `min_openness`. Validator judges; ranking selects. (Open: does the validator also stamp
+   a denormalized `status`/`confidence` onto the gap for quick filtering?)
+4. **Rebase plan:** `ranking_agent` is stacked on `validator_agent` (it needs the schemas).
+   Once the team merges gap+validator+director into `main`, rebase `ranking_agent` onto it —
+   the shared validator commits drop out, leaving only ranking commits on the integrated main.
