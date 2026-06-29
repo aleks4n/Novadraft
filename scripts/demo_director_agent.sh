@@ -10,17 +10,9 @@ NEW_PAPER="$ROOT_DIR/workspace/transformers/papers/arxiv_test_new_gap/paper.json
 
 rm -f "$MASTER"
 
-echo "=== Step 1: Create master_gap_list.json from scratch ==="
-python3 "$AGENT" "$SIMILAR_PAPER"
+echo "=== Processing multiple papers with gap consolidation ==="
+python3 "$AGENT" "$SIMILAR_PAPER" "$SIMILAR_PAPER_2" "$NEW_PAPER"
 
 echo
-echo "=== Step 2: Merge a similar gap and extend evidence ==="
-python3 "$AGENT" "$SIMILAR_PAPER_2"
-
-echo
-echo "=== Step 3: Append a non-similar gap ==="
-python3 "$AGENT" "$NEW_PAPER"
-
-echo
- echo "=== Resulting master_gap_list.json ==="
+echo "=== Resulting master_gap_list.json ==="
 cat "$MASTER"

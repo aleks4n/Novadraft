@@ -17,16 +17,12 @@ NEW_PAPER = ROOT_DIR / "workspace/transformers/papers/arxiv_test_new_gap/paper.j
 
 
 def run_demo() -> None:
-	print("=== Step 1: Create master_gap_list.json from scratch ===")
-	run_director_agent(str(SIMILAR_PAPER))
-
-	print()
-	print("=== Step 2: Merge a similar gap and extend evidence ===")
-	run_director_agent(str(SIMILAR_PAPER_2))
-
-	print()
-	print("=== Step 3: Append a non-similar gap ===")
-	run_director_agent(str(NEW_PAPER))
+	print("=== Processing multiple papers with gap consolidation ===")
+	run_director_agent([
+		str(SIMILAR_PAPER),
+		str(SIMILAR_PAPER_2),
+		str(NEW_PAPER),
+	])
 
 	print()
 	print("=== Resulting master_gap_list.json ===")
