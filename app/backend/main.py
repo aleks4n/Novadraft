@@ -32,9 +32,11 @@ import _env_bootstrap  # noqa: F401,E402
 
 import io  # noqa: E402
 import json  # noqa: E402
+import re  # noqa: E402
 import tarfile  # noqa: E402
 import time  # noqa: E402
 import zipfile  # noqa: E402
+from datetime import datetime  # noqa: E402
 
 from fastapi import FastAPI, File, HTTPException, UploadFile  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
@@ -43,11 +45,11 @@ from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
 from dev.registry import GRAPH_BUILDERS, LOGGED_AGENTS, _truthy  # noqa: E402
-from dev.runlog import GraphRunLog  # noqa: E402
+from dev.runlog import RunRecorder  # noqa: E402
 from dev.eval_paper_pipeline import _fully_extracted_papers, list_workspaces  # noqa: E402
 from src.common.utils import storage  # noqa: E402
 
-from app.backend import mappers  # noqa: E402
+from code.novadraft.app.backend import mappers  # noqa: E402
 
 # Generous super-step ceiling (the agent bounds its own loops); mirrors dev/ui.py.
 GRAPH_RECURSION_LIMIT = 80
@@ -201,16 +203,13 @@ class IdeaRunRequest(BaseModel):
     count: int = 3
 
 
+def _run_slug(text: str) -> str:
+    s = re.sub(r"[^A-Za-z0-9]+", "-", text or "").strip("-").lower()
+    return s[:40] or "run"
+
+
 def _sse(obj: dict) -> str:
     return f"data: {json.dumps(obj, default=str)}\n\n"
-
-
-def _sse_type(ev: dict) -> str:
-    """Map a recorded event's ``kind`` to the SSE envelope type the frontend
-    expects: ``run_start`` / ``run_end`` pass through, everything else (node /
-    llm / tool / event leaves) is a plain ``event``."""
-    kind = ev.get("kind")
-    return kind if kind in ("run_start", "run_end") else "event"
 
 
 def _stream_agent_run(agent: str, slug: str, inputs: dict, slug_hint: str):
@@ -227,21 +226,37 @@ def _stream_agent_run(agent: str, slug: str, inputs: dict, slug_hint: str):
 
     def generate():
         graph = builder()
-        # Same stream→record→file engine the agents and dev harness use, so the
-        # app's runs are byte-for-byte the dev harness's runs.
-        rl = GraphRunLog(agent, workspace=slug, run_hint=slug_hint,
-                         recursion_limit=GRAPH_RECURSION_LIMIT)
+        mermaid = graph.get_graph(xray=True).draw_mermaid()
+
+        run_id = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{_run_slug(slug_hint)}"
+        log_dir = storage.agent_log_dir(slug, agent)
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_path = log_dir / f"{run_id}.jsonl"
+
         t0 = time.time()
-        for ev in rl.stream(graph, inputs):
-            yield _sse({"type": _sse_type(ev), "event": ev})
+        error = None
+        with open(log_path, "w") as fh:
+            rec = RunRecorder(fh, agent, slug, inputs)
+            yield _sse({"type": "run_start", "event": rec.start(mermaid)})
+            try:
+                for ns, mode, data in graph.stream(
+                    inputs, stream_mode=["updates", "custom"], subgraphs=True,
+                    config={"recursion_limit": GRAPH_RECURSION_LIMIT},
+                ):
+                    for ev in rec.record(ns, mode, data):
+                        yield _sse({"type": "event", "event": ev})
+            except Exception as e:  # noqa: BLE001
+                error = f"{type(e).__name__}: {e}"
+            footer = rec.finish(error=error)
+            yield _sse({"type": "run_end", "event": footer})
 
         yield _sse({
             "type": "done",
             "record": {
                 "agent": agent, "inputs": inputs,
-                "output": rl.output, "error": rl.error,
+                "output": footer.get("output"), "error": error,
                 "duration_s": round(time.time() - t0, 3),
-                "run_log": rl.log_path.name,
+                "run_log": f"{run_id}.jsonl",
             },
         })
 
