@@ -1,0 +1,23 @@
+{
+  "gap_id": "gap_f6926553",
+  "status": "unchecked",
+  "title": "Few-shot properties of ViT as future work",
+  "description": "The authors note that further analysis of few-shot properties of ViT is an exciting direction of future work, building on promising few-shot and low-data transfer results.",
+  "type": "future_work",
+  "canonical_description": "few-shot properties of transformer for vision not fully analyzed",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2010.11929",
+      "section": "experiments",
+      "anchor": "Further analysis of few-shot properties",
+      "quote": "Further analysis of few-shot properties of \\oursabbrv{} is an exciting direction of future work.",
+      "char_offset": [
+        10112,
+        10208
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-06-26T21:50:37Z"
+}

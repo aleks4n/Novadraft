@@ -1,0 +1,23 @@
+{
+  "gap_id": "gap_d830f1c6",
+  "status": "unchecked",
+  "title": "Non-autoregressive generation",
+  "description": "The Transformer generates output tokens sequentially in an autoregressive manner. The authors state that making generation less sequential is a research goal for future work.",
+  "type": "future_work",
+  "canonical_description": "autoregressive generation limits parallelism, non-autoregressive decoding needed",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1706.03762",
+      "section": "conclusion",
+      "anchor": "Making generation less sequential is another research goals",
+      "quote": "Making generation less sequential is another research goals of ours.",
+      "char_offset": [
+        910,
+        978
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-06-26T21:37:09Z"
+}

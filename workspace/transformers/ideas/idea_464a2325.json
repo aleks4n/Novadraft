@@ -1,0 +1,44 @@
+{
+  "idea_id": "idea_464a2325",
+  "title": "Diffusion-Inspired Iterative Refinement for Non-Autoregressive Transformer Decoding",
+  "short": "Diffusion Decoding for Transformers",
+  "description": "Proposes a novel decoding paradigm for Transformers that treats sequence generation as an iterative denoising process over discrete tokens, using a corruption schedule that progressively masks tokens and a refined Transformer that predicts clean tokens from corrupted inputs in parallel at each step. This breaks the sequential bottleneck of auto-regressive decoding.",
+  "summary": "Auto-regressive decoding (gap_0c5b557e, gap_5115dd90) forces sequential generation, limiting parallelism. Meanwhile, diffusion models (gap_1ed32ecd) have shown that iterative denoising can produce high-quality samples with a fixed number of steps. This idea combines both: we design a discrete diffusion process over token sequences where the forward process gradually masks tokens according to a learned noise schedule (inspired by MDM, D3PM), and the reverse process uses a Transformer to predict the original clean sequence from a partially masked version in a single forward pass per step. Crucially, the noise schedule is learned per position and per step, allowing the model to allocate more denoising steps to harder-to-predict tokens—a form of adaptive compute. Unlike previous non-autoregressive methods (e.g., MaskGit, CMLM) that use a single-pass refinement or fixed schedule, our approach learns the optimal corruption rate at each step via a small auxiliary network trained with a variational bound. The method will be evaluated on machine translation (WMT En-De, En-Fr — directly extending gap_1fda3e27), text summarization (CNN/DailyMail), and image captioning (MS-COCO), measuring speedup (tokens/second) versus quality (BLEU, ROUGE, CIDEr).",
+  "status": "draft",
+  "source": "agent",
+  "related_gaps": [
+    "gap_0c5b557e",
+    "gap_5115dd90",
+    "gap_1ed32ecd",
+    "gap_1fda3e27",
+    "gap_3519158d"
+  ],
+  "related_papers": [
+    "arxiv_1706.03762",
+    "arxiv_2006.11239"
+  ],
+  "method": [
+    "Design a discrete corruption process over a sequence x_{1:T}: at each diffusion step t, randomly mask a subset of tokens according to a learned schedule α_θ(t) that controls the masking rate per position (higher rate for easier positions), trained via a variational lower bound on the data likelihood.",
+    "Parameterize the reverse denoising step p_θ(x | x_t, t) using a Transformer encoder-decoder (or decoder-only) that takes a partially masked sequence and predicts logits over the vocabulary for each masked position in parallel, sharing parameters across denoising steps.",
+    "Train the noise schedule network α_θ(t) jointly with the Transformer by minimizing a diffusion ELBO that includes a per-position weighting term, encouraging the model to allocate more denoising steps to tokens with higher predictive uncertainty.",
+    "At inference, start from a fully masked sequence and iteratively apply the Transformer to predict and unmask tokens at each step, where the number of steps K is a hyperparameter (e.g., 4–25 steps) — this yields O(K) sequential passes but each pass processes all positions in parallel, vs O(T) for auto-regressive models.",
+    "Evaluate on WMT14 English-German (translating to address gap_1fda3e27), CNN/DailyMail summarization, and MS-COCO image captioning; measure speed-quality tradeoff and compare to auto-regressive Transformers, MaskGit, CMLM, and discrete diffusion baselines (D3PM, MDM)."
+  ],
+  "evaluation": {
+    "novelty_score": 0.79,
+    "novelty": "Prior work on non-autoregressive generation (MaskGit, CMLM, NAT) uses fixed masking schedules or iterative refinement without learned per-position noise scheduling; discrete diffusion models (D3PM, MDM) use uniform schedules. A learned position-adaptive schedule that allocates compute to hard tokens is novel.",
+    "feasibility_score": 0.72,
+    "feasibility": "Implementation builds on existing discrete diffusion codebases (e.g., D3PM, MDM in PyTorch) and standard Transformer architectures; the main challenge is training stability of the learned schedule, which can be addressed with gradient clipping and EMA.",
+    "impact_score": 0.88,
+    "impact": "Breaking the sequential decoding bottleneck would dramatically reduce inference latency for LLMs and sequence-to-sequence models, enabling real-time applications (translation, summarization, code generation) and reducing serving costs for large deployed models.",
+    "rigour_score": 0.81,
+    "rigour": "The approach is grounded in diffusion probabilistic models (ELBO derivation, variational inference) and will be rigorously evaluated against established benchmarks with multiple metrics, statistical significance tests, and ablation studies on the learned schedule component.",
+    "risks": [
+      "The learned noise schedule may collapse to a uniform schedule, yielding no improvement over fixed-schedule baselines like MaskGit.",
+      "Iterative denoising may still require too many steps (e.g., >50) to match auto-regressive quality, limiting wall-clock speedup.",
+      "Discrete diffusion with masking may struggle with long-range dependencies compared to auto-regressive left-to-right generation, particularly for tasks requiring strict coherence (e.g., storytelling)."
+    ]
+  },
+  "created_at": "2026-06-26T20:29:22Z",
+  "updated_at": "2026-06-26T20:29:22Z"
+}

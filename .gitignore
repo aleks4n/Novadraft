@@ -75,6 +75,9 @@ tmp/
 .tmp/
 src/agents/validator_agent/test_runs/
 
+# Generated knowledge files
+workspace/knowledge/*.md
+
 # Data / models (uncomment as needed)
 # *.csv
 # *.parquet

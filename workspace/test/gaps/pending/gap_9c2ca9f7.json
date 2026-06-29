@@ -1,0 +1,23 @@
+{
+  "gap_id": "gap_9c2ca9f7",
+  "status": "unchecked",
+  "title": "Limited image-specific inductive bias compared to CNNs",
+  "description": "Vision Transformer has much less image-specific inductive bias than CNNs. It lacks built-in translation equivariance, locality, and two-dimensional neighborhood structure. Only MLP layers are local and translationally equivariant, while self-attention layers are global. As a result, ViT does not generalize well when trained on insufficient amounts of data.",
+  "type": "limitation",
+  "canonical_description": "transformer lacks image-specific inductive biases like locality and translation equivariance",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2010.11929",
+      "section": "method",
+      "anchor": "much less image-specific inductive bias than CNNs",
+      "quote": "We note that Vision Transformer has much less image-specific inductive bias than CNNs.",
+      "char_offset": [
+        3419,
+        3505
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-06-26T21:50:37Z"
+}

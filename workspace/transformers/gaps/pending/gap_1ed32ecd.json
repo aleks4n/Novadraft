@@ -1,0 +1,20 @@
+{
+  "gap_id": "gap_1ed32ecd",
+  "status": "unchecked",
+  "title": "application to other data modalities and model components",
+  "description": "The authors propose future investigation of diffusion models in other data modalities and as components in other generative models and machine learning systems.",
+  "type": "future_work",
+  "canonical_description": "application of diffusion models to other data modalities and as components in other systems",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2006.11239",
+      "section": "conclusion",
+      "quote": "we look forward to investigating their utility in other data modalities and as components in other types of generative models and machine learning systems.",
+      "char_offset": [
+        409,
+        564
+      ]
+    }
+  ],
+  "extracted_at": "2026-06-22T13:33:36Z"
+}

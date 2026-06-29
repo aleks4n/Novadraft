@@ -1,0 +1,17 @@
+{
+  "gap_id": "gap_ac5e7d5c",
+  "status": "unchecked",
+  "title": "No explicit representation of the generative distribution",
+  "description": "The adversarial framework does not provide an explicit probability density function p_g(x) for the generative model, which limits certain types of analysis and likelihood-based evaluation.",
+  "type": "limitation",
+  "canonical_description": "generative model lacks explicit probability density representation",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1406.2661",
+      "section": "advantages_and_disadvantages",
+      "quote": "there is no explicit representation of p_g(x)",
+      "char_offset": null
+    }
+  ],
+  "extracted_at": "2026-06-22T12:58:23Z"
+}

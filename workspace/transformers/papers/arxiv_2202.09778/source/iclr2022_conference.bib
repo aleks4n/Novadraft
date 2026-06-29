@@ -1,0 +1,475 @@
+
+@article{Karras2020,
+	abstract = {Training generative adversarial networks (GAN) using too little data typically leads to discriminator overfitting, causing training to diverge. We propose an adaptive discriminator augmentation mechanism that significantly stabilizes training in limited data regimes. The approach does not require changes to loss functions or network architectures, and is applicable both when training from scratch and when fine-tuning an existing GAN on another dataset. We demonstrate, on several datasets, that good results are now possible using only a few thousand training images, often matching StyleGAN2 results with an order of magnitude fewer images. We expect this to open up new application domains for GANs. We also find that the widely used CIFAR-10 is, in fact, a limited data benchmark, and improve the record FID from 5.59 to 2.67.},
+	archivePrefix = {arXiv},
+	arxivId = {2006.06676},
+	author = {Karras, Tero and Aittala, Miika and Hellsten, Janne and Laine, Samuli and Lehtinen, Jaakko and Aila, Timo},
+	eprint = {2006.06676},
+	journal = {arXiv},
+	number = {NeurIPS},
+	title = {{Training Generative Adversarial Networks with Limited Data}},
+	year = {2020}
+}
+
+@inproceedings{Kingma2018,
+	abstract = {Flow-based generative models (Dinh et al., 2014) are conceptually attractive due to tractability of the exact log-likelihood, tractability of exact latent-variable inference, and parallelizability of both training and synthesis. In this paper we propose Glow, a simple type of generative flow using an invertible 1 × 1 convolution. Using our method we demonstrate a significant improvement in log-likelihood on standard benchmarks. Perhaps most strikingly, we demonstrate that a flow-based generative model optimized towards the plain log-likelihood objective is capable of efficient realistic-looking synthesis and manipulation of large images. The code for our model is available at https://github.com/openai/glow.},
+	archivePrefix = {arXiv},
+	arxivId = {1807.03039},
+	author = {Kingma, Diederik P. and Dhariwal, Prafulla},
+	booktitle = {Advances in Neural Information Processing Systems},
+	eprint = {1807.03039},
+	issn = {10495258},
+	pages = {10215--10224},
+	title = {{Glow: Generative flow with invertible 1×1 convolutions}},
+	volume = {2018-Decem},
+	year = {2018}
+}
+
+@article{Ho2020,
+	abstract = {We present high quality image synthesis results using diffusion probabilistic models, a class of latent variable models inspired by considerations from nonequilibrium thermodynamics. Our best results are obtained by training on a weighted variational bound designed according to a novel connection between diffusion probabilistic models and denoising score matching with Langevin dynamics, and our models naturally admit a progressive lossy decompression scheme that can be interpreted as a generalization of autoregressive decoding. On the unconditional CIFAR10 dataset, we obtain an Inception score of 9.46 and a state-of-the-art FID score of 3.17. On 256x256 LSUN, we obtain sample quality similar to ProgressiveGAN. Our implementation is available at https://github.com/hojonathanho/diffusion.},
+	archivePrefix = {arXiv},
+	arxivId = {2006.11239},
+	author = {Ho, Jonathan and Jain, Ajay and Abbeel, Pieter},
+	eprint = {2006.11239},
+	journal = {arXiv},
+	title = {{Denoising diffusion probabilistic models}},
+	volume = {256},
+	year = {2020}
+}
+
+@article{kingma2014,
+	title={Auto-Encoding Variational Bayes}, 
+	author={Diederik P Kingma and Max Welling},
+	year={2014},
+	eprint={1312.6114},
+	archivePrefix={arXiv},
+	primaryClass={stat.ML},
+}
+
+@article{Song2020,
+	abstract = {Creating noise from data is easy; creating data from noise is generative modeling. We present a stochastic differential equation (SDE) that smoothly transforms a complex data distribution to a known prior distribution by slowly injecting noise, and a corresponding reverse-time SDE that transforms the prior distribution back into the data distribution by slowly removing the noise. Crucially, the reverse-time SDE depends only on the time-dependent gradient field (a.k.a., score) of the perturbed data distribution. By leveraging advances in score-based generative modeling, we can accurately estimate these scores with neural networks, and use numerical SDE solvers to generate samples. We show that this framework encapsulates previous approaches in diffusion probabilistic modeling and score-based generative modeling, and allows for new sampling procedures. In particular, we introduce a predictor-corrector framework to correct errors in the evolution of the discretized reverse-time SDE. We also derive an equivalent neural ODE that samples from the same distribution as the SDE, which enables exact likelihood computation, and improved sampling efficiency. In addition, our framework enables conditional generation with an unconditional model, as we demonstrate with experiments on class-conditional generation, image inpainting, and colorization. Combined with multiple architectural improvements, we achieve record-breaking performance for unconditional image generation on CIFAR-10 with an Inception score of 9.89 and FID of 2.20, a competitive likelihood of 3.10 bits/dim, and demonstrate high fidelity generation of $1024 \times 1024$ images for the first time from a score-based generative model.},
+	archivePrefix = {arXiv},
+	arxivId = {2011.13456},
+	author = {Song, Yang and Sohl-Dickstein, Jascha and Kingma, Diederik P. and Kumar, Abhishek and Ermon, Stefano and Poole, Ben},
+	eprint = {2011.13456},
+	pages = {1--32},
+	title = {{Score-Based Generative Modeling through Stochastic Differential Equations}},
+	year = {2020}
+}
+
+@article{Nichol2021,
+  author    = {Alex Nichol and Prafulla Dhariwal},
+  title     = {Improved Denoising Diffusion Probabilistic Models},
+  journal   = {CoRR},
+  volume    = {abs/2102.09672},
+  year      = {2021},
+  archivePrefix = {arXiv},
+  eprint    = {2102.09672}
+}
+
+@article{Watson2021,
+	archivePrefix = {arXiv},
+	arxivId = {2106.03802},
+	author = {Watson, Daniel and Ho, Jonathan and Norouzi, Mohammad and Chan, William},
+	eprint = {2106.03802},
+	title = {{Learning to Efficiently Sample from Diffusion Probabilistic Models}},
+	journal  = {CoRR},
+  	volume = {abs/2106.03802},
+  	year = {2021}
+}
+
+
+@article{Luo2021,
+	archivePrefix = {arXiv},
+	journal={arXiv preprint},
+	arxivId = {2103.01458},
+	author = {Luo, Shitong and Hu, Wei},
+	eprint = {2103.01458},
+	title = {{Diffusion Probabilistic Models for 3D Point Cloud Generation}},
+	year = {2021}
+}
+
+@misc{Austin2021,
+      title={Structured Denoising Diffusion Models in Discrete State-Spaces}, 
+      author={Jacob Austin and Daniel D. Johnson and Jonathan Ho and Daniel Tarlow and Rianne van den Berg},
+      year={2021},
+	  journal={arXiv preprint},
+      eprint={2107.03006},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
+}
+
+@article{Anderson1982,
+	abstract = {Reverse-time stochastic diffusion equation models are defined and it is shown how most processes defined via a forward-time or conventional diffusion equation model have an associated reverse-time model. {\textcopyright} 1982.},
+	author = {Anderson, Brian D.O.},
+	doi = {10.1016/0304-4149(82)90051-5},
+	issn = {03044149},
+	journal = {Stochastic Processes and their Applications},
+	number = {3},
+	pages = {313--326},
+	title = {{Reverse-time diffusion equation models}},
+	volume = {12},
+	year = {1982}
+}
+
+@article{Vincent2011,
+	author = {Vincent, Pascal},
+	doi = {10.1162/NECO_a_00142},
+	issn = {08997667},
+	journal = {Neural Computation},
+	keywords = {autoencoder,denoising,density,energy based models,score matching},
+	number = {7},
+	pages = {1661--1674},
+	pmid = {21492012},
+	title = {{A connection between scorematching and denoising autoencoders}},
+	volume = {23},
+	year = {2011}
+}
+
+@article{Knauf2018,
+  author    = {Tian Qi Chen and
+               Yulia Rubanova and
+               Jesse Bettencourt and
+               David Duvenaud},
+  title     = {Neural Ordinary Differential Equations},
+  journal   = {CoRR},
+  volume    = {abs/1806.07366},
+  year      = {2018},
+  archivePrefix = {arXiv},
+  eprint    = {1806.07366},
+  timestamp = {Mon, 22 Jul 2019 14:09:23 +0200},
+}
+
+@book{Sauer2017,
+   title =     {Numerical Analysis},
+   author =    {Timothy, Sauer},
+   publisher = {Pearson},
+   isbn =      {2017028491, 9780134696454, 013469645X},
+   year =      {2017},
+   edition =   {3},
+   pages =     {328--366}
+}
+
+@article{Hoogeboom2021,
+	archivePrefix = {arXiv},
+	journal={arXiv preprint},
+	arxivId = {2102.05379},
+	author = {Hoogeboom, Emiel and Nielsen, Didrik and Jaini, Priyank and Forr{\'{e}}, Patrick and Welling, Max},
+	eprint = {2102.05379},
+	title = {{Argmax Flows and Multinomial Diffusion: Towards Non-Autoregressive Language Models}},
+	year = {2021}
+}
+
+@article{Ziegler2019,
+	archivePrefix = {arXiv},
+	arxivId = {1901.10548},
+	author = {Ziegler, Zachary M. and Rush, Alexander M.},
+	eprint = {1901.10548},
+	isbn = {9781510886988},
+	journal = {36th International Conference on Machine Learning, ICML 2019},
+	pages = {13227--13239},
+	title = {{Latent normalizing flows for discrete sequences}},
+	volume = {2019-June},
+	year = {2019}
+}
+
+@article{Mittal2021,
+	archivePrefix = {arXiv},
+	arxivId = {2103.16091},
+	author = {Mittal, Gautam and Engel, Jesse and Hawthorne, Curtis and Simon, Ian},
+	eprint = {2103.16091},
+	title = {{Symbolic Music Generation with Diffusion Models}},
+	year = {2021}
+}
+
+@article{chen2020,
+  title={WaveGrad: Estimating gradients for waveform generation},
+  author={Chen, Nanxin and Zhang, Yu and Zen, Heiga and Weiss, Ron J and Norouzi, Mohammad and Chan, William},
+  journal={arXiv preprint},
+  arxivId = {2009.00713},
+  year={2020}
+}
+
+@article{saharia2021,
+  title={Image super-resolution via iterative refinement},
+  author={Saharia, Chitwan and Ho, Jonathan and Chan, William and Salimans, Tim and Fleet, David J and Norouzi, Mohammad},
+  journal={arXiv preprint arXiv:2104.07636},
+  year={2021}
+}
+
+@article{goodfellow2014,
+  title={Generative adversarial nets},
+  author={Goodfellow, Ian and Pouget-Abadie, Jean and Mirza, Mehdi and Xu, Bing and Warde-Farley, David and Ozair, Sherjil and Courville, Aaron and Bengio, Yoshua},
+  journal={Advances in neural information processing systems},
+  volume={27},
+  year={2014}
+}
+
+@book{Randall2007,
+   title =     {Finite Difference Methods for Ordinary and Partial Differential Equations: Steady-State and Time-Dependent Problems},
+   author =    {Randall Leveque},
+   publisher = {SIAM, Society for Industrial and Applied Mathematics},
+   isbn =      {9780898716290,0898716292},
+   year =      {2007},
+   series =    {Classics in Applied Mathematics},
+   edition =   {},
+   volume =    {},
+   pages =     {254--258}
+}
+
+@article{Song2020a,
+	archivePrefix = {arXiv},
+	journal={arXiv preprint},
+	arxivId = {2010.02502},
+	author = {Song, Jiaming and Meng, Chenlin and Ermon, Stefano},
+	eprint = {2010.02502},
+	pages = {1--19},
+	title = {{Denoising Diffusion Implicit Models}},
+	year = {2020}
+}
+
+@book{Hairer1996,
+   title =     {Solving Ordinary Differential Equations II: Stiff and Differential-Algebraic Problems},
+   author =    {Ernst, Hairer and Gerhard, Wanner},
+   publisher = {Springer-Verlag Berlin Heidelberg},
+   year =      {1996},
+   series =    {Springer Series in Computational Mathematics 14},
+   edition =   {2},
+}
+
+
+@article{Song2020b,
+  title = {Improved {{Techniques}} for {{Training Score}}-{{Based Generative Models}}},
+  author = {Song, Yang and Ermon, Stefano},
+  year = {2020},
+  month = oct,
+  journal = {arXiv:2006.09011 [cs, stat]},
+  eprint = {2006.09011},
+  eprinttype = {arxiv},
+  primaryclass = {cs, stat},
+  archiveprefix = {arXiv},
+  language = {en},
+  keywords = {Computer Science - Computer Vision and Pattern Recognition,Computer Science - Machine Learning,no-DOI,Statistics - Machine Learning}
+}
+
+
+@article{Lam2021,
+  title = {Bilateral {{Denoising Diffusion Models}}},
+  author = {Lam, Max W. Y. and Wang, Jun and Huang, Rongjie and Su, Dan and Yu, Dong},
+  year = {2021},
+  month = aug,
+  journal = {arXiv:2108.11514 [cs, eess]},
+  eprint = {2108.11514},
+  eprinttype = {arxiv},
+  primaryclass = {cs, eess},
+  archiveprefix = {arXiv},
+  language = {en},
+  keywords = {Computer Science - Artificial Intelligence,Computer Science - Machine Learning,Computer Science - Sound,Electrical Engineering and Systems Science - Audio and Speech Processing,Electrical Engineering and Systems Science - Signal Processing,no-DOI,to read}
+}
+
+
+@article{Kong2021,
+  title = {On {{Fast Sampling}} of {{Diffusion Probabilistic Models}}},
+  author = {Kong, Zhifeng and Ping, Wei},
+  year = {2021},
+  month = jun,
+  journal = {arXiv:2106.00132 [cs]},
+  eprint = {2106.00132},
+  eprinttype = {arxiv},
+  primaryclass = {cs},
+  archiveprefix = {arXiv},
+  language = {en},
+  keywords = {Computer Science - Machine Learning,no-DOI}
+}
+
+
+@article{Kim2021,
+  title = {Score {{Matching Model}} for {{Unbounded Data Score}}},
+  author = {Kim, Dongjun and Shin, Seungjae and Song, Kyungwoo and Kang, Wanmo and Moon, Il-Chul},
+  year = {2021},
+  month = aug,
+  journal = {arXiv:2106.05527 [cs, stat]},
+  eprint = {2106.05527},
+  eprinttype = {arxiv},
+  primaryclass = {cs, stat},
+  archiveprefix = {arXiv},
+  language = {en},
+  keywords = {Computer Science - Artificial Intelligence,Computer Science - Machine Learning,no-DOI,Statistics - Machine Learning,to read}
+}
+
+
+@article{Jeong2021,
+  title = {Diff-{{TTS}}: {{A Denoising Diffusion Model}} for {{Text}}-to-{{Speech}}},
+  shorttitle = {Diff-{{TTS}}},
+  author = {Jeong, Myeonghun and Kim, Hyeongju and Cheon, Sung Jun and Choi, Byoung Jin and Kim, Nam Soo},
+  year = {2021},
+  month = apr,
+  journal = {arXiv:2104.01409 [cs, eess]},
+  eprint = {2104.01409},
+  eprinttype = {arxiv},
+  primaryclass = {cs, eess},
+  archiveprefix = {arXiv},
+  language = {en},
+  keywords = {Computer Science - Artificial Intelligence,Computer Science - Sound,Electrical Engineering and Systems Science - Audio and Speech Processing}
+}
+
+@article{Kong2021a,
+  title = {{{DiffWave}}: {{A Versatile Diffusion Model}} for {{Audio Synthesis}}},
+  shorttitle = {{{DiffWave}}},
+  author = {Kong, Zhifeng and Ping, Wei and Huang, Jiaji and Zhao, Kexin and Catanzaro, Bryan},
+  year = {2021},
+  month = mar,
+  journal = {arXiv:2009.09761 [cs, eess, stat]},
+  eprint = {2009.09761},
+  eprinttype = {arxiv},
+  primaryclass = {cs, eess, stat},rchiveprefix = {arXiv},
+  language = {en},
+  keywords = {Computer Science - Computation and Language,Computer Science - Machine Learning,Computer Science - Sound,Electrical Engineering and Systems Science - Audio and Speech Processing,Statistics - Machine Learning}
+}
+
+
+@article{Song2020c,
+  title = {Generative {{Modeling}} by {{Estimating Gradients}} of the {{Data Distribution}}},
+  author = {Song, Yang and Ermon, Stefano},
+  year = {2020},
+  month = oct,
+  journal = {arXiv:1907.05600 [cs, stat]},
+  eprint = {1907.05600},
+  eprinttype = {arxiv},
+  primaryclass = {cs, stat},archiveprefix = {arXiv},
+  language = {en},
+  keywords = {Computer Science - Machine Learning,Statistics - Machine Learning}
+}
+
+
+
+
+@article{Choi2021,
+  title = {{{ILVR}}: {{Conditioning Method}} for {{Denoising Diffusion Probabilistic Models}}},
+  author = {Choi, Jooyoung and Kim, Sungwon and Jeong, Yonghyun and Gwon, Youngjune and Yoon, Sungroh},
+  year = {2021},
+  pages = {14},
+  journal = {CoRR},
+  volume = {abs/2108.02938},
+  language = {en}
+}
+
+
+@article{Vahdat2021,
+  title = {Score-Based {{Generative Modeling}} in {{Latent Space}}},
+  author = {Vahdat, Arash and Kreis, Karsten and Kautz, Jan},
+  year = {2021},
+  month = jun,
+  journal = {arXiv:2106.05931 [cs, stat]},
+  eprint = {2106.05931},
+  eprinttype = {arxiv},
+  primaryclass = {cs, stat},
+  archiveprefix = {arXiv},
+  language = {en},
+  keywords = {Computer Science - Machine Learning,no-DOI,Statistics - Machine Learning}
+}
+
+
+@article{chen2019,
+  title = {Neural {{Ordinary Differential Equations}}},
+  author = {Chen, Ricky T. Q. and Rubanova, Yulia and Bettencourt, Jesse and Duvenaud, David},
+  year = {2019},
+  month = dec,
+  journal = {arXiv:1806.07366 [cs, stat]},
+  eprint = {1806.07366},
+  eprinttype = {arxiv},
+  primaryclass = {cs, stat},
+  archiveprefix = {arXiv},
+  language = {en},
+  keywords = {Computer Science - Artificial Intelligence,Computer Science - Machine Learning,Statistics - Machine Learning}
+}
+
+
+@article{dupont2019,
+  title = {Augmented {{Neural ODEs}}},
+  author = {Dupont, Emilien and Doucet, Arnaud and Teh, Yee Whye},
+  year = {2019},
+  month = oct,
+  journal = {arXiv:1904.01681 [cs, stat]},
+  eprint = {1904.01681},
+  eprinttype = {arxiv},
+  primaryclass = {cs, stat},
+  archiveprefix = {arXiv},
+  language = {en},
+  keywords = {Computer Science - Machine Learning,Statistics - Machine Learning}
+}
+
+
+@article{heusel2018,
+  title = {{{GANs Trained}} by a {{Two Time}}-{{Scale Update Rule Converge}} to a {{Local Nash Equilibrium}}},
+  author = {Heusel, Martin and Ramsauer, Hubert and Unterthiner, Thomas and Nessler, Bernhard and Hochreiter, Sepp},
+  year = {2018},
+  month = jan,
+  journal = {arXiv:1706.08500 [cs, stat]},
+  eprint = {1706.08500},
+  eprinttype = {arxiv},
+  primaryclass = {cs, stat},
+  archiveprefix = {arXiv},
+  language = {en},
+  keywords = {Computer Science - Machine Learning,Statistics - Machine Learning}
+}
+
+@article{yu2016,
+  title = {{{LSUN}}: {{Construction}} of a {{Large}}-Scale {{Image Dataset}} Using {{Deep Learning}} with {{Humans}} in the {{Loop}}},
+  shorttitle = {{{LSUN}}},
+  author = {Yu, Fisher and Seff, Ari and Zhang, Yinda and Song, Shuran and Funkhouser, Thomas and Xiao, Jianxiong},
+  year = {2016},
+  month = jun,
+  journal = {arXiv:1506.03365 [cs]},
+  eprint = {1506.03365},
+  eprinttype = {arxiv},
+  primaryclass = {cs},
+  archiveprefix = {arXiv},
+  language = {en},
+  keywords = {Computer Science - Computer Vision and Pattern Recognition}
+}
+
+@inproceedings{liu2015,
+  title = {Deep Learning Face Attributes in the Wild},
+  author = {Liu, Ziwei and Luo, Ping and Wang, Xiaogang and Tang, Xiaoou},
+  booktitle = {Proceedings of International Conference on Computer Vision (ICCV)},
+  month = {December},
+  year = {2015} 
+}
+
+@article{krizhevsky2009,
+  title={Learning multiple layers of features from tiny images},
+  author={Krizhevsky, Alex and Hinton, Geoffrey and others},
+  year={2009},
+  publisher={Citeseer}
+}
+
+@article{sohl-dickstein2015,
+  title = {Deep {{Unsupervised Learning}} Using {{Nonequilibrium Thermodynamics}}},
+  author = {{Sohl-Dickstein}, Jascha and Weiss, Eric A and Maheswaranathan, Niru and Ganguli, Surya},
+  pages = {10},
+  year = {2015},
+  abstract = {A central problem in machine learning involves modeling complex data-sets using highly flexible families of probability distributions in which learning, sampling, inference, and evaluation are still analytically or computationally tractable. Here, we develop an approach that simultaneously achieves both flexibility and tractability. The essential idea, inspired by non-equilibrium statistical physics, is to systematically and slowly destroy structure in a data distribution through an iterative forward diffusion process. We then learn a reverse diffusion process that restores structure in data, yielding a highly flexible and tractable generative model of the data. This approach allows us to rapidly learn, sample from, and evaluate probabilities in deep generative models with thousands of layers or time steps, as well as to compute conditional and posterior probabilities under the learned model. We additionally release an open source reference implementation of the algorithm.},
+  langid = {english},
+}
+
+@article{liu2021diffsinger,
+  title={Diffsinger: Singing voice synthesis via shallow diffusion mechanism},
+  author={Liu, Jinglin and Li, Chengxi and Ren, Yi and Chen, Feiyang and Liu, Peng and Zhao, Zhou},
+  journal={arXiv preprint arXiv:2105.02446},
+  volume={2},
+  year={2021}
+}
+
+@inproceedings{salimans2022progressive,
+  title={Progressive Distillation for Fast Sampling of Diffusion Models},
+  author={Tim Salimans and Jonathan Ho},
+  booktitle={International Conference on Learning Representations},
+  year={2022}
+}
+
+
+
+
+
+

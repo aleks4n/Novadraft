@@ -1,0 +1,23 @@
+{
+  "gap_id": "gap_25876839",
+  "status": "unchecked",
+  "title": "ViT overfits more than ResNets on smaller datasets",
+  "description": "Vision Transformers overfit more than ResNets with comparable computational cost when trained on smaller datasets, reinforcing that the convolutional inductive bias is useful for smaller datasets while learning from data becomes sufficient for larger ones.",
+  "type": "negative_result",
+  "canonical_description": "transformer overfits more than CNN on smaller datasets",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2010.11929",
+      "section": "experiments",
+      "anchor": "overfit more than ResNets with comparable computational cost on smaller datasets",
+      "quote": "\\oursfull{}s overfit more than ResNets with comparable computational cost on smaller datasets.",
+      "char_offset": [
+        9424,
+        9518
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-06-26T21:50:37Z"
+}
