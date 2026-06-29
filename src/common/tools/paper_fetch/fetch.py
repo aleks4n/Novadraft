@@ -9,12 +9,13 @@ Raises:
   - PaperAlreadyExistsError  — paper already in the workspace
 
 In both the returned dicts and the raised exceptions, a ``log_entry`` is
-attached describing the fetch attempt, captured by the caller's runlog step.
+attached describing the fetch attempt; progress notes stream into the caller's
+``fetch`` graph step via ``log_event`` (see ``src/common/utils/trace.py``).
 """
 from __future__ import annotations
 
 from ...utils import storage
-from ...utils.runlog import log_event
+from ...utils.trace import log_event
 from .classify import classify
 from .errors import PaperAlreadyExistsError, PaperFetchError
 from .fetchers.arxiv import fetch_arxiv

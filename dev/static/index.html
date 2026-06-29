@@ -3,6 +3,15 @@
 <head>
 <meta charset="utf-8" />
 <title>novadraft dev</title>
+<script type="module">
+  // Mermaid renders the agent's graph (get_graph(xray=True)); loaded lazily so
+  // the harness still works offline (we fall back to the raw diagram text).
+  try {
+    const m = await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs");
+    m.default.initialize({ startOnLoad: false, securityLevel: "loose", flowchart: { curve: "linear" } });
+    window.mermaid = m.default;
+  } catch (e) { console.warn("mermaid unavailable, showing raw diagram", e); }
+</script>
 <style>
   :root { --bd: #ddd; --bg: #fafafa; --mono: ui-monospace, Menlo, monospace; --muted:#666; }
   * { box-sizing: border-box; }
@@ -39,6 +48,26 @@
   .badge.err { background:#fee; color:#b00; }
   .steps { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+
+  /* graph + run log side by side; JSON input/output sit full-width below them */
+  .run-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+  .run-col { min-width: 0; }
+  .run-col #graph, .run-col #log { max-height: 60vh; }
+  #log { overflow: auto; }
+  @media (max-width: 900px) { .run-cols { grid-template-columns: 1fr; } }
+
+  /* --- agent graph (mermaid) with live current-step highlight --- */
+  #graph { overflow: auto; border: 1px solid var(--bd); border-radius: 5px; padding: 10px; background: white; }
+  #graph svg { max-width: 100%; height: auto; }
+  #graph pre { border: none; }
+  /* highlight states applied to mermaid node <g> elements by gnode match */
+  .node.gx-active > * { stroke: #0a66c2 !important; stroke-width: 2.5px !important; }
+  .node.gx-active rect, .node.gx-active polygon, .node.gx-active circle, .node.gx-active path { fill: #fff3bf !important; }
+  .node.gx-active { animation: pulse 1.2s infinite; }
+  .node.gx-done rect, .node.gx-done polygon, .node.gx-done circle, .node.gx-done path { fill: #e6f7ed !important; }
+  .node.gx-done > * { stroke: #1a7f37 !important; }
+  .node.gx-error rect, .node.gx-error polygon { fill: #fee !important; }
+  .node.gx-error > * { stroke: #b00 !important; }
 
   .lognode { border: 1px solid var(--bd); border-radius: 5px; margin: 6px 0; background: white; }
   .lognode-header { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-family: var(--mono); font-size: 12px; cursor: pointer; }
@@ -116,8 +145,16 @@
 
   <section>
     <div class="panel" id="steps-panel" style="display:none">
-      <h2>Steps</h2>
-      <ul id="steps" class="steps"></ul>
+      <div class="run-cols">
+        <div class="run-col">
+          <h2>Graph <span id="run-badge" class="meta"></span></h2>
+          <div id="graph">—</div>
+        </div>
+        <div class="run-col">
+          <h2>Run log</h2>
+          <div id="log"></div>
+        </div>
+      </div>
     </div>
 
     <div class="panel" id="eval-panel" style="display:none">
@@ -156,7 +193,6 @@
 <script>
 let CATALOG = { agents: [], subagents: [], flows: [], schemas: { agent: {}, subagent: {}, flow: {} }, agent_steps: {}, logged_agents: {} };
 let WORKSPACE_CACHE = null;
-let LIVE_TIMER = null;
 
 const WORKSPACE_FIELD_NAMES = new Set(["category_slug", "workspace"]);
 
@@ -198,177 +234,188 @@ function isLoggedAgent() {
 
 // --- recursive run-log tree (steps / llm calls / tool calls / events) ------
 //
-// Renders the JSON written by src/common/utils/runlog.py: a recursive tree
-// of nodes ({type, name, status, started_at, duration_s, data, children}).
+// Renders the run tree assembled by dev/run_tree.py from the LangGraph stream:
+// a recursive tree of nodes ({type, name, status, started_at, duration_s,
+// data, children}).
 // Each node becomes one collapsible block; llm/tool nodes get a readable
 // prompt/output sub-section instead of a generic JSON dump.
 
-function fmtDuration(node) {
-  if (node.duration_s != null) return node.duration_s + "s";
-  if (node.status === "running" && node.started_at) {
-    const elapsed = (Date.now() - new Date(node.started_at).getTime()) / 1000;
-    return Math.max(0, elapsed).toFixed(1) + "s";
-  }
-  return "";
+// One run is a flat stream of events (dev/runlog.py): a `run_start` event
+// carrying the agent's Mermaid diagram (get_graph(xray=True), subgraphs
+// expanded), then one event per node / llm / tool / domain-note, then
+// `run_end`. We render the diagram once and light up each node as its events
+// arrive (matching the event's `gnode` to a Mermaid node), and append every
+// event as a line to the linear log below. A reopened past run replays the
+// same events, so live and history render identically.
+
+let GRAPH_NODES = [];          // [{gx, g}] mermaid node <g> elements, by normalized id
+let LOG_OPEN = new Set();       // seqs of expanded log rows (survives nothing; append-only)
+
+// Normalize a node id for matching: drop everything but [a-z0-9]. This makes
+// the match independent of how Mermaid escapes the ":" in "summarize:enter",
+// while still keeping it distinct from "gap:enter" ("summarizeenter" vs
+// "gapenter").
+function norm(s) { return (s || "").replace(/[^a-z0-9]/gi, "").toLowerCase(); }
+
+// Recover a clean node id from a Mermaid DOM id. Mermaid ids look like
+// "<renderId>-flowchart-<nodeId>-<counter>" and hex-escape "_" / ":" (e.g.
+// "summarize:extractor" -> "summarize\3aextractor"). Strip everything up to
+// the last "flowchart-", drop the trailing counter, then decode the escapes
+// so the ":" survives normalization the same way it does on the event side.
+function nodeIdFromDom(domId) {
+  const stripped = (domId || "").replace(/^.*flowchart-/, "").replace(/-\d+$/, "");
+  return stripped.replace(/\\([0-9a-fA-F]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
 }
 
-// Open/closed state survives re-renders: keyed by a positional path (e.g.
-// "2.0.1") rather than the DOM node, since the whole tree is rebuilt from
-// scratch on every poll. Children are append-only, so a node's path is
-// stable across polls even as later siblings/descendants are added.
-let OPEN_PATHS = new Set();
+async function renderGraph(mermaidSrc) {
+  const c = $("graph");
+  c.innerHTML = "";
+  GRAPH_NODES = [];
+  if (!mermaidSrc) { c.textContent = "—"; return; }
+  if (!window.mermaid) { c.append(el("pre", {}, mermaidSrc)); return; }
+  try {
+    const { svg } = await window.mermaid.render("agentgraph", mermaidSrc);
+    c.innerHTML = svg;
+    // Index every node <g>. Mermaid ids look like "flowchart-<nodeid>-<n>";
+    // strip the prefix and the trailing counter, then normalize.
+    c.querySelectorAll("g.node").forEach(g => {
+      GRAPH_NODES.push({ gx: norm(nodeIdFromDom(g.id)), g });
+    });
+  } catch (e) {
+    c.append(el("pre", {}, mermaidSrc));
+    console.warn("mermaid render failed", e);
+  }
+}
 
-// Events (``log_event`` calls) are rendered as plain terminal-style lines —
-// no click-to-expand, no "Input" JSON box. The message string is the whole
-// point; any extra kwargs are just inline context for it, so they're shown
-// as ``key=value`` on the same line rather than a generic JSON tree (which
-// reads as noise for a one-line decision like "fetching via arxiv").
+// Light up a graph node. A node holds exactly one state at a time, so we clear
+// the others first: a node becomes "active" when its first leaf event streams
+// in, then "done" (or "error") when its node-update arrives.
+function setNodeState(gnode, state) {
+  const key = norm(gnode);
+  if (!key) return;
+  // Prefer an exact normalized match; fall back to substring containment so a
+  // minor Mermaid id-format quirk (extra wrapper, version differences) still
+  // lights up the right box. The owning-subgraph node (gnode "summarize"/"gap")
+  // has no node of its own (it's a cluster) — its inner nodes carry the state.
+  let matched = GRAPH_NODES.filter(n => n.gx === key);
+  if (!matched.length) matched = GRAPH_NODES.filter(n => n.gx && (n.gx.includes(key) || key.includes(n.gx)));
+  for (const { g } of matched) {
+    g.classList.remove("gx-active", "gx-done", "gx-error");
+    g.classList.add("gx-" + state);
+  }
+}
+
+// A domain note (``trace.log_event``) — the message is the point; extra kwargs
+// are inline context, shown as key=value rather than a JSON box.
 function formatEventKV(data) {
   const parts = [];
   for (const [k, v] of Object.entries(data || {})) {
     if (v === null || v === undefined) continue;
-    const isScalar = typeof v !== "object";
-    parts.push(`${k}=${isScalar ? v : JSON.stringify(v)}`);
+    parts.push(`${k}=${typeof v !== "object" ? v : JSON.stringify(v)}`);
   }
   return parts.join("  ");
 }
 
-function eventLine(node) {
-  const kv = formatEventKV(node.data);
-  return el("div", { class: "lognode-event" },
-    el("span", { class: "lognode-event-glyph" }, "›"),
-    el("span", { class: "lognode-event-msg" }, node.name),
-    kv ? el("span", { class: "lognode-event-kv" }, "  " + kv) : null,
-  );
+function jsonSection(title, value) {
+  const tree = el("div", { class: "json-tree" });
+  tree.append(jsonNode(value, 1));
+  return el("div", { class: "lognode-section" }, el("h4", {}, title), tree);
 }
 
-// Returns {inputSections, outputSections} separately (rather than one flat
-// list) so the caller can place children — anything that happened *during*
-// the step, e.g. nested LLM/tool calls — between them: input is known at
-// the start, output only exists once everything nested has finished.
-function logNodeSections(node) {
-  const inputSections = [];
-  const outputSections = [];
-  const data = node.data || {};
-  const rest = { ...data };
-
-  if (node.type === "llm" && rest.prompt) {
-    inputSections.push(el("div", { class: "lognode-section" },
-      el("h4", {}, `Prompt${rest.role ? ` · role=${rest.role}` : ""}${rest.schema ? ` · schema=${rest.schema}` : ""}`),
-      el("div", { class: "lognode-prompt" }, `SYSTEM:\n${rest.prompt.system}\n\nUSER:\n${rest.prompt.user}`)
-    ));
-    delete rest.prompt;
+// The expandable body of one node/llm/tool log row.
+function eventSections(ev) {
+  const out = [];
+  const d = ev.data || {};
+  if (ev.kind === "llm") {
+    if (d.prompt) out.push(el("div", { class: "lognode-section" },
+      el("h4", {}, `Prompt${d.schema ? ` · schema=${d.schema}` : ""}`),
+      el("div", { class: "lognode-prompt" }, `SYSTEM:\n${d.prompt.system}\n\nUSER:\n${d.prompt.user}`)));
+    if ("output" in d) out.push(jsonSection("Output", d.output));
+  } else if (ev.kind === "tool") {
+    if (d.args !== undefined) out.push(el("div", { class: "lognode-section" },
+      el("h4", {}, "Input"), el("div", { class: "lognode-prompt" }, JSON.stringify(d.args, null, 2))));
+    const rest = { ...d }; delete rest.args;
+    if (Object.keys(rest).length) out.push(jsonSection("Result", rest));
+  } else if (ev.kind === "node") {
+    if (ev.result !== undefined) out.push(jsonSection("State delta", ev.result));
   }
-  if (node.type === "tool" && rest.args !== undefined) {
-    inputSections.push(el("div", { class: "lognode-section" },
-      el("h4", {}, "Input"),
-      el("div", { class: "lognode-prompt" }, JSON.stringify(rest.args, null, 2))
-    ));
-    delete rest.args;
-  }
-
-  // Whichever of these is present is the node's output; everything else
-  // left in `rest` is treated as its input/parameters.
-  let output;
-  if ("result" in rest) { output = rest.result; delete rest.result; }
-  else if ("output" in rest) { output = rest.output; delete rest.output; }
-
-  if (Object.keys(rest).length) {
-    const wrap = el("div", { class: "lognode-section" }, el("h4", {}, "Input"));
-    const tree = el("div", { class: "json-tree" });
-    tree.append(jsonNode(rest, 1));
-    wrap.append(tree);
-    inputSections.push(wrap);
-  }
-  if (output !== undefined) {
-    const wrap = el("div", { class: "lognode-section" }, el("h4", {}, "Output"));
-    const tree = el("div", { class: "json-tree" });
-    tree.append(jsonNode(output, 1));
-    wrap.append(tree);
-    outputSections.push(wrap);
-  }
-  return { inputSections, outputSections };
+  return out;
 }
 
-function logNodeHeader(node, label, path, body, toggle) {
-  return el("div", {
+function eventRow(ev) {
+  // Domain notes render as a plain terminal line, tagged with their node.
+  if (ev.kind === "event") {
+    const kv = formatEventKV(ev.data);
+    return el("div", { class: "lognode-event" },
+      el("span", { class: "lognode-event-glyph" }, "›"),
+      el("span", { class: "lognode-event-kv" }, `[${ev.gnode || ev.node || "?"}] `),
+      el("span", { class: "lognode-event-msg" }, ev.name || "event"),
+      kv ? el("span", { class: "lognode-event-kv" }, "  " + kv) : null,
+    );
+  }
+  // node / llm / tool render as a collapsible block.
+  const status = ev.status || (ev.kind === "node" ? "done" : "done");
+  const isOpen = LOG_OPEN.has(ev.seq);
+  const div = el("div", { class: `lognode status-${status}` });
+  const body = el("div", { class: isOpen ? "lognode-body open" : "lognode-body" });
+  const toggle = el("span", { class: "lognode-toggle" }, isOpen ? "▾" : "▸");
+  const label = ev.kind === "node" ? (ev.gnode || ev.node) : (ev.name || ev.kind);
+  const header = el("div", {
     class: "lognode-header",
     onclick: () => {
       const open = body.classList.toggle("open");
       toggle.textContent = open ? "▾" : "▸";
-      if (open) OPEN_PATHS.add(path); else OPEN_PATHS.delete(path);
+      if (open) LOG_OPEN.add(ev.seq); else LOG_OPEN.delete(ev.seq);
     },
   },
     toggle,
-    el("span", { class: "lognode-type" }, node.type || "run"),
+    el("span", { class: "lognode-type" }, ev.kind),
     el("span", { class: "lognode-name" }, label),
-    el("span", { class: "lognode-duration" }, fmtDuration(node)),
-    el("span", { class: "lognode-status" }, node.status),
+    el("span", { class: "lognode-duration" }, ev.duration_s != null ? ev.duration_s + "s" : ""),
+    el("span", { class: "lognode-status" }, status),
   );
-}
-
-function logNode(node, path) {
-  if (node.type === "event") return eventLine(node);
-
-  const isOpen = OPEN_PATHS.has(path);
-  const div = el("div", { class: `lognode status-${node.status}`, "data-started": node.started_at || "" });
-  const body = el("div", { class: isOpen ? "lognode-body open" : "lognode-body" });
-  const toggle = el("span", { class: "lognode-toggle" }, isOpen ? "▾" : "▸");
-  const header = logNodeHeader(node, node.name, path, body, toggle);
-  const { inputSections, outputSections } = logNodeSections(node);
-  for (const section of inputSections) body.append(section);
-  if (node.children && node.children.length) {
-    const kids = el("div", { class: "lognode-children" });
-    node.children.forEach((child, i) => kids.append(logNode(child, `${path}.${i}`)));
-    body.append(kids);
-  }
-  for (const section of outputSections) body.append(section);
+  eventSections(ev).forEach(s => body.append(s));
   div.append(header, body);
   return div;
 }
 
-function renderLogTree(payload) {
-  renderJsonTree("json-input", payload.inputs ?? {});
-
-  const panel = $("steps-panel");
-  const container = $("steps");
-  panel.style.display = "";
-  container.innerHTML = "";
-
-  const path = "root";
-  const root = el("div", { class: `lognode status-${payload.status}`, "data-started": payload.started_at || "" });
-  const body = el("div", { class: "lognode-body open" });
-  const toggle = el("span", { class: "lognode-toggle" }, "▾");
-  const header = logNodeHeader(payload, `${payload.agent} [${payload.workspace}]`, path, body, toggle);
-  if (payload.error) {
-    body.append(el("div", { class: "lognode-section" }, el("h4", {}, "Error"), el("div", { class: "lognode-prompt err" }, payload.error)));
+// Append one streamed event: add a log line and drive the graph highlight.
+function appendLog(ev) {
+  const log = $("log");
+  log.append(eventRow(ev));
+  log.scrollTop = log.scrollHeight;
+  if (ev.gnode) {
+    if (ev.kind === "node") setNodeState(ev.gnode, ev.status === "error" ? "error" : "done");
+    else setNodeState(ev.gnode, "active");
   }
-  const kids = el("div", { class: "lognode-children" });
-  (payload.children || []).forEach((child, i) => kids.append(logNode(child, `${path}.${i}`)));
-  body.append(kids);
-  root.append(header, body);
-  container.append(root);
 }
 
-function startLiveTimer() {
-  stopLiveTimer();
-  LIVE_TIMER = setInterval(() => {
-    // Scope to each running node's *own* header span — a plain descendant
-    // selector would also match already-finished children nested inside a
-    // still-running ancestor (e.g. the root run node), overwriting their
-    // frozen duration_s with a live elapsed time.
-    document.querySelectorAll("#steps .lognode.status-running").forEach(node => {
-      const span = node.querySelector(":scope > .lognode-header > .lognode-duration");
-      const started = node.dataset.started;
-      if (!span || !started) return;
-      const elapsed = (Date.now() - new Date(started).getTime()) / 1000;
-      span.textContent = Math.max(0, elapsed).toFixed(1) + "s";
-    });
-  }, 1000);
+// run_start: show the panel, render the graph, clear the log.
+async function startRun(header) {
+  $("steps-panel").style.display = "";
+  $("run-badge").textContent = header.workspace
+    ? `${header.agent} · ${header.workspace}` : (header.agent || "");
+  $("log").innerHTML = "";
+  LOG_OPEN = new Set();
+  await renderGraph(header.mermaid);
 }
 
-function stopLiveTimer() {
-  if (LIVE_TIMER) { clearInterval(LIVE_TIMER); LIVE_TIMER = null; }
+// run_end: stamp the final status, surface any error.
+function endRun(footer) {
+  $("run-badge").innerHTML =
+    `<span class="badge ${footer.status === "error" ? "err" : ""}">${footer.status}</span>`
+    + (footer.duration_s != null ? ` · ${footer.duration_s}s` : "");
+  if (footer.error) {
+    $("log").append(el("div", { class: "lognode-section" },
+      el("h4", {}, "Error"), el("div", { class: "lognode-prompt err" }, footer.error)));
+  }
+}
+
+// Replay a past run read back from its .jsonl ({header, events, footer}).
+async function replayRun(payload, fallback) {
+  await startRun(payload.header || fallback || {});
+  (payload.events || []).forEach(appendLog);
+  if (payload.footer) endRun(payload.footer);
 }
 
 function refreshNameOptions() {
@@ -386,7 +433,7 @@ function refreshNameOptions() {
 function renderForm() {
   const kind = $("kind").value;
   $("steps-panel").style.display = "none";
-  $("steps").innerHTML = "";
+  $("log").innerHTML = "";
   if (kind === "evaluation") {
     renderEvalForm();
     return;
@@ -515,14 +562,13 @@ async function loadRun(name) {
   render(rec);
   $("status").textContent = "viewing " + name;
 
-  // The flat dev/runs/ record above only has input/output. The actual step
-  // tree (fetch → extract → ... with nested events) lives in the per-agent
-  // run log this record points to via `run_log` — reload it the same way
-  // the live stream does, so reopening a past run looks identical to
-  // watching it run.
-  OPEN_PATHS = new Set();
+  // The flat dev/runs/ record above only has input/output. The actual run —
+  // the graph + the linear event log (fetch → extract → ... with each LLM
+  // call and note) — lives in the per-agent .jsonl this record points to via
+  // `run_log`. Read it back and replay it the same way the live stream
+  // renders, so reopening a past run looks identical to watching it run.
   $("steps-panel").style.display = "none";
-  $("steps").innerHTML = "";
+  $("log").innerHTML = "";
   const workspaceField = rec.kind === "agent" ? CATALOG.logged_agents?.[rec.name] : null;
   const workspace = workspaceField ? rec.inputs?.[workspaceField] : null;
   if (workspace && rec.run_log) {
@@ -530,7 +576,7 @@ async function loadRun(name) {
       const payload = await api(
         `/api/workspaces/${encodeURIComponent(workspace)}/logs/${encodeURIComponent(rec.name)}/${encodeURIComponent(rec.run_log)}`
       );
-      renderLogTree(payload);
+      await replayRun(payload, { agent: rec.name, workspace });
     } catch (e) {
       // run log file may no longer exist — fall back to input/output only.
     }
@@ -619,7 +665,7 @@ async function init() {
 $("kind").onchange = refreshNameOptions;
 $("name").onchange = renderForm;
 
-async function runStreaming(body, onLog) {
+async function runStreaming(body, handlers) {
   const resp = await fetch("/api/run/stream", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -640,7 +686,10 @@ async function runStreaming(body, onLog) {
       const line = chunk.split("\n").find(l => l.startsWith("data: "));
       if (!line) continue;
       const evt = JSON.parse(line.slice(6));
-      if (evt.type === "log") onLog(evt.log);
+      // The non-graph kinds (subagents, flows) only emit `done`.
+      if (evt.type === "run_start") await handlers.onStart(evt.event);
+      else if (evt.type === "event") handlers.onEvent(evt.event);
+      else if (evt.type === "run_end") handlers.onEnd(evt.event);
       else if (evt.type === "done") return evt.record;
     }
   }
@@ -656,9 +705,7 @@ $("run").onclick = async () => {
   btn.disabled = true;
   $("status").textContent = "running…";
   $("steps-panel").style.display = "none";
-  $("steps").innerHTML = "";
-  OPEN_PATHS = new Set();
-  if (isLoggedAgent()) startLiveTimer();
+  $("log").innerHTML = "";
   try {
     const inputs = readForm();
     // client-side required check
@@ -673,14 +720,12 @@ $("run").onclick = async () => {
     $("vis-badge").innerHTML = "";
     const rec = await runStreaming(
       { kind: $("kind").value, name: $("name").value, inputs },
-      renderLogTree
+      { onStart: startRun, onEvent: appendLog, onEnd: endRun }
     );
-    stopLiveTimer();
     render(rec);
     await refreshRuns();
     $("status").textContent = rec.error ? "error" : "done";
   } catch (e) {
-    stopLiveTimer();
     renderJsonTree("json-output", { error: String(e) });
     $("vis-badge").innerHTML = '<span class="badge err">error</span>';
     $("status").textContent = "error";

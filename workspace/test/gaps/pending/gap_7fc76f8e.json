@@ -1,0 +1,23 @@
+{
+  "gap_id": "gap_7fc76f8e",
+  "status": "unchecked",
+  "title": "Modest accuracy on mid-sized datasets without strong regularization",
+  "description": "When trained on mid-sized datasets such as ImageNet without strong regularization, ViT models yield modest accuracies a few percentage points below ResNets of comparable size.",
+  "type": "negative_result",
+  "canonical_description": "lower accuracy than CNNs on mid-sized datasets without strong regularization",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2010.11929",
+      "section": "introduction",
+      "anchor": "modest accuracies of a few percentage points below ResNets of comparable size",
+      "quote": "When trained on mid-sized datasets such as \\imagenet without strong regularization, these models yield modest accuracies of a few percentage points below ResNets of comparable size.",
+      "char_offset": [
+        1774,
+        1955
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-06-26T21:50:37Z"
+}

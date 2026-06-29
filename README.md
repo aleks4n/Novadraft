@@ -15,202 +15,351 @@ added and discussed.
 
 ```
 src/
-├── graph/                  # the workflow definition (the sequence of steps)
-│   ├── build_graph.py      # wires the main agents/steps together in order
-│   ├── state.py            # the shared graph State schema (TypedDict/Pydantic)
-│   └── routing.py          # any conditional edges between steps
-│
 ├── llm/
-│   └── registry.py         # role→model map via init_chat_model, fallbacks
+│   └── registry.py         # role→model map + chat helpers (the only LLM access point)
 │
-├── common/                 # used by MANY agents (Rule 1: 2+ callers)
-│   ├── tools/              # shared LLM-callable tools + shared I/O (download_paper…)
-│   ├── schemas/            # shared types passed across the pipeline (Paper, Gap…)
-│   └── utils/              # shared deterministic helpers (chunking, dedup, io)
-│       └── runlog.py       # logging system for agents and steps - start_run / step / skip_step / log_event / log_call
+├── common/                 # used by 2+ agents — promote here when a second real caller appears
+│   ├── tools/              # shared deterministic helpers (paper_fetch, paper_extract)
+│   ├── schemas/            # shared Pydantic types passed across the pipeline
+│   │   ├── paper.py        # PaperRecord
+│   │   ├── summary.py      # PaperSummary, PaperSummaryPatch
+│   │   ├── summary_verify.py  # SummaryCritique
+│   │   ├── gap.py          # GapRecord
+│   │   └── gap_verify.py
+│   └── utils/
+│       ├── storage.py      # workspace paths + paper.json read/write (the only path-builder)
+│       ├── prompts.py      # load_prompt(__file__) → reads a sibling prompt.md
+│       └── trace.py        # emit() / log_event() — LangGraph custom-stream tracing
 │
 └── agents/
-    ├── paper_agent/
-    │   ├── agent.py        # the LLM step
-    │   ├── nodes.py        # deterministic in-between steps (if any)
-    │   ├── prompts.py
-    │   ├── schemas.py      # types ONLY this agent uses
-    │   └── tools/          # tools ONLY this agent's LLM calls
+    ├── paper_agent/                # main agent with subagents
+    │   ├── agent.py                # build_paper_graph() + run() entrypoint
+    │   ├── state.py                # PaperState (TypedDict, total=False)
+    │   ├── SPEC.md                 # living doc: this agent + its subagents
+    │   └── subagents/
+    │       ├── summarize/          # subgraph: extractor↔critic cycle
+    │       │   ├── agent.py        # build_summarize_graph() + summarize() entrypoint
+    │       │   ├── state.py        # SummarizeState
+    │       │   ├── tools/          # deterministic helpers only this subagent uses
+    │       │   │   ├── sections.py
+    │       │   │   └── grounding.py
+    │       │   └── subagents/
+    │       │       ├── extractor/  # leaf LLM subagent
+    │       │       │   ├── agent.py    # run_extract()
+    │       │       │   └── prompt.md
+    │       │       └── critic/
+    │       │           ├── agent.py    # run_critic()
+    │       │           └── prompt.md
+    │       └── gap/                # same shape as summarize/
+    │           ├── agent.py
+    │           ├── state.py
+    │           ├── tools/
+    │           └── subagents/{extractor,critic}/
     │
-    ├── validator_agent/
-    │   ├── agent.py        # wires the validator's internal sequence (subgraph)
-    │   ├── nodes.py        # deterministic steps — RRF rerank (top 15 of 45) lives here
-    │   ├── prompts.py
-    │   ├── schemas.py
-    │   └── tools/          # e.g. the query-LLM's search tool
-    │
-    ├── ranking_agent/
-    │   └── agent.py
-    │
-    └── survey_gap_agent/           # a main agent that HAS sub-agents
-        ├── agent.py                # the subgraph wiring its children in sequence
-        ├── nodes.py
-        ├── prompts.py
-        ├── state.py                # sub-state, if this subgraph needs its own
-        ├── tools/                  # tools shared by ITS sub-agents only
+    └── validator_agent/            # linear LangGraph graph (stub — in progress)
+        ├── agent.py
+        ├── state.py
+        ├── schemas.py              # types only this agent uses
+        ├── SPEC.md
+        ├── steps/                  # deterministic stages (search, rrf)
         └── subagents/
-            ├── paper_fetcher/
-            │   ├── agent.py
-            │   └── tools/
-            ├── paper_extractor/
-            │   ├── agent.py
-            │   └── tools/
-            ├── paper_summary/
-            │   └── agent.py        # no tools → just one file, no folder
-            └── gap_agent/
-                ├── agent.py
-                └── tools/
-
+            ├── query_gen/{agent.py, prompt.md}
+            ├── screen/{agent.py, prompt.md}
+            ├── deep_read/{agent.py, prompt.md}
+            └── verdict/{agent.py, prompt.md}
 ```
 
 ---
 
-## Workspace layout
+## Anatomy of an agent
 
-Every category lives in its own folder under `workspace/`, identified by a
-`category_slug` (e.g. `transformers`):
+An **agent** is a folder named after itself. There are two kinds:
+
+- **Main agent** — has `agent.py`, `state.py`, `SPEC.md`, and a `subagents/`
+  folder. `paper_agent` is the canonical example.
+- **Leaf subagent** — one LLM call. Has `agent.py` + `prompt.md`, no `SPEC.md`.
+  May nest its own `subagents/` if it is itself a small pipeline (like
+  `summarize/` and `gap/`), in which case it also gets a `state.py` and
+  `tools/`.
+
+### `agent.py`
+
+Every `agent.py` exposes two things:
+
+1. **`build_<name>_graph()`** — returns a compiled `StateGraph`. Nodes are
+   either deterministic tool calls or subgraph nodes (mounted via
+   `g.add_node(name, build_subgraph())`). This makes subgraph steps first-class
+   nodes: `xray` expands them in diagrams, and `stream(subgraphs=True)` nests
+   their internal steps under their parent node automatically.
+
+2. **A standalone entrypoint** (`run(...)` / `summarize(...)`) — compiles the
+   graph once (cached in a module-level `_GRAPH`), invokes it, and returns the
+   result dict. This is what the dev harness and eval pipeline import directly.
+
+```python
+# paper_agent/agent.py — minimal skeleton
+def build_paper_graph():
+    g = StateGraph(PaperState)
+    g.add_node("fetch",     fetch_node)
+    g.add_node("extract",   extract_node)
+    g.add_node("summarize", build_summarize_graph())   # subgraph as node
+    g.add_node("gap",       build_gap_graph())         # subgraph as node
+    g.add_node("assemble",  assemble)
+    g.add_edge(START, "fetch")
+    g.add_conditional_edges("fetch", _route_after_fetch, {"extract": "extract", END: END})
+    g.add_edge("extract", "summarize")
+    g.add_edge("summarize", "gap")
+    g.add_edge("gap", "assemble")
+    g.add_edge("assemble", END)
+    return g.compile()
+
+_GRAPH = None
+def run(category_slug: str, query: str, force: bool = False) -> dict:
+    global _GRAPH
+    if _GRAPH is None:
+        _GRAPH = build_paper_graph()
+    final = _GRAPH.invoke({"category_slug": category_slug, "query": query, "force": force},
+                          config={"recursion_limit": 60})
+    return final["result"]
+```
+
+### `state.py`
+
+Always a `TypedDict(total=False)`. `total=False` means nodes return only the
+keys they set — you never have to return the full state from a node.
+
+Group keys into **inputs**, **per-stage outputs**, and **control / final
+output**. When a subgraph is mounted as a node inside a parent graph, its
+state shares some key names with the parent. Document which keys are shared
+(inputs + the single output key) and which are subgraph-private:
+
+```python
+# summarize/state.py
+class SummarizeState(TypedDict, total=False):
+    # inputs — shared with PaperState (flow in from the parent graph)
+    category_slug: str
+    paper_id: str
+    force: bool
+
+    # loop-carry — subgraph-private (never touch PaperState)
+    attempt: int
+    feedback: List[dict] | None
+    done: bool
+    ...
+    summarize_extract: dict   # NOT "extract_result" — that name belongs to PaperState
+
+    # output — shared key (written back into PaperState)
+    summary_result: dict
+```
+
+### `subagents/`
+
+Each leaf subagent is its own folder:
+
+```
+subagents/
+└── extractor/
+    ├── __init__.py
+    ├── agent.py       # exposes run_extract(category_slug, paper_id, ...)
+    └── prompt.md      # the LLM's system prompt
+```
+
+`agent.py` is a **pure pass** — no graph/loop knowledge. It reads from
+`paper.json`, builds the user prompt, calls the LLM through the registry,
+validates/writes the result, and returns a result dict. All tracing is
+automatic (see below).
+
+```python
+# extractor/agent.py — skeleton
+SYSTEM_PROMPT = load_prompt(__file__)      # reads sibling prompt.md
+
+def run_extract(category_slug, paper_id, force=False, feedback=None) -> dict:
+    record = storage.read_paper_json(category_slug, paper_id)
+    ...
+    user_prompt = build_user_prompt(...)
+    parsed = chat_with_structured_output(get_llm("reasoner"), SYSTEM_PROMPT, user_prompt, PaperSummary)
+    ...
+```
+
+### `tools/`
+
+Everything deterministic. Plain Python functions — no LLM calls, no graphs.
+
+- **Agent-local**: `<agent>/tools/` — only that agent uses them.
+- **Shared**: `src/common/tools/` — promote here the moment a second real
+  caller appears (Rule 1). Never pre-promote "because it sounds generic."
+
+### `schemas/`
+
+Pydantic models used as the `response_schema` passed to `chat_with_structured_output`.
+The LLM is forced via function-calling to emit exactly that shape.
+
+- **Shared schemas** (read or written by more than one agent) live in
+  `src/common/schemas/`: `PaperSummary`, `SummaryCritique`, `GapRecord`, etc.
+- **Agent-local schemas** (only one agent uses them) sit next to that agent,
+  e.g. `validator_agent/schemas.py`.
+
+A schema can optionally expose a `prompt_schema()` classmethod that returns a
+human-readable field description to append to the user prompt — this keeps the
+schema definition and the prompt description in sync.
+
+### `prompt.md`
+
+Each leaf subagent keeps its system prompt in a sibling `prompt.md`. Load it
+with:
+
+```python
+from src.common.utils.prompts import load_prompt
+SYSTEM_PROMPT = load_prompt(__file__)
+```
+
+`load_prompt(__file__)` reads the `prompt.md` in the same directory as the
+calling module. Pass `**format_args` to fill in `{placeholders}`.
+
+### `SPEC.md`
+
+Main agents only. A living document describing the pipeline stages, what each
+node does, and how subagents interact. Keep it up to date with code changes.
+
+---
+
+## LLM registry (`src/llm/registry.py`)
+
+**All LLM access goes through here.** No agent calls a chat model directly.
+
+### Why
+
+- Every call through the registry automatically emits an `llm` trace event
+  (see Logging below), so prompts/responses appear in the dev UI's run tree
+  under the correct node with **zero tracing code in the agent**.
+- Provider fallback (`reasoner` → `cheap` on transient failure) is wired here
+  once, not repeated in every agent.
+- The offline mock (`_MockChat`) lives here — dev runs work without an API key.
+
+### Roles
+
+```python
+MODELS = {
+    "reasoner": "deepseek:deepseek-reasoner",   # thinking model, best quality
+    "cheap":    "deepseek:deepseek-chat",        # fast/cheap, used as fallback
+}
+```
+
+### Functions
+
+**`get_llm(role, temperature=0.2)`** — returns a LangChain chat model. The
+`"reasoner"` role is wrapped with an automatic fallback to `"cheap"`, so a
+transient reasoner failure retries on the cheap model. When no API key is set,
+returns a `_MockChat` (deterministic offline stand-in that returns empty
+responses without hitting the network).
+
+**`chat(llm, system, user) → str`** — one call on `llm`. Returns the raw
+response text. Use this when you don't need structured output (e.g. freeform
+generation, summarization without a schema).
+
+**`chat_with_structured_output(llm, system, user, schema) → schema_instance`**
+— one call on `llm` that forces function-calling to return exactly `schema` (a
+Pydantic model class). Returns the validated instance — no text parsing or
+regex needed. Use this for any LLM call that must produce a typed result.
+
+```python
+from src.llm.registry import chat_with_structured_output, get_llm
+from src.common.schemas.summary import PaperSummary
+
+llm = get_llm("reasoner")
+result: PaperSummary = chat_with_structured_output(llm, SYSTEM_PROMPT, user_prompt, PaperSummary)
+```
+
+Both functions call `_trace()` internally, which calls `emit()` in
+`src/common/utils/trace.py` — the LLM call becomes a leaf in the run tree
+under whichever graph node called the registry.
+
+---
+
+## Logging (`src/common/utils/trace.py`)
+
+There is no separate logging system. Progress **is** the LangGraph stream.
+Graphs are run with:
+
+```python
+graph.stream(inputs, stream_mode=["updates", "custom"], subgraphs=True)
+```
+
+- **`updates`** — after each node completes, a `{node: state_delta}` chunk.
+  Each node is one **step** in the run tree; its delta is the step's result.
+- **`custom`** — fine-grained leaves emitted from inside a node via
+  `trace.emit(...)` or `trace.log_event(...)`.
+- **`subgraphs=True`** — carries a namespace so a subgraph node and its
+  internal steps nest under their parent node.
+
+### When to call what
+
+**`emit(event: dict)`** — emit any structured leaf into the custom stream.
+Use this directly when you want to emit a typed event with a specific structure.
+The registry calls it automatically for every LLM call and tool result, so you
+typically only call `emit` yourself for domain-specific events that need custom
+`data` fields.
+
+```python
+from src.common.utils.trace import emit as emit_trace
+
+emit_trace({"type": "event",  "name": "no progress since last round, stopping",
+            "data": {"attempt": attempt, "n_unmatched": len(unmatched)}})
+
+emit_trace({"type": "tool",   "name": "grounding",
+            "data": {"checked": grounding["checked"], "unmatched": grounding["unmatched"]}})
+```
+
+**`log_event(message: str, **data)`** — convenience wrapper over `emit` for
+simple informational notes. The equivalent of a `print` that ends up in the
+run tree. Use this in deterministic tool functions that want to narrate progress.
+
+```python
+from src.common.utils.trace import log_event
+
+log_event("already summarized, skipping", paper_id=paper_id)
+# equivalent: emit({"type": "event", "name": "already summarized, skipping",
+#                   "data": {"paper_id": paper_id}})
+```
+
+### Event types
+
+| `type`  | When to use                                                   |
+|---------|---------------------------------------------------------------|
+| `"llm"` | LLM call. Emitted automatically by the registry — don't emit manually. |
+| `"tool"`| Deterministic tool call with inputs/outputs worth surfacing.  |
+| `"event"` | Any informational note: skipping, short-circuiting, loop decisions. |
+
+### Outside a running graph
+
+Both `emit` and `log_event` are **no-ops** when called outside a running graph
+(standalone subagent calls, the CLI, the eval harness, tests). No guard needed
+— the same code path is safe everywhere.
+
+---
+
+## Workspace layout
 
 ```
 workspace/<category_slug>/
 ├── meta.json              # name, description, created_at/updated_at
 ├── papers/
 │   └── <paper_id>/
-│       ├── paper.json     # the PaperRecord: metadata, summary, gaps, processing flags
+│       ├── paper.json     # PaperRecord: metadata, summary, gaps, processing flags
 │       ├── source.pdf
 │       └── source/...     # extracted tex tree, if available
 ├── gaps/
 │   └── pending/
-│       └── <gap_id>.json  # one GapRecord per extracted gap, keyed by id
+│       └── <gap_id>.json  # one GapRecord per extracted gap
 └── logs/
     └── <agent>/
-        └── <run_id>.json  # one file per top-level agent run (see Logging below)
+        └── <run_id>.json  # one finished run tree per top-level agent run
 ```
 
 `paper_id` is derived deterministically from the input (`arxiv_<id>`,
-`doi_<slug>`, or a title hash) so re-fetching the same paper is a no-op
-rather than a duplicate. All paths are resolved through
-`src/common/utils/storage.py`, which is the only place that should
-construct workspace paths.
-
----
-
-## Code organization
-
-### Agent vs. step
-
-- **Agent**: an LLM-driven unit of work — it has a `prompt.py` and calls the
-  LLM (directly or through a `chat_json*` helper) to produce a result.
-- **Step**: what the *dev harness and the logger* call any one stage of a
-  pipeline, whether that stage happens to be an agent or a plain
-  deterministic function.
-
-`paper_agent.run()` wires five steps — `fetch`, `extract`, `summary`,
-`summary_verify`, `gaps` — and only two of them (`summary`/`paper_summary`,
-`gaps`/`gap_agent`, and indirectly `summary_verify`) are themselves agents;
-`fetch` and `extract` are plain deterministic tools. In other words: every
-agent is wrapped as a step when it runs inside a pipeline, but not every step
-is an agent.
-
-### `common/`
-
-`src/common/` holds anything used by **more than one** agent (Rule 1:
-promote to `common/` the moment a *second* real caller appears, not because
-something "sounds generic"). It's split by what kind of content it is:
-
-- **`tools/`**: shared, LLM-callable tools and shared I/O — e.g. `paper_fetch`
-  (resolves a query to a `paper_id` and downloads the source) and
-  `paper_extract` (pulls text/tex out of the downloaded source). Both live
-  here because `paper_agent` and the eval harness call them directly.
-- **`schemas/`**: shared Pydantic types passed across the pipeline — e.g.
-  `PaperRecord`, `PaperSummary`, `SummaryVerification`, `GapRecord`. These
-  live in `common/` rather than next to one agent because the same record is
-  read and written by several stages of the pipeline (fetch writes it,
-  summary reads/extends it, gaps extend it again).
-- **`utils/`**: shared deterministic helpers — `storage.py` (workspace paths
-  + `paper.json` read/write) and `runlog.py` (the run-logging system used by
-  every agent, subagent, and tool; see Logging below).
-
-### Structure of a single agent
-
-See `paper_agent/` in the tree above:
-
-- **`agent.py`**: the entrypoint, e.g. `run(category_slug, query,
-  force=False)` — wires the agent's steps/subagents in order.
-- **`subagents/`**: one folder per pipeline stage that needs its own prompt
-  or logic (e.g. `subagents/gap_agent/prompt.py` + `gap_extract.py` +
-  `verify.py`). A subagent only earns a folder when it has its own prompt or
-  supporting logic; a one-call subagent with nothing else would just be a
-  single file.
-- **schema**: each subagent's output is validated against a Pydantic model
-  in `src/common/schemas/` (`PaperSummary`, `GapRecord`,
-  `SummaryVerification`, ...), passed as `response_schema` to the LLM call so
-  the model is forced via function-calling to emit exactly that shape (see
-  `src/llm/registry.py` below).
-
-LLM access for every agent goes through one place: `src/llm/registry.py`,
-which maps a logical **role** (`"reasoner"`, `"cheap"`) to a concrete
-provider model via LangChain's `init_chat_model`, and exposes two call
-shapes:
-
-- **`chat_json(system, user, role, response_schema)`**: one request/response.
-  With a schema, it binds `with_structured_output(schema)` so the LLM is
-  forced through function-calling to return exactly that Pydantic shape (no
-  regex/text parsing). Without one, it loosely parses JSON out of the raw
-  text (handles markdown fences).
-- **`chat_json_with_tools(system, user, tools, tool_handlers,
-  response_schema)`**: runs a LangGraph tool-calling loop (the LLM calls
-  tools like "get a section of the paper" until it's ready), then makes one
-  final structured-output call over the whole transcript to lock in the
-  schema. Used by `gap_agent`, which needs to pull specific sections of the
-  source text on demand rather than seeing the whole paper up front.
-
-No agent calls a chat model directly — going through the registry is what
-makes every prompt/response show up in the run log for free (see below), and
-is also where provider fallback (`reasoner` → `cheap` on failure) and the
-offline mock (`_MockChat`, used when no API key is set) live.
-
-### Logging
-
-Every agent, subagent, and tool function logs through one shared module:
-`src/common/utils/runlog.py`. Three calls, usable identically anywhere:
-
-```python
-with start_run(category_slug, "paper_agent", inputs, run_hint=query) as run:
-    with step("fetch") as node:
-        result = fetch(category_slug, query)
-        node["data"]["result"] = result
-    log_event("found arxiv id, fetching pdf", url=url)
-    run.output = {...}
-```
-
-- **`start_run(...)`** is called exactly once, by a *main* agent's
-  entrypoint (`paper_agent.run`). It opens one JSON file per run at
-  `workspace/<category_slug>/logs/<agent>/<run_id>.json` and flushes it to
-  disk after every step/event, so it's tailable mid-run. This is the **only**
-  per-run JSON log file — there's no separate "general" log; each agent's
-  own run produces its own file, named by timestamp + a slug of the query.
-- **`step(name, **data)`** wraps one pipeline stage and nests under whatever
-  step is currently open. Called identically by main agents, subagents, and
-  plain functions — they never know whether a run is active. If one is, the
-  call is appended to that run's JSON file; if not (e.g. a subagent is being
-  exercised standalone via the dev harness), it only prints to the terminal.
-- **`log_event(...)`** is a fine-grained note inside the current step —
-  unlike `step`, it's *always* written to the active run's log (never
-  silently dropped) and always printed.
-- **`log_call(...)`** records an already-finished leaf call (one LLM
-  round-trip, one tool invocation). Agents don't call this directly —
-  `src/llm/registry.py` calls it internally on every `chat_json*` call, so
-  every prompt and response shows up nested under whichever `step()` was
-  open when the call happened, with zero logging code inside the agent
-  itself.
-
-Full on-disk schema and instructions for instrumenting a new agent:
-`planning/technical-discussions/LOGGING_SYSTEM.md`.
+`doi_<slug>`, or a title hash) so re-fetching the same paper is a no-op.
+All paths are resolved through `src/common/utils/storage.py` — the only place
+that constructs workspace paths.
 
 ---
 
@@ -218,18 +367,15 @@ Full on-disk schema and instructions for instrumenting a new agent:
 
 ### What it's for
 
-`dev/` is a thin CLI (and a small web UI, `dev/ui.py` +
-`dev/static/index.html`) for invoking agents, subagents, and multi-agent
-flows directly, without going through a frontend. It's the fast loop for
-iterating on a single prompt or stage: run it, see the JSON output and the
-step-by-step log, repeat. Every invocation registered in `dev/registry.py`
-(`AGENTS`, `SUBAGENTS`, `FLOWS`) is automatically runnable, listable, and
-loggable.
+`dev/` is a thin CLI + small web UI for invoking agents, subagents, and
+multi-agent flows directly without a frontend. Every invocation registered in
+`dev/registry.py` (`AGENTS`, `SUBAGENTS`, `FLOWS`) is automatically runnable,
+listable, and logged.
 
 ### How to call it
 
 ```bash
-python -m dev.run list                                    # show registered agents/subagents/flows
+python -m dev.run list
 
 python -m dev.run agent paper_agent \
     --kwargs '{"category_slug": "transformers", "query": "1706.03762"}'
@@ -237,55 +383,57 @@ python -m dev.run agent paper_agent \
 python -m dev.run subagent gap_extract \
     --kwargs '{"category_slug": "transformers", "paper_id": "arxiv_1706.03762"}'
 
-python -m dev.run subagent paper_fetch --fixture sample_paper.json   # --fixture loads dev/fixtures/<file>.json as kwargs
+python -m dev.run subagent paper_fetch --fixture sample_paper.json
 ```
 
-Every call also writes a `dev/runs/<timestamp>_<name>.json` record (inputs,
-output, error, duration) regardless of whether the thing it called also
-wrote a workspace run log — this is the harness's own invocation log, separate
-from `workspace/<category>/logs/`. New agents/subagents/flows get registered
-in `dev/registry.py`, not hardcoded into `dev/run.py`.
+Every call writes a `dev/runs/<timestamp>_<name>.json` record regardless of
+whether the agent also wrote a workspace log. New agents/subagents get
+registered in `dev/registry.py`, not hardcoded into `dev/run.py`.
+
+### Adding a new agent checklist
+
+1. Build it as a `StateGraph` in `src/agents/<name>/agent.py` — expose
+   `build_<name>_graph()` and a standalone `run(...)` entrypoint.
+2. Add `state.py` with a `TypedDict(total=False)`.
+3. Leaf subagents: `subagents/<name>/agent.py` + `prompt.md`. Call the LLM
+   via `chat_with_structured_output(get_llm("reasoner"), ...)`.
+4. Schemas: agent-local in `<agent>/schemas.py`; shared (2+ callers) in
+   `src/common/schemas/`.
+5. Register in `dev/registry.py` under `AGENTS` (or `SUBAGENTS`/`FLOWS`).
+6. Write a `SPEC.md` for main agents.
 
 ### Evaluation scripts
 
-`dev/eval_paper_pipeline.py` re-runs `summarize()`/`extract_gaps()` with
-`force=True` over a set of papers in a category, times each call, and writes
-a timestamped report under `dev/eval_runs/<timestamp>_<mode>_<label>/`
-(`report.md` for humans, `raw.json` as the diff target for comparing prompt
-or model changes across runs):
-
 ```bash
-# Evaluate every already-extracted paper in the workspace
 python -m dev.eval_paper_pipeline --category transformers --label baseline
-
-# Fetch+extract specific papers first (idempotent), then evaluate just those
 python -m dev.eval_paper_pipeline --category transformers --label baseline \
     --mode summary --queries "Attention Is All You Need" 1406.2661
-
-# Evaluate specific existing paper_ids without touching fetch/extract
 python -m dev.eval_paper_pipeline --category transformers --label baseline \
     --mode gap --papers arxiv_1706.03762
 ```
 
-`--mode` selects `summary`, `gap`, or `both`. The same functions
-(`run_pipeline`, `write_report`, ...) are imported by `dev/ui.py` to drive
-identical evals from the web UI with live progress callbacks.
+`--mode` selects `summary`, `gap`, or `both`. Reports go to
+`dev/eval_runs/<timestamp>_<mode>_<label>/` (`report.md` + `raw.json`).
 
 ---
 
-## Suggestions for further additions
+## Setup
 
-- **Setup section** — `.env` keys required (`DEEPSEEK_API_KEY` /
-  `OPENAI_API_KEY`), and that the system falls back to a deterministic mock
-  LLM when none is set (useful to call out explicitly so a new contributor
-  doesn't wonder why everything returns `{}`).
-- **`validator_agent` is currently an empty stub** (`src/agents/validator_agent/agent.py`
-  is a 0-byte placeholder) — worth a one-line note so it's clear that's
-  intentional/in-progress, not a bug.
-- **A short "adding a new agent" checklist** (wrap entrypoint in
-  `start_run`, wrap stages in `step`, register in `dev/registry.py`'s
-  `AGENTS`/`SUBAGENTS`, add a schema if it returns structured output) — most
-  of this is already in `LOGGING_SYSTEM.md`, just worth a pointer here.
-- **Link to `planning/INDEX.md`** at the top so this README and the planning
-  docs don't drift apart, since planning docs are the source of truth for
-  architecture decisions per `CLAUDE.md`.
+Copy `.env.example` to `.env` and add your keys:
+
+```
+DEEPSEEK_API_KEY=...   # primary provider (reasoner + cheap)
+OPENAI_API_KEY=...     # optional fallback
+```
+
+When no key is set, `get_llm` returns a deterministic `_MockChat` and all
+runs complete without network access (LLM responses are empty stubs).
+
+---
+
+## Further reference
+
+- **Architecture decisions**: `planning/INDEX.md` (source of truth for design)
+- **Logging system schema**: `planning/technical-discussions/LOGGING_SYSTEM.md`
+- **Phase breakdown**: `planning/AGENT_ARCHITECTURE_PHASES.md`
+- **Paper agent spec**: `src/agents/paper_agent/SPEC.md`

@@ -13,7 +13,7 @@ import tempfile
 from pathlib import Path
 
 from ....utils import storage
-from ....utils.runlog import log_event
+from ....utils.trace import log_event
 from ..errors import PaperAlreadyExistsError
 from ..http_util import download_to
 from ..pdf_metadata import extract_pdf_identifiers, extract_pdf_metadata

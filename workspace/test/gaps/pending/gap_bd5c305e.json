@@ -1,0 +1,23 @@
+{
+  "gap_id": "gap_bd5c305e",
+  "status": "unchecked",
+  "title": "Deep reinforcement learning still in early stages",
+  "description": "Systems combining deep learning with reinforcement learning are in their infancy, though they already show promising results on vision tasks and game playing.",
+  "type": "future_work",
+  "canonical_description": "combination of deep learning and reinforcement learning underdeveloped",
+  "evidence": [
+    {
+      "paper_id": "doi_10_1038_nature14539",
+      "section": "the_future_of_deep_learning",
+      "anchor": "deep learning and reinforcement learning are in their infancy",
+      "quote": "Systems combining deep learning and reinforcement learning are in their infancy, but they already outperform passive vision systems <sup>99</sup> at classification tasks and produce impressive results in learning to play many different video games <sup>100</sup>.",
+      "char_offset": [
+        839,
+        1102
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-06-26T23:32:37Z"
+}

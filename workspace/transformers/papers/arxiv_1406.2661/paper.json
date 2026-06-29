@@ -253,28 +253,9 @@
         "role": "evaluation"
       }
     ],
-    "metrics": [
-      {
-        "name": "Parzen window-based log-likelihood estimate",
-        "value": "225 ± 2",
-        "dataset": "MNIST",
-        "comparison": "prior_work"
-      },
-      {
-        "name": "Parzen window-based log-likelihood estimate",
-        "value": "2057 ± 26",
-        "dataset": "TFD",
-        "comparison": "prior_work"
-      },
-      {
-        "name": "Parzen window-based log-likelihood estimate",
-        "value": "not reported numerically",
-        "dataset": "CIFAR-10",
-        "comparison": "none"
-      }
-    ],
+    "metrics": [],
     "results": {
-      "headline": "GANs can generate realistic samples across MNIST, TFD, and CIFAR-10, achieving competitive log-likelihood estimates on MNIST and TFD compared to existing deep generative models, while requiring no Markov chains or approximate inference.",
+      "headline": "GANs can generate realistic samples across multiple image datasets, as demonstrated through qualitative and quantitative evaluation of generated samples, while requiring no Markov chains or approximate inference.",
       "caveats": [
         "Parzen window-based log-likelihood estimates have high variance and are known to be unreliable for high-dimensional data",
         "The Gaussian Parzen window estimator used for evaluation may not be appropriate for image data",
@@ -315,7 +296,8 @@
     "fetched": true,
     "extracted": true,
     "summarized": true,
-    "gaps_extracted": true
+    "gaps_extracted": true,
+    "summary_verified": true
   },
   "warnings": [
     "gap_agent_fetched_sections: introduction, related_work, adversarial_nets, theoretical_results, experiments, introduction",
@@ -348,5 +330,21 @@
     "gap_quote_not_grounded: gid=gap_534ed21f section=conclusions_and_future_work (quote not found verbatim in section text)",
     "gap_quote_not_grounded: gid=gap_2be982cd section=introduction (quote not found verbatim in section text)",
     "gap_quote_not_grounded: gid=gap_3b500d4f section=introduction (quote not found verbatim in section text)"
-  ]
+  ],
+  "summary_verification": {
+    "status": "pass",
+    "attempts": 2,
+    "regenerated": true,
+    "grounding": {
+      "checked": [
+        "MNIST",
+        "Toronto Face Database (TFD)",
+        "CIFAR-10"
+      ],
+      "unmatched": []
+    },
+    "issues": [],
+    "missing_hints": [],
+    "checked_at": "2026-06-26T21:25:14Z"
+  }
 }

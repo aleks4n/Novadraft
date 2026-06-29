@@ -12,7 +12,7 @@ from pathlib import Path
 
 from . import pdf_path
 from ...utils import storage
-from ...utils.runlog import log_event
+from ...utils.trace import log_event
 from . import tex_path
 
 

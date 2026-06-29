@@ -1,0 +1,43 @@
+{
+  "idea_id": "idea_dabcded0",
+  "title": "Kernelized Attention with Differentiable Spectral Filters: Beyond Dot-Product Compatibility for Long-Context Transformers",
+  "short": "Spectral Kernelized Attention",
+  "description": "Proposes replacing the standard scaled dot-product attention with a learnable, kernelized compatibility function parameterized as a spectral filter bank. The compatibility between query and key is computed via a low-rank decomposition of a learned positive-definite kernel matrix, enabling sub-quadratic complexity while capturing richer relational structures than the dot product allows.",
+  "summary": "The dot-product compatibility function (gap_45901fb5) limits the expressiveness of attention by assuming linear interactions between query and key, while the fixed 1/√d_k scaling (gap_29ccef3b) relies on unrealistic independence assumptions. This idea introduces a learnable kernel function K(q,k) = φ_θ(q)^T M_θ ψ_θ(k) where M_θ is a low-rank positive semi-definite matrix parameterized via a spectral decomposition learned end-to-end. The kernel is approximated using random Fourier features with learnable spectral distributions, yielding O(N d log d) complexity instead of O(N^2). An adaptive temperature parameter τ_θ per head replaces the fixed √d_k scaling, learned via a small hypernetwork that estimates the actual covariance structure of queries and keys. This directly addresses the resolution limitation from averaging (gap_65066c4d) by allowing the kernel to learn sharp, position-specific compatibility patterns. The method will be evaluated on long-document understanding (e.g., LED, Longformer benchmarks) and long-video temporal reasoning tasks, where quadratic attention is prohibitive.",
+  "status": "draft",
+  "source": "agent",
+  "related_gaps": [
+    "gap_45901fb5",
+    "gap_29ccef3b",
+    "gap_641016d5",
+    "gap_65066c4d",
+    "gap_39f04c0c"
+  ],
+  "related_papers": [
+    "arxiv_1706.03762"
+  ],
+  "method": [
+    "Design a parameterized kernel K(q,k) = φ_θ(q)^T M_θ ψ_θ(k) where M_θ = U_θ Λ_θ U_θ^T is a learned low-rank PSD matrix with rank r << d, and φ_θ, ψ_θ are learned MLP projections with residual connections to preserve identity mapping.",
+    "Replace the fixed 1/√d_k scaling with a learned temperature τ_θ per head, parameterized by a lightweight hypernetwork that estimates the empirical covariance Σ_{qk} from a minibatch of query-key pairs via exponential moving average.",
+    "Approximate the kernel via orthogonal random Fourier features (ORF) where the spectral distribution is parameterized as a learnable mixture of Gaussians, enabling sub-quadratic attention with O(N d log d) complexity.",
+    "Integrate the module as a drop-in replacement for standard multi-head attention in a Transformer (e.g., T5 or Llama) and train on long-context language modeling (PG-19, BookCorpus) and long-video action recognition (Charades, Something-Something).",
+    "Evaluate efficiency (FLOPs, wall-clock time vs sequence length), quality (perplexity, BLEU, accuracy), and attention entropy to measure whether learnable kernels reduce resolution loss compared to standard dot-product."
+  ],
+  "evaluation": {
+    "novelty_score": 0.82,
+    "novelty": "While kernelized attention exists (e.g., linear attention, Performer), no prior work combines learnable spectral filter banks with adaptive per-head temperature and differentiable kernel learning in a single unified framework for long-context transformers.",
+    "feasibility_score": 0.7,
+    "feasibility": "Implementation is feasible using existing JAX/PyTorch libraries with standard Transformer backbones; the main cost is hyperparameter tuning for the spectral rank r and the number of Fourier features, but training is within ~2× the compute of a baseline Performer.",
+    "impact_score": 0.85,
+    "impact": "If successful, this would provide a principled replacement for dot-product attention that scales linearly with sequence length, adapts to data statistics, and captures more complex query-key interactions—directly impacting long-context LLMs, video understanding, and genomic sequence modeling.",
+    "rigour_score": 0.78,
+    "rigour": "The approach is grounded in kernel theory (Mercer's theorem, random Fourier features), has well-defined complexity bounds, and will be evaluated on established benchmarks with controlled ablations against Performer, Linformer, and standard full-attention baselines.",
+    "risks": [
+      "The learned kernel may collapse to the standard dot product during training, providing no additional benefit while adding overhead.",
+      "Random Fourier feature approximation error may degrade quality on tasks requiring precise token-level attention (e.g., NER, parsing).",
+      "Training stability may suffer due to the additional learned parameters in the kernel and temperature modules, requiring careful initialization and learning rate tuning."
+    ]
+  },
+  "created_at": "2026-06-26T20:29:22Z",
+  "updated_at": "2026-06-26T20:29:22Z"
+}

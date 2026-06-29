@@ -1,0 +1,50 @@
+{
+  "paper_id": "doi_10_1038_s41591_021_01614_0",
+  "metadata": {
+    "title": "AI in health and medicine",
+    "authors": [
+      "Pranav Rajpurkar",
+      "Emma Chen",
+      "Oishi Banerjee",
+      "Eric J. Topol"
+    ],
+    "year": 2022,
+    "venue": "Nature Medicine",
+    "abstract": null,
+    "identifiers": {
+      "arxiv_id": null,
+      "doi": "10.1038/s41591-021-01614-0",
+      "semantic_scholar_id": null,
+      "openreview_id": null
+    }
+  },
+  "source": {
+    "input_query": "10.1038/s41591-021-01614-0",
+    "input_type": "doi",
+    "resolved_via": "crossref+unpaywall",
+    "source_url": "https://doi.org/10.1038/s41591-021-01614-0",
+    "files": {
+      "pdf": null,
+      "tex_dir": null,
+      "tex_main": null
+    },
+    "fetched_at": "2026-06-26T23:09:25Z"
+  },
+  "content": null,
+  "summary": null,
+  "summary_verification": null,
+  "gaps": {
+    "gap_ids": []
+  },
+  "processing": {
+    "fetched": true,
+    "extracted": false,
+    "summarized": false,
+    "summary_verified": false,
+    "gaps_extracted": false
+  },
+  "warnings": [
+    "no_open_access_pdf",
+    "source_unavailable: full text could not be downloaded (restricted or paywalled) — upload a PDF or LaTeX source (.zip/.tar.gz) to continue"
+  ]
+}

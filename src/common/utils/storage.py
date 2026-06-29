@@ -37,8 +37,20 @@ def paper_dir(category_slug: str, paper_id: str) -> Path:
     return papers_dir(category_slug) / paper_id
 
 
+def ideas_dir(category_slug: str) -> Path:
+    return category_dir(category_slug) / "ideas"
+
+
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def agent_log_dir(category_slug: str, agent: str) -> Path:
+    """Directory a given agent's run-tree logs are written to, for a workspace.
+
+    The dev UI assembles each streamed run into a tree and persists it here so a
+    finished run can be reopened from history (see dev/ui.py)."""
+    return category_dir(category_slug) / "logs" / agent
 
 
 def ensure_category(category_slug: str) -> Path:
@@ -133,5 +145,29 @@ def read_paper_json(category_slug: str, paper_id: str) -> dict | None:
     if not p.exists():
         return None
     return json.loads(p.read_text())
+
+
+# --- ideas/<idea_id>.json ----------------------------------------------------
+
+def write_idea_json(category_slug: str, record: dict) -> Path:
+    d = ideas_dir(category_slug)
+    d.mkdir(parents=True, exist_ok=True)
+    out = d / f"{record['idea_id']}.json"
+    out.write_text(json.dumps(record, indent=2, ensure_ascii=False))
+    return out
+
+
+def read_idea_json(category_slug: str, idea_id: str) -> dict | None:
+    p = ideas_dir(category_slug) / f"{idea_id}.json"
+    if not p.exists():
+        return None
+    return json.loads(p.read_text())
+
+
+def list_idea_ids(category_slug: str) -> list[str]:
+    d = ideas_dir(category_slug)
+    if not d.exists():
+        return []
+    return sorted(p.stem for p in d.glob("*.json"))
 
 

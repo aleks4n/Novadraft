@@ -1,6 +1,6 @@
 {
-  "category_slug": "transformers",
-  "name": "Transformers",
+  "category_slug": "test",
+  "name": "Test Workspace",
   "description": "Research on transformer architectures: self-attention, scaling, efficiency variants, and applications across language, vision, and multimodal tasks.",
   "created_at": "2026-06-07T00:00:00Z",
   "updated_at": "2026-06-07T00:00:00Z"

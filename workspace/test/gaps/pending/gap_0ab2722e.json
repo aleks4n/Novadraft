@@ -1,0 +1,23 @@
+{
+  "gap_id": "gap_0ab2722e",
+  "status": "unchecked",
+  "title": "Need for more sophisticated compatibility function",
+  "description": "Reducing attention key size hurts model quality, which the authors interpret as evidence that determining compatibility is not easy and that a more sophisticated compatibility function than dot-product may be beneficial.",
+  "type": "open_problem",
+  "canonical_description": "dot-product compatibility function may be insufficient, more sophisticated function needed",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1706.03762",
+      "section": "results",
+      "anchor": "a more sophisticated compatibility function than dot product may be beneficial",
+      "quote": "This suggests that determining compatibility is not easy and that a more sophisticated compatibility function than dot product may be beneficial.",
+      "char_offset": [
+        2819,
+        2964
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-06-26T21:37:09Z"
+}

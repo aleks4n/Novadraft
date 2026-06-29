@@ -1,23 +1,52 @@
 """Agent + subagent + flow registry for the dev/test harness.
 
-Three kinds of entries:
-  - AGENTS:    top-level flows the user runs (e.g. ``paper_agent``, which wires
-                fetch -> extract -> summarize -> gap into one call). These
-                return all sub-results (one JSON blob per step) so the dev UI
-                can show what each step produced.
-  - SUBAGENTS: the individual stages kept for isolated testing
-                (``paper_fetch``, ``paper_extract``, ``summarize``, ``gap``).
-                ``summarize`` and ``gap`` each run their own bounded
-                extractor<->critic loop internally — there's no separate
-                "critique-only" or "loop-only" entry, since the loop isn't
-                exposed outside either subagent.
-  - FLOWS:     multi-agent flows spanning more than one top-level agent.
+**Auto-discovery.** This module no longer hard-codes the agent tables. On import
+it scans ``src/agents/*/`` and reads a ``MANIFEST`` from each package's
+``__init__.py``. Drop a new agent folder in with a ``MANIFEST`` and it is
+registered automatically — no edit to this file. A package without a ``MANIFEST``
+is skipped (so half-built agents don't break the harness).
 
-Add new entries here. Each entry is a callable that takes a dict of kwargs
-(parsed from CLI / fixture) and returns a JSON-serializable result.
+The discovered manifests are fanned out into the same tables the rest of the
+harness already consumes, so ``dev/run.py``, ``dev/ui.py`` and the frontend are
+unchanged:
+  - AGENTS:    top-level flows the user runs (e.g. ``paper_agent``). The value is
+                the manifest's ``run`` callable, wrapped so bool-typed params
+                (e.g. ``force``) accept "true"/"1"/"yes" strings from the UI.
+  - GRAPH_BUILDERS: agents built as LangGraph graphs, keyed name -> builder the
+                dev UI streams. Set by a manifest's ``graph_builder``.
+  - LOGGED_AGENTS:  graph agents that write a per-run ``.jsonl``, keyed by the
+                input field holding the workspace/category slug
+                (manifest ``workspace_field``).
+  - AGENT_STEPS:    pipeline-order step labels, a display hint (manifest ``steps``).
+  - SUBAGENTS: individual stages kept for isolated testing. Each agent declares
+                its own under the manifest's ``subagents`` list.
+  - INPUT_ADAPTERS: optional per-agent ``form-inputs -> graph-inputs`` transform,
+                for graph agents whose state isn't directly form-typeable (e.g.
+                the validator takes a ``Gap`` object). Applied by ui.py before
+                ``graph.stream``. Set by a manifest's ``input_adapter``.
+  - FLOWS:     multi-agent flows spanning more than one top-level agent.
+  - SCHEMAS:   UI form fields, taken from the manifest's ``schema`` or, when
+                omitted, auto-derived from the callable signature.
+
+Manifest shape (everything except ``run`` is optional)::
+
+    MANIFEST = {
+        "kind": "agent",                 # "agent" | "flow"  (default "agent")
+        "run": <callable(**inputs)->json>,
+        "graph_builder": <callable()->compiled graph>,
+        "workspace_field": "category_slug",
+        "steps": ["fetch", "extract", ...],
+        "input_adapter": <callable(inputs)->graph_inputs>,
+        "schema": [ {"name","type","required","placeholder"}, ... ],
+        "subagents": [ {"name","run","schema"}, ... ],
+    }
+
+``name`` is taken from the package directory, so it never has to be repeated.
 """
 from __future__ import annotations
 
+import importlib
+import inspect
 import sys
 from pathlib import Path
 
@@ -26,11 +55,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.common.tools.paper_fetch import fetch as paper_fetch  # noqa: E402
-from src.common.tools.paper_extract import extract as paper_extract  # noqa: E402
-from src.agents.paper_agent import run as paper_agent  # noqa: E402
-from src.agents.paper_agent.subagents.gap import extract_gaps  # noqa: E402
-from src.agents.paper_agent.subagents.summarize import summarize  # noqa: E402
+AGENTS_PKG = "src.agents"
+AGENTS_DIR = ROOT / "src" / "agents"
 
 
 def _truthy(v) -> bool:
@@ -39,88 +65,123 @@ def _truthy(v) -> bool:
     return str(v).strip().lower() in {"1", "true", "yes", "y", "on"}
 
 
-AGENTS = {
-    "paper_agent": lambda category_slug, query, force=False, **_:
-        paper_agent(category_slug, query, force=_truthy(force)),
-}
+# --- signature introspection ------------------------------------------------
 
-# Agents that call ``runlog.start_run`` internally (see
-# src/common/utils/runlog.py) and so write a live-tailable JSON log to
-# workspace/<category_slug>/logs/<agent>/. The dev UI polls that file for
-# progress instead of a bespoke callback. Keyed by the input field that
-# holds the workspace/category slug.
-LOGGED_AGENTS = {
-    "paper_agent": "category_slug",
-}
-
-# Steps a logged agent is expected to go through, in pipeline order. Purely
-# a display hint for the dev UI (e.g. to label what's still pending) — the
-# authoritative step list is whatever actually shows up in the run's JSON
-# log, since not every run takes the same path (e.g. an ambiguous fetch
-# skips everything downstream).
-AGENT_STEPS = {
-    "paper_agent": ["fetch", "extract", "summarize", "gap"],
-}
-
-SUBAGENTS = {
-    "paper_fetch": lambda category_slug, query, **_: paper_fetch(category_slug, query),
-    "paper_extract": lambda category_slug, paper_id, force=False, **_:
-        paper_extract(category_slug, paper_id, force=_truthy(force)),
-    "summarize": lambda category_slug, paper_id, force=False, **_:
-        summarize(category_slug, paper_id, force=_truthy(force)),
-    "gap": lambda category_slug, paper_id, force=False, **_:
-        extract_gaps(category_slug, paper_id, force=_truthy(force)),
-}
-
-FLOWS = {}
+def _params(fn):
+    """Named, form-fillable params of ``fn`` (skips ``*args``/``**kwargs``)."""
+    try:
+        sig = inspect.signature(fn)
+    except (TypeError, ValueError):
+        return []
+    return [
+        p for p in sig.parameters.values()
+        if p.kind not in (p.VAR_POSITIONAL, p.VAR_KEYWORD)
+    ]
 
 
-# Input schemas drive the UI form. Field types: "text", "textarea", "list[textarea]".
-SCHEMAS = {
-    "agent": {
-        "paper_agent": [
-            {"name": "category_slug", "type": "text", "required": True,
-             "placeholder": "transformers"},
-            {"name": "query", "type": "text", "required": True,
-             "placeholder": "arXiv ID, URL, DOI, or paper title"},
-            {"name": "force", "type": "text", "required": False,
-             "placeholder": "false"},
-        ],
-    },
-    "subagent": {
-        "paper_fetch": [
-            {"name": "category_slug", "type": "text", "required": True,
-             "placeholder": "transformers"},
-            {"name": "query", "type": "text", "required": True,
-             "placeholder": "arXiv ID, URL, DOI, or paper title"},
-        ],
-        "paper_extract": [
-            {"name": "category_slug", "type": "text", "required": True,
-             "placeholder": "transformers"},
-            {"name": "paper_id", "type": "text", "required": True,
-             "placeholder": "arxiv_1706.03762"},
-            {"name": "force", "type": "text", "required": False,
-             "placeholder": "false"},
-        ],
-        "summarize": [
-            {"name": "category_slug", "type": "text", "required": True,
-             "placeholder": "transformers"},
-            {"name": "paper_id", "type": "text", "required": True,
-             "placeholder": "arxiv_1706.03762"},
-            {"name": "force", "type": "text", "required": False,
-             "placeholder": "false"},
-        ],
-        "gap": [
-            {"name": "category_slug", "type": "text", "required": True,
-             "placeholder": "transformers"},
-            {"name": "paper_id", "type": "text", "required": True,
-             "placeholder": "arxiv_1706.03762"},
-            {"name": "force", "type": "text", "required": False,
-             "placeholder": "false"},
-        ],
-    },
-    "flow": {},
-}
+def _wrap(fn):
+    """Coerce bool-typed params (e.g. ``force``) from UI strings to real bools.
+
+    Signature-driven: any param whose default is a ``bool`` gets ``_truthy``
+    applied, so manifests just hand over the bare ``run`` function — no lambdas.
+    """
+    bool_params = {p.name for p in _params(fn) if isinstance(p.default, bool)}
+    if not bool_params:
+        return fn
+
+    def wrapped(**kwargs):
+        kwargs = dict(kwargs)
+        for name in bool_params:
+            if name in kwargs:
+                kwargs[name] = _truthy(kwargs[name])
+        return fn(**kwargs)
+
+    wrapped.__name__ = getattr(fn, "__name__", "wrapped")
+    return wrapped
+
+
+def _auto_schema(fn) -> list[dict]:
+    """Best-effort UI form derived from a callable's signature.
+
+    Fallback for agents that don't spell out an explicit ``schema``. Required =
+    no default; bools render with a ``false`` placeholder. Human-friendly
+    placeholders need an explicit schema — they can't be inferred.
+    """
+    fields = []
+    for p in _params(fn):
+        fields.append({
+            "name": p.name,
+            "type": "text",
+            "required": p.default is inspect.Parameter.empty,
+            "placeholder": "false" if isinstance(p.default, bool) else "",
+        })
+    return fields
+
+
+# --- discovery --------------------------------------------------------------
+
+def _discover() -> list[dict]:
+    """Import every ``src/agents/<pkg>/`` exposing a ``MANIFEST`` (sorted)."""
+    manifests = []
+    if not AGENTS_DIR.is_dir():
+        return manifests
+    for entry in sorted(AGENTS_DIR.iterdir()):
+        if not entry.is_dir() or entry.name.startswith((".", "_")):
+            continue
+        if not (entry / "__init__.py").exists():
+            continue
+        try:
+            mod = importlib.import_module(f"{AGENTS_PKG}.{entry.name}")
+        except Exception as e:  # noqa: BLE001 — one bad agent shouldn't kill the harness
+            print(f"[registry] skipping {entry.name}: {type(e).__name__}: {e}",
+                  file=sys.stderr)
+            continue
+        manifest = getattr(mod, "MANIFEST", None)
+        if not isinstance(manifest, dict):
+            continue
+        manifests.append({"name": entry.name, **manifest})
+    return manifests
+
+
+AGENTS: dict = {}
+GRAPH_BUILDERS: dict = {}
+LOGGED_AGENTS: dict = {}
+AGENT_STEPS: dict = {}
+SUBAGENTS: dict = {}
+INPUT_ADAPTERS: dict = {}
+FLOWS: dict = {}
+SCHEMAS: dict = {"agent": {}, "subagent": {}, "flow": {}}
+
+
+def _register(manifest: dict) -> None:
+    name = manifest["name"]
+    kind = manifest.get("kind", "agent")
+    run_fn = manifest.get("run")
+    table = FLOWS if kind == "flow" else AGENTS
+    schema_bucket = "flow" if kind == "flow" else "agent"
+
+    if run_fn is not None:
+        table[name] = _wrap(run_fn)
+    if manifest.get("graph_builder"):
+        GRAPH_BUILDERS[name] = manifest["graph_builder"]
+    if manifest.get("workspace_field"):
+        LOGGED_AGENTS[name] = manifest["workspace_field"]
+    if manifest.get("steps"):
+        AGENT_STEPS[name] = manifest["steps"]
+    if manifest.get("input_adapter"):
+        INPUT_ADAPTERS[name] = manifest["input_adapter"]
+    SCHEMAS[schema_bucket][name] = manifest.get("schema") or (
+        _auto_schema(run_fn) if run_fn else []
+    )
+
+    for sub in manifest.get("subagents", []):
+        sub_run = sub["run"]
+        SUBAGENTS[sub["name"]] = _wrap(sub_run)
+        SCHEMAS["subagent"][sub["name"]] = sub.get("schema") or _auto_schema(sub_run)
+
+
+for _m in _discover():
+    _register(_m)
 
 
 def list_all() -> dict:

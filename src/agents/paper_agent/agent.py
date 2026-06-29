@@ -1,78 +1,165 @@
-"""PaperAgent — runs a single paper through the full pipeline.
+"""PaperAgent — the top-level LangGraph that runs one paper through the pipeline.
 
 Wires the stages in sequence:
-  1. fetch       (common tool, shared with other agents)
-  2. extract      (common tool, shared with other agents)
-  3+3b. summarize (subagent — owns its own extractor<->critic loop)
-  4+4b. gap       (subagent — owns its own extractor<->critic loop)
 
-Each subagent is a single call here: `summarize()` and `extract_gaps()` are
-the only entry points their packages expose, and each runs its own bounded
-extractor<->critic loop internally (see subagents/summarize/summarize.py and
-subagents/gap/gap.py) — this module doesn't loop at all, it just sequences
-the four stages.
+    START → fetch → [ambiguous? → END] → extract → summarize → gap → assemble → END
 
-Progress/prompts are recorded via ``src.common.utils.runlog`` (``start_run``
-+ ``step``) rather than a bespoke callback — every extractor/critic call a
-subagent makes nests automatically under that subagent's own step, so a
-run's log shows e.g. "summarize" with as many nested "extractor"/"critic"
-entries as that run took. See planning/technical-discussions/LOGGING_SYSTEM.md.
+- `fetch` / `extract` are deterministic common tools (shared with other agents).
+- `summarize` / `gap` ARE their subgraphs, mounted directly as nodes (each
+  owns its own bounded extractor↔critic cycle — see `subagents/summarize/agent.py`
+  and `subagents/gap/agent.py`). Because they're real subgraph nodes,
+  `get_graph(xray=True).draw_mermaid()` expands them inline inside this graph's
+  diagram, and with `stream(stream_mode=[...], subgraphs=True)` every internal
+  extractor/critic step and LLM call streams through nested under this graph
+  (see `src/common/utils/trace.py` and `dev/runlog.py`).
+
+  The subgraphs share state keys with `PaperState`: the inputs
+  (`category_slug`/`paper_id`/`force`) flow in, and each writes back exactly one
+  output key — `summary_result` / `gaps_result`. Their loop-internal keys are
+  private to each subgraph and never touch this state (see their `state.py`).
+
+`run(category_slug, query, force=False)` compiles and invokes the graph and
+returns the same result dict as before. The dev UI instead *streams* the graph
+to render progress live.
 """
 from __future__ import annotations
 
-from ...common.tools.paper_extract import extract
-from ...common.tools.paper_fetch import PaperAlreadyExistsError, fetch
-from ...common.utils.runlog import skip_step, start_run, step
-from .subagents.gap import extract_gaps
-from .subagents.summarize import summarize
+import sys
+from pathlib import Path
 
-# Ordered pipeline steps, used to skip the rest of the list when fetch comes
-# back ambiguous (no paper stored, nothing downstream can run).
-STEPS = ["fetch", "extract", "summarize", "gap"]
+from langgraph.graph import END, START, StateGraph
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from src.common.tools.paper_extract import extract
+from src.common.tools.paper_fetch import PaperAlreadyExistsError, fetch
+from src.common.utils import storage
+from src.agents.paper_agent.state import PaperState
+from src.agents.paper_agent.subagents.summarize.agent import build_summarize_graph
+from src.agents.paper_agent.subagents.gap.agent import build_gap_graph
+
+# Worst-case super-steps across the whole pipeline: the summarize and gap
+# subgraphs each run a bounded extractor↔critic cycle (~2*MAX_LOOPS+2 steps),
+# plus this graph's own fetch/extract/assemble. The subgraph nodes inherit this
+# graph's run config, so the limit has to cover the sum, with headroom.
+_RECURSION_LIMIT = 60
+
+
+_SOURCE_UNAVAILABLE_WARNING = (
+    "source_unavailable: full text could not be downloaded (restricted or "
+    "paywalled) — upload a PDF or LaTeX source (.zip/.tar.gz) to continue"
+)
+
+
+def _source_missing(category_slug: str, paper_id: str) -> tuple[bool, dict | None]:
+    """Is the stored paper resolved but without any usable full-text source?
+
+    A paper whose fetch only recovered metadata (no pdf, no main .tex) cannot be
+    extracted, so the pipeline can't proceed until the user supplies a source.
+    Already-extracted papers are never "missing" (a resume that already ran).
+    """
+    rec = storage.read_paper_json(category_slug, paper_id)
+    if rec is None:
+        return False, None
+    if (rec.get("processing") or {}).get("extracted"):
+        return False, rec
+    files = ((rec.get("source") or {}).get("files")) or {}
+    return not (files.get("pdf") or files.get("tex_main")), rec
+
+
+def fetch_node(state: PaperState) -> dict:
+    """Resolve the query to a stored paper. An ambiguous fetch stores nothing,
+    so nothing downstream can run — short-circuit with the fetch result as the
+    run's output. A paper that resolved but has no downloadable full text is
+    flagged ``needs_source`` and likewise short-circuits, waiting for the user to
+    drop in a pdf/tex source. A duplicate continues the pipeline on the existing
+    paper (extract/summarize/gap are idempotent)."""
+    category_slug, query = state["category_slug"], state["query"]
+    try:
+        fetch_result = fetch(category_slug, query)
+        paper_id = fetch_result["paper"]["paper_id"] if fetch_result["status"] != "ambiguous" else None
+    except PaperAlreadyExistsError as e:
+        fetch_result = {"status": "duplicate", "paper_id": e.paper_id}
+        paper_id = e.paper_id
+
+    if fetch_result["status"] == "ambiguous":
+        return {"fetch_result": fetch_result, "result": fetch_result, "ambiguous": True}
+
+    missing, rec = _source_missing(category_slug, paper_id)
+    if missing:
+        if rec is not None and _SOURCE_UNAVAILABLE_WARNING not in (rec.get("warnings") or []):
+            rec.setdefault("warnings", []).append(_SOURCE_UNAVAILABLE_WARNING)
+            storage.write_paper_json(category_slug, rec)
+        result = {"status": "needs_source", "paper_id": paper_id, "fetch": fetch_result}
+        return {"fetch_result": fetch_result, "paper_id": paper_id,
+                "needs_source": True, "result": result}
+
+    return {"fetch_result": fetch_result, "paper_id": paper_id}
+
+
+def extract_node(state: PaperState) -> dict:
+    extract_result = extract(state["category_slug"], state["paper_id"],
+                             force=state.get("force", False))
+    return {"extract_result": extract_result}
+
+
+def assemble(state: PaperState) -> dict:
+    return {"result": {
+        "status": "ok",
+        "paper_id": state["paper_id"],
+        "fetch": state["fetch_result"],
+        "extract": state["extract_result"],
+        "summary": state["summary_result"],
+        "gaps": state["gaps_result"],
+    }}
+
+
+def _route_after_fetch(state: PaperState) -> str:
+    return END if state.get("ambiguous") or state.get("needs_source") else "extract"
+
+
+def build_paper_graph():
+    """Compile the paper_agent pipeline graph."""
+    g = StateGraph(PaperState)
+    g.add_node("fetch", fetch_node)
+    g.add_node("extract", extract_node)
+    # The subgraphs are mounted directly as nodes (not function wrappers), so
+    # they're first-class subgraphs: xray expands them in the diagram and they
+    # exchange state with the parent over the shared keys (see their state.py).
+    g.add_node("summarize", build_summarize_graph())
+    g.add_node("gap", build_gap_graph())
+    g.add_node("assemble", assemble)
+
+    g.add_edge(START, "fetch")
+    g.add_conditional_edges("fetch", _route_after_fetch, {"extract": "extract", END: END})
+    g.add_edge("extract", "summarize")
+    g.add_edge("summarize", "gap")
+    g.add_edge("gap", "assemble")
+    g.add_edge("assemble", END)
+    return g.compile()
+
+
+_GRAPH = None
 
 
 def run(category_slug: str, query: str, force: bool = False) -> dict:
     """Fetch a paper into ``category_slug`` and run it through extract,
-    summarize+critique, and gap extraction+critique.
+    summarize+critique, and gap extraction+critique. Returns the fetch result
+    as-is if the fetch was ambiguous (no paper stored). Standalone-callable
+    (the dev harness and eval pipeline import it directly)."""
+    global _GRAPH
+    if _GRAPH is None:
+        _GRAPH = build_paper_graph()
+    final = _GRAPH.invoke({"category_slug": category_slug, "query": query, "force": force},
+                          config={"recursion_limit": _RECURSION_LIMIT})
+    return final["result"]
 
-    Returns the fetch result as-is if the fetch was ambiguous (no paper was
-    stored). On a duplicate, logs the duplicate and continues the pipeline on
-    the existing paper (extract/summarize/gap are idempotent).
-    """
-    with start_run(category_slug, "paper_agent",
-                    {"category_slug": category_slug, "query": query, "force": force},
-                    run_hint=query) as run_log:
 
-        with step("fetch") as node:
-            try:
-                fetch_result = fetch(category_slug, query)
-            except PaperAlreadyExistsError as e:
-                paper_id = e.paper_id
-                fetch_result = {"status": "duplicate", "paper_id": paper_id}
-            else:
-                if fetch_result["status"] == "ambiguous":
-                    node["data"]["result"] = fetch_result
-                    for s in STEPS[1:]:
-                        skip_step(s)
-                    run_log.output = fetch_result
-                    return fetch_result
-                paper_id = fetch_result["paper"]["paper_id"]
-            node["data"]["result"] = fetch_result
+if __name__ == "__main__":
+    import json
 
-        with step("extract") as node:
-            extract_result = extract(category_slug, paper_id, force=force)
-            node["data"]["result"] = extract_result
-
-        summary_result = summarize(category_slug, paper_id, force=force)
-
-        gaps_result = extract_gaps(category_slug, paper_id, force=force)
-
-        run_log.output = {
-            "status": "ok",
-            "paper_id": paper_id,
-            "fetch": fetch_result,
-            "extract": extract_result,
-            "summary": summary_result,
-            "gaps": gaps_result,
-        }
-        return run_log.output
+    category = sys.argv[1] if len(sys.argv) > 1 else "transformers"
+    query = sys.argv[2] if len(sys.argv) > 2 else "1706.03762"
+    print(json.dumps(run(category, query), indent=2, default=str))

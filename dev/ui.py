@@ -18,27 +18,30 @@ import _env_bootstrap  # noqa: F401,E402
 
 import json  # noqa: E402
 import queue  # noqa: E402
+import re  # noqa: E402
 import threading  # noqa: E402
 import time  # noqa: E402
+from datetime import datetime  # noqa: E402
 
 from fastapi import FastAPI, HTTPException  # noqa: E402
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
-from dev.registry import list_all, LOGGED_AGENTS
+from dev.registry import GRAPH_BUILDERS, INPUT_ADAPTERS, LOGGED_AGENTS, _truthy, list_all
 from dev.run import _log, _run, FIXTURES_DIR, RUNS_DIR, TABLES
+from dev.runlog import RunRecorder, read_run
 from dev.eval_paper_pipeline import (
     ensure_papers_fetched, list_workspaces, run_pipeline, write_report,
 )
-from src.common.utils.runlog import log_path_for
-
-# How often the dev UI polls a running agent's on-disk JSON log for
-# progress, in seconds. See planning/technical-discussions/LOGGING_SYSTEM.md
-# — the log file is the single source of truth; the UI just tails it.
-_POLL_INTERVAL_S = 0.7
+from src.common.utils import storage
 
 HERE = Path(__file__).resolve().parent
 app = FastAPI(title="novadraft dev")
+
+# Generous super-step ceiling for streamed graph runs. The agents bound their
+# own loops in their routers (attempt >= max_loops), so this is just a backstop
+# big enough to cover a top-level pipeline plus its bounded subgraph cycles.
+GRAPH_RECURSION_LIMIT = 80
 
 
 class RunRequest(BaseModel):
@@ -87,16 +90,31 @@ def api_run(req: RunRequest):
     return record
 
 
+def _sse(obj: dict) -> str:
+    return f"data: {json.dumps(obj, default=str)}\n\n"
+
+
+def _run_slug(inputs: dict) -> str:
+    """Filename hint from the first string-ish input (e.g. a query/paper id)."""
+    hint = next((v for v in inputs.values() if isinstance(v, str)), "")
+    s = re.sub(r"[^A-Za-z0-9]+", "-", hint).strip("-").lower()
+    return s[:40] or "run"
+
+
 @app.post("/api/run/stream")
 def api_run_stream(req: RunRequest):
-    """Like /api/run, but streams progress (SSE) as the agent runs, then a
-    final ``done`` event with the full record.
+    """Like /api/run, but streams progress (SSE) then a final ``done`` event.
 
-    For agents in ``registry.LOGGED_AGENTS`` (agents that call
-    ``runlog.start_run`` internally — see ``src/common/utils/runlog.py``),
-    progress comes from polling the run's on-disk JSON log: that file *is*
-    the live progress feed, so each ``log`` event simply carries its full
-    current content. Other kinds just run and emit a single ``done`` event.
+    For graph agents (``registry.GRAPH_BUILDERS``) progress comes straight from
+    the LangGraph stream: we run
+    ``graph.stream(stream_mode=["updates","custom"], subgraphs=True)`` and feed
+    each chunk to a :class:`dev.runlog.RunRecorder`, which appends one flat JSON
+    line per event to ``workspace/<slug>/logs/<agent>/<run>.jsonl`` *and* returns
+    it to forward over SSE — so the file being written is exactly what's being
+    streamed. The stream opens with a ``run_start`` event carrying the agent's
+    Mermaid graph (``get_graph(xray=True)``, subgraphs expanded), then one event
+    per node/llm/tool/note, then ``run_end``. Other kinds just run and emit a
+    single ``done`` event.
     """
     table = TABLES.get(req.kind)
     if table is None:
@@ -104,84 +122,80 @@ def api_run_stream(req: RunRequest):
     if req.name not in table:
         raise HTTPException(404, f"unknown {req.kind}: {req.name}")
 
-    workspace_field = LOGGED_AGENTS.get(req.name) if req.kind == "agent" else None
+    builder = GRAPH_BUILDERS.get(req.name) if req.kind == "agent" else None
+
+    if builder is None:
+        # Non-streaming kinds (subagents, flows): run to completion, one event.
+        def generate_simple():
+            record = _run(req.kind, req.name, req.inputs)
+            path = _log(record, req.name)
+            record["log_file"] = path.name
+            yield _sse({"type": "done", "record": record})
+        return StreamingResponse(generate_simple(), media_type="text/event-stream")
+
+    workspace_field = LOGGED_AGENTS.get(req.name)
     workspace = req.inputs.get(workspace_field) if workspace_field else None
 
     def generate():
-        events: queue.Queue = queue.Queue()
+        inputs = dict(req.inputs)
+        if "force" in inputs:
+            inputs["force"] = _truthy(inputs["force"])
 
-        def worker():
-            record = _run(req.kind, req.name, req.inputs)
-            events.put({"type": "done", "record": record})
+        # Some graph agents take state that isn't directly form-typeable (e.g.
+        # the validator's ``Gap`` object). Their manifest supplies an adapter
+        # that turns the raw form inputs into graph state; the raw ``inputs``
+        # are still what we log/slug/display.
+        adapter = INPUT_ADAPTERS.get(req.name)
+        graph_inputs = adapter(inputs) if adapter else inputs
 
-        if not workspace:
-            threading.Thread(target=worker, daemon=True).start()
-            while True:
-                event = events.get()
-                if event["type"] == "done":
-                    path = _log(event["record"], req.name)
-                    event["record"]["log_file"] = path.name
-                yield f"data: {json.dumps(event, default=str)}\n\n"
-                if event["type"] == "done":
-                    break
-            return
+        graph = builder()
+        mermaid = graph.get_graph(xray=True).draw_mermaid()
 
-        log_dir = log_path_for(workspace, req.name)
-        before = set(p.name for p in log_dir.glob("*.json")) if log_dir.exists() else set()
+        run_id = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{_run_slug(inputs)}"
+        log_dir = (storage.agent_log_dir(workspace, req.name) if workspace
+                   else RUNS_DIR / "graph_logs")
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_path = log_dir / f"{run_id}.jsonl"
 
-        thread = threading.Thread(target=worker, daemon=True)
-        thread.start()
-
-        active_path = None
-        last_payload = None
-        while thread.is_alive() or active_path is not None:
-            if active_path is None and log_dir.exists():
-                new_files = sorted(set(p.name for p in log_dir.glob("*.json")) - before)
-                if new_files:
-                    active_path = log_dir / new_files[-1]
-
-            if active_path is not None and active_path.exists():
-                try:
-                    payload = json.loads(active_path.read_text())
-                except (OSError, json.JSONDecodeError):
-                    payload = None
-                if payload is not None and payload != last_payload:
-                    last_payload = payload
-                    yield f"data: {json.dumps({'type': 'log', 'log': payload}, default=str)}\n\n"
-
-            if not thread.is_alive():
-                break
-            time.sleep(_POLL_INTERVAL_S)
-
-        # The worker may have already finished by the time we got our first
-        # chance to poll (e.g. every step was skipped, no LLM calls) — look
-        # for the new file once more now that the thread is guaranteed done,
-        # so fast/fully-cached runs still get their log rendered.
-        if active_path is None and log_dir.exists():
-            new_files = sorted(set(p.name for p in log_dir.glob("*.json")) - before)
-            if new_files:
-                active_path = log_dir / new_files[-1]
-
-        # Final read, in case the worker finished between our last poll and now.
-        if active_path is not None and active_path.exists():
+        t0 = time.time()
+        error = None
+        with open(log_path, "w") as fh:
+            rec = RunRecorder(fh, req.name, workspace, inputs)
+            yield _sse({"type": "run_start", "event": rec.start(mermaid)})
             try:
-                payload = json.loads(active_path.read_text())
-                if payload != last_payload:
-                    yield f"data: {json.dumps({'type': 'log', 'log': payload}, default=str)}\n\n"
-            except (OSError, json.JSONDecodeError):
-                pass
+                for ns, mode, data in graph.stream(
+                    graph_inputs, stream_mode=["updates", "custom"], subgraphs=True,
+                    config={"recursion_limit": GRAPH_RECURSION_LIMIT},
+                ):
+                    for ev in rec.record(ns, mode, data):
+                        yield _sse({"type": "event", "event": ev})
+            except Exception as e:  # noqa: BLE001
+                error = f"{type(e).__name__}: {e}"
+            footer = rec.finish(error=error)
+            yield _sse({"type": "run_end", "event": footer})
 
-        event = events.get()
-        if active_path is not None:
-            event["record"]["run_log"] = active_path.name
-        # Persist now that run_log is attached, so reopening this run later
-        # (via /api/runs/{name}) can still find its step-tree log file —
-        # persisting earlier (before run_log was known) would silently drop it.
-        path = _log(event["record"], req.name)
-        event["record"]["log_file"] = path.name
-        yield f"data: {json.dumps(event, default=str)}\n\n"
+        record = {
+            "name": req.name, "kind": req.kind, "inputs": inputs,
+            "timestamp": datetime.now().isoformat(),
+            "output": footer.get("output"), "error": error,
+            "duration_s": round(time.time() - t0, 3),
+            "run_log": f"{run_id}.jsonl",
+        }
+        path = _log(record, req.name)
+        record["log_file"] = path.name
+        yield _sse({"type": "done", "record": record})
 
     return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+@app.get("/api/graph/{agent}")
+def api_graph(agent: str):
+    """The agent's graph as Mermaid (``get_graph(xray=True)``, subgraphs
+    expanded inline). Lets the UI render the pipeline before a run starts."""
+    builder = GRAPH_BUILDERS.get(agent)
+    if builder is None:
+        raise HTTPException(404, f"not a graph agent: {agent}")
+    return {"mermaid": builder().get_graph(xray=True).draw_mermaid()}
 
 
 @app.get("/api/workspaces")
@@ -197,17 +211,20 @@ def api_workspace_agent_logs(slug: str, agent: str):
     files /api/run/stream tails live, so this is also how the dev UI lets
     you reopen a finished run.
     """
-    log_dir = log_path_for(slug, agent)
-    runs = sorted((p.name for p in log_dir.glob("*.json")), reverse=True) if log_dir.exists() else []
+    log_dir = storage.agent_log_dir(slug, agent)
+    runs = sorted((p.name for p in log_dir.glob("*.jsonl")), reverse=True) if log_dir.exists() else []
     return {"runs": runs}
 
 
 @app.get("/api/workspaces/{slug}/logs/{agent}/{run_id}")
 def api_workspace_agent_log(slug: str, agent: str, run_id: str):
-    path = log_path_for(slug, agent) / run_id
+    """One past run, read back from its ``.jsonl`` into
+    ``{header, events, footer}`` — the same shape the live stream produces, so a
+    reopened run renders identically (see ``dev/runlog.read_run``)."""
+    path = storage.agent_log_dir(slug, agent) / run_id
     if not path.exists():
         raise HTTPException(404, "run log not found")
-    return json.loads(path.read_text())
+    return read_run(path)
 
 
 @app.get("/api/workspaces/{slug}/papers")
