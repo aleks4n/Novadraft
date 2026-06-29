@@ -85,13 +85,14 @@ if __name__ == "__main__":
     from datetime import datetime, timezone
 
     from src.common.schemas.gap import GapRecord
+    from src.common.utils import storage
 
-    # CLI args: <gap_file> [category_slug]. category_slug locates the gap's source
-    # papers in the workspace (paper.json) for the getters — it must be a real
-    # workspace category for query_gen keywords + the search cutoff to resolve.
-    gap_name = sys.argv[1] if len(sys.argv) > 1 else "cot_reasoning"
-    category_slug = sys.argv[2] if len(sys.argv) > 2 else "default"
-    gap_path = Path(__file__).parent / "test_gaps" / f"{gap_name.removesuffix('.json')}.json"
+    # CLI args: <gap_id> [category_slug]. Loads a real GapRecord from the workspace
+    # (gaps/pending), the same place production gaps live — so the getters resolve
+    # keywords + year against that category's papers.
+    gap_id = sys.argv[1] if len(sys.argv) > 1 else "gap_9f0f24c1"
+    category_slug = sys.argv[2] if len(sys.argv) > 2 else "test"
+    gap_path = storage.category_dir(category_slug) / "gaps" / "pending" / f"{gap_id}.json"
     gap = GapRecord.model_validate_json(gap_path.read_text(encoding="utf-8"))
 
     base_name = f"{gap_path.stem}-{_slugify(gap.title)[:20]}"
