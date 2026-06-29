@@ -8,8 +8,9 @@ from typing import List
 
 import feedparser
 
-from src.common.schemas.gap import Gap
-from src.common.schemas.paper import Paper
+from src.common.schemas.gap import GapRecord
+from src.common.schemas.paper import CandidatePaper
+from src.common.tools.paper_access import get_year
 from src.agents.validator_agent.schemas import SearchQuery
 from src.agents.validator_agent.state import ValidatorState
 
@@ -53,15 +54,19 @@ def _date_clause(cutoff_date: str) -> str:
     return f"submittedDate:[{start} TO {end}]"
 
 
-def _cutoff_date(gap: Gap) -> str:
-    """Get cutoff date from the gap's evidence."""
-    dates = [e.published_date for e in gap.evidence if e.published_date]
-    if not dates:
+def _cutoff_date(gap: GapRecord, category_slug: str) -> str:
+    """Earliest source-paper year -> a `YYYY-01-01` prior-art cutoff (search looks after it).
+
+    paper.json carries only the year, which is enough here: we want work published
+    from the source paper's year onward. Source papers are the gap's evidence papers.
+    """
+    years = [y for ev in gap.evidence if (y := get_year(category_slug, ev.paper_id)) is not None]
+    if not years:
         raise ValueError(
-            f"gap {gap.gap_id} has no evidence published_date — cannot set a "
-            "prior-art cutoff. (survey_gap must provide Evidence.published_date.)"
+            f"gap {gap.gap_id}: no source-paper year available (paper.json not fetched?) "
+            "— cannot set a prior-art cutoff."
         )
-    return min(dates)
+    return f"{min(years)}-01-01"
 
 
 # --- arXiv ---
@@ -76,9 +81,9 @@ def _bare_id(raw: str) -> str:
     return m.group(1) if m else raw
 
 
-def _parse_entry(entry) -> Paper:
-    """Parse a feedparser entry from arXiv's API into a Paper."""
-    return Paper(
+def _parse_entry(entry) -> CandidatePaper:
+    """Parse a feedparser entry from arXiv's API into a CandidatePaper."""
+    return CandidatePaper(
         paper_id=f"arxiv_{_bare_id(entry.get('id', '') or entry.get('link', ''))}",
         title=_collapse(entry.get("title", "")),
         abstract=_collapse(entry.get("summary", "")),
@@ -88,7 +93,7 @@ def _parse_entry(entry) -> Paper:
     )
 
 
-def _search_one(query: SearchQuery, cutoff_date: str) -> List[Paper]:
+def _search_one(query: SearchQuery, cutoff_date: str) -> List[CandidatePaper]:
     """
     Run one search query against arXiv and return the results as Papers (drop surveys). 
     Raises if arXiv returns an error status.
@@ -122,10 +127,10 @@ def _search_one(query: SearchQuery, cutoff_date: str) -> List[Paper]:
 
 def search(state: ValidatorState) -> dict:
     """LangGraph node: run the 3 queries -> {"search_results": [ranked list per query]}."""
-    gap: Gap = state["gap"]
-    cutoff = _cutoff_date(gap)
+    gap: GapRecord = state["gap"]
+    cutoff = _cutoff_date(gap, state["category_slug"])
 
-    results: List[List[Paper]] = []
+    results: List[List[CandidatePaper]] = []
     for i, query in enumerate(state["search_queries"].queries):
         results.append(_search_one(query, cutoff))
         if i < len(state["search_queries"].queries) - 1:

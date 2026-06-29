@@ -40,7 +40,7 @@ class Screening(BaseModel):
 class Assessment(BaseModel):
     """Deep-read LLM output: one paper's judgment vs the gap.
 
-    No paper attached — the deep_read step attaches the Paper to build a
+    No paper attached — the deep_read step attaches the CandidatePaper to build a
     common.PaperAssessment. (Same "model doesn't echo ids" principle as Screening.)
     """
 
@@ -58,8 +58,8 @@ class Assessment(BaseModel):
 class VerdictJudgment(BaseModel):
     """Verdict LLM output: the synthesized judgment on the gap.
 
-    No gap_id / assessments / metadata / refined_gap — the verdict step attaches
-    those to build a common.Verdict. (Same "model doesn't echo ids" principle.)
+    No gap_id / assessments / metadata — the verdict step attaches those to build
+    a common.Verdict. (Same "model doesn't echo ids" principle.)
     """
 
     status: VerdictStatus

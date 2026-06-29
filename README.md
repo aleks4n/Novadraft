@@ -63,7 +63,7 @@ src/
         ├── state.py
         ├── schemas.py              # types only this agent uses
         ├── SPEC.md
-        ├── steps/                  # deterministic stages (search, rrf)
+        ├── tools/                  # deterministic stages (search, rrf)
         └── subagents/
             ├── query_gen/{agent.py, prompt.md}
             ├── screen/{agent.py, prompt.md}

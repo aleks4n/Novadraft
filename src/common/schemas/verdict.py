@@ -8,12 +8,11 @@ to anyone reading common/).
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal
 
 from pydantic import BaseModel, Field
 
-from src.common.schemas.gap import Gap
-from src.common.schemas.paper import Paper
+from src.common.schemas.paper import CandidatePaper
 
 # How one paper relates to the gap (judged during Deep Read).
 #   direct_solution  — directly & substantially solves the gap's specific problem
@@ -27,7 +26,7 @@ VerdictStatus = Literal["open", "partially_solved", "solved"]
 class PaperAssessment(BaseModel):
     """A structured judgment of one paper against the gap."""
 
-    paper: Paper
+    paper: CandidatePaper
     relevance_to_gap: RelevanceToGap
     contribution_summary: str  # what this paper does that touches the gap
     what_remains_open: str  # the part of the gap this paper does NOT address
@@ -42,5 +41,4 @@ class Verdict(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
     reasoning: str
     assessments: List[PaperAssessment] = Field(default_factory=list)
-    refined_gap: Optional[Gap] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)

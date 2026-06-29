@@ -17,8 +17,8 @@ if str(REPO_ROOT) not in sys.path:
 
 from src.agents.validator_agent.state import ValidatorState
 from src.agents.validator_agent.subagents.query_gen.agent import generate_queries
-from src.agents.validator_agent.steps.search import search
-from src.agents.validator_agent.steps.rrf import rrf
+from src.agents.validator_agent.tools.search import search
+from src.agents.validator_agent.tools.rrf import rrf
 from src.agents.validator_agent.subagents.screen.agent import screen
 from src.agents.validator_agent.subagents.deep_read.agent import deep_read
 from src.agents.validator_agent.subagents.verdict.agent import verdict
@@ -84,12 +84,15 @@ if __name__ == "__main__":
     import time
     from datetime import datetime, timezone
 
-    from src.common.schemas.gap import Gap
+    from src.common.schemas.gap import GapRecord
 
-    # Optional CLI arg: a test_gaps filename (with or without .json). Defaults to CoT.
+    # CLI args: <gap_file> [category_slug]. category_slug locates the gap's source
+    # papers in the workspace (paper.json) for the getters — it must be a real
+    # workspace category for query_gen keywords + the search cutoff to resolve.
     gap_name = sys.argv[1] if len(sys.argv) > 1 else "cot_reasoning"
+    category_slug = sys.argv[2] if len(sys.argv) > 2 else "default"
     gap_path = Path(__file__).parent / "test_gaps" / f"{gap_name.removesuffix('.json')}.json"
-    gap = Gap.model_validate_json(gap_path.read_text(encoding="utf-8"))
+    gap = GapRecord.model_validate_json(gap_path.read_text(encoding="utf-8"))
 
     base_name = f"{gap_path.stem}-{_slugify(gap.title)[:20]}"
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
@@ -102,7 +105,7 @@ if __name__ == "__main__":
 
     step_counter = 0
     last = time.perf_counter()
-    for chunk in graph.stream({"gap": gap}, stream_mode="updates"):
+    for chunk in graph.stream({"gap": gap, "category_slug": category_slug}, stream_mode="updates"):
         for node, update in chunk.items():
             step_counter += 1
             (run_dir / f"step_{step_counter:02d}_{node}.json").write_text(

@@ -103,6 +103,8 @@ def list_workspaces() -> list[dict]:
         return []
     out = []
     for d in sorted(root.iterdir()):
+        if d.name.startswith("_"):
+            continue  # hidden internal category (e.g. the validator's _validator_cache)
         if not d.is_dir() or not (d / "meta.json").exists():
             continue
         n = len(_fully_extracted_papers(d.name))

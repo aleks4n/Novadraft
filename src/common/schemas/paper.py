@@ -55,3 +55,14 @@ class PaperRecord(BaseModel):
     gaps: dict = Field(default_factory=lambda: {"gap_ids": []})
     processing: PaperProcessing = Field(default_factory=PaperProcessing)
     warnings: list[str] = Field(default_factory=list)
+
+
+class CandidatePaper(BaseModel):
+    """A lightweight view of an *external* paper found during validation."""
+
+    paper_id: str  # e.g. arXiv id
+    title: str
+    abstract: str = ""
+    authors: list[str] = Field(default_factory=list)
+    published_date: str = ""
+    url: str = ""
