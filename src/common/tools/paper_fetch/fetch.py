@@ -42,6 +42,7 @@ def _success_log_entry(rec: dict, query: str, input_type: str, source: str) -> d
             "title": md.get("title"),
             "authors": md.get("authors", [])[:3],
             "year": md.get("year"),
+            "publication_date": md.get("publication_date"),
             "arxiv_id": md["identifiers"].get("arxiv_id"),
             "doi": md["identifiers"].get("doi"),
         },
@@ -58,6 +59,7 @@ def _ambiguous(candidates: list[dict], query: str, input_type: str) -> dict:
             "title": c.get("title"),
             "authors": c.get("authors") or [],
             "year": c.get("year"),
+            "publication_date": c.get("publication_date"),
             "arxiv_id": c.get("arxiv_id"),
             "doi": c.get("doi"),
             "pdf_url": c.get("pdf_url"),
@@ -108,6 +110,11 @@ def _fill_missing_metadata(record: dict, destination: str) -> bool:
         value = extracted.get(field)
         if value:
             md[field] = value
+
+    # Carry the full date alongside a PDF-derived year (best-effort: this is
+    # the PDF's creation date, used only when better sources gave nothing).
+    if "year" in missing and not md.get("publication_date") and extracted.get("publication_date"):
+        md["publication_date"] = extracted["publication_date"]
 
     still_missing = [f for f in missing if not md.get(f)]
     if still_missing:

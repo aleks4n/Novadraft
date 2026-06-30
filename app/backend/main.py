@@ -49,7 +49,7 @@ from dev.runlog import RunRecorder  # noqa: E402
 from dev.eval_paper_pipeline import _fully_extracted_papers, list_workspaces  # noqa: E402
 from src.common.utils import storage  # noqa: E402
 
-from code.novadraft.app.backend import mappers  # noqa: E402
+from app.backend import mappers  # noqa: E402
 
 # Generous super-step ceiling (the agent bounds its own loops); mirrors dev/ui.py.
 GRAPH_RECURSION_LIMIT = 80

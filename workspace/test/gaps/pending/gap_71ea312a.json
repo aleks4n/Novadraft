@@ -1,0 +1,23 @@
+{
+  "gap_id": "gap_71ea312a",
+  "status": "unchecked",
+  "title": "SDI quality capped by underlying 2D diffusion model",
+  "description": "Score distillation is capped by the performance of the underlying 2D diffusion model and is prone to reproduce similar 'hallucinations' (e.g., text and limb anomalies). The algorithm inherits the biases of the 2D diffusion model and can produce skewed distributions.",
+  "type": "limitation",
+  "canonical_description": "score distillation quality limited by underlying 2D diffusion model performance and biases",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2405.15891",
+      "section": "conclusion_limitations_and_future_work",
+      "anchor": "score distillation is capped by the performance of the underlying diffusion model",
+      "quote": "Finally, score distillation is capped by the performance of the underlying diffusion model and is hence prone to  reproduce similar ``hallucinations'' (e.g., text and limbs anomalies); the algorithm inherits the biases of the 2D diffusion model and can produce skewed distributions.",
+      "char_offset": [
+        1353,
+        1635
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-06-29T10:11:23Z"
+}

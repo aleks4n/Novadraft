@@ -17,6 +17,10 @@ class PaperMetadata(BaseModel):
     title: Optional[str] = None
     authors: list[str] = Field(default_factory=list)
     year: Optional[int] = None
+    # Most precise ISO-8601 prefix available: "YYYY", "YYYY-MM", or
+    # "YYYY-MM-DD". Components are never padded — a year-only source stays
+    # "2023". `year` is the integer view of this. See paper_fetch/date_util.py.
+    publication_date: Optional[str] = None
     venue: Optional[str] = None
     abstract: Optional[str] = None
     identifiers: PaperIdentifiers = Field(default_factory=PaperIdentifiers)

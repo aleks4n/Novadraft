@@ -3,7 +3,7 @@
   "metadata": {
     "title": null,
     "authors": [],
-    "year": null,
+    "year": 2020,
     "venue": null,
     "abstract": null,
     "identifiers": {
@@ -11,7 +11,8 @@
       "doi": "10.48550/arxiv.2006.11239",
       "semantic_scholar_id": null,
       "openreview_id": null
-    }
+    },
+    "publication_date": "2020-06-19"
   },
   "source": {
     "input_query": "Denoising Diffusion Probabilistic Models",

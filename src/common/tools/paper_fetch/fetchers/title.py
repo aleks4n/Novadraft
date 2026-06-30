@@ -15,11 +15,12 @@ import re
 import xml.etree.ElementTree as ET
 from urllib.parse import quote
 
+from ..date_util import iso_from_text, year_of
 from ..errors import PaperFetchError
 from ..http_util import get_json, get_text
 
 _S2_API = "https://api.semanticscholar.org/graph/v1/paper/search"
-_S2_FIELDS = "title,authors,year,venue,externalIds,openAccessPdf"
+_S2_FIELDS = "title,authors,year,publicationDate,venue,externalIds,openAccessPdf"
 _OPENALEX_API = "https://api.openalex.org/works"
 _ARXIV_SEARCH_API = "https://export.arxiv.org/api/query"
 _ATOM_NS = {"a": "http://www.w3.org/2005/Atom", "arxiv": "http://arxiv.org/schemas/atom"}
@@ -60,10 +61,13 @@ def _s2_candidates(title: str) -> list[dict]:
     out = []
     for hit in data.get("data") or []:
         ext = hit.get("externalIds") or {}
+        # publicationDate is "YYYY-MM-DD" when known, else null -> fall back to year.
+        pub_date = iso_from_text(hit.get("publicationDate")) or year_of(hit.get("year"))
         out.append({
             "title": hit.get("title"),
             "authors": [a.get("name", "") for a in (hit.get("authors") or [])],
-            "year": hit.get("year"),
+            "publication_date": pub_date and str(pub_date),
+            "year": hit.get("year") or year_of(pub_date),
             "venue": hit.get("venue"),
             "arxiv_id": ext.get("ArXiv"),
             "doi": ext.get("DOI"),
@@ -109,10 +113,13 @@ def _openalex_candidates(title: str) -> list[dict]:
         if doi_str := ext_ids.get("doi"):
             doi = doi_str.replace("https://doi.org/", "")
         venue = ((hit.get("primary_location") or {}).get("source") or {}).get("display_name")
+        # OpenAlex returns publication_date ("YYYY-MM-DD") by default.
+        pub_date = iso_from_text(hit.get("publication_date")) or year_of(hit.get("publication_year"))
         out.append({
             "title": hit.get("title") or "",
             "authors": authors,
-            "year": hit.get("publication_year"),
+            "publication_date": pub_date and str(pub_date),
+            "year": hit.get("publication_year") or year_of(pub_date),
             "venue": venue,
             "arxiv_id": _arxiv_id_from_locations(hit),
             "doi": doi,
@@ -145,11 +152,12 @@ def _arxiv_candidates(title: str) -> list[dict]:
         m = re.search(r"abs/([a-z\-]+(?:\.[A-Z]{2})?/\d{7}|\d{4}\.\d{4,5})(?:v\d+)?", entry_id)
         arxiv_id = m.group(1) if m else None
         published = entry.findtext("a:published", default="", namespaces=_ATOM_NS)
-        year = int(published[:4]) if published[:4].isdigit() else None
+        pub_date = iso_from_text(published)
         out.append({
             "title": entry_title,
             "authors": authors,
-            "year": year,
+            "publication_date": pub_date,
+            "year": year_of(pub_date),
             "venue": entry.findtext("arxiv:journal_ref", default=None, namespaces=_ATOM_NS),
             "arxiv_id": arxiv_id,
             "doi": entry.findtext("arxiv:doi", default=None, namespaces=_ATOM_NS),
@@ -184,6 +192,11 @@ def _dedup_merge(*lists: list[dict]) -> list[dict]:
                 for field in ("arxiv_id", "doi", "pdf_url"):
                     if not existing.get(field) and c.get(field):
                         existing[field] = c[field]
+                # Prefer the most precise date across backends (e.g. a full
+                # "2023-04-15" from OpenAlex over a year-only "2023" from S2).
+                if len(str(c.get("publication_date") or "")) > len(str(existing.get("publication_date") or "")):
+                    existing["publication_date"] = c["publication_date"]
+                    existing["year"] = c.get("year") or existing.get("year")
                 for k in keys:
                     seen[k] = existing
                 continue

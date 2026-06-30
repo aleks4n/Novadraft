@@ -5,6 +5,7 @@ import re
 from urllib.parse import quote
 
 from ....utils import storage
+from ..date_util import iso_from_date_parts, year_of
 from ..http_util import download_to, get_json
 
 # Unpaywall requires a contact email; this is a non-routable placeholder.
@@ -21,17 +22,18 @@ def _crossref(doi: str) -> dict:
         f"{a.get('given','').strip()} {a.get('family','').strip()}".strip()
         for a in msg.get("author", [])
     ]
-    year = None
+    publication_date = None
     for key in ("published-print", "published-online", "issued"):
         parts = (msg.get(key) or {}).get("date-parts") or []
         if parts and parts[0]:
-            year = parts[0][0]
+            publication_date = iso_from_date_parts(parts[0])
             break
     venue = (msg.get("container-title") or [None])[0]
     return {
         "title": re.sub(r"\s+", " ", title or "").strip() or None,
         "authors": authors,
-        "year": year,
+        "publication_date": publication_date,
+        "year": year_of(publication_date),
         "venue": venue,
         "abstract": msg.get("abstract"),
     }
@@ -60,7 +62,7 @@ def fetch_doi(doi: str, destination: str, classified_type: str, query: str,
 
     try:
         meta = _crossref(doi)
-        for k in ("title", "abstract", "year", "venue"):
+        for k in ("title", "abstract", "publication_date", "year", "venue"):
             if meta.get(k):
                 md[k] = meta[k]
         if meta.get("authors"):

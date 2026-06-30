@@ -21,6 +21,7 @@ def fetch_candidate(candidate: dict, destination: str, classified_type: str, que
 
     md["title"] = candidate.get("title")
     md["authors"] = candidate.get("authors") or []
+    md["publication_date"] = candidate.get("publication_date")
     md["year"] = candidate.get("year")
     md["venue"] = candidate.get("venue")
     md["identifiers"]["semantic_scholar_id"] = candidate.get("semantic_scholar_id")

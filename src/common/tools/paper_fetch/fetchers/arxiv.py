@@ -6,6 +6,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from ....utils import storage
+from ..date_util import iso_from_text, year_of
 from ..http_util import download_to, extract_archive, get_bytes, get_text
 
 _NS = {"a": "http://www.w3.org/2005/Atom", "arxiv": "http://arxiv.org/schemas/atom"}
@@ -25,16 +26,13 @@ def _parse_atom(xml_text: str) -> dict:
     ]
     doi = entry.findtext("arxiv:doi", default=None, namespaces=_NS)
     journal_ref = entry.findtext("arxiv:journal_ref", default=None, namespaces=_NS)
-    year = None
-    if published:
-        m = re.match(r"(\d{4})", published)
-        if m:
-            year = int(m.group(1))
+    publication_date = iso_from_text(published)
     return {
         "title": re.sub(r"\s+", " ", title),
         "abstract": summary,
         "authors": authors,
-        "year": year,
+        "publication_date": publication_date,
+        "year": year_of(publication_date),
         "doi": doi,
         "venue": journal_ref,
     }
@@ -57,6 +55,7 @@ def fetch_arxiv(arxiv_id: str, destination: str, classified_type: str, query: st
         md["title"] = meta.get("title") or md["title"]
         md["abstract"] = meta.get("abstract") or md["abstract"]
         md["authors"] = meta.get("authors") or md["authors"]
+        md["publication_date"] = meta.get("publication_date")
         md["year"] = meta.get("year")
         if meta.get("doi"):
             md["identifiers"]["doi"] = meta["doi"]

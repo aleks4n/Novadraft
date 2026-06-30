@@ -1,0 +1,23 @@
+{
+  "gap_id": "gap_72cfdf09",
+  "status": "unchecked",
+  "title": "Inefficient root-finding for noise approximation",
+  "description": "The theoretical insights are agnostic to particular algorithms of root-finding for the noise term, making it possible to use more efficient solutions in future research, e.g., training diffusion models as invertible maps to sample noise faster.",
+  "type": "future_work",
+  "canonical_description": "root-finding for noise approximation in score distillation could be made more efficient",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2405.15891",
+      "section": "comparison_with_interval_score_matching",
+      "anchor": "use more efficient solutions in future research",
+      "quote": "Our theoretical insights are agnostic to particular algorithms of root-finding, which makes it possible to use more efficient solutions in future research (e.g.\\ train diffusion models as invertible maps to sample noise faster).",
+      "char_offset": [
+        984,
+        1212
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-06-29T10:11:23Z"
+}

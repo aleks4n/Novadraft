@@ -8,8 +8,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from .date_util import iso_from_pdf_date, year_of
+
 _AUTHOR_SPLIT_RE = re.compile(r"\s*(?:,|;|\band\b|&)\s*")
-_YEAR_RE = re.compile(r"(\d{4})")
 _ARXIV_ID_RE = re.compile(
     r"arXiv[:\s]+(\d{4}\.\d{4,5}(?:v\d+)?|[a-z\-]+(?:\.[A-Z]{2})?/\d{7}(?:v\d+)?)",
     re.IGNORECASE,
@@ -61,9 +62,10 @@ def extract_pdf_metadata(pdf_path: Path) -> dict:
     for key in ("CreationDate", "ModDate"):
         date = _as_text(info.get(key))
         if date:
-            m = _YEAR_RE.search(date)
-            if m:
-                out["year"] = int(m.group(1))
+            iso = iso_from_pdf_date(date)
+            if iso:
+                out["publication_date"] = iso
+                out["year"] = year_of(iso)
                 break
 
     return out

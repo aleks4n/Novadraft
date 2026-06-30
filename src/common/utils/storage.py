@@ -92,6 +92,7 @@ def new_paper_record(paper_id: str, classified_type: str, query: str) -> dict:
             "title": None,
             "authors": [],
             "year": None,
+            "publication_date": None,
             "venue": None,
             "abstract": None,
             "identifiers": {
