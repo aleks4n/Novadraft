@@ -1,0 +1,23 @@
+{
+  "gap_id": "gap_open_llm_calibrated_abstention",
+  "title": "Calibrated abstention to eliminate confident hallucination in LLMs",
+  "description": "Large language models answer questions fluently even when they lack the underlying knowledge, producing confident but fabricated answers (hallucinations). As of the source work, no method lets a model reliably recognize the boundary of its own knowledge and abstain ('I don't know') in a way that is calibrated to its actual likelihood of being correct - without degrading helpfulness on questions it can answer, and without relying on external retrieval or a separate verifier model.",
+  "canonical_description": "no method gives an LLM calibrated self-knowledge to abstain on out-of-knowledge questions without external tools",
+  "type": "future_work",
+  "status": "unchecked",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2604.00001",
+      "section": "discussion",
+      "quote": "Whether a model can be made to abstain in a manner calibrated to its true knowledge boundaries, without an external verifier, remains an open question.",
+      "published_date": "2026-04-15"
+    }
+  ],
+  "source_keywords": [
+    "large language models",
+    "hallucination",
+    "calibration",
+    "uncertainty estimation",
+    "question answering"
+  ]
+}

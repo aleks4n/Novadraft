@@ -1,0 +1,28 @@
+[project]
+name = "novadraft"
+version = "0.1.0"
+description = "Multi-agent research-gap validation system (LangGraph)"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.7",
+    "langchain>=0.3",
+    "langchain-openai>=0.2",
+    "langchain-deepseek>=0.1.0",
+    "langgraph>=0.2",
+    "feedparser>=6.0",
+    "requests>=2.31",
+    "python-dotenv>=1.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# `src` is the importable package (imports are `from src.agents…`, `from src.common…`).
+# Editable-installed by `uv sync` so it resolves from anywhere — no PYTHONPATH,
+# and both `uv run python -m src.agents.…` and `uv run python src/…/x.py` work.
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
