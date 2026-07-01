@@ -1,13 +1,16 @@
-"""Validator agent — the subgraph wiring the validator's steps into one workflow."""
+"""Validator agent — wires the steps into one graph, plus the standard `run()`
+entrypoint that streams through GraphRunLog, attaches the verdict to the gap, and
+moves it into the master gap list.
+
+Flow: query_gen -> search -> rrf -> screen -> deep_read -> verdict -> finalize.
+Embeds as a subgraph node in the main pipeline; also runnable standalone
+(`python src/agents/validator_agent/agent.py <gap_id> [category_slug]`).
+"""
 
 from __future__ import annotations
 
-import json
-import re
 import sys
 from pathlib import Path
-
-from pydantic_core import to_jsonable_python
 
 from langgraph.graph import END, START, StateGraph
 
@@ -15,19 +18,32 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from src.common.schemas.gap import GapRecord
+from src.common.utils import storage
+from src.common.utils.logging.runlog import GraphRunLog
 from src.agents.validator_agent.state import ValidatorState
 from src.agents.validator_agent.subagents.query_gen.agent import generate_queries
-from src.agents.validator_agent.steps.search import search
-from src.agents.validator_agent.steps.rrf import rrf
+from src.agents.validator_agent.tools.search import search
+from src.agents.validator_agent.tools.rrf import rrf
 from src.agents.validator_agent.subagents.screen.agent import screen
 from src.agents.validator_agent.subagents.deep_read.agent import deep_read
 from src.agents.validator_agent.subagents.verdict.agent import verdict
+
+def finalize(state: ValidatorState) -> dict:
+    """Attach the verdict to the gap and move it into the master gap list:
+    write gaps/master/<gap_id>.json, then drop it from the to_validate/ inbox.
+    This is the handoff the director/ranking read. Side-effect only; no state change."""
+    category = state["category_slug"]
+    gap = state["gap"].model_copy(update={"verdict": state["verdict"]})
+    storage.write_gap_json(category, gap.model_dump(mode="json"), "master")
+    storage.remove_gap_json(category, gap.gap_id, "to_validate")
+    return {}
 
 
 def build_validator_graph():
     """Wire the validator steps into a compiled graph.
 
-    Flow: query_gen -> search -> rrf -> screen -> deep_read -> verdict.
+    Flow: query_gen -> search -> rrf -> screen -> deep_read -> verdict -> finalize.
     """
     g = StateGraph(ValidatorState)
     g.add_node("query_gen", generate_queries)
@@ -36,6 +52,7 @@ def build_validator_graph():
     g.add_node("screen", screen)
     g.add_node("deep_read", deep_read)
     g.add_node("verdict", verdict)
+    g.add_node("finalize", finalize)
 
     g.add_edge(START, "query_gen")
     g.add_edge("query_gen", "search")
@@ -43,80 +60,65 @@ def build_validator_graph():
     g.add_edge("rrf", "screen")
     g.add_edge("screen", "deep_read")
     g.add_edge("deep_read", "verdict")
-    g.add_edge("verdict", END)
+    g.add_edge("verdict", "finalize")
+    g.add_edge("finalize", END)
     return g.compile()
 
 
-def _readable_clause(concepts) -> str:
-    """Human-readable OR/AND view of a query's concept groups (no arXiv `all:` prefix)."""
-    return " AND ".join(
-        f"({' OR '.join(group)})" if len(group) > 1 else group[0] for group in concepts
-    )
+_GRAPH = None
 
 
-def _slugify(text: str) -> str:
-    """Make a folder name from a human-readable gap title."""
-    text = text.lower()
-    text = re.sub(r"[^a-z0-9]+", "-", text)
-    return text.strip("-")
+def _get_graph():
+    global _GRAPH
+    if _GRAPH is None:
+        _GRAPH = build_validator_graph()
+    return _GRAPH
 
 
-def _preview(value) -> str:
-    """Summary of a step's output, for the streaming runner below."""
-    if hasattr(value, "queries"):  # SearchQueries
-        return "".join(
-            f"\n      {q.query_type}: {_readable_clause(q.concepts)}" for q in value.queries
-        )
-    if hasattr(value, "status") and hasattr(value, "confidence"):  # Verdict
-        return f"{value.status} (confidence {value.confidence:.2f}, {len(value.assessments)} papers)"
-    if isinstance(value, list) and value and isinstance(value[0], list):  # search_results
-        return " / ".join(f"{len(sub)} papers" for sub in value)
-    if isinstance(value, list) and value and hasattr(value[0], "relevance_to_gap"):  # assessments
-        return f"{len(value)}: " + ", ".join(a.relevance_to_gap for a in value)
-    if isinstance(value, list) and value and isinstance(value[0], str):  # skipped_ids
-        return ", ".join(value)
-    if isinstance(value, list):  # candidates / shortlist
-        return f"{len(value)} items"
-    return repr(value)[:80]
+def _load_gap(category_slug: str, gap_id: str) -> GapRecord:
+    """Load a gap awaiting validation from gaps/to_validate/<gap_id>.json."""
+    raw = storage.read_gap_json(category_slug, gap_id, "to_validate")
+    if raw is None:
+        inbox = storage.gap_stage_dir(category_slug, "to_validate")
+        raise FileNotFoundError(f"Gap '{gap_id}' not found in {inbox}")
+    return GapRecord.model_validate(raw)
+
+
+def run(category_slug: str, gap_id: str, *, stream: bool = True,
+        echo: bool | None = None) -> dict | None:
+    """Validate one gap: search prior art published after its cutoff and judge
+    whether it has since been addressed. Attaches the resulting Verdict to the
+    gap, moves it from gaps/to_validate/ to gaps/master/, and returns the updated
+    gap record (with ``.verdict``). Standalone-callable.
+
+    By default streams the graph through a GraphRunLog, writing the standard
+    per-run ``.jsonl`` to ``workspace/<cat>/logs/validator_agent/`` and echoing
+    progress to the terminal on a TTY. Pass ``stream=False`` for a quiet,
+    log-free ``.invoke()``.
+    """
+    graph = _get_graph()
+    inputs = {"gap": _load_gap(category_slug, gap_id), "category_slug": category_slug}
+
+    if not stream:
+        graph.invoke(inputs)
+        return storage.read_gap_json(category_slug, gap_id, "master")
+
+    if echo is None:
+        echo = sys.stderr.isatty()
+    rl = GraphRunLog("validator_agent", workspace=category_slug, run_hint=gap_id)
+    rl.run(graph, inputs, echo=echo)
+    if rl.error:
+        raise RuntimeError(rl.error)
+    return storage.read_gap_json(category_slug, gap_id, "master")
 
 
 if __name__ == "__main__":
-    import time
-    from datetime import datetime, timezone
+    import json
 
-    from src.common.schemas.gap import Gap
-
-    # Optional CLI arg: a test_gaps filename (with or without .json). Defaults to CoT.
-    gap_name = sys.argv[1] if len(sys.argv) > 1 else "cot_reasoning"
-    gap_path = Path(__file__).parent / "test_gaps" / f"{gap_name.removesuffix('.json')}.json"
-    gap = Gap.model_validate_json(gap_path.read_text(encoding="utf-8"))
-
-    base_name = f"{gap_path.stem}-{_slugify(gap.title)[:20]}"
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-    run_dir = Path("src/agents/validator_agent/test_runs") / f"{base_name}-{timestamp}"
-    run_dir.mkdir(parents=True, exist_ok=True)
-
-    graph = build_validator_graph()
-    print(f"GAP: {gap.title}\n")
-    print(f"TRACE_DIR: {run_dir}\n")
-
-    step_counter = 0
-    last = time.perf_counter()
-    for chunk in graph.stream({"gap": gap}, stream_mode="updates"):
-        for node, update in chunk.items():
-            step_counter += 1
-            (run_dir / f"step_{step_counter:02d}_{node}.json").write_text(
-                json.dumps({"node": node, "state_update": to_jsonable_python(update)}, indent=2),
-                encoding="utf-8",
-            )
-
-            now = time.perf_counter()
-            for key, value in update.items():
-                print(f"[{node}]  {now - last:.1f}s  {key}: {_preview(value)}")
-            last = now
-
-    verdict_path = run_dir / f"step_{step_counter:02d}_verdict.json"
-    if verdict_path.exists():
-        v = json.loads(verdict_path.read_text(encoding="utf-8"))["state_update"]["verdict"]
-        print(f"\nVERDICT: {v['status']} (confidence {v['confidence']:.2f})")
-        print(f"REASONING: {v['reasoning']}")
+    # CLI args: <gap_id> [category_slug]. Loads the gap from gaps/to_validate/ and
+    # validates it; the gap (verdict attached) lands in gaps/master/<gap_id>.json
+    # and a run log in logs/validator_agent/<run>.jsonl.
+    gap_id = sys.argv[1] if len(sys.argv) > 1 else "gap_9f0f24c1"
+    category = sys.argv[2] if len(sys.argv) > 2 else "test"
+    record = run(category, gap_id)
+    print(json.dumps(record, indent=2, ensure_ascii=False))

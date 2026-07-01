@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>novadraft dev</title>
+<style>
+  :root { --bd: #ddd; --bg: #fafafa; --mono: ui-monospace, Menlo, monospace; --muted:#666; }
+  * { box-sizing: border-box; }
+  body { font: 14px/1.5 system-ui, sans-serif; margin: 0; color: #222; }
+  header { padding: 12px 20px; border-bottom: 1px solid var(--bd); display: flex; align-items: center; gap: 16px; }
+  header h1 { font-size: 16px; margin: 0; }
+  main { display: grid; grid-template-columns: 360px 1fr; height: calc(100vh - 49px); }
+  aside, section { padding: 16px; overflow: auto; }
+  aside { border-right: 1px solid var(--bd); }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0 0 8px; }
+  h3 { font-size: 13px; margin: 0 0 6px; }
+  label { display: block; font-size: 12px; color: #555; margin: 10px 0 4px; font-family: var(--mono); }
+  label .req { color: #b00; }
+  label .opt { color: #999; font-weight: normal; }
+  select, button, input, textarea { font: inherit; padding: 6px 8px; border: 1px solid var(--bd); border-radius: 4px; background: white; }
+  input, textarea { width: 100%; }
+  textarea { font-family: var(--mono); font-size: 12px; resize: vertical; min-height: 70px; }
+  button { cursor: pointer; }
+  button.primary { background: #0a66c2; color: white; border-color: #0a66c2; }
+  button.primary:disabled { opacity: .5; cursor: wait; }
+  button.small { padding: 3px 8px; font-size: 12px; }
+  pre { background: var(--bg); padding: 10px; border-radius: 4px; white-space: pre-wrap; word-break: break-word; font-family: var(--mono); font-size: 12px; margin: 0; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .runs li { font-family: var(--mono); font-size: 11px; padding: 4px 6px; border-radius: 3px; cursor: pointer; list-style: none; }
+  .runs li:hover { background: var(--bg); }
+  .runs { padding: 0; margin: 0; }
+  .meta { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .err { color: #b00; }
+  .panel { margin-bottom: 18px; }
+  .panel h2 { display:flex; justify-content:space-between; align-items:center; }
+  .list-item { display:flex; gap:6px; align-items:flex-start; margin-bottom:6px; }
+  .list-item textarea { flex: 1; }
+  .visual { background: white; border: 1px solid var(--bd); border-radius: 4px; padding: 12px; }
+  .visual h3 { color: var(--muted); font-weight: 600; }
+  .visual .item { border-bottom: 1px dashed var(--bd); padding: 8px 0; }
+  .visual .item:last-child { border-bottom: 0; }
+  .badge { display:inline-block; font-size:11px; padding:1px 6px; border-radius:8px; background:#eef; color:#226; margin-left:6px; }
+  .badge.err { background:#fee; color:#b00; }
+</style>
+</head>
+<body>
+<header>
+  <h1>novadraft · dev harness</h1>
+  <span class="meta" id="status">ready</span>
+</header>
+<main>
+  <aside>
+    <h2>Target</h2>
+    <div class="row">
+      <select id="kind" style="flex:1">
+        <option value="agent">agent</option>
+        <option value="flow">flow</option>
+      </select>
+      <select id="name" style="flex:2"></select>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <h2>Inputs <span id="schema-tag" class="meta"></span></h2>
+      <div id="form"></div>
+    </div>
+
+    <button id="run" class="primary">▶ Run</button>
+
+    <h2 style="margin-top:24px">Past runs</h2>
+    <ul id="runs" class="runs"></ul>
+  </aside>
+
+  <section>
+    <div class="panel">
+      <h2>Visual output <span id="vis-badge"></span></h2>
+      <div id="visual" class="visual">—</div>
+      <div class="meta" id="output-meta"></div>
+    </div>
+
+    <div class="panel">
+      <h2>JSON input</h2>
+      <pre id="json-input">—</pre>
+    </div>
+
+    <div class="panel">
+      <h2>JSON output (raw record)</h2>
+      <pre id="json-output">—</pre>
+    </div>
+  </section>
+</main>
+
+<script>
+let CATALOG = { agents: [], flows: [], schemas: { agent: {}, flow: {} } };
+
+const $ = id => document.getElementById(id);
+const el = (tag, attrs={}, ...kids) => {
+  const e = document.createElement(tag);
+  for (const [k,v] of Object.entries(attrs)) {
+    if (k === "class") e.className = v;
+    else if (k.startsWith("on")) e[k] = v;
+    else e.setAttribute(k, v);
+  }
+  for (const k of kids) e.append(k?.nodeType ? k : document.createTextNode(k));
+  return e;
+};
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+function currentSchema() {
+  const kind = $("kind").value, name = $("name").value;
+  return CATALOG.schemas?.[kind]?.[name] || [];
+}
+
+function refreshNameOptions() {
+  const kind = $("kind").value;
+  const opts = kind === "agent" ? CATALOG.agents : CATALOG.flows;
+  $("name").innerHTML = opts.map(n => `<option>${n}</option>`).join("");
+  renderForm();
+}
+
+function renderForm() {
+  const schema = currentSchema();
+  const form = $("form");
+  form.innerHTML = "";
+  $("schema-tag").textContent = schema.length ? `· ${schema.length} field${schema.length>1?"s":""}` : "· no schema";
+  if (!schema.length) {
+    form.append(el("div", { class: "meta" }, "No schema defined. Add one in registry.SCHEMAS."));
+    return;
+  }
+  for (const field of schema) {
+    const label = el("label", {},
+      field.name,
+      el("span", { class: field.required ? "req" : "opt" }, field.required ? " *" : " (optional)")
+    );
+    form.append(label);
+    if (field.type === "textarea") {
+      form.append(el("textarea", { "data-name": field.name, placeholder: field.placeholder || "" }));
+    } else if (field.type === "text") {
+      form.append(el("input", { type: "text", "data-name": field.name, placeholder: field.placeholder || "" }));
+    } else if (field.type === "list[textarea]") {
+      const wrap = el("div", { "data-list": field.name });
+      const addBtn = el("button", { class: "small", type: "button", onclick: () => addListItem(wrap) }, "+ add item");
+      wrap.append(addBtn);
+      form.append(wrap);
+      addListItem(wrap);
+    }
+  }
+}
+
+function addListItem(wrap) {
+  const item = el("div", { class: "list-item" });
+  const ta = el("textarea", {});
+  const rm = el("button", { class: "small", type: "button", onclick: () => item.remove() }, "×");
+  item.append(ta, rm);
+  wrap.insertBefore(item, wrap.querySelector("button"));
+}
+
+function readForm() {
+  const inputs = {};
+  for (const field of currentSchema()) {
+    if (field.type === "list[textarea]") {
+      const wrap = document.querySelector(`[data-list="${field.name}"]`);
+      const vals = [...wrap.querySelectorAll("textarea")].map(t => t.value).filter(v => v.trim());
+      if (vals.length) inputs[field.name] = vals;
+    } else {
+      const node = document.querySelector(`[data-name="${field.name}"]`);
+      const v = node.value.trim();
+      if (v) inputs[field.name] = v;
+    }
+  }
+  return inputs;
+}
+
+function applyInputs(inputs) {
+  for (const field of currentSchema()) {
+    const v = inputs[field.name];
+    if (v === undefined) continue;
+    if (field.type === "list[textarea]") {
+      const wrap = document.querySelector(`[data-list="${field.name}"]`);
+      wrap.querySelectorAll(".list-item").forEach(n => n.remove());
+      for (const s of (Array.isArray(v) ? v : [v])) {
+        addListItem(wrap);
+        const tas = wrap.querySelectorAll("textarea");
+        tas[tas.length - 1].value = s;
+      }
+    } else {
+      const node = document.querySelector(`[data-name="${field.name}"]`);
+      if (node) node.value = v;
+    }
+  }
+}
+
+async function refreshRuns() {
+  const { runs } = await api("/api/runs");
+  $("runs").innerHTML = runs.slice(0, 50).map(r => `<li data-name="${r}">${r}</li>`).join("");
+  for (const li of $("runs").children) {
+    li.onclick = () => loadRun(li.dataset.name);
+  }
+}
+
+async function loadRun(name) {
+  const rec = await api("/api/runs/" + encodeURIComponent(name));
+  // align kind+name with the loaded run so the form matches
+  if (rec.kind && rec.name) {
+    $("kind").value = rec.kind;
+    refreshNameOptions();
+    if ([...$("name").options].some(o => o.value === rec.name)) {
+      $("name").value = rec.name;
+      renderForm();
+    }
+  }
+  applyInputs(rec.inputs || {});
+  render(rec);
+  $("status").textContent = "viewing " + name;
+}
+
+function renderVisual(rec) {
+  const v = $("visual");
+  v.innerHTML = "";
+  if (rec.error) {
+    v.append(el("pre", { class: "err" }, rec.error));
+    return;
+  }
+  const out = rec.output;
+  if (out == null) { v.textContent = "—"; return; }
+  if (typeof out === "string") {
+    v.append(el("div", {}, out));
+    return;
+  }
+  // object → render each key as a section
+  for (const [k, val] of Object.entries(out)) {
+    const section = el("div", { class: "item" }, el("h3", {}, k));
+    if (Array.isArray(val)) {
+      val.forEach((s, i) => section.append(el("div", { class: "meta" }, `[${i}]`), el("div", {}, String(s))));
+    } else {
+      section.append(el("div", {}, typeof val === "string" ? val : JSON.stringify(val, null, 2)));
+    }
+    v.append(section);
+  }
+}
+
+function render(rec) {
+  renderVisual(rec);
+  $("json-input").textContent = JSON.stringify(rec.inputs ?? {}, null, 2);
+  $("json-output").textContent = JSON.stringify(rec, null, 2);
+  $("output-meta").textContent =
+    `${rec.kind}:${rec.name} · ${rec.duration_s}s · ${rec.timestamp}`;
+  $("vis-badge").innerHTML = rec.error
+    ? '<span class="badge err">error</span>'
+    : '<span class="badge">ok</span>';
+}
+
+async function init() {
+  CATALOG = await api("/api/list");
+  refreshNameOptions();
+  await refreshRuns();
+}
+
+$("kind").onchange = refreshNameOptions;
+$("name").onchange = renderForm;
+
+$("run").onclick = async () => {
+  const btn = $("run");
+  btn.disabled = true;
+  $("status").textContent = "running…";
+  try {
+    const inputs = readForm();
+    // client-side required check
+    const missing = currentSchema().filter(f => f.required && (inputs[f.name] === undefined)).map(f => f.name);
+    if (missing.length) throw new Error("missing required: " + missing.join(", "));
+    const rec = await api("/api/run", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind: $("kind").value, name: $("name").value, inputs }),
+    });
+    render(rec);
+    await refreshRuns();
+    $("status").textContent = rec.error ? "error" : "done";
+  } catch (e) {
+    $("visual").innerHTML = "";
+    $("visual").append(el("pre", { class: "err" }, String(e)));
+    $("vis-badge").innerHTML = '<span class="badge err">error</span>';
+    $("status").textContent = "error";
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+init();
+</script>
+</body>
+</html>

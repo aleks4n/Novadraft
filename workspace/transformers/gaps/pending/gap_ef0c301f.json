@@ -1,0 +1,20 @@
+{
+  "gap_id": "gap_ef0c301f",
+  "status": "unchecked",
+  "title": "Extension to semi-supervised learning",
+  "description": "Features from the discriminator or inference network could improve classifier performance when limited labeled data is available.",
+  "type": "future_work",
+  "canonical_description": "adversarial framework can be extended to semi-supervised learning using discriminator or inference network features",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1406.2661",
+      "section": "conclusions_and_future_work",
+      "quote": "{ Semi-supervised learning}: features from the discriminator or inference net could improve performance of classifiers when limited labeled data is available.",
+      "char_offset": [
+        932,
+        1090
+      ]
+    }
+  ],
+  "extracted_at": "2026-06-22T13:16:03Z"
+}

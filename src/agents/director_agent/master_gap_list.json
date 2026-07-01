@@ -1,0 +1,589 @@
+[
+  {
+    "gap_id": "gap_c2826a9c",
+    "status": "unchecked",
+    "title": "Vanishing and exploding gradients in recurrent networks",
+    "description": "Training recurrent neural networks is problematic because backpropagated gradients either grow or shrink at each time step, causing them to explode or vanish over many time steps, making it difficult to learn long-term dependencies.",
+    "type": "limitation",
+    "canonical_description": "recurrent neural networks difficult to train due to vanishing or exploding gradients hindering long-term dependency learning",
+    "evidence": [
+      {
+        "paper_id": "doi_10_1038_nature14539",
+        "section": "recurrent_neural_networks",
+        "anchor": "backpropagated gradients either grow or shrink at each time step",
+        "quote": "RNNs are very powerful dynamic systems, but training them has proved to be problematic because the backpropagated gradients either grow or shrink at each time step, so over many time steps they typically explode or vanish<sup>77,78</sup>.",
+        "char_offset": [
+          673,
+          911
+        ],
+        "grounding_status": "matched",
+        "ambiguous_offsets": null
+      }
+    ],
+    "extracted_at": "2026-06-26T23:32:37Z"
+  },
+  {
+    "gap_id": "gap_d8b18ebb",
+    "status": "unchecked",
+    "title": "Unsupervised learning overshadowed by supervised learning",
+    "description": "Unsupervised learning has been overshadowed by the successes of purely supervised learning, yet is expected to become far more important. Human and animal learning is largely unsupervised, discovering structure by observation rather than being told labels.",
+    "type": "future_work",
+    "canonical_description": "unsupervised learning underdeveloped relative to supervised learning and needs further progress",
+    "evidence": [
+      {
+        "paper_id": "doi_10_1038_nature14539",
+        "section": "the_future_of_deep_learning",
+        "anchor": "unsupervised learning to become far more important",
+        "quote": "Although we have not focused on it in this Review, we expect unsupervised learning to become far more important in the longer term.",
+        "char_offset": [
+          181,
+          312
+        ],
+        "grounding_status": "matched",
+        "ambiguous_offsets": null
+      }
+    ],
+    "extracted_at": "2026-06-26T23:32:37Z"
+  },
+  {
+    "gap_id": "gap_bd5c305e",
+    "status": "unchecked",
+    "title": "Deep reinforcement learning still in early stages",
+    "description": "Systems combining deep learning with reinforcement learning are in their infancy, though they already show promising results on vision tasks and game playing.",
+    "type": "future_work",
+    "canonical_description": "combination of deep learning and reinforcement learning underdeveloped",
+    "evidence": [
+      {
+        "paper_id": "doi_10_1038_nature14539",
+        "section": "the_future_of_deep_learning",
+        "anchor": "deep learning and reinforcement learning are in their infancy",
+        "quote": "Systems combining deep learning and reinforcement learning are in their infancy, but they already outperform passive vision systems <sup>99</sup> at classification tasks and produce impressive results in learning to play many different video games <sup>100</sup>.",
+        "char_offset": [
+          839,
+          1102
+        ],
+        "grounding_status": "matched",
+        "ambiguous_offsets": null
+      }
+    ],
+    "extracted_at": "2026-06-26T23:32:37Z"
+  },
+  {
+    "gap_id": "gap_63be9e6b",
+    "status": "unchecked",
+    "title": "Need for integration of representation learning with complex reasoning",
+    "description": "Major progress in artificial intelligence requires systems that combine representation learning with complex reasoning. New paradigms are needed to replace rule-based manipulation of symbolic expressions with operations on large vectors.",
+    "type": "open_problem",
+    "canonical_description": "representation learning needs integration with complex reasoning and symbolic manipulation",
+    "evidence": [
+      {
+        "paper_id": "doi_10_1038_nature14539",
+        "section": "the_future_of_deep_learning",
+        "anchor": "new paradigms are needed to replace rule-based manipulation",
+        "quote": "Although deep learning and simple reasoning have been used for speech and handwriting recognition for a long time, new paradigms are needed to replace rule-based manipulation of symbolic expressions by operations on large vectors <sup>101</sup>.",
+        "char_offset": [
+          1572,
+          1817
+        ],
+        "grounding_status": "matched",
+        "ambiguous_offsets": null
+      }
+    ],
+    "extracted_at": "2026-06-26T23:32:37Z"
+  },
+  {
+    "gap_id": "gap_81efeb88",
+    "status": "unchecked",
+    "title": "RNNs require attention mechanisms for better language understanding",
+    "description": "Systems that use RNNs to understand sentences or whole documents are expected to become much better when they learn strategies for selectively attending to one part at a time.",
+    "type": "future_work",
+    "canonical_description": "recurrent networks need selective attention mechanisms for improved text understanding",
+    "evidence": [
+      {
+        "paper_id": "doi_10_1038_nature14539",
+        "section": "the_future_of_deep_learning",
+        "anchor": "selectively attending to one part at a time",
+        "quote": "We expect systems that use RNNs to understand sentences or whole documents will become much better when they learn strategies for selectively attending to one part at a time <sup>76,86</sup>.",
+        "char_offset": [
+          1232,
+          1423
+        ],
+        "grounding_status": "matched",
+        "ambiguous_offsets": null
+      }
+    ],
+    "extracted_at": "2026-06-26T23:32:37Z"
+  },
+  {
+    "gap_id": "gap_e1cf84e9",
+    "status": "unchecked",
+    "title": "Limited evaluation on diverse tasks",
+    "description": "The Transformer is evaluated only on machine translation (two language pairs) and English constituency parsing. The authors state they plan to apply the model to other tasks in future work, acknowledging the limited task scope.",
+    "type": "future_work",
+    "canonical_description": "model evaluated on a limited set of tasks beyond translation and parsing",
+    "evidence": [
+      {
+        "paper_id": "arxiv_1706.03762",
+        "section": "conclusion",
+        "anchor": "plan to apply them to other tasks",
+        "quote": "We are excited about the future of attention-based models and plan to apply them to other tasks.",
+        "char_offset": [
+          575,
+          671
+        ],
+        "grounding_status": "matched",
+        "ambiguous_offsets": null
+      }
+    ],
+    "extracted_at": "2026-06-26T21:37:09Z"
+  },
+  {
+    "gap_id": "gap_566268ca",
+    "status": "unchecked",
+    "title": "Extension to non-text modalities",
+    "description": "The Transformer is only applied to text input and output. The authors explicitly plan to extend the model to problems involving other modalities such as images, audio, and video.",
+    "type": "future_work",
+    "canonical_description": "model only applied to text modality, needs extension to other modalities",
+    "evidence": [
+      {
+        "paper_id": "arxiv_1706.03762",
+        "section": "conclusion",
+        "anchor": "problems involving input and output modalities other than text",
+        "quote": "We plan to extend the Transformer to problems involving input and output modalities other than text and to investigate local, restricted attention mechanisms to efficiently handle large inputs and outputs such as images, audio and video.",
+        "char_offset": [
+          672,
+          909
+        ],
+        "grounding_status": "matched",
+        "ambiguous_offsets": null
+      }
+    ],
+    "extracted_at": "2026-06-26T21:37:09Z"
+  },
+  {
+    "gap_id": "gap_3bfdb535",
+    "status": "unchecked",
+    "title": "Local restricted attention for long sequences",
+    "description": "Full self-attention computes over all positions, which is computationally expensive for very long sequences. The authors propose restricting attention to a local neighborhood and state this as future work.",
+    "type": "future_work",
+    "canonical_description": "full self-attention expensive for long sequences, needs restricted local attention",
+    "evidence": [
+      {
+        "paper_id": "arxiv_1706.03762",
+        "section": "why_self_attention",
+        "anchor": "We plan to investigate this approach further in future work",
+        "quote": "We plan to investigate this approach further in future work.",
+        "char_offset": [
+          2192,
+          2252
+        ],
+        "grounding_status": "matched",
+        "ambiguous_offsets": null
+      }
+    ],
+    "extracted_at": "2026-06-26T21:37:09Z"
+  },
+  {
+    "gap_id": "gap_d830f1c6",
+    "status": "unchecked",
+    "title": "Non-autoregressive generation",
+    "description": "The Transformer generates output tokens sequentially in an autoregressive manner. The authors state that making generation less sequential is a research goal for future work.",
+    "type": "future_work",
+    "canonical_description": "autoregressive generation limits parallelism, non-autoregressive decoding needed",
+    "evidence": [
+      {
+        "paper_id": "arxiv_1706.03762",
+        "section": "conclusion",
+        "anchor": "Making generation less sequential is another research goals",
+        "quote": "Making generation less sequential is another research goals of ours.",
+        "char_offset": [
+          910,
+          978
+        ],
+        "grounding_status": "matched",
+        "ambiguous_offsets": null
+      }
+    ],
+    "extracted_at": "2026-06-26T21:37:09Z"
+  },
+  {
+    "gap_id": "gap_9f0f24c1",
+    "status": "unchecked",
+    "title": "Untested extrapolation of sinusoidal positional encodings",
+    "description": "The sinusoidal positional encoding is chosen because it may allow extrapolation to sequence lengths longer than those seen during training, but this capability is hypothesized and not empirically tested in the paper.",
+    "type": "caveat",
+    "canonical_description": "extrapolation of sinusoidal positional encodings to unseen sequence lengths is hypothesized but untested",
+    "evidence": [
+      {
+        "paper_id": "arxiv_1706.03762",
+        "section": "method",
+        "anchor": "it may allow the model to extrapolate to sequence lengths longer than the ones encountered during training",
+        "quote": "We chose the sinusoidal version because it may allow the model to extrapolate to sequence lengths longer than the ones encountered during training.",
+        "char_offset": [
+          10429,
+          10576
+        ],
+        "grounding_status": "matched",
+        "ambiguous_offsets": null
+      },
+      {
+        "paper_id": "arxiv_1706.03762",
+        "section": "method",
+        "anchor": "we hypothesized it would allow the model to easily learn to attend by relative positions",
+        "quote": "We chose this function because we hypothesized it would allow the model to easily learn to attend by relative positions, since for any fixed offset $k$, $PE_{pos+k}$ can be represented as a linear function of $PE_{pos}$.",
+        "char_offset": [
+          10003,
+          10223
+        ],
+        "grounding_status": "matched",
+        "ambiguous_offsets": null
+      }
+    ],
+    "extracted_at": "2026-06-26T21:37:09Z"
+  },
+  {
+    "gap_id": "gap_197e10e2",
+    "status": "unchecked",
+    "title": "Independence assumption for query and key components",
+    "description": "To motivate the scaling factor in dot-product attention, the authors assume the components of queries and keys are independent random variables with mean 0 and variance 1, which is a simplifying assumption about the learned representations.",
+    "type": "assumption",
+    "canonical_description": "query and key components assumed independent with zero mean and unit variance to justify attention scaling",
+    "evidence": [
+      {
+        "paper_id": "arxiv_1706.03762",
+        "section": "method",
+        "anchor": "assume that the components of $q$ and $k$ are independent random variables with mean $0$ and variance $1$",
+        "quote": "We suspect that for large values of $d_k$, the dot products grow large in magnitude, pushing the softmax function into regions where it has extremely small gradients  \\footnote{To illustrate why the dot products get large, assume that the components of $q$ and $k$ are independent random variables with mean $0$ and variance $1$.",
+        "char_offset": [
+          4204,
+          4533
+        ],
+        "grounding_status": "matched",
+        "ambiguous_offsets": null
+      }
+    ],
+    "extracted_at": "2026-06-26T21:37:09Z"
+  },
+  {
+    "gap_id": "gap_3620dca7",
+    "status": "unchecked",
+    "title": "Reduced effective resolution from averaging attention weights",
+    "description": "Self-attention averages attention-weighted positions, which reduces effective resolution. The paper acknowledges this as a cost of using attention and counteracts it with multi-head attention.",
+    "type": "limitation",
+    "canonical_description": "attention averaging reduces effective resolution of representations",
+    "evidence": [
+      {
+        "paper_id": "arxiv_1706.03762",
+        "section": "background",
+        "anchor": "cost of reduced effective resolution due to averaging attention-weighted positions",
+        "quote": "In the Transformer this is reduced to a constant number of operations, albeit at the cost of reduced effective resolution due to averaging attention-weighted positions, an effect we counteract with Multi-Head Attention as described in section~[REF:sec:attention].",
+        "char_offset": [
+          655,
+          918
+        ],
+        "grounding_status": "matched",
+        "ambiguous_offsets": null
+      }
+    ],
+    "extracted_at": "2026-06-26T21:37:09Z"
+  },
+  {
+    "gap_id": "gap_0ab2722e",
+    "status": "unchecked",
+    "title": "Need for more sophisticated compatibility function",
+    "description": "Reducing attention key size hurts model quality, which the authors interpret as evidence that determining compatibility is not easy and that a more sophisticated compatibility function than dot-product may be beneficial.",
+    "type": "open_problem",
+    "canonical_description": "dot-product compatibility function may be insufficient, more sophisticated function needed",
+    "evidence": [
+      {
+        "paper_id": "arxiv_1706.03762",
+        "section": "results",
+        "anchor": "a more sophisticated compatibility function than dot product may be beneficial",
+        "quote": "This suggests that determining compatibility is not easy and that a more sophisticated compatibility function than dot product may be beneficial.",
+        "char_offset": [
+          2819,
+          2964
+        ],
+        "grounding_status": "matched",
+        "ambiguous_offsets": null
+      }
+    ],
+    "extracted_at": "2026-06-26T21:37:09Z"
+  },
+  {
+    "gap_id": "gap_0473adc2",
+    "status": "unchecked",
+    "title": "Minimal task-specific tuning for constituency parsing",
+    "description": "When applying the Transformer to English constituency parsing, the authors performed only a small number of experiments to select dropout rates, learning rate, and beam size; all other parameters remained unchanged from the English-to-German base translation model. This limited hyperparameter search means the reported parsing results may not reflect the model's full potential on that task.",
+    "type": "caveat",
+    "canonical_description": "limited hyperparameter tuning when applying model to new task beyond original training setup",
+    "evidence": [
+      {
+        "paper_id": "arxiv_1706.03762",
+        "section": "results",
+        "anchor": "performed only a small number of experiments to select",
+        "quote": "We performed only a small number of experiments to select the dropout, both attention and residual (section~[REF:sec:reg]), learning rates and beam size on the Section 22 development set, all other parameters remained unchanged from the English-to-German base translation model.",
+        "char_offset": [
+          4213,
+          4491
+        ],
+        "grounding_status": "matched",
+        "ambiguous_offsets": null
+      }
+    ],
+    "extracted_at": "2026-06-26T21:37:09Z"
+  },
+  {
+    "gap_id": "gap_9c2ca9f7",
+    "status": "unchecked",
+    "title": "Limited image-specific inductive bias compared to CNNs",
+    "description": "Vision Transformer has much less image-specific inductive bias than CNNs. It lacks built-in translation equivariance, locality, and two-dimensional neighborhood structure. Only MLP layers are local and translationally equivariant, while self-attention layers are global. As a result, ViT does not generalize well when trained on insufficient amounts of data.",
+    "type": "limitation",
+    "canonical_description": "transformer lacks image-specific inductive biases like locality and translation equivariance",
+    "evidence": [
+      {
+        "paper_id": "arxiv_2010.11929",
+        "section": "method",
+        "anchor": "much less image-specific inductive bias than CNNs",
+        "quote": "We note that Vision Transformer has much less image-specific inductive bias than CNNs.",
+        "char_offset": [
+          3419,
+          3505
+        ],
+        "grounding_status": "matched",
+        "ambiguous_offsets": null
+      }
+    ],
+    "extracted_at": "2026-06-26T21:50:37Z"
+  },
+  {
+    "gap_id": "gap_7fc76f8e",
+    "status": "unchecked",
+    "title": "Modest accuracy on mid-sized datasets without strong regularization",
+    "description": "When trained on mid-sized datasets such as ImageNet without strong regularization, ViT models yield modest accuracies a few percentage points below ResNets of comparable size.",
+    "type": "negative_result",
+    "canonical_description": "lower accuracy than CNNs on mid-sized datasets without strong regularization",
+    "evidence": [
+      {
+        "paper_id": "arxiv_2010.11929",
+        "section": "introduction",
+        "anchor": "modest accuracies of a few percentage points below ResNets of comparable size",
+        "quote": "When trained on mid-sized datasets such as \\imagenet without strong regularization, these models yield modest accuracies of a few percentage points below ResNets of comparable size.",
+        "char_offset": [
+          1774,
+          1955
+        ],
+        "grounding_status": "matched",
+        "ambiguous_offsets": null
+      }
+    ],
+    "extracted_at": "2026-06-26T21:50:37Z"
+  },
+  {
+    "gap_id": "gap_e3394981",
+    "status": "unchecked",
+    "title": "Position embeddings initialized without 2D spatial information",
+    "description": "The position embeddings at initialization carry no information about the 2D positions of the patches, and all spatial relations between patches must be learned from scratch during training.",
+    "type": "limitation",
+    "canonical_description": "position embeddings initialized without 2D spatial information must be learned from scratch",
+    "evidence": [
+      {
+        "paper_id": "arxiv_2010.11929",
+        "section": "method",
+        "anchor": "position embeddings at initialization time carry no information about the 2D positions",
+        "quote": "Other than that, the position embeddings at initialization time carry no information about the 2D positions of the patches and all spatial relations between the patches have to be learned from scratch.",
+        "char_offset": [
+          4012,
+          4213
+        ],
+        "grounding_status": "matched",
+        "ambiguous_offsets": null
+      }
+    ],
+    "extracted_at": "2026-06-26T21:50:37Z"
+  },
+  {
+    "gap_id": "gap_20279bf9",
+    "status": "unchecked",
+    "title": "Evaluation limited to image classification",
+    "description": "The paper only evaluates ViT on image classification tasks. Applying ViT to other computer vision tasks such as detection and segmentation remains as future work.",
+    "type": "future_work",
+    "canonical_description": "evaluation limited to image classification; detection and segmentation not explored",
+    "evidence": [
+      {
+        "paper_id": "arxiv_2010.11929",
+        "section": "conclusion",
+        "anchor": "such as detection and segmentation",
+        "quote": "One is to apply \\oursabbrv to other computer vision tasks, such as detection and segmentation.",
+        "char_offset": [
+          698,
+          792
+        ],
+        "grounding_status": "matched",
+        "ambiguous_offsets": null
+      }
+    ],
+    "extracted_at": "2026-06-26T21:50:37Z"
+  },
+  {
+    "gap_id": "gap_0fb2de7c",
+    "status": "unchecked",
+    "title": "Large gap between self-supervised and supervised pre-training",
+    "description": "Initial self-supervised pre-training experiments on masked patch prediction show improvement over training from scratch, but a large gap remains compared to large-scale supervised pre-training.",
+    "type": "negative_result",
+    "canonical_description": "self-supervised pre-training still lags behind supervised pre-training by a large margin",
+    "evidence": [
+      {
+        "paper_id": "arxiv_2010.11929",
+        "section": "experiments",
+        "anchor": "but still 4\\% behind supervised pre-training",
+        "quote": "With self-supervised pre-training, our smaller \\oursabbrv-B/16 model achieves 79.9\\% accuracy on \\imagenet{}, a significant improvement of 2\\% to training from scratch, but still 4\\% behind supervised pre-training.",
+        "char_offset": [
+          15719,
+          15933
+        ],
+        "grounding_status": "matched",
+        "ambiguous_offsets": null
+      }
+    ],
+    "extracted_at": "2026-06-26T21:50:37Z"
+  },
+  {
+    "gap_id": "gap_065ebd57",
+    "status": "unchecked",
+    "title": "Further scaling of ViT likely to improve performance",
+    "description": "ViT models appear not to saturate within the range tried, suggesting that further scaling would likely lead to improved performance.",
+    "type": "future_work",
+    "canonical_description": "further scaling of transformer model expected to improve performance",
+    "evidence": [
+      {
+        "paper_id": "arxiv_2010.11929",
+        "section": "experiments",
+        "anchor": "appear not to saturate within the range tried",
+        "quote": "Third, \\oursfull{}s appear not to saturate within the range tried, motivating future scaling efforts.",
+        "char_offset": [
+          12105,
+          12206
+        ],
+        "grounding_status": "matched",
+        "ambiguous_offsets": null
+      }
+    ],
+    "extracted_at": "2026-06-26T21:50:37Z"
+  },
+  {
+    "gap_id": "gap_25876839",
+    "status": "unchecked",
+    "title": "ViT overfits more than ResNets on smaller datasets",
+    "description": "Vision Transformers overfit more than ResNets with comparable computational cost when trained on smaller datasets, reinforcing that the convolutional inductive bias is useful for smaller datasets while learning from data becomes sufficient for larger ones.",
+    "type": "negative_result",
+    "canonical_description": "transformer overfits more than CNN on smaller datasets",
+    "evidence": [
+      {
+        "paper_id": "arxiv_2010.11929",
+        "section": "experiments",
+        "anchor": "overfit more than ResNets with comparable computational cost on smaller datasets",
+        "quote": "\\oursfull{}s overfit more than ResNets with comparable computational cost on smaller datasets.",
+        "char_offset": [
+          9424,
+          9518
+        ],
+        "grounding_status": "matched",
+        "ambiguous_offsets": null
+      }
+    ],
+    "extracted_at": "2026-06-26T21:50:37Z"
+  },
+  {
+    "gap_id": "gap_50e59d1e",
+    "status": "unchecked",
+    "title": "AxialResNet implementation slow on TPU hardware",
+    "description": "The authors' implementation of AxialResNet, similar to the open-source implementation, is very slow on TPUs, preventing extensive large-scale experiments with this baseline.",
+    "type": "caveat",
+    "canonical_description": "axial attention implementation slow on specialized hardware accelerators",
+    "evidence": [
+      {
+        "paper_id": "arxiv_2010.11929",
+        "section": "additional_analyses",
+        "anchor": "very slow on TPUs",
+        "quote": "In our experiments, we reproduced the scores reported in~[CITE:wang2020axial] in terms of accuracy, however, our implementation, similar to the open-source implementation, is very slow on TPUs.",
+        "char_offset": [
+          9133,
+          9326
+        ],
+        "grounding_status": "matched",
+        "ambiguous_offsets": null
+      }
+    ],
+    "extracted_at": "2026-06-26T21:50:37Z"
+  },
+  {
+    "gap_id": "gap_54e89d16",
+    "status": "unchecked",
+    "title": "Contrastive pre-training not explored",
+    "description": "The authors leave exploration of contrastive pre-training methods to future work, noting that only masked patch prediction was studied.",
+    "type": "future_work",
+    "canonical_description": "contrastive pre-training not explored",
+    "evidence": [
+      {
+        "paper_id": "arxiv_2010.11929",
+        "section": "experiments",
+        "anchor": "leave exploration of contrastive pre-training",
+        "quote": "We leave exploration of contrastive pre-training [CITE:Chen2020simclr] [CITE:he2020moco] [CITE:bachman2019amdim] [CITE:henaff2020cpc] to future work.",
+        "char_offset": [
+          15996,
+          16145
+        ],
+        "grounding_status": "matched",
+        "ambiguous_offsets": null
+      }
+    ],
+    "extracted_at": "2026-06-26T21:50:37Z"
+  },
+  {
+    "gap_id": "gap_517ce645",
+    "status": "unchecked",
+    "title": "Pre-training efficiency comparison confounded by non-architectural factors",
+    "description": "The comparison of pre-training efficiency between architectures may be affected not only by architecture choice but also by other parameters such as training schedule, optimizer, and weight decay.",
+    "type": "caveat",
+    "canonical_description": "architecture comparison confounded by non-architectural training parameters",
+    "evidence": [
+      {
+        "paper_id": "arxiv_2010.11929",
+        "section": "experiments",
+        "anchor": "pre-training efficiency may be affected not only by the architecture choice, but also other parameters",
+        "quote": "However, we note that pre-training efficiency may be affected not only by the architecture choice, but also other parameters, such as training schedule, optimizer, weight decay, etc.",
+        "char_offset": [
+          6178,
+          6360
+        ],
+        "grounding_status": "matched",
+        "ambiguous_offsets": null
+      }
+    ],
+    "extracted_at": "2026-06-26T21:50:37Z"
+  },
+  {
+    "gap_id": "gap_f6926553",
+    "status": "unchecked",
+    "title": "Few-shot properties of ViT as future work",
+    "description": "The authors note that further analysis of few-shot properties of ViT is an exciting direction of future work, building on promising few-shot and low-data transfer results.",
+    "type": "future_work",
+    "canonical_description": "few-shot properties of transformer for vision not fully analyzed",
+    "evidence": [
+      {
+        "paper_id": "arxiv_2010.11929",
+        "section": "experiments",
+        "anchor": "Further analysis of few-shot properties",
+        "quote": "Further analysis of few-shot properties of \\oursabbrv{} is an exciting direction of future work.",
+        "char_offset": [
+          10112,
+          10208
+        ],
+        "grounding_status": "matched",
+        "ambiguous_offsets": null
+      }
+    ],
+    "extracted_at": "2026-06-26T21:50:37Z"
+  }
+]

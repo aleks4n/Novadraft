@@ -1,0 +1,23 @@
+{
+  "gap_id": "gap_54e89d16",
+  "status": "unchecked",
+  "title": "Contrastive pre-training not explored",
+  "description": "The authors leave exploration of contrastive pre-training methods to future work, noting that only masked patch prediction was studied.",
+  "type": "future_work",
+  "canonical_description": "contrastive pre-training not explored",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2010.11929",
+      "section": "experiments",
+      "anchor": "leave exploration of contrastive pre-training",
+      "quote": "We leave exploration of contrastive pre-training [CITE:Chen2020simclr] [CITE:he2020moco] [CITE:bachman2019amdim] [CITE:henaff2020cpc] to future work.",
+      "char_offset": [
+        15996,
+        16145
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-06-26T21:50:37Z"
+}

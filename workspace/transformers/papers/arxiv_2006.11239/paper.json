@@ -15,7 +15,8 @@
       "doi": null,
       "semantic_scholar_id": null,
       "openreview_id": null
-    }
+    },
+    "publication_date": "2020-06-19"
   },
   "source": {
     "input_query": "2006.11239",
@@ -311,6 +312,8 @@
       "denoising score matching",
       "Langevin dynamics",
       "progressive lossy decompression",
+      "variational bound",
+      "Markov chain",
       "image synthesis"
     ],
     "topics": [
@@ -321,39 +324,41 @@
       "variational inference"
     ],
     "problem": {
-      "statement": "Diffusion probabilistic models have not been demonstrated to generate high-quality samples despite being straightforward to define and efficient to train.",
-      "motivation": "To show that diffusion models can produce high-quality image samples and to establish connections with denoising score matching and annealed Langevin dynamics.",
+      "statement": "Diffusion probabilistic models had not been demonstrated to generate high quality image samples despite being straightforward to define and efficient to train.",
+      "motivation": "To show that diffusion models can produce high quality image samples, sometimes surpassing other generative model types, and to establish connections between diffusion models and denoising score matching, Langevin dynamics, autoregressive models, and progressive lossy compression.",
       "prior_limitations": [
-        "Diffusion models had not been shown capable of generating high-quality samples comparable to GANs or autoregressive models."
+        "Diffusion models had not been shown capable of generating high quality samples comparable to GANs, autoregressive models, flows, or VAEs.",
+        "Prior work on diffusion models lacked a parameterization that revealed connections to score matching and Langevin dynamics."
       ]
     },
     "approach": {
-      "summary": "The paper trains diffusion probabilistic models using a weighted variational bound derived from a connection to denoising score matching. The diffusion process adds Gaussian noise gradually, and the reverse process is parameterized as conditional Gaussians. Sampling uses annealed Langevin dynamics. The model is evaluated on unconditional CIFAR10 and LSUN datasets.",
+      "summary": "The paper presents diffusion probabilistic models parameterized as a Markov chain that reverses a diffusion process (gradual Gaussian noise addition). The authors train on a weighted variational bound derived from a connection between diffusion models and denoising score matching over multiple noise levels. During sampling, the procedure corresponds to annealed Langevin dynamics. The model naturally admits a progressive lossy decompression scheme interpretable as a generalization of autoregressive decoding.",
       "key_ideas": [
-        "Equivalence between diffusion models and denoising score matching over multiple noise levels",
-        "Weighted variational bound as training objective",
-        "Progressive lossy decompression interpretation of sampling"
+        "Parameterizing diffusion models to reveal an equivalence with denoising score matching during training and annealed Langevin dynamics during sampling.",
+        "Using a weighted variational bound (rather than the standard variational lower bound) to improve sample quality.",
+        "Interpreting the diffusion model sampling procedure as progressive lossy decompression that generalizes autoregressive decoding along a bit ordering."
       ],
       "assumptions": [
-        "Diffusion process adds small amounts of Gaussian noise",
-        "Reverse process transitions can be modeled as conditional Gaussians"
+        "The diffusion process adds small amounts of Gaussian noise, making it sufficient to set the reverse (sampling) chain transitions to conditional Gaussians.",
+        "A neural network can learn to reverse the diffusion process effectively.",
+        "The weighted variational bound is a suitable training objective for sample quality even though it does not optimize log-likelihood directly."
       ]
     },
     "contributions": [
       {
         "type": "method",
-        "description": "Demonstrated that diffusion models can generate high-quality image samples, achieving state-of-the-art FID on CIFAR10.",
-        "evidence_section": "abstract, experiments"
+        "description": "Demonstration that diffusion probabilistic models can generate high quality image samples, with state-of-the-art FID on CIFAR10.",
+        "evidence_section": "abstract"
       },
       {
         "type": "theory",
-        "description": "Established a novel connection between diffusion probabilistic models and denoising score matching with Langevin dynamics.",
-        "evidence_section": "introduction, section on connection"
+        "description": "Establishing an equivalence between diffusion models and denoising score matching over multiple noise levels during training, and with annealed Langevin dynamics during sampling.",
+        "evidence_section": "introduction"
       },
       {
         "type": "observational",
-        "description": "Showed that diffusion models' sampling procedure is a type of progressive decoding resembling autoregressive decoding but more general.",
-        "evidence_section": "conclusion, section on coding"
+        "description": "Showing that the majority of lossless codelengths in diffusion models are consumed to describe imperceptible image details, and that the sampling procedure is a form of progressive lossy decompression generalizing autoregressive decoding.",
+        "evidence_section": "introduction"
       }
     ],
     "datasets": [
@@ -370,7 +375,7 @@
     ],
     "metrics": [
       {
-        "name": "Inception Score",
+        "name": "Inception score",
         "value": "9.46",
         "dataset": "CIFAR10",
         "comparison": "prior_work"
@@ -379,30 +384,42 @@
         "name": "FID",
         "value": "3.17",
         "dataset": "CIFAR10",
-        "comparison": "state-of-the-art"
+        "comparison": "SOTA"
+      },
+      {
+        "name": "sample quality",
+        "value": "similar to ProgressiveGAN",
+        "dataset": "LSUN 256x256",
+        "comparison": "prior_work"
       }
     ],
     "results": {
-      "headline": "Diffusion models achieve state-of-the-art FID of 3.17 on CIFAR10 and sample quality comparable to ProgressiveGAN on LSUN.",
+      "headline": "Diffusion models achieve state-of-the-art FID of 3.17 on unconditional CIFAR10 and sample quality similar to ProgressiveGAN on 256x256 LSUN.",
       "caveats": [
-        "Log-likelihoods are not competitive with other likelihood-based models.",
-        "Most of the lossless codelength is used for imperceptible details."
+        "Diffusion models do not have competitive log-likelihoods compared to other likelihood-based models.",
+        "The majority of lossless codelengths are spent on imperceptible image details."
       ]
     },
     "limitations_stated": [
-      "Models do not have competitive log likelihoods compared to other likelihood-based models.",
-      "Majority of lossless codelengths are consumed to describe imperceptible image details."
+      "Diffusion models do not have competitive log-likelihoods compared to other likelihood-based models (e.g., autoregressive models, flows, VAEs).",
+      "The majority of the models' lossless codelengths are consumed to describe imperceptible image details."
     ],
     "open_threads": [
-      "Investigate utility of diffusion models in other data modalities.",
-      "Explore diffusion models as components in other generative models and machine learning systems."
+      "Investigating utility of diffusion models in other data modalities beyond images.",
+      "Using diffusion models as components in other types of generative models and machine learning systems.",
+      "Further exploration of the progressive lossy decompression interpretation and its relationship to autoregressive decoding."
     ],
-    "context_summary": "This paper presents high-quality image synthesis using diffusion probabilistic models, a class of latent variable models inspired by nonequilibrium thermodynamics. The authors train on a weighted variational bound derived from a novel connection between diffusion models and denoising score matching with Langevin dynamics. Their models naturally admit a progressive lossy decompression scheme that generalizes autoregressive decoding. On unconditional CIFAR10, they achieve an Inception score of 9.46 and a state-of-the-art FID of 3.17. On 256x256 LSUN, sample quality matches ProgressiveGAN. The paper establishes equivalence between diffusion models and denoising score matching over multiple noise levels during training and annealed Langevin dynamics during sampling. Despite sample quality, log-likelihoods are not competitive with other likelihood-based models, and most lossless codelength is spent on imperceptible details. The authors look forward to investigating diffusion models in other data modalities and as components in other generative models."
+    "context_summary": "This paper introduces high-quality image synthesis using diffusion probabilistic models, a class of latent variable models inspired by nonequilibrium thermodynamics. The authors demonstrate that diffusion models—parameterized Markov chains trained via variational inference to reverse a gradual Gaussian noise process—can generate samples competitive with or surpassing GANs, autoregressive models, flows, and VAEs. On unconditional CIFAR10, they achieve an Inception score of 9.46 and a state-of-the-art FID of 3.17; on 256x256 LSUN, sample quality matches ProgressiveGAN. A key contribution is establishing an equivalence between diffusion models and denoising score matching over multiple noise levels during training, and with annealed Langevin dynamics during sampling. The authors use a weighted variational bound derived from this connection, which yields the best sample quality. They also show that the sampling procedure constitutes a form of progressive lossy decompression that generalizes autoregressive decoding. Despite strong sample quality, the models do not achieve competitive log-likelihoods, with most lossless codelengths spent on imperceptible image details. The paper opens directions for applying diffusion models to other data modalities and integrating them into broader generative systems."
   },
   "gaps": {
     "gap_ids": [
-      "gap_a69d01a5",
-      "gap_198c923f"
+      "gap_fac3e4bb",
+      "gap_144f5b80",
+      "gap_4068a3d6",
+      "gap_a2d9805b",
+      "gap_0e3180bb",
+      "gap_cabd22d5",
+      "gap_1ed32ecd"
     ]
   },
   "processing": {
@@ -411,5 +428,9 @@
     "summarized": true,
     "gaps_extracted": true
   },
-  "warnings": []
+  "warnings": [
+    "gap_agent_fetched_sections: abstract, introduction, diffusion_models_and_denoising_autoencoders, experiments, related_work, broader_impact, extra_information, experimental_details, background, samples, extended_derivations, discussion_on_related_work, diffusion_models_and_denoising_autoencoders, introduction, experiments",
+    "gap_quote_not_grounded: gid=gap_a2d9805b section=experiments (quote not found verbatim in section text)",
+    "gap_quote_not_grounded: gid=gap_0e3180bb section=extra_information (quote not found verbatim in section text)"
+  ]
 }

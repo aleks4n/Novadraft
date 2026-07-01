@@ -1,25 +1,72 @@
-"""Shared Paper schema (INTERIM).
-
-The validator only consumes a *view* of a paper. The authoritative, richer schema
-is owned by the survey_gap agent (its paper.json: metadata / source / content /
-summary). This interim type holds just the fields the validator actually uses, so
-the pipeline compiles and is testable — reconcile with that agent before locking.
-"""
-
+"""Pydantic schema for paper.json — the central storage record for a paper."""
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
 
-class Paper(BaseModel):
-    paper_id: str  # team convention, e.g. "arxiv_1406.2661" (a bare arXiv id also works)
+class PaperIdentifiers(BaseModel):
+    arxiv_id: Optional[str] = None
+    doi: Optional[str] = None
+    semantic_scholar_id: Optional[str] = None
+    openreview_id: Optional[str] = None
+
+
+class PaperMetadata(BaseModel):
+    title: Optional[str] = None
+    authors: list[str] = Field(default_factory=list)
+    year: Optional[int] = None
+    # Most precise ISO-8601 prefix available: "YYYY", "YYYY-MM", or
+    # "YYYY-MM-DD". Components are never padded — a year-only source stays
+    # "2023". `year` is the integer view of this. See paper_fetch/date_util.py.
+    publication_date: Optional[str] = None
+    venue: Optional[str] = None
+    abstract: Optional[str] = None
+    identifiers: PaperIdentifiers = Field(default_factory=PaperIdentifiers)
+
+
+class PaperFiles(BaseModel):
+    pdf: Optional[str] = None
+    tex_dir: Optional[str] = None
+    tex_main: Optional[str] = None
+
+
+class PaperSource(BaseModel):
+    input_query: str
+    input_type: str
+    resolved_via: Optional[str] = None
+    source_url: Optional[str] = None
+    files: PaperFiles = Field(default_factory=PaperFiles)
+    fetched_at: str
+
+
+class PaperProcessing(BaseModel):
+    fetched: bool = True
+    extracted: bool = False
+    summarized: bool = False
+    summary_verified: bool = False
+    gaps_extracted: bool = False
+
+
+class PaperRecord(BaseModel):
+    paper_id: str
+    metadata: PaperMetadata = Field(default_factory=PaperMetadata)
+    source: Optional[PaperSource] = None
+    content: Optional[dict] = None
+    summary: Optional[dict] = None
+    summary_verification: Optional[dict] = None
+    gaps: dict = Field(default_factory=lambda: {"gap_ids": []})
+    processing: PaperProcessing = Field(default_factory=PaperProcessing)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class CandidatePaper(BaseModel):
+    """A lightweight view of an *external* paper found during validation."""
+
+    paper_id: str  # e.g. arXiv id
     title: str
     abstract: str = ""
-    authors: List[str] = Field(default_factory=list)
-    published_date: str = ""  # ISO date or year; from arXiv search for search candidates
+    authors: list[str] = Field(default_factory=list)
+    published_date: str = ""
     url: str = ""
-    # Full text for Deep Read. Populated by the common download/extract helper
-    # (survey_gap's paper.json already carries this as content.full_text).
-    full_text: Optional[str] = None

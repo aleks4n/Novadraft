@@ -1,0 +1,23 @@
+{
+  "gap_id": "gap_0fb2de7c",
+  "status": "unchecked",
+  "title": "Large gap between self-supervised and supervised pre-training",
+  "description": "Initial self-supervised pre-training experiments on masked patch prediction show improvement over training from scratch, but a large gap remains compared to large-scale supervised pre-training.",
+  "type": "negative_result",
+  "canonical_description": "self-supervised pre-training still lags behind supervised pre-training by a large margin",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2010.11929",
+      "section": "experiments",
+      "anchor": "but still 4\\% behind supervised pre-training",
+      "quote": "With self-supervised pre-training, our smaller \\oursabbrv-B/16 model achieves 79.9\\% accuracy on \\imagenet{}, a significant improvement of 2\\% to training from scratch, but still 4\\% behind supervised pre-training.",
+      "char_offset": [
+        15719,
+        15933
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-06-26T21:50:37Z"
+}

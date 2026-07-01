@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>novadraft dev</title>
+<script type="module">
+  // Mermaid renders the agent's graph (get_graph(xray=True)); loaded lazily so
+  // the harness still works offline (we fall back to the raw diagram text).
+  try {
+    const m = await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs");
+    m.default.initialize({ startOnLoad: false, securityLevel: "loose", flowchart: { curve: "linear" } });
+    window.mermaid = m.default;
+  } catch (e) { console.warn("mermaid unavailable, showing raw diagram", e); }
+</script>
+<style>
+  :root { --bd: #ddd; --bg: #fafafa; --mono: ui-monospace, Menlo, monospace; --muted:#666; }
+  * { box-sizing: border-box; }
+  body { font: 14px/1.5 system-ui, sans-serif; margin: 0; color: #222; }
+  header { padding: 12px 20px; border-bottom: 1px solid var(--bd); display: flex; align-items: center; gap: 16px; }
+  header h1 { font-size: 16px; margin: 0; }
+  main { display: grid; grid-template-columns: 360px 1fr; height: calc(100vh - 49px); }
+  aside, section { padding: 16px; overflow: auto; }
+  aside { border-right: 1px solid var(--bd); }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0 0 8px; }
+  h3 { font-size: 13px; margin: 0 0 6px; }
+  label { display: block; font-size: 12px; color: #555; margin: 10px 0 4px; font-family: var(--mono); }
+  label .req { color: #b00; }
+  label .opt { color: #999; font-weight: normal; }
+  select, button, input, textarea { font: inherit; padding: 6px 8px; border: 1px solid var(--bd); border-radius: 4px; background: white; }
+  input, textarea { width: 100%; }
+  textarea { font-family: var(--mono); font-size: 12px; resize: vertical; min-height: 70px; }
+  button { cursor: pointer; }
+  button.primary { background: #0a66c2; color: white; border-color: #0a66c2; }
+  button.primary:disabled { opacity: .5; cursor: wait; }
+  button.small { padding: 3px 8px; font-size: 12px; }
+  pre { background: var(--bg); padding: 10px; border-radius: 4px; white-space: pre-wrap; word-break: break-word; font-family: var(--mono); font-size: 12px; margin: 0; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .runs li { font-family: var(--mono); font-size: 11px; padding: 4px 6px; border-radius: 3px; cursor: pointer; list-style: none; }
+  .runs li:hover { background: var(--bg); }
+  .runs { padding: 0; margin: 0; }
+  .meta { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .err { color: #b00; }
+  .panel { margin-bottom: 18px; }
+  .panel h2 { display:flex; justify-content:space-between; align-items:center; }
+  .list-item { display:flex; gap:6px; align-items:flex-start; margin-bottom:6px; }
+  .list-item textarea { flex: 1; }
+  .badge { display:inline-block; font-size:11px; padding:1px 6px; border-radius:8px; background:#eef; color:#226; margin-left:6px; }
+  .badge.err { background:#fee; color:#b00; }
+  .steps { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+
+  /* graph + run log side by side; JSON input/output sit full-width below them */
+  .run-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+  .run-col { min-width: 0; }
+  .run-col #graph, .run-col #log { max-height: 60vh; }
+  #log { overflow: auto; }
+  @media (max-width: 900px) { .run-cols { grid-template-columns: 1fr; } }
+
+  /* --- agent graph (mermaid) with live current-step highlight --- */
+  #graph { overflow: auto; border: 1px solid var(--bd); border-radius: 5px; padding: 10px; background: white; }
+  #graph svg { max-width: 100%; height: auto; }
+  #graph pre { border: none; }
+  /* highlight states applied to mermaid node <g> elements by gnode match */
+  .node.gx-active > * { stroke: #0a66c2 !important; stroke-width: 2.5px !important; }
+  .node.gx-active rect, .node.gx-active polygon, .node.gx-active circle, .node.gx-active path { fill: #fff3bf !important; }
+  .node.gx-active { animation: pulse 1.2s infinite; }
+  .node.gx-done rect, .node.gx-done polygon, .node.gx-done circle, .node.gx-done path { fill: #e6f7ed !important; }
+  .node.gx-done > * { stroke: #1a7f37 !important; }
+  .node.gx-error rect, .node.gx-error polygon { fill: #fee !important; }
+  .node.gx-error > * { stroke: #b00 !important; }
+
+  .lognode { border: 1px solid var(--bd); border-radius: 5px; margin: 6px 0; background: white; }
+  .lognode-header { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-family: var(--mono); font-size: 12px; cursor: pointer; }
+  .lognode-type { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); width: 52px; flex-shrink: 0; }
+  .lognode-name { flex: 1; font-weight: 600; }
+  .lognode-duration { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .lognode-status { font-size: 11px; padding: 1px 8px; border-radius: 8px; text-transform: uppercase; letter-spacing: .03em; }
+  .lognode.status-pending .lognode-status, .lognode.status-running .lognode-status { background: #e6f0fb; color: #0a66c2; }
+  .lognode.status-running .lognode-status { animation: pulse 1.2s infinite; }
+  .lognode.status-done .lognode-status, .lognode.status-ok .lognode-status, .lognode.status-info .lognode-status { background: #e6f7ed; color: #1a7f37; }
+  .lognode.status-error .lognode-status { background: #fee; color: #b00; }
+  .lognode.status-skipped .lognode-status { background: #eee; color: #999; }
+  .lognode.status-error { border-color: #b00; }
+  .lognode.status-running { border-color: #0a66c2; }
+  .lognode-body { padding: 4px 10px 8px 10px; display: none; }
+  .lognode-body.open { display: block; }
+  .lognode-children { margin-left: 18px; border-left: 1px dashed var(--bd); padding-left: 10px; }
+  .lognode-section { margin: 6px 0; }
+  .lognode-section h4 { font-size: 11px; text-transform: uppercase; color: var(--muted); margin: 0 0 4px; letter-spacing: .03em; }
+  .lognode-prompt { background: var(--bg); border-radius: 4px; padding: 8px; font-family: var(--mono); font-size: 11.5px; white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; }
+  .lognode-toggle { width: 14px; flex-shrink: 0; color: var(--muted); font-family: var(--mono); }
+
+  .lognode-event { font-family: var(--mono); font-size: 12px; padding: 2px 10px 2px 4px; white-space: pre-wrap; word-break: break-word; }
+  .lognode-event-glyph { color: #0a66c2; margin-right: 6px; }
+  .lognode-event-msg { color: #222; }
+  .lognode-event-kv { color: var(--muted); }
+
+  .json-tree { background: var(--bg); border-radius: 4px; padding: 10px; font-family: var(--mono); font-size: 12px; }
+  .json-tree details { display: inline; }
+  .json-tree summary { cursor: pointer; display: inline; }
+  .json-tree summary::marker { color: #999; }
+  .json-children { margin-left: 14px; border-left: 1px dotted var(--bd); padding-left: 10px; }
+  .json-row { padding: 1px 0; white-space: pre-wrap; word-break: break-word; }
+  .json-close { padding-left: 0; }
+  .json-key { color: #905; }
+  .jv-str { color: #1a7f37; }
+  .jv-num { color: #0a66c2; }
+  .jv-bool { color: #8250df; }
+  .jv-null { color: #999; }
+  .jv-punct { color: var(--muted); }
+  .json-preview { color: var(--muted); font-style: italic; }
+  details[open] > summary > .json-preview { display: none; }
+  .panel-actions { display: flex; gap: 6px; }
+  .eval-progress { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>novadraft · dev harness</h1>
+  <span class="meta" id="status">ready</span>
+</header>
+<main>
+  <aside>
+    <h2>Target</h2>
+    <div class="row">
+      <select id="kind" style="flex:1">
+        <option value="agent">agent</option>
+        <option value="subagent">subagent</option>
+        <option value="flow">flow</option>
+        <option value="evaluation">evaluation</option>
+      </select>
+      <select id="name" style="flex:2"></select>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <h2>Inputs <span id="schema-tag" class="meta"></span></h2>
+      <div id="form"></div>
+    </div>
+
+    <button id="run" class="primary">▶ Run</button>
+
+    <h2 style="margin-top:24px">Past runs</h2>
+    <ul id="runs" class="runs"></ul>
+  </aside>
+
+  <section>
+    <div class="panel" id="steps-panel" style="display:none">
+      <div class="run-cols">
+        <div class="run-col">
+          <h2>Graph <span id="run-badge" class="meta"></span></h2>
+          <div id="graph">—</div>
+        </div>
+        <div class="run-col">
+          <h2>Run log</h2>
+          <div id="log"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="eval-panel" style="display:none">
+      <h2>Eval report <span id="eval-badge"></span></h2>
+      <div class="eval-progress" id="eval-progress"></div>
+      <pre id="eval-report">—</pre>
+      <h3 style="margin-top:14px">Eval raw output (JSON)</h3>
+      <div class="panel-actions" style="margin-bottom:6px">
+        <button class="small" id="eval-raw-expand">expand all</button>
+        <button class="small" id="eval-raw-collapse">collapse all</button>
+      </div>
+      <div id="eval-raw-json" class="json-tree">—</div>
+    </div>
+
+    <div class="panel">
+      <h2>JSON input <span id="vis-badge"></span></h2>
+      <div class="panel-actions" style="margin-bottom:6px">
+        <button class="small" id="json-input-expand">expand all</button>
+        <button class="small" id="json-input-collapse">collapse all</button>
+      </div>
+      <div id="json-input" class="json-tree">—</div>
+      <div class="meta" id="output-meta"></div>
+    </div>
+
+    <div class="panel">
+      <h2>JSON output (raw record)</h2>
+      <div class="panel-actions" style="margin-bottom:6px">
+        <button class="small" id="json-output-expand">expand all</button>
+        <button class="small" id="json-output-collapse">collapse all</button>
+      </div>
+      <div id="json-output" class="json-tree">—</div>
+    </div>
+  </section>
+</main>
+
+<script>
+let CATALOG = { agents: [], subagents: [], flows: [], schemas: { agent: {}, subagent: {}, flow: {} }, agent_steps: {}, logged_agents: {} };
+let WORKSPACE_CACHE = null;
+
+const WORKSPACE_FIELD_NAMES = new Set(["category_slug", "workspace"]);
+
+const EVAL_PIPELINES = [
+  { value: "summary", label: "Summary agent eval" },
+  { value: "gap", label: "Gap agent eval" },
+];
+
+const $ = id => document.getElementById(id);
+const el = (tag, attrs={}, ...kids) => {
+  const e = document.createElement(tag);
+  for (const [k,v] of Object.entries(attrs)) {
+    if (k === "class") e.className = v;
+    else if (k.startsWith("on")) e[k] = v;
+    else e.setAttribute(k, v);
+  }
+  for (const k of kids) {
+    if (k === null || k === undefined) continue;
+    e.append(k?.nodeType ? k : document.createTextNode(k));
+  }
+  return e;
+};
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+function currentSchema() {
+  const kind = $("kind").value, name = $("name").value;
+  return CATALOG.schemas?.[kind]?.[name] || [];
+}
+
+function isLoggedAgent() {
+  const kind = $("kind").value, name = $("name").value;
+  return kind === "agent" && !!CATALOG.logged_agents?.[name];
+}
+
+// --- recursive run-log tree (steps / llm calls / tool calls / events) ------
+//
+// Renders the run tree assembled by dev/run_tree.py from the LangGraph stream:
+// a recursive tree of nodes ({type, name, status, started_at, duration_s,
+// data, children}).
+// Each node becomes one collapsible block; llm/tool nodes get a readable
+// prompt/output sub-section instead of a generic JSON dump.
+
+// One run is a flat stream of events (dev/runlog.py): a `run_start` event
+// carrying the agent's Mermaid diagram (get_graph(xray=True), subgraphs
+// expanded), then one event per node / llm / tool / domain-note, then
+// `run_end`. We render the diagram once and light up each node as its events
+// arrive (matching the event's `gnode` to a Mermaid node), and append every
+// event as a line to the linear log below. A reopened past run replays the
+// same events, so live and history render identically.
+
+let GRAPH_NODES = [];          // [{gx, g}] mermaid node <g> elements, by normalized id
+let LOG_OPEN = new Set();       // seqs of expanded log rows (survives nothing; append-only)
+
+// Normalize a node id for matching: drop everything but [a-z0-9]. This makes
+// the match independent of how Mermaid escapes the ":" in "summarize:enter",
+// while still keeping it distinct from "gap:enter" ("summarizeenter" vs
+// "gapenter").
+function norm(s) { return (s || "").replace(/[^a-z0-9]/gi, "").toLowerCase(); }
+
+// Recover a clean node id from a Mermaid DOM id. Mermaid ids look like
+// "<renderId>-flowchart-<nodeId>-<counter>" and hex-escape "_" / ":" (e.g.
+// "summarize:extractor" -> "summarize\3aextractor"). Strip everything up to
+// the last "flowchart-", drop the trailing counter, then decode the escapes
+// so the ":" survives normalization the same way it does on the event side.
+function nodeIdFromDom(domId) {
+  const stripped = (domId || "").replace(/^.*flowchart-/, "").replace(/-\d+$/, "");
+  return stripped.replace(/\\([0-9a-fA-F]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+}
+
+async function renderGraph(mermaidSrc) {
+  const c = $("graph");
+  c.innerHTML = "";
+  GRAPH_NODES = [];
+  if (!mermaidSrc) { c.textContent = "—"; return; }
+  if (!window.mermaid) { c.append(el("pre", {}, mermaidSrc)); return; }
+  try {
+    const { svg } = await window.mermaid.render("agentgraph", mermaidSrc);
+    c.innerHTML = svg;
+    // Index every node <g>. Mermaid ids look like "flowchart-<nodeid>-<n>";
+    // strip the prefix and the trailing counter, then normalize.
+    c.querySelectorAll("g.node").forEach(g => {
+      GRAPH_NODES.push({ gx: norm(nodeIdFromDom(g.id)), g });
+    });
+  } catch (e) {
+    c.append(el("pre", {}, mermaidSrc));
+    console.warn("mermaid render failed", e);
+  }
+}
+
+// Light up a graph node. A node holds exactly one state at a time, so we clear
+// the others first: a node becomes "active" when its first leaf event streams
+// in, then "done" (or "error") when its node-update arrives.
+function setNodeState(gnode, state) {
+  const key = norm(gnode);
+  if (!key) return;
+  // Prefer an exact normalized match; fall back to substring containment so a
+  // minor Mermaid id-format quirk (extra wrapper, version differences) still
+  // lights up the right box. The owning-subgraph node (gnode "summarize"/"gap")
+  // has no node of its own (it's a cluster) — its inner nodes carry the state.
+  let matched = GRAPH_NODES.filter(n => n.gx === key);
+  if (!matched.length) matched = GRAPH_NODES.filter(n => n.gx && (n.gx.includes(key) || key.includes(n.gx)));
+  for (const { g } of matched) {
+    g.classList.remove("gx-active", "gx-done", "gx-error");
+    g.classList.add("gx-" + state);
+  }
+}
+
+// A domain note (``trace.log_event``) — the message is the point; extra kwargs
+// are inline context, shown as key=value rather than a JSON box.
+function formatEventKV(data) {
+  const parts = [];
+  for (const [k, v] of Object.entries(data || {})) {
+    if (v === null || v === undefined) continue;
+    parts.push(`${k}=${typeof v !== "object" ? v : JSON.stringify(v)}`);
+  }
+  return parts.join("  ");
+}
+
+function jsonSection(title, value) {
+  const tree = el("div", { class: "json-tree" });
+  tree.append(jsonNode(value, 1));
+  return el("div", { class: "lognode-section" }, el("h4", {}, title), tree);
+}
+
+// The expandable body of one node/llm/tool log row.
+function eventSections(ev) {
+  const out = [];
+  const d = ev.data || {};
+  if (ev.kind === "llm") {
+    if (d.prompt) out.push(el("div", { class: "lognode-section" },
+      el("h4", {}, `Prompt${d.schema ? ` · schema=${d.schema}` : ""}`),
+      el("div", { class: "lognode-prompt" }, `SYSTEM:\n${d.prompt.system}\n\nUSER:\n${d.prompt.user}`)));
+    if ("output" in d) out.push(jsonSection("Output", d.output));
+  } else if (ev.kind === "tool") {
+    if (d.args !== undefined) out.push(el("div", { class: "lognode-section" },
+      el("h4", {}, "Input"), el("div", { class: "lognode-prompt" }, JSON.stringify(d.args, null, 2))));
+    const rest = { ...d }; delete rest.args;
+    if (Object.keys(rest).length) out.push(jsonSection("Result", rest));
+  } else if (ev.kind === "node") {
+    if (ev.result !== undefined) out.push(jsonSection("State delta", ev.result));
+  }
+  return out;
+}
+
+function eventRow(ev) {
+  // Domain notes render as a plain terminal line, tagged with their node.
+  if (ev.kind === "event") {
+    const kv = formatEventKV(ev.data);
+    return el("div", { class: "lognode-event" },
+      el("span", { class: "lognode-event-glyph" }, "›"),
+      el("span", { class: "lognode-event-kv" }, `[${ev.gnode || ev.node || "?"}] `),
+      el("span", { class: "lognode-event-msg" }, ev.name || "event"),
+      kv ? el("span", { class: "lognode-event-kv" }, "  " + kv) : null,
+    );
+  }
+  // node / llm / tool render as a collapsible block.
+  const status = ev.status || (ev.kind === "node" ? "done" : "done");
+  const isOpen = LOG_OPEN.has(ev.seq);
+  const div = el("div", { class: `lognode status-${status}` });
+  const body = el("div", { class: isOpen ? "lognode-body open" : "lognode-body" });
+  const toggle = el("span", { class: "lognode-toggle" }, isOpen ? "▾" : "▸");
+  const label = ev.kind === "node" ? (ev.gnode || ev.node) : (ev.name || ev.kind);
+  const header = el("div", {
+    class: "lognode-header",
+    onclick: () => {
+      const open = body.classList.toggle("open");
+      toggle.textContent = open ? "▾" : "▸";
+      if (open) LOG_OPEN.add(ev.seq); else LOG_OPEN.delete(ev.seq);
+    },
+  },
+    toggle,
+    el("span", { class: "lognode-type" }, ev.kind),
+    el("span", { class: "lognode-name" }, label),
+    el("span", { class: "lognode-duration" }, ev.duration_s != null ? ev.duration_s + "s" : ""),
+    el("span", { class: "lognode-status" }, status),
+  );
+  eventSections(ev).forEach(s => body.append(s));
+  div.append(header, body);
+  return div;
+}
+
+// Append one streamed event: add a log line and drive the graph highlight.
+function appendLog(ev) {
+  const log = $("log");
+  log.append(eventRow(ev));
+  log.scrollTop = log.scrollHeight;
+  if (ev.gnode) {
+    if (ev.kind === "node") setNodeState(ev.gnode, ev.status === "error" ? "error" : "done");
+    else setNodeState(ev.gnode, "active");
+  }
+}
+
+// run_start: show the panel, render the graph, clear the log.
+async function startRun(header) {
+  $("steps-panel").style.display = "";
+  $("run-badge").textContent = header.workspace
+    ? `${header.agent} · ${header.workspace}` : (header.agent || "");
+  $("log").innerHTML = "";
+  LOG_OPEN = new Set();
+  await renderGraph(header.mermaid);
+}
+
+// run_end: stamp the final status, surface any error.
+function endRun(footer) {
+  $("run-badge").innerHTML =
+    `<span class="badge ${footer.status === "error" ? "err" : ""}">${footer.status}</span>`
+    + (footer.duration_s != null ? ` · ${footer.duration_s}s` : "");
+  if (footer.error) {
+    $("log").append(el("div", { class: "lognode-section" },
+      el("h4", {}, "Error"), el("div", { class: "lognode-prompt err" }, footer.error)));
+  }
+}
+
+// Replay a past run read back from its .jsonl ({header, events, footer}).
+async function replayRun(payload, fallback) {
+  await startRun(payload.header || fallback || {});
+  (payload.events || []).forEach(appendLog);
+  if (payload.footer) endRun(payload.footer);
+}
+
+function refreshNameOptions() {
+  const kind = $("kind").value;
+  if (kind === "evaluation") {
+    $("name").innerHTML = EVAL_PIPELINES.map(p => `<option value="${p.value}">${p.label}</option>`).join("");
+    renderForm();
+    return;
+  }
+  const opts = { agent: CATALOG.agents, subagent: CATALOG.subagents, flow: CATALOG.flows }[kind] || [];
+  $("name").innerHTML = opts.map(n => `<option>${n}</option>`).join("");
+  renderForm();
+}
+
+function renderForm() {
+  const kind = $("kind").value;
+  $("steps-panel").style.display = "none";
+  $("log").innerHTML = "";
+  if (kind === "evaluation") {
+    renderEvalForm();
+    return;
+  }
+  const schema = currentSchema();
+  const form = $("form");
+  form.innerHTML = "";
+  $("schema-tag").textContent = schema.length ? `· ${schema.length} field${schema.length>1?"s":""}` : "· no schema";
+  if (!schema.length) {
+    form.append(el("div", { class: "meta" }, "No schema defined. Add one in registry.SCHEMAS."));
+    return;
+  }
+  for (const field of schema) {
+    const label = el("label", {},
+      field.name,
+      el("span", { class: field.required ? "req" : "opt" }, field.required ? " *" : " (optional)")
+    );
+    form.append(label);
+    if (field.type === "textarea") {
+      form.append(el("textarea", { "data-name": field.name, placeholder: field.placeholder || "" }));
+    } else if (field.type === "text" && WORKSPACE_FIELD_NAMES.has(field.name)) {
+      const select = el("select", { "data-name": field.name, style: "width:100%" });
+      form.append(select);
+      populateWorkspaceSelect(select);
+    } else if (field.type === "text") {
+      form.append(el("input", { type: "text", "data-name": field.name, placeholder: field.placeholder || "" }));
+    } else if (field.type === "list[textarea]") {
+      const wrap = el("div", { "data-list": field.name });
+      const addBtn = el("button", { class: "small", type: "button", onclick: () => addListItem(wrap) }, "+ add item");
+      wrap.append(addBtn);
+      form.append(wrap);
+      addListItem(wrap);
+    }
+  }
+}
+
+function renderEvalForm() {
+  const form = $("form");
+  form.innerHTML = "";
+  $("schema-tag").textContent = "· evaluation pipeline";
+
+  const wsSelect = el("select", { id: "eval-workspace", style: "width:100%" });
+  const papersSelect = el("select", { id: "eval-papers", multiple: "", style: "width:100%; min-height:70px" });
+  const queriesTa = el("textarea", { id: "eval-queries", placeholder: "Attention Is All You Need\n1406.2661" });
+  const labelInput = el("input", { id: "eval-label", type: "text", placeholder: "baseline" });
+
+  form.append(
+    el("label", {}, "Workspace ", el("span", { class: "opt" }, "(extracted papers)")),
+    wsSelect,
+    el("label", {}, "Papers ", el("span", { class: "opt" }, "(optional, default = all extracted)")),
+    papersSelect,
+    el("label", {}, "New paper queries ",
+      el("span", { class: "opt" }, "(optional — name/arXiv-ID/URL/DOI per line; fetched+extracted into the workspace first, then overrides the selection above)")),
+    queriesTa,
+    el("label", {}, "Label ", el("span", { class: "opt" }, "(optional)")),
+    labelInput,
+  );
+
+  wsSelect.onchange = refreshEvalPapers;
+  refreshWorkspaces();
+}
+
+function addListItem(wrap) {
+  const item = el("div", { class: "list-item" });
+  const ta = el("textarea", {});
+  const rm = el("button", { class: "small", type: "button", onclick: () => item.remove() }, "×");
+  item.append(ta, rm);
+  wrap.insertBefore(item, wrap.querySelector("button"));
+}
+
+function readForm() {
+  const inputs = {};
+  for (const field of currentSchema()) {
+    if (field.type === "list[textarea]") {
+      const wrap = document.querySelector(`[data-list="${field.name}"]`);
+      const vals = [...wrap.querySelectorAll("textarea")].map(t => t.value).filter(v => v.trim());
+      if (vals.length) inputs[field.name] = vals;
+    } else {
+      const node = document.querySelector(`[data-name="${field.name}"]`);
+      const v = node.value.trim();
+      if (v) inputs[field.name] = v;
+    }
+  }
+  return inputs;
+}
+
+function applyInputs(inputs) {
+  for (const field of currentSchema()) {
+    const v = inputs[field.name];
+    if (v === undefined) continue;
+    if (field.type === "list[textarea]") {
+      const wrap = document.querySelector(`[data-list="${field.name}"]`);
+      wrap.querySelectorAll(".list-item").forEach(n => n.remove());
+      for (const s of (Array.isArray(v) ? v : [v])) {
+        addListItem(wrap);
+        const tas = wrap.querySelectorAll("textarea");
+        tas[tas.length - 1].value = s;
+      }
+    } else {
+      const node = document.querySelector(`[data-name="${field.name}"]`);
+      if (node) node.value = v;
+    }
+  }
+}
+
+async function refreshRuns() {
+  const { runs } = await api("/api/runs");
+  $("runs").innerHTML = runs.slice(0, 50).map(r => `<li data-name="${r}">${r}</li>`).join("");
+  for (const li of $("runs").children) {
+    li.onclick = () => loadRun(li.dataset.name);
+  }
+}
+
+async function loadRun(name) {
+  const rec = await api("/api/runs/" + encodeURIComponent(name));
+  // align kind+name with the loaded run so the form matches
+  if (rec.kind && rec.name) {
+    $("kind").value = rec.kind;
+    refreshNameOptions();
+    if ([...$("name").options].some(o => o.value === rec.name)) {
+      $("name").value = rec.name;
+      renderForm();
+    }
+  }
+  applyInputs(rec.inputs || {});
+  render(rec);
+  $("status").textContent = "viewing " + name;
+
+  // The flat dev/runs/ record above only has input/output. The actual run —
+  // the graph + the linear event log (fetch → extract → ... with each LLM
+  // call and note) — lives in the per-agent .jsonl this record points to via
+  // `run_log`. Read it back and replay it the same way the live stream
+  // renders, so reopening a past run looks identical to watching it run.
+  $("steps-panel").style.display = "none";
+  $("log").innerHTML = "";
+  const workspaceField = rec.kind === "agent" ? CATALOG.logged_agents?.[rec.name] : null;
+  const workspace = workspaceField ? rec.inputs?.[workspaceField] : null;
+  if (workspace && rec.run_log) {
+    try {
+      const payload = await api(
+        `/api/workspaces/${encodeURIComponent(workspace)}/logs/${encodeURIComponent(rec.name)}/${encodeURIComponent(rec.run_log)}`
+      );
+      await replayRun(payload, { agent: rec.name, workspace });
+    } catch (e) {
+      // run log file may no longer exist — fall back to input/output only.
+    }
+  }
+}
+
+// --- collapsible JSON tree (VS Code-style) ----------------------------------
+
+function keyLabel(key) {
+  if (key === null) return document.createTextNode("");
+  if (typeof key === "number") return el("span", { class: "json-key" }, `${key}: `);
+  return el("span", { class: "json-key" }, `${JSON.stringify(key)}: `);
+}
+
+function jsonRow(key, valueNode, comma) {
+  const row = el("div", { class: "json-row" });
+  row.append(keyLabel(key), valueNode, document.createTextNode(comma));
+  return row;
+}
+
+function jsonNode(value, depth = 0, key = null, isLast = true) {
+  const comma = isLast ? "" : ",";
+  if (value === null || value === undefined) return jsonRow(key, el("span", { class: "jv jv-null" }, "null"), comma);
+  const t = typeof value;
+  if (t === "string") return jsonRow(key, el("span", { class: "jv jv-str" }, JSON.stringify(value)), comma);
+  if (t === "number") return jsonRow(key, el("span", { class: "jv jv-num" }, String(value)), comma);
+  if (t === "boolean") return jsonRow(key, el("span", { class: "jv jv-bool" }, String(value)), comma);
+
+  const isArr = Array.isArray(value);
+  if ((isArr && value.length === 0) || (!isArr && t === "object" && Object.keys(value).length === 0)) {
+    return jsonRow(key, el("span", { class: "jv-punct" }, isArr ? "[]" : "{}"), comma);
+  }
+  if (t !== "object") return jsonRow(key, el("span", {}, String(value)), comma);
+
+  const open = isArr ? "[" : "{";
+  const close = isArr ? "]" : "}";
+  const entries = isArr ? value.map((v, i) => [i, v]) : Object.entries(value);
+
+  const attrs = { class: "json-node" };
+  if (depth < 1) attrs.open = "";
+  const summary = el("summary", {},
+    keyLabel(key),
+    el("span", { class: "jv-punct" }, open),
+    el("span", { class: "json-preview" }, ` … ${entries.length} ${isArr ? "items" : "keys"} ${close}${comma}`)
+  );
+  const det = el("details", attrs, summary);
+  const body = el("div", { class: "json-children" });
+  entries.forEach(([k, v], i) => body.append(jsonNode(v, depth + 1, k, i === entries.length - 1)));
+  body.append(el("div", { class: "json-row json-close" }, el("span", { class: "jv-punct" }, close + comma)));
+  det.append(body);
+
+  return el("div", { class: "json-row" }, det);
+}
+
+function renderJsonTree(containerId, value) {
+  const c = $(containerId);
+  c.innerHTML = "";
+  c.append(jsonNode(value, 0));
+}
+
+function wireExpandCollapse(containerId, expandBtnId, collapseBtnId) {
+  $(expandBtnId).onclick = () => {
+    $(containerId).querySelectorAll("details").forEach(d => d.open = true);
+  };
+  $(collapseBtnId).onclick = () => {
+    $(containerId).querySelectorAll("details").forEach(d => d.open = false);
+  };
+}
+
+function render(rec) {
+  renderJsonTree("json-input", rec.inputs ?? {});
+  renderJsonTree("json-output", rec);
+  $("output-meta").textContent =
+    `${rec.kind}:${rec.name} · ${rec.duration_s}s · ${rec.timestamp}`;
+  $("vis-badge").innerHTML = rec.error
+    ? '<span class="badge err">error</span>'
+    : '<span class="badge">ok</span>';
+}
+
+async function init() {
+  CATALOG = await api("/api/list");
+  refreshNameOptions();
+  await refreshRuns();
+}
+
+$("kind").onchange = refreshNameOptions;
+$("name").onchange = renderForm;
+
+async function runStreaming(body, handlers) {
+  const resp = await fetch("/api/run/stream", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) throw new Error(await resp.text());
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let idx;
+    while ((idx = buf.indexOf("\n\n")) >= 0) {
+      const chunk = buf.slice(0, idx);
+      buf = buf.slice(idx + 2);
+      const line = chunk.split("\n").find(l => l.startsWith("data: "));
+      if (!line) continue;
+      const evt = JSON.parse(line.slice(6));
+      // The non-graph kinds (subagents, flows) only emit `done`.
+      if (evt.type === "run_start") await handlers.onStart(evt.event);
+      else if (evt.type === "event") handlers.onEvent(evt.event);
+      else if (evt.type === "run_end") handlers.onEnd(evt.event);
+      else if (evt.type === "done") return evt.record;
+    }
+  }
+  throw new Error("stream ended without a result");
+}
+
+$("run").onclick = async () => {
+  if ($("kind").value === "evaluation") {
+    await runEval();
+    return;
+  }
+  const btn = $("run");
+  btn.disabled = true;
+  $("status").textContent = "running…";
+  $("steps-panel").style.display = "none";
+  $("log").innerHTML = "";
+  try {
+    const inputs = readForm();
+    // client-side required check
+    const missing = currentSchema().filter(f => f.required && (inputs[f.name] === undefined)).map(f => f.name);
+    if (missing.length) throw new Error("missing required: " + missing.join(", "));
+    // Show this run's own inputs right away, and blank the output panel —
+    // otherwise the previous run's rendering lingers on screen until this
+    // one finishes, which reads as if nothing happened yet.
+    renderJsonTree("json-input", inputs);
+    renderJsonTree("json-output", {});
+    $("output-meta").textContent = "running…";
+    $("vis-badge").innerHTML = "";
+    const rec = await runStreaming(
+      { kind: $("kind").value, name: $("name").value, inputs },
+      { onStart: startRun, onEvent: appendLog, onEnd: endRun }
+    );
+    render(rec);
+    await refreshRuns();
+    $("status").textContent = rec.error ? "error" : "done";
+  } catch (e) {
+    renderJsonTree("json-output", { error: String(e) });
+    $("vis-badge").innerHTML = '<span class="badge err">error</span>';
+    $("status").textContent = "error";
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+wireExpandCollapse("json-input", "json-input-expand", "json-input-collapse");
+wireExpandCollapse("json-output", "json-output-expand", "json-output-collapse");
+wireExpandCollapse("eval-raw-json", "eval-raw-expand", "eval-raw-collapse");
+
+// --- evaluation pipelines ----------------------------------------------------
+
+async function populateWorkspaceSelect(select, currentValue) {
+  const { workspaces } = await api("/api/workspaces");
+  select.innerHTML = workspaces
+    .map(w => `<option value="${w.category_slug}">${w.category_slug} (${w.n_extracted_papers} extracted)</option>`)
+    .join("");
+  if (currentValue && [...select.options].some(o => o.value === currentValue)) {
+    select.value = currentValue;
+  }
+}
+
+async function refreshWorkspaces() {
+  await populateWorkspaceSelect($("eval-workspace"));
+  await refreshEvalPapers();
+}
+
+async function refreshEvalPapers() {
+  const slug = $("eval-workspace").value;
+  const sel = $("eval-papers");
+  sel.innerHTML = "";
+  if (!slug) return;
+  const { paper_ids } = await api(`/api/workspaces/${encodeURIComponent(slug)}/papers`);
+  sel.innerHTML = paper_ids.map(p => `<option value="${p}">${p}</option>`).join("");
+}
+
+async function evalStreaming(body, onStep) {
+  const resp = await fetch("/api/eval/stream", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) throw new Error(await resp.text());
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let idx;
+    while ((idx = buf.indexOf("\n\n")) >= 0) {
+      const chunk = buf.slice(0, idx);
+      buf = buf.slice(idx + 2);
+      const line = chunk.split("\n").find(l => l.startsWith("data: "));
+      if (!line) continue;
+      const evt = JSON.parse(line.slice(6));
+      if (evt.type === "step") onStep(evt);
+      else if (evt.type === "done") return evt;
+      else if (evt.type === "error") throw new Error(evt.error);
+    }
+  }
+  throw new Error("stream ended without a result");
+}
+
+async function runEval() {
+  const btn = $("run");
+  btn.disabled = true;
+  const slug = $("eval-workspace").value;
+  if (!slug) { btn.disabled = false; return; }
+  const papers = [...$("eval-papers").selectedOptions].map(o => o.value);
+  const queries = $("eval-queries").value.split("\n").map(s => s.trim()).filter(Boolean);
+  const mode = $("name").value;
+  const label = $("eval-label").value.trim() || "web";
+
+  $("eval-panel").style.display = "";
+  $("eval-progress").textContent = "starting…";
+  $("eval-badge").innerHTML = "";
+  $("status").textContent = "running eval…";
+
+  try {
+    const evt = await evalStreaming(
+      {
+        mode, category_slug: slug, label,
+        papers: papers.length ? papers : null,
+        queries: queries.length ? queries : null,
+      },
+      (step) => {
+        $("eval-progress").textContent = step.phase === "fetch"
+          ? `[fetch ${step.index + 1}/${step.total}] ${step.query} — ${step.status}`
+          : `[eval ${step.index + 1}/${step.total}] ${step.paper_id} — ${step.status}`;
+      }
+    );
+    $("eval-report").textContent = evt.report_md;
+    renderJsonTree("eval-raw-json", evt.raw);
+    let note = `done · saved to dev/eval_runs/${evt.run_dir}`;
+    if (evt.fetch_issues && evt.fetch_issues.length) {
+      note += ` · ${evt.fetch_issues.length} query(ies) unresolved (see console)`;
+      console.warn("eval fetch issues:", evt.fetch_issues);
+    }
+    $("eval-progress").textContent = note;
+    $("eval-badge").innerHTML = '<span class="badge">ok</span>';
+    $("status").textContent = "done";
+    await refreshEvalPapers();
+  } catch (e) {
+    $("eval-report").textContent = String(e);
+    $("eval-badge").innerHTML = '<span class="badge err">error</span>';
+    $("eval-progress").textContent = "";
+    $("status").textContent = "error";
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+init();
+</script>
+</body>
+</html>

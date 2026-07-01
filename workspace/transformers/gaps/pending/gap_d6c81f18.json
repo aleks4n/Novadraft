@@ -1,0 +1,17 @@
+{
+  "gap_id": "gap_d6c81f18",
+  "status": "unchecked",
+  "title": "No convergence guarantees with finite-capacity neural networks and gradient-based optimization",
+  "description": "The theoretical convergence proof assumes infinite capacity and optimization in function space. In practice, using MLPs introduces multiple critical points in parameter space, so theoretical guarantees do not apply.",
+  "type": "limitation",
+  "canonical_description": "no convergence guarantees for neural network-based adversarial training due to non-convex optimization",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1406.2661",
+      "section": "theoretical_results",
+      "quote": "In practice, adversarial nets represent a limited family of p_g distributions via the function G(z; θ_g), and we optimize θ_g rather than p_g itself. Using a multilayer perceptron to define G introduces multiple critical points in parameter space. However, the excellent performance of multilayer perceptrons in practice suggests that they are a reasonable model to use despite their lack of theoretical guarantees.",
+      "char_offset": null
+    }
+  ],
+  "extracted_at": "2026-06-22T12:58:23Z"
+}

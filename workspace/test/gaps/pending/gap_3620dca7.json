@@ -1,0 +1,23 @@
+{
+  "gap_id": "gap_3620dca7",
+  "status": "unchecked",
+  "title": "Reduced effective resolution from averaging attention weights",
+  "description": "Self-attention averages attention-weighted positions, which reduces effective resolution. The paper acknowledges this as a cost of using attention and counteracts it with multi-head attention.",
+  "type": "limitation",
+  "canonical_description": "attention averaging reduces effective resolution of representations",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1706.03762",
+      "section": "background",
+      "anchor": "cost of reduced effective resolution due to averaging attention-weighted positions",
+      "quote": "In the Transformer this is reduced to a constant number of operations, albeit at the cost of reduced effective resolution due to averaging attention-weighted positions, an effect we counteract with Multi-Head Attention as described in section~[REF:sec:attention].",
+      "char_offset": [
+        655,
+        918
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-06-26T21:37:09Z"
+}

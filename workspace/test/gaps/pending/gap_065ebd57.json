@@ -1,0 +1,23 @@
+{
+  "gap_id": "gap_065ebd57",
+  "status": "unchecked",
+  "title": "Further scaling of ViT likely to improve performance",
+  "description": "ViT models appear not to saturate within the range tried, suggesting that further scaling would likely lead to improved performance.",
+  "type": "future_work",
+  "canonical_description": "further scaling of transformer model expected to improve performance",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2010.11929",
+      "section": "experiments",
+      "anchor": "appear not to saturate within the range tried",
+      "quote": "Third, \\oursfull{}s appear not to saturate within the range tried, motivating future scaling efforts.",
+      "char_offset": [
+        12105,
+        12206
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-06-26T21:50:37Z"
+}
