@@ -5,6 +5,8 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
+from src.common.schemas.verdict import Verdict
+
 GapType = Literal[
     "limitation",
     "future_work",
@@ -79,3 +81,4 @@ class GapRecord(BaseModel):
     canonical_description: str
     evidence: list[GapEvidence]
     extracted_at: str
+    verdict: Optional[Verdict] = None  # attached by the validator once processed
