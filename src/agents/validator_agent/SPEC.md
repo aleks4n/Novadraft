@@ -19,22 +19,46 @@ gap → query_gen → search → rrf → screen → deep_read → verdict → fi
 | `screen` | LLM (cheap) | Abstract-level triage → ranked shortlist (≤ 8). |
 | `deep_read` | LLM (reasoner) | Fetch each shortlisted candidate into `_validator_cache` (paper_fetch + paper_extract, cache-reused), read its full text → `PaperAssessment` (≤ 5; fetch misses backfilled). |
 | `verdict` | LLM (reasoner) | Synthesize the assessments → one `Verdict` for the gap. |
-| `finalize` | deterministic | Persist the `Verdict` to `verdicts/<gap_id>.json` — the handoff the ranking agent reads. |
+| `finalize` | deterministic | Attach the `Verdict` to the gap, write `gaps/master/<gap_id>.json`, and drop it from the `to_validate/` inbox — the master-gap-list handoff the director/ranking read. |
 
-## Entrypoint & outputs
+## Gap lifecycle & outputs
 
+Gaps move through per-stage folders under `workspace/<cat>/gaps/` — the folder *is* the
+pipeline stage:
+
+```
+pending/   →   to_validate/   →   master/
+(gap agent)    (validator          (validated; each gap
+                inbox, filled       carries its attached
+                by the director)    verdict)
+```
+
+- The **director** dedups freshly-extracted gaps in `pending/` against `master/` and drops
+  the novel ones into `to_validate/`. The validator drains `to_validate/`, and on finish moves
+  each gap into `master/` with its `Verdict` attached. It never touches `pending/`.
 - **`run(category_slug, gap_id)`** is the standard entrypoint: loads the gap from
-  `gaps/pending/<gap_id>.json`, streams the graph through a `GraphRunLog` (so it writes the
-  standard per-run `.jsonl` to `workspace/<cat>/logs/validator_agent/` and echoes to a TTY),
-  and returns the `Verdict`. `stream=False` gives a quiet, log-free `.invoke()`.
-- **Verdict persistence** is a `finalize` node, not the `run()` boundary, so it also fires
-  when the validator is mounted as a subgraph node in the main pipeline. The scoring nodes
-  stay pure; `run()` reads the persisted verdict back to return it.
+  `gaps/to_validate/<gap_id>.json`, streams the graph through a `GraphRunLog` (writing the
+  per-run `.jsonl` to `workspace/<cat>/logs/validator_agent/`, echoing to a TTY), and returns
+  the updated gap record (with `.verdict`). `stream=False` gives a quiet, log-free `.invoke()`.
+- **The verdict is appended to the gap**, not written as a separate object: `GapRecord.verdict`
+  (`Optional[Verdict]`, `None` until validated). This mirrors the paper.json pattern (one
+  record, many agents append their section) and lets the folder lifecycle move a single
+  self-contained file. Persistence lives in the `finalize` node (not the `run()` boundary) so
+  it also fires when the validator is mounted as a subgraph in the main pipeline.
+- **`gap.status` is left untouched (Path A).** It's a gap-agent-authored field (`unchecked` /
+  `ambiguous_anchor`, written only by the gap extractor, read by nobody today); the validation
+  outcome lives in `gap.verdict.status` and "validated" is signalled by the `master/` folder.
+  Repurposing `status` as the single validation-lifecycle field is a possible future cleanup,
+  but needs the gap-agent owner's sign-off.
 
 ## Key decisions
 
 - **"Model doesn't echo ids":** LLM nodes return judgments only; the code attaches
   `CandidatePaper`/ids. (screen → positions; deep_read → `Assessment`; verdict → `VerdictJudgment`.)
+- **The `Verdict` is appended to the gap with assessments kept whole** — `PaperAssessment.paper`
+  stays a full `CandidatePaper`, not a slimmed id-reference. The persisted verdict is then
+  self-contained (survives `_validator_cache` eviction), and since nothing consumes assessments
+  yet, their shape isn't trimmed prematurely; the size cost (a few KB/gap) is moot.
 - **LLM calls go through the shared registry helper** `chat_with_structured_output(llm,
   system, user, schema)` (not `llm.with_structured_output(...).invoke`). It steers DeepSeek
   via function calling and leaves `tool_choice="auto"` — the `reasoner` model 400s on a
@@ -80,14 +104,24 @@ Built first against interim stub schemas; migrated to the real shared contracts 
 - **`paper_access.py`** (new, `common/tools/`): typed read accessors over `paper.json`
   (year / venue / keywords / sections / full_text), validating `PaperRecord` on read.
 
-## Deferred (NOT in V1)
+## Testing
 
-- **Test fixtures (pending).** Getters read `workspace/<cat>/papers/<id>/paper.json`, so the
-  old self-contained `test_gaps` no longer suffice — need either a small fixture workspace
-  (source-paper stubs with `metadata.year` + `summary.keywords`; the validator never reads
-  source content) or mocked `paper_access`, plus the gaps re-expressed as `GapRecord`.
-- **Dev-UI registration (pending).** `run()` + `GraphRunLog` + `verdicts/`
-  persistence are done; what remains is registering `validator_agent` in `dev/registry.py`
+`workspace/test/` is a committed fixture category (real papers + extracted gaps in
+`gaps/pending/`). To exercise the validator end-to-end, seed the inbox from a pending gap
+and run:
+
+```
+cp workspace/test/gaps/pending/gap_9f0f24c1.json workspace/test/gaps/to_validate/
+python src/agents/validator_agent/agent.py gap_9f0f24c1 test
+```
+
+The gap lands in `workspace/test/gaps/master/<gap_id>.json` with its verdict attached; that
+output is regenerable, so it isn't committed (the run's `logs/` and the prior-art
+`_validator_cache` are gitignored).
+
+## Deferred (NOT in V1)
+- **Dev-UI registration (pending).** `run()` + `GraphRunLog` + verdict persistence are done;
+  what remains is registering `validator_agent` in `dev/registry.py`
   (`GRAPH_BUILDERS` + `LOGGED_AGENTS`) so the dev harness/UI list and render its runs. 
 - **Gap refinement.** Dropped `Verdict.refined_gap` entirely (was always `None`). Preferred
   future design: an **additive "coverage" array parallel to `evidence`** — each entry names a

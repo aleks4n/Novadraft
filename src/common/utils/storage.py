@@ -16,6 +16,7 @@ import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Literal
 
 WORKSPACE_ENV = "NOVADRAFT_WORKSPACE"
 _DEFAULT_WORKSPACE = Path(__file__).resolve().parents[3] / "workspace"
@@ -171,32 +172,36 @@ def list_idea_ids(category_slug: str) -> list[str]:
     return sorted(p.stem for p in d.glob("*.json"))
 
 
-# --- verdicts/<gap_id>.json --------------------------------------------------
-# One validator Verdict per gap, keyed by gap_id — the handoff the ranking agent reads.
+# --- gaps/<stage>/<gap_id>.json ----------------------------------------------
+# Gaps move through stage folders as they flow down the pipeline:
+#   pending/      gap agent's output (freshly extracted)
+#   to_validate/  validator inbox (the director drops novel gaps here)
+#   master/       the master gap list (validated; each gap carries its verdict)
+# The validator drains to_validate/ and writes each gap into master/.
 
-def verdicts_dir(category_slug: str) -> Path:
-    return category_dir(category_slug) / "verdicts"
+GapStage = Literal["pending", "to_validate", "master"]
 
 
-def write_verdict_json(category_slug: str, record: dict) -> Path:
-    d = verdicts_dir(category_slug)
+def gap_stage_dir(category_slug: str, stage: GapStage) -> Path:
+    return category_dir(category_slug) / "gaps" / stage
+
+
+def read_gap_json(category_slug: str, gap_id: str, stage: GapStage) -> dict | None:
+    p = gap_stage_dir(category_slug, stage) / f"{gap_id}.json"
+    if not p.exists():
+        return None
+    return json.loads(p.read_text())
+
+
+def write_gap_json(category_slug: str, record: dict, stage: GapStage) -> Path:
+    d = gap_stage_dir(category_slug, stage)
     d.mkdir(parents=True, exist_ok=True)
     out = d / f"{record['gap_id']}.json"
     out.write_text(json.dumps(record, indent=2, ensure_ascii=False))
     return out
 
 
-def read_verdict_json(category_slug: str, gap_id: str) -> dict | None:
-    p = verdicts_dir(category_slug) / f"{gap_id}.json"
-    if not p.exists():
-        return None
-    return json.loads(p.read_text())
-
-
-def list_verdict_ids(category_slug: str) -> list[str]:
-    d = verdicts_dir(category_slug)
-    if not d.exists():
-        return []
-    return sorted(p.stem for p in d.glob("*.json"))
+def remove_gap_json(category_slug: str, gap_id: str, stage: GapStage) -> None:
+    (gap_stage_dir(category_slug, stage) / f"{gap_id}.json").unlink(missing_ok=True)
 
 

@@ -1,5 +1,6 @@
 """Validator agent — wires the steps into one graph, plus the standard `run()`
-entrypoint that streams through GraphRunLog and persists the verdict.
+entrypoint that streams through GraphRunLog, attaches the verdict to the gap, and
+moves it into the master gap list.
 
 Flow: query_gen -> search -> rrf -> screen -> deep_read -> verdict -> finalize.
 Embeds as a subgraph node in the main pipeline; also runnable standalone
@@ -29,11 +30,13 @@ from src.agents.validator_agent.subagents.deep_read.agent import deep_read
 from src.agents.validator_agent.subagents.verdict.agent import verdict
 
 def finalize(state: ValidatorState) -> dict:
-    """Persist the verdict to workspace/<cat>/verdicts/<gap_id>.json — the handoff
-    the ranking agent reads. Side-effect only; no state change."""
-    storage.write_verdict_json(
-        state["category_slug"], state["verdict"].model_dump(mode="json")
-    )
+    """Attach the verdict to the gap and move it into the master gap list:
+    write gaps/master/<gap_id>.json, then drop it from the to_validate/ inbox.
+    This is the handoff the director/ranking read. Side-effect only; no state change."""
+    category = state["category_slug"]
+    gap = state["gap"].model_copy(update={"verdict": state["verdict"]})
+    storage.write_gap_json(category, gap.model_dump(mode="json"), "master")
+    storage.remove_gap_json(category, gap.gap_id, "to_validate")
     return {}
 
 
@@ -73,16 +76,20 @@ def _get_graph():
 
 
 def _load_gap(category_slug: str, gap_id: str) -> GapRecord:
-    """Load a gap's GapRecord from workspace/<cat>/gaps/pending/<gap_id>.json."""
-    path = storage.category_dir(category_slug) / "gaps" / "pending" / f"{gap_id}.json"
-    return GapRecord.model_validate_json(path.read_text(encoding="utf-8"))
+    """Load a gap awaiting validation from gaps/to_validate/<gap_id>.json."""
+    raw = storage.read_gap_json(category_slug, gap_id, "to_validate")
+    if raw is None:
+        inbox = storage.gap_stage_dir(category_slug, "to_validate")
+        raise FileNotFoundError(f"Gap '{gap_id}' not found in {inbox}")
+    return GapRecord.model_validate(raw)
 
 
 def run(category_slug: str, gap_id: str, *, stream: bool = True,
         echo: bool | None = None) -> dict | None:
     """Validate one gap: search prior art published after its cutoff and judge
-    whether it has since been addressed. Writes workspace/<cat>/verdicts/<gap_id>.json
-    and returns that Verdict (as a dict). Standalone-callable.
+    whether it has since been addressed. Attaches the resulting Verdict to the
+    gap, moves it from gaps/to_validate/ to gaps/master/, and returns the updated
+    gap record (with ``.verdict``). Standalone-callable.
 
     By default streams the graph through a GraphRunLog, writing the standard
     per-run ``.jsonl`` to ``workspace/<cat>/logs/validator_agent/`` and echoing
@@ -94,7 +101,7 @@ def run(category_slug: str, gap_id: str, *, stream: bool = True,
 
     if not stream:
         graph.invoke(inputs)
-        return storage.read_verdict_json(category_slug, gap_id)
+        return storage.read_gap_json(category_slug, gap_id, "master")
 
     if echo is None:
         echo = sys.stderr.isatty()
@@ -102,15 +109,15 @@ def run(category_slug: str, gap_id: str, *, stream: bool = True,
     rl.run(graph, inputs, echo=echo)
     if rl.error:
         raise RuntimeError(rl.error)
-    return storage.read_verdict_json(category_slug, gap_id)
+    return storage.read_gap_json(category_slug, gap_id, "master")
 
 
 if __name__ == "__main__":
     import json
 
-    # CLI args: <gap_id> [category_slug]. Loads the gap from gaps/pending/ and
-    # validates it; the verdict lands in verdicts/<gap_id>.json and a run log in
-    # logs/validator_agent/<run>.jsonl.
+    # CLI args: <gap_id> [category_slug]. Loads the gap from gaps/to_validate/ and
+    # validates it; the gap (verdict attached) lands in gaps/master/<gap_id>.json
+    # and a run log in logs/validator_agent/<run>.jsonl.
     gap_id = sys.argv[1] if len(sys.argv) > 1 else "gap_9f0f24c1"
     category = sys.argv[2] if len(sys.argv) > 2 else "test"
     record = run(category, gap_id)
