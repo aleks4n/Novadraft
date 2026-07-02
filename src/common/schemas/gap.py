@@ -6,6 +6,7 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 from src.common.schemas.verdict import Verdict
+from src.common.schemas.ranking import RankingScores
 
 GapType = Literal[
     "limitation",
@@ -82,3 +83,4 @@ class GapRecord(BaseModel):
     evidence: list[GapEvidence]
     extracted_at: str
     verdict: Optional[Verdict] = None  # attached by the validator once processed
+    ranking: Optional[RankingScores] = None  # attached by the ranking agent (open / partial only)

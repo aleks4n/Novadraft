@@ -16,7 +16,7 @@ from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
-from src.llm.registry import get_llm
+from src.llm.registry import chat_with_structured_output, get_llm
 from src.agents.ranking_agent.venue.rankings import acronym_exists
 
 _CACHE_FILE = Path(__file__).resolve().parents[4] / ".cache" / "venue_acronyms.json"
@@ -31,12 +31,15 @@ _SYSTEM = (
 
 
 class VenueMatch(BaseModel):
-    name: str = Field(description="the venue name exactly as given")
+    # Defaults make the batch robust to the model dropping a field (common for journals,
+    # where it just omits the acronym) — a missing acronym degrades to "NONE" (no venue score).
+    name: str = Field(default="", description="the venue name exactly as given")
     acronym: str = Field(
+        default="NONE",
         description=(
             "the canonical CORE conference acronym (e.g. 'NeurIPS', 'CVPR'), or the string "
             "'NONE' for a journal, workshop, unknown venue, or when you are not confident"
-        )
+        ),
     )
 
 
@@ -63,9 +66,10 @@ def resolve_venues(names: List[str]) -> Dict[str, Optional[str]]:
     cache = _load_cache()
     uncached = sorted({n for n in names if n and n not in cache})
     if uncached:
-        llm = get_llm("cheap").with_structured_output(VenueMatches, method="function_calling")
         listing = "\n".join(f"{i}. {n}" for i, n in enumerate(uncached, 1))
-        result: VenueMatches = llm.invoke([("system", _SYSTEM), ("human", f"Venues:\n{listing}")])
+        result: VenueMatches = chat_with_structured_output(
+            get_llm("cheap"), _SYSTEM, f"Venues:\n{listing}", VenueMatches
+        )
 
         # Align positionally (robust to the model reformatting the echoed name); only trust
         # the batch if the counts match, else leave them uncached to retry next run.

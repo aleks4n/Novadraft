@@ -12,35 +12,37 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
-from src.common.schemas.gap import Gap
-
 
 class RankingConfig(BaseModel):
-    """Tunable ranking knobs (exposed in the UI; sensible defaults here)."""
+    """Tunable ranking knobs — this schema doubles as the UI's knob list.
 
-    # --- filter floors: a gap is dropped if it falls below any of these ---
+    The *compute-time* knobs (venue/citation blend, evidence bonus, recency) are the only ones
+    the ranking agent uses. The *view-time* knobs — the three dimension weights and the min_*
+    floors — are applied downstream by the UI when it computes the final weighted score and
+    orders/filters; the agent itself does not read them. (No top_x: the agent scores and returns
+    every gap; how many to show is a pure display choice.)
+    """
+
+    # --- view-time knobs: applied by the UI, NOT the agent (see docstring) ---
+    # filter floors: the UI drops a gap that falls below any of these
     min_openness: float = Field(0.0, ge=0.0, le=1.0)
     min_impact: float = Field(0.0, ge=0.0, le=1.0)
     min_feasibility: float = Field(0.0, ge=0.0, le=1.0)
-
-    # --- dimension weights: relative importance in the combined (geometric) score ---
+    # dimension weights: the UI's weighted geometric mean over the three scores
     w_openness: float = Field(1.0, ge=0.0)
     w_impact: float = Field(1.0, ge=0.0)
     w_feasibility: float = Field(1.0, ge=0.0)
 
-    # --- impact: venue + citation are the quality blend; evidence is a separate bonus ---
+    # --- compute-time knobs: used by score_impact ---
+    # venue + citation quality blend; evidence is a separate bonus
     w_venue: float = Field(1.0, ge=0.0)
     w_citation: float = Field(1.0, ge=0.0)
     evidence_bonus: float = Field(
         0.3, ge=0.0, description="max multiplicative impact bonus from multiple evidence papers (1 paper = no bonus)"
     )
-
-    # --- recency decay applied to impact: floor + (1-floor) * 0.5^(age_years / half_life) ---
+    # recency decay applied to impact: floor + (1-floor) * 0.5^(age_years / half_life)
     recency_half_life: float = Field(2.5, gt=0.0, description="years until the decay halves")
     recency_floor: float = Field(0.4, ge=0.0, le=1.0, description="never decay below this")
-
-    # --- output ---
-    top_x: int = Field(10, ge=1, description="how many top gaps to return")
 
 
 class FeasibilityAssessment(BaseModel):
@@ -76,20 +78,3 @@ class ImpactBreakdown(BaseModel):
     recency: float = 1.0
     evidence_bonus: float = 1.0
     venues: List[str] = Field(default_factory=list)  # resolved CORE acronyms (readability)
-
-
-class GapScore(BaseModel):
-    """Per-gap score breakdown — kept transparent so a UI can show *why* a gap ranked."""
-
-    openness: float = Field(ge=0.0, le=1.0)
-    impact: float = Field(ge=0.0, le=1.0)
-    feasibility: float = Field(ge=0.0, le=1.0)
-    final_score: float = Field(ge=0.0, le=1.0)  # weighted geometric mean of the three
-    feasibility_reasoning: str = ""
-
-
-class RankedGap(BaseModel):
-    """An output item: a surviving gap plus its score breakdown (list order = rank)."""
-
-    gap: Gap
-    score: GapScore

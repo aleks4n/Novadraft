@@ -28,11 +28,7 @@ def get_paper(category_slug: str, paper_id: str) -> Optional[PaperRecord]:
 
 
 def get_year(category_slug: str, paper_id: str) -> Optional[int]:
-    """Publication year (`metadata.year`); None if unknown.
-
-    Year granularity is all paper.json carries — enough for the prior-art cutoff
-    and the ranking recency decay, both of which reason in years.
-    """
+    """Publication year (`metadata.year`); None if unknown."""
     paper = get_paper(category_slug, paper_id)
     return paper.metadata.year if paper else None
 

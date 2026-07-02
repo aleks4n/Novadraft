@@ -174,13 +174,15 @@ def list_idea_ids(category_slug: str) -> list[str]:
 
 
 # --- gaps/<stage>/<gap_id>.json ----------------------------------------------
-# Gaps move through stage folders as they flow down the pipeline:
+# Gaps move through stage folders as they flow down the pipeline; each stage's
+# owner drains its inbox and writes into the next:
 #   pending/      gap agent's output (freshly extracted)
 #   to_validate/  validator inbox (the director drops novel gaps here)
-#   master/       the master gap list (validated; each gap carries its verdict)
-# The validator drains to_validate/ and writes each gap into master/.
+#   to_rank/      ranking inbox (the validator drops open / partially-solved gaps)
+#   master/       the master gap list (validated; opportunities also carry a ranking,
+#                 solved gaps are parked here directly for dedup)
 
-GapStage = Literal["pending", "to_validate", "master"]
+GapStage = Literal["pending", "to_validate", "to_rank", "master"]
 
 
 def gap_stage_dir(category_slug: str, stage: GapStage) -> Path:
@@ -204,5 +206,12 @@ def write_gap_json(category_slug: str, record: dict, stage: GapStage) -> Path:
 
 def remove_gap_json(category_slug: str, gap_id: str, stage: GapStage) -> None:
     (gap_stage_dir(category_slug, stage) / f"{gap_id}.json").unlink(missing_ok=True)
+
+
+def list_gap_ids(category_slug: str, stage: GapStage) -> list[str]:
+    d = gap_stage_dir(category_slug, stage)
+    if not d.exists():
+        return []
+    return sorted(p.stem for p in d.glob("*.json"))
 
 
