@@ -2,13 +2,15 @@
 
 Walks the ranked shortlist, downloads each paper's full text, and reads it against
 the gap — one reasoner call and one PaperAssessment **per paper**. Takes the first
-`target` papers whose source downloads; download failures are skipped and
-backfilled by the next-ranked paper (their ids go to `skipped_ids`).
+`target` papers whose source resolves; fetch/extraction failures are skipped and
+backfilled by the next-ranked paper (their ids go to `skipped_ids`), so one bad paper
+never aborts the whole gap.
 
 Each candidate is fetched once into a shared hidden cache category (`_validator_cache`)
 via paper_fetch + paper_extract, then read from its paper.json; cache hits are reused
-across gaps. Fetch/extract misses are skipped and backfilled by the next-ranked paper.
-Reads are sequential for V1 — parallelizing the LLM calls is a later optimization.
+across gaps. Reads are sequential and use the fast `cheap` model (deepseek-chat) rather
+than the reasoner — full-paper comprehension it handles well while keeping each gap's
+latency down. Parallelizing the reads is a later optimization.
 """
 
 from __future__ import annotations
@@ -50,7 +52,7 @@ def _clip(text: str) -> str:
 
 
 def _analyse(llm, gap: GapRecord, paper: CandidatePaper, full_text: str) -> PaperAssessment:
-    """One reasoner call on one paper's full text -> PaperAssessment (paper attached here)."""
+    """One LLM call on one paper's full text -> PaperAssessment (paper attached here)."""
     user_message = (
         f"**Research gap:** {gap.title}\n\n"
         f"**Gap description**:\n{gap.description}\n\n"
@@ -83,8 +85,10 @@ def _ensure_cache() -> None:
 def _cache_fulltext(candidate: CandidatePaper) -> Optional[str]:
     """Fetch the candidate into the shared cache once, extract it, return its full text.
 
-    Cache hits (already fetched for an earlier gap) are reused. None if the paper can't
-    be confidently resolved, fetched, or extracted.
+    Cache hits (already fetched for an earlier gap) are reused. Returns None if the paper
+    can't be confidently resolved, fetched, or extracted — the candidate is then skipped and
+    backfilled by the next-ranked one, so a single unfetchable / unextractable paper (e.g. a
+    PDF-only paper when marker-pdf isn't installed) never aborts the whole gap.
     """
     paper_id = candidate.paper_id
     try:
@@ -96,15 +100,23 @@ def _cache_fulltext(candidate: CandidatePaper) -> Optional[str]:
         paper_id = exc.paper_id  # cache hit — reuse what's already fetched
     except PaperFetchError:
         return None
-    extract(_CACHE, paper_id)  # idempotent: skips if already extracted
+    try:
+        extract(_CACHE, paper_id)  # idempotent: skips if already extracted
+    except Exception:
+        return None  # extraction failed (missing marker-pdf, corrupt source, ...) — skip + backfill
     return get_full_text(_CACHE, paper_id)
 
 
 def deep_read(state: ValidatorState) -> dict:
-    """LangGraph node: shortlist -> {"assessments": [...], "skipped_ids": [...]}."""
+    """LangGraph node: shortlist -> {"assessments": [...], "skipped_ids": [...]}.
+
+    Walks the shortlist in rank order, reading each paper against the gap until `_TARGET`
+    papers are assessed; fetch/extract misses are skipped and backfilled by the next-ranked
+    paper. Reads are sequential (parallelizing them is a later optimization).
+    """
     gap: GapRecord = state["gap"]
     shortlist: List[CandidatePaper] = state.get("shortlist", [])
-    llm = get_llm("reasoner")
+    llm = get_llm("cheap")
     _ensure_cache()
 
     assessments: List[PaperAssessment] = []
@@ -117,4 +129,5 @@ def deep_read(state: ValidatorState) -> dict:
             skipped.append(paper.paper_id)  # unfetchable / unextractable -> backfill
             continue
         assessments.append(_analyse(llm, gap, paper, full_text))
+
     return {"assessments": assessments, "skipped_ids": skipped}
