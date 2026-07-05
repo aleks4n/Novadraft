@@ -19,7 +19,7 @@ gap → query_gen → search → rrf → screen → deep_read → verdict → fi
 | `screen` | LLM (cheap) | Abstract-level triage → ranked shortlist (≤ 8). |
 | `deep_read` | LLM (reasoner) | Fetch each shortlisted candidate into `_validator_cache` (paper_fetch + paper_extract, cache-reused), read its full text → `PaperAssessment` (≤ 5; fetch misses backfilled). |
 | `verdict` | LLM (reasoner) | Synthesize the assessments → one `Verdict` for the gap. |
-| `finalize` | deterministic | Attach the `Verdict` to the gap, write `gaps/master/<gap_id>.json`, and drop it from the `to_validate/` inbox — the master-gap-list handoff the director/ranking read. |
+| `finalize` | deterministic | Attach the `Verdict` to the gap and route it out of `to_validate/`: solved gaps → `gaps/master/` (terminal, kept for dedup); open / partially-solved → `gaps/to_rank/` (the ranking agent's inbox). |
 
 ## Gap lifecycle & outputs
 
@@ -27,15 +27,18 @@ Gaps move through per-stage folders under `workspace/<cat>/gaps/` — the folder
 pipeline stage:
 
 ```
-pending/   →   to_validate/   →   master/
-(gap agent)    (validator          (validated; each gap
-                inbox, filled       carries its attached
-                by the director)    verdict)
+pending/  →  to_validate/  →  to_rank/   →  master/
+(gap agent)   (validator       (ranking      (validated; ranked
+               inbox, filled     inbox)        opportunities + solved
+               by the director)                gaps land here)
 ```
 
 - The **director** dedups freshly-extracted gaps in `pending/` against `master/` and drops
-  the novel ones into `to_validate/`. The validator drains `to_validate/`, and on finish moves
-  each gap into `master/` with its `Verdict` attached. It never touches `pending/`.
+  the novel ones into `to_validate/`. The validator drains `to_validate/` and, on finish,
+  routes each gap by its verdict: **solved** gaps are terminal and go straight to `master/`
+  (kept for the director's dedup, not an opportunity); **open / partially-solved** gaps go to
+  `to_rank/`, where the ranking agent scores them and moves them into `master/`. The validator
+  never touches `pending/`.
 - **`run(category_slug, gap_id)`** is the standard entrypoint: loads the gap from
   `gaps/to_validate/<gap_id>.json`, streams the graph through a `GraphRunLog` (writing the
   per-run `.jsonl` to `workspace/<cat>/logs/validator_agent/`, echoing to a TTY), and returns
@@ -123,6 +126,9 @@ output is regenerable, so it isn't committed (the run's `logs/` and the prior-ar
 - **Dev-UI registration (pending).** `run()` + `GraphRunLog` + verdict persistence are done;
   what remains is registering `validator_agent` in `dev/registry.py`
   (`GRAPH_BUILDERS` + `LOGGED_AGENTS`) so the dev harness/UI list and render its runs. 
+- **Precise prior-art cutoff.** `_cutoff_date` (`tools/search.py`) uses the earliest evidence
+  *year* → `YYYY-01-01`. paper.json carries a finer `metadata.publication_date`; switch to it
+  (via a `paper_access.get_publication_date`) for a precise cutoff when needed.
 - **Gap refinement.** Dropped `Verdict.refined_gap` entirely (was always `None`). Preferred
   future design: an **additive "coverage" array parallel to `evidence`** — each entry names a
   sub-part of the gap and the paper that addresses it — leaving the original gap text stable.

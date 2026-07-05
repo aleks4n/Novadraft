@@ -1,6 +1,6 @@
 """Validator agent — wires the steps into one graph, plus the standard `run()`
 entrypoint that streams through GraphRunLog, attaches the verdict to the gap, and
-moves it into the master gap list.
+routes it onward: solved gaps to the master list, opportunities to the ranking inbox.
 
 Flow: query_gen -> search -> rrf -> screen -> deep_read -> verdict -> finalize.
 Embeds as a subgraph node in the main pipeline; also runnable standalone
@@ -30,14 +30,23 @@ from src.agents.validator_agent.subagents.deep_read.agent import deep_read
 from src.agents.validator_agent.subagents.verdict.agent import verdict
 
 def finalize(state: ValidatorState) -> dict:
-    """Attach the verdict to the gap and move it into the master gap list:
-    write gaps/master/<gap_id>.json, then drop it from the to_validate/ inbox.
-    This is the handoff the director/ranking read. Side-effect only; no state change."""
+    """Attach the verdict to the gap and route it out of the to_validate/ inbox:
+    a *solved* gap is terminal (parked for dedup, not an opportunity) -> gaps/master/;
+    an open / partially-solved gap goes to gaps/to_rank/ for the ranking agent.
+    Side-effect only; no state change."""
     category = state["category_slug"]
-    gap = state["gap"].model_copy(update={"verdict": state["verdict"]})
-    storage.write_gap_json(category, gap.model_dump(mode="json"), "master")
+    verdict = state["verdict"]
+    gap = state["gap"].model_copy(update={"verdict": verdict})
+    stage = "master" if verdict.status == "solved" else "to_rank"
+    storage.write_gap_json(category, gap.model_dump(mode="json"), stage)
     storage.remove_gap_json(category, gap.gap_id, "to_validate")
     return {}
+
+
+def _read_result(category_slug: str, gap_id: str) -> dict | None:
+    """The finalized gap lands in master/ (solved) or to_rank/ (to be ranked)."""
+    return (storage.read_gap_json(category_slug, gap_id, "master")
+            or storage.read_gap_json(category_slug, gap_id, "to_rank"))
 
 
 def build_validator_graph():
@@ -88,8 +97,9 @@ def run(category_slug: str, gap_id: str, *, stream: bool = True,
         echo: bool | None = None) -> dict | None:
     """Validate one gap: search prior art published after its cutoff and judge
     whether it has since been addressed. Attaches the resulting Verdict to the
-    gap, moves it from gaps/to_validate/ to gaps/master/, and returns the updated
-    gap record (with ``.verdict``). Standalone-callable.
+    gap, moves it from gaps/to_validate/ to gaps/master/ (solved) or gaps/to_rank/
+    (open / partially-solved), and returns the updated gap record (with ``.verdict``).
+    Standalone-callable.
 
     By default streams the graph through a GraphRunLog, writing the standard
     per-run ``.jsonl`` to ``workspace/<cat>/logs/validator_agent/`` and echoing
@@ -101,7 +111,7 @@ def run(category_slug: str, gap_id: str, *, stream: bool = True,
 
     if not stream:
         graph.invoke(inputs)
-        return storage.read_gap_json(category_slug, gap_id, "master")
+        return _read_result(category_slug, gap_id)
 
     if echo is None:
         echo = sys.stderr.isatty()
@@ -116,8 +126,8 @@ if __name__ == "__main__":
     import json
 
     # CLI args: <gap_id> [category_slug]. Loads the gap from gaps/to_validate/ and
-    # validates it; the gap (verdict attached) lands in gaps/master/<gap_id>.json
-    # and a run log in logs/validator_agent/<run>.jsonl.
+    # validates it; the gap (verdict attached) lands in gaps/master/ (solved) or
+    # gaps/to_rank/ (open/partial), plus a run log in logs/validator_agent/<run>.jsonl.
     gap_id = sys.argv[1] if len(sys.argv) > 1 else "gap_9f0f24c1"
     category = sys.argv[2] if len(sys.argv) > 2 else "test"
     record = run(category, gap_id)
