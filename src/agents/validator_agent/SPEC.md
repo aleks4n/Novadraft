@@ -17,7 +17,7 @@ gap → query_gen → search → rrf → screen → deep_read → verdict → fi
 | `search` | deterministic | Run each query against arXiv (date-filtered, retry/backoff); one ranked list per query. |
 | `rrf` | deterministic | Reciprocal-rank-fusion the lists → 15 deduped candidates. |
 | `screen` | LLM (cheap) | Abstract-level triage → ranked shortlist (≤ 8). |
-| `deep_read` | LLM (reasoner) | Fetch each shortlisted candidate into `_validator_cache` (paper_fetch + paper_extract, cache-reused), read its full text → `PaperAssessment` (≤ 5; fetch misses backfilled). |
+| `deep_read` | LLM (cheap) | Fetch each shortlisted candidate into `_validator_cache` (paper_fetch + paper_extract, cache-reused), read its full text → `PaperAssessment` (≤ 5; fetch **or extract** misses backfilled). |
 | `verdict` | LLM (reasoner) | Synthesize the assessments → one `Verdict` for the gap. |
 | `finalize` | deterministic | Attach the `Verdict` to the gap and route it out of `to_validate/`: solved gaps → `gaps/master/` (terminal, kept for dedup); open / partially-solved → `gaps/to_rank/` (the ranking agent's inbox). |
 
@@ -73,6 +73,16 @@ pending/  →  to_validate/  →  to_rank/   →  master/
   deep_read fetches each via `paper_fetch` + `paper_extract` once and reuses it across gaps
   (`PaperAlreadyExistsError` = cache hit). The leading `_` hides it from `list_workspaces`
   (one-line skip added there) so the UI doesn't list it as a research topic.
+- **`deep_read` runs on the `cheap` model (deepseek-chat), not the reasoner.** It's the latency
+  hog (up to 5 full-paper reads per gap) and full-paper comprehension the cheap model handles
+  well, so this is the biggest speed lever; the reasoner's thinking phase (and its transient
+  503s) isn't worth it here. **`verdict` stays on the reasoner** — a single call, the actual
+  solved/partial/open judgment, and it already falls back to `cheap` on failure. Provisional
+  "for now"; revisit if deep_read quality dips. (Speeding it up further = parallelizing the
+  reads, deferred below.)
+- **A candidate that can't be fetched *or extracted* is skipped + backfilled, never fatal.**
+  `_cache_fulltext` wraps `paper_extract` in a try/except and returns `None` on failure (e.g. a
+  PDF-only prior-art paper when marker-pdf isn't installed), so one bad paper never aborts the gap.
 - **Verdict status is LLM-judged**, not mechanically derived from relevance labels —
   multiple `partial_solution`s may or may not add up to `solved`, which a label map can't capture.
 - **Empty short-circuit:** if `deep_read` produced no assessments, `verdict` returns a
@@ -129,6 +139,11 @@ output is regenerable, so it isn't committed (the run's `logs/` and the prior-ar
 - **Precise prior-art cutoff.** `_cutoff_date` (`tools/search.py`) uses the earliest evidence
   *year* → `YYYY-01-01`. paper.json carries a finer `metadata.publication_date`; switch to it
   (via a `paper_access.get_publication_date`) for a precise cutoff when needed.
+- **Parallelize `deep_read` (speed).** The per-paper reads are independent and dominate the
+  validator's latency (currently sequential). A `ThreadPoolExecutor` version was prototyped and
+  reverted — redo it *with* per-call retry/backoff for arXiv 429/503 + DeepSeek 503, so it's
+  verifiable end-to-end rather than amplifying rate-limit failures. (Interim speed win already
+  taken: deep_read on the `cheap` model — see Key decisions.)
 - **Gap refinement.** Dropped `Verdict.refined_gap` entirely (was always `None`). Preferred
   future design: an **additive "coverage" array parallel to `evidence`** — each entry names a
   sub-part of the gap and the paper that addresses it — leaving the original gap text stable.
