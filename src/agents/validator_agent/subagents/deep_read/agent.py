@@ -1,16 +1,17 @@
-"""Deep Read (LLM, reasoner) — Stage 5 of the validator.
+"""Deep Read (LLM, cheap) — Stage 5 of the validator.
 
 Walks the ranked shortlist, downloads each paper's full text, and reads it against
-the gap — one reasoner call and one PaperAssessment **per paper**. Takes the first
+the gap — one LLM call and one PaperAssessment **per paper**. Takes the first
 `target` papers whose source resolves; fetch/extraction failures are skipped and
 backfilled by the next-ranked paper (their ids go to `skipped_ids`), so one bad paper
 never aborts the whole gap.
 
 Each candidate is fetched once into a shared hidden cache category (`_validator_cache`)
 via paper_fetch + paper_extract, then read from its paper.json; cache hits are reused
-across gaps. Reads are sequential and use the fast `cheap` model (deepseek-chat) rather
-than the reasoner — full-paper comprehension it handles well while keeping each gap's
-latency down. Parallelizing the reads is a later optimization.
+across gaps. Reads use the fast `cheap` model (deepseek-chat) rather than the reasoner —
+full-paper comprehension it handles well while keeping each gap's latency down — and the
+per-paper LLM reads (the bulk of deep_read's latency) run concurrently, bounded by
+`_MAX_PARALLEL_READS`; transient provider errors are retried inside the registry.
 """
 
 from __future__ import annotations
@@ -18,7 +19,9 @@ from __future__ import annotations
 import json
 import re
 import threading
-from typing import List, Optional
+from concurrent.futures import ThreadPoolExecutor
+from contextvars import copy_context
+from typing import List, Optional, Tuple
 
 from src.common.schemas.gap import GapRecord
 from src.common.schemas.paper import CandidatePaper
@@ -34,6 +37,7 @@ from src.agents.validator_agent.state import ValidatorState
 
 _SYSTEM = load_prompt(__file__)
 _TARGET = 5  # how many papers to deep-read
+_MAX_PARALLEL_READS = 5  # concurrent per-paper LLM reads
 _CHAR_BUDGET = 60_000  # cap full text fed to the prompt (head + tail kept)
 _BLANKLINES_RE = re.compile(r"\n{3,}")
 _CACHE = "_validator_cache"  # hidden workspace category caching fetched prior-art papers
@@ -122,24 +126,33 @@ def _cache_fulltext(candidate: CandidatePaper) -> Optional[str]:
 def deep_read(state: ValidatorState) -> dict:
     """LangGraph node: shortlist -> {"assessments": [...], "skipped_ids": [...]}.
 
-    Walks the shortlist in rank order, reading each paper against the gap until `_TARGET`
-    papers are assessed; fetch/extract misses are skipped and backfilled by the next-ranked
-    paper. Reads are sequential (parallelizing them is a later optimization).
+    Resolves full text in shortlist order until `_TARGET` papers are ready (fetch/extract
+    misses skipped + backfilled by the next-ranked paper), then runs the per-paper LLM
+    reads concurrently — they are independent and dominate deep_read's latency.
     """
     gap: GapRecord = state["gap"]
     shortlist: List[CandidatePaper] = state.get("shortlist", [])
     llm = get_llm("cheap")
     _ensure_cache()
 
-    assessments: List[PaperAssessment] = []
+    # Resolve full text lazily (stop at _TARGET) so we never kick off extra extractions.
+    ready: List[Tuple[CandidatePaper, str]] = []
     skipped: List[str] = []
     for paper in shortlist:
-        if len(assessments) >= _TARGET:
+        if len(ready) >= _TARGET:
             break
         full_text = _cache_fulltext(paper)
-        if not full_text:
+        if full_text:
+            ready.append((paper, full_text))
+        else:
             skipped.append(paper.paper_id)  # unfetchable / unextractable -> backfill
-            continue
-        assessments.append(_analyse(llm, gap, paper, full_text))
+
+    # Read the ready papers against the gap concurrently (one LLM call each). Each task
+    # runs under a copy of the current context so LangGraph's stream writer is visible
+    # from the worker threads — without it the LLM traces would vanish from the run log.
+    with ThreadPoolExecutor(max_workers=_MAX_PARALLEL_READS) as pool:
+        futures = [pool.submit(copy_context().run, _analyse, llm, gap, paper, text)
+                   for paper, text in ready]
+        assessments = [f.result() for f in futures]
 
     return {"assessments": assessments, "skipped_ids": skipped}
