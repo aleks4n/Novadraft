@@ -11,12 +11,12 @@ import feedparser
 from src.common.schemas.gap import GapRecord
 from src.common.schemas.paper import CandidatePaper
 from src.common.tools.paper_access import get_year
+from src.common.utils.ratelimit import wait_turn
 from src.agents.validator_agent.schemas import SearchQuery
 from src.agents.validator_agent.state import ValidatorState
 
 _ARXIV_API = "https://export.arxiv.org/api/query?"
 _MAX_RESULTS = 50
-_QUERY_SPACING = 3.0  # seconds between queries — arXiv rate-limits
 
 _RETRYABLE_STATUS = {429, 500, 502, 503, 504} # permanent error (e.g. 400 bad query) is not retried.
 _RETRIES = 4
@@ -110,6 +110,7 @@ def _search_one(query: SearchQuery, cutoff_date: str) -> List[CandidatePaper]:
     )
 
     for attempt in range(_RETRIES + 1):
+        wait_turn("arxiv")  # shared gate — spacing holds across queries, gaps and threads
         feed = feedparser.parse(url)
         status = feed.get("status")
         if status is None or status == 200:
@@ -126,13 +127,15 @@ def _search_one(query: SearchQuery, cutoff_date: str) -> List[CandidatePaper]:
 # --- search ---
 
 def search(state: ValidatorState) -> dict:
-    """LangGraph node: run the 3 queries -> {"search_results": [ranked list per query]}."""
+    """LangGraph node: run the 3 queries -> {"search_results": [ranked list per query]}.
+
+    Spacing between arXiv requests is enforced by the shared `ratelimit` gate in
+    `_search_one` (not a local sleep), so it also holds across parallel gaps.
+    """
     gap: GapRecord = state["gap"]
     cutoff = _cutoff_date(gap, state["category_slug"])
-
-    results: List[List[CandidatePaper]] = []
-    for i, query in enumerate(state["search_queries"].queries):
-        results.append(_search_one(query, cutoff))
-        if i < len(state["search_queries"].queries) - 1:
-            time.sleep(_QUERY_SPACING)  # be polite to arXiv between queries
-    return {"search_results": results}
+    return {
+        "search_results": [
+            _search_one(query, cutoff) for query in state["search_queries"].queries
+        ]
+    }
