@@ -8,12 +8,19 @@ Returns:
 from __future__ import annotations
 
 import json
+import threading
 from pathlib import Path
 
 from . import pdf_path
 from ...utils import storage
 from ...utils.logging.trace import log_event
 from . import tex_path
+
+# PDF extraction (marker) is CPU/RAM-heavy — several GB and multiple cores per PDF —
+# so at most this many may run at once; further callers block until a slot frees.
+# The cheap tex path is not capped.
+_MAX_PARALLEL_PDF_EXTRACTS = 2
+_pdf_slots = threading.Semaphore(_MAX_PARALLEL_PDF_EXTRACTS)
 
 
 class PaperNotFoundError(Exception):
@@ -49,7 +56,8 @@ def extract(category_slug: str, paper_id: str, force: bool = False) -> dict:
         via = "tex"
     elif pdf and (pdir / pdf).exists():
         log_event("no latex source available, extracting from pdf", pdf=pdf)
-        result = pdf_path.extract_pdf(pdir / pdf)
+        with _pdf_slots:  # cap concurrent marker runs
+            result = pdf_path.extract_pdf(pdir / pdf)
         via = "pdf"
     else:
         log_event("no source files to extract from, skipping")

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 from typing import List, Optional
 
 from src.common.schemas.gap import GapRecord
@@ -36,6 +37,16 @@ _TARGET = 5  # how many papers to deep-read
 _CHAR_BUDGET = 60_000  # cap full text fed to the prompt (head + tail kept)
 _BLANKLINES_RE = re.compile(r"\n{3,}")
 _CACHE = "_validator_cache"  # hidden workspace category caching fetched prior-art papers
+
+# Per-paper locks: when parallel gaps shortlist the same candidate, the second caller
+# waits for the first fetch+extract instead of duplicating it (it then gets the cache hit).
+_paper_locks_guard = threading.Lock()
+_paper_locks: dict[str, threading.Lock] = {}
+
+
+def _paper_lock(paper_id: str) -> threading.Lock:
+    with _paper_locks_guard:
+        return _paper_locks.setdefault(paper_id, threading.Lock())
 
 
 def _clip(text: str) -> str:
@@ -91,20 +102,21 @@ def _cache_fulltext(candidate: CandidatePaper) -> Optional[str]:
     PDF-only paper when marker-pdf isn't installed) never aborts the whole gap.
     """
     paper_id = candidate.paper_id
-    try:
-        result = fetch(_CACHE, candidate.url or paper_id.removeprefix("arxiv_"))
-        if result.get("status") != "ok":
-            return None  # ambiguous — no single confident match
-        paper_id = result["paper"]["paper_id"]
-    except PaperAlreadyExistsError as exc:
-        paper_id = exc.paper_id  # cache hit — reuse what's already fetched
-    except PaperFetchError:
-        return None
-    try:
-        extract(_CACHE, paper_id)  # idempotent: skips if already extracted
-    except Exception:
-        return None  # extraction failed (missing marker-pdf, corrupt source, ...) — skip + backfill
-    return get_full_text(_CACHE, paper_id)
+    with _paper_lock(paper_id):  # serialize concurrent callers on the same paper
+        try:
+            result = fetch(_CACHE, candidate.url or paper_id.removeprefix("arxiv_"))
+            if result.get("status") != "ok":
+                return None  # ambiguous — no single confident match
+            paper_id = result["paper"]["paper_id"]
+        except PaperAlreadyExistsError as exc:
+            paper_id = exc.paper_id  # cache hit — reuse what's already fetched
+        except PaperFetchError:
+            return None
+        try:
+            extract(_CACHE, paper_id)  # idempotent: skips if already extracted
+        except Exception:
+            return None  # extraction failed (missing marker-pdf, corrupt source, ...) — skip + backfill
+        return get_full_text(_CACHE, paper_id)
 
 
 def deep_read(state: ValidatorState) -> dict:
