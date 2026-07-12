@@ -10,6 +10,9 @@ Embeds as a subgraph node in the main pipeline; also runnable standalone
 from __future__ import annotations
 
 import sys
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from langgraph.graph import END, START, StateGraph
@@ -120,16 +123,69 @@ def run(category_slug: str, gap_id: str, *, stream: bool = True,
     rl.run(graph, inputs, echo=echo)
     if rl.error:
         raise RuntimeError(rl.error)
-    return storage.read_gap_json(category_slug, gap_id, "master")
+    return _read_result(category_slug, gap_id)
+
+
+_MAX_PARALLEL_GAPS = 3  # concurrent gap validations
+_validate_all_lock = threading.Lock()  # one validate_all batch at a time; a second call queues
+
+
+def validate_all(category_slug: str) -> dict:
+    """Validate every gap waiting in gaps/to_validate/, up to _MAX_PARALLEL_GAPS at a time.
+
+    Contract with the director: drop the whole batch of novel gaps into to_validate/,
+    then call this once. The inbox is listed once, AFTER acquiring the module lock —
+    so overlapping invocations queue instead of racing, and a queued invocation only
+    sees gaps the earlier batch didn't finish (finished gaps were moved out by finalize).
+
+    One gap failing doesn't stop the others: its error is caught and reported, and the
+    gap simply stays in to_validate/ (it will be retried on the next invocation). Prints
+    one line per finished gap; the per-run detail still lands in the standard
+    logs/validator_agent/<run>.jsonl files (terminal echo is off to avoid interleaving).
+
+    Returns {"validated": {gap_id: gap record}, "failed": {gap_id: error message}}.
+    """
+    with _validate_all_lock:
+        gap_ids = storage.list_gap_ids(category_slug, "to_validate")  # list after locking
+        if not gap_ids:
+            print(f"to_validate/ of '{category_slug}' is empty — nothing to validate.")
+            return {"validated": {}, "failed": {}}
+        _get_graph()  # build once here, not lazily from three threads at once
+
+        print(f"validating {len(gap_ids)} gap(s), up to {_MAX_PARALLEL_GAPS} in parallel ...")
+        validated: dict[str, dict | None] = {}
+        failed: dict[str, str] = {}
+
+        def _one(gap_id: str) -> None:
+            t0 = time.monotonic()
+            try:
+                record = run(category_slug, gap_id, stream=True, echo=False)
+                status = ((record or {}).get("verdict") or {}).get("status", "?")
+                print(f"  {gap_id} -> {status}  ({time.monotonic() - t0:.0f}s)")
+                validated[gap_id] = record
+            except Exception as exc:  # noqa: BLE001 — gap stays in to_validate/ for a retry
+                print(f"  {gap_id} -> FAILED after {time.monotonic() - t0:.0f}s: {exc}")
+                failed[gap_id] = str(exc)
+
+        with ThreadPoolExecutor(max_workers=_MAX_PARALLEL_GAPS) as pool:
+            list(pool.map(_one, gap_ids))
+
+        summary = f"done: {len(validated)} validated, {len(failed)} failed"
+        print(summary + (" — failed gaps stay in to_validate/" if failed else ""))
+        return {"validated": validated, "failed": failed}
 
 
 if __name__ == "__main__":
     import json
 
-    # CLI args: <gap_id> [category_slug]. Loads the gap from gaps/to_validate/ and
-    # validates it; the gap (verdict attached) lands in gaps/master/ (solved) or
-    # gaps/to_rank/ (open/partial), plus a run log in logs/validator_agent/<run>.jsonl.
-    gap_id = sys.argv[1] if len(sys.argv) > 1 else "gap_9f0f24c1"
+    # CLI: <gap_id> [category_slug]  validate one gap (streams progress to the terminal)
+    #      --all [category_slug]     validate everything in gaps/to_validate/, in parallel
+    # Validated gaps land in gaps/master/ (solved) or gaps/to_rank/ (open/partial), plus
+    # a run log in logs/validator_agent/<run>.jsonl.
+    arg = sys.argv[1] if len(sys.argv) > 1 else "gap_9f0f24c1"
     category = sys.argv[2] if len(sys.argv) > 2 else "test"
-    record = run(category, gap_id)
-    print(json.dumps(record, indent=2, ensure_ascii=False))
+    if arg == "--all":
+        validate_all(category)
+    else:
+        record = run(category, arg)
+        print(json.dumps(record, indent=2, ensure_ascii=False))
