@@ -19,6 +19,8 @@ work without network access.
 from __future__ import annotations
 
 import os
+import random
+import sys
 import time
 from pathlib import Path
 from typing import TypeVar
@@ -39,6 +41,38 @@ MODELS: dict[str, str] = {
     "reasoner": "deepseek:deepseek-reasoner",
     "cheap": "deepseek:deepseek-chat",
 }
+
+# --- failure retry ---------------------------------------------------
+# Every chat* call retries provider hiccups (rate limits, "service is too busy"
+# 5xxs, timeouts, dropped connections) with exponential backoff before giving up.
+
+_RETRIES = 4
+_BACKOFF_BASE = 2.0  # 2s, 4s, 8s, 16s (+ jitter)
+_TRANSIENT_STATUS = {429, 500, 502, 503, 504}
+_TRANSIENT_NAMES = {"APITimeoutError", "APIConnectionError"}  # carry no status_code
+
+
+def _is_transient(exc: Exception) -> bool:
+    if getattr(exc, "status_code", None) in _TRANSIENT_STATUS:
+        return True
+    return type(exc).__name__ in _TRANSIENT_NAMES
+
+
+def _invoke_with_retry(invoke):
+    """Run `invoke`, retrying transient failures with exponential backoff. 
+    The random jitter added to each delay desynchronizes parallel callers, 
+    so calls that failed together don't all retry in one wave.
+    """
+    for attempt in range(_RETRIES + 1):
+        try:
+            return invoke()
+        except Exception as exc:
+            if attempt >= _RETRIES or not _is_transient(exc):
+                raise
+            delay = _BACKOFF_BASE * (2 ** attempt) + random.random()
+            print(f"[llm] transient {type(exc).__name__} — retrying in {delay:.1f}s "
+                  f"({attempt + 1}/{_RETRIES})", file=sys.stderr)
+            time.sleep(delay)
 
 
 def get_llm(role: str, temperature: float = 0.2):
@@ -68,7 +102,8 @@ def chat(llm, system: str, user: str) -> str:
     Returns the raw response text.
     """
     t0 = time.time()
-    text = llm.invoke([SystemMessage(content=system), HumanMessage(content=user)]).content
+    messages = [SystemMessage(content=system), HumanMessage(content=user)]
+    text = _invoke_with_retry(lambda: llm.invoke(messages)).content
     _trace("chat", system, user, schema=None, output=text, t0=t0)
     return text
 
@@ -101,7 +136,8 @@ def chat_with_structured_output(llm, system: str, user: str, schema: type[T]) ->
                output=result.model_dump(), t0=t0)
         return result
 
-    resp = llm.bind_tools([schema], tool_choice="auto").invoke(messages)
+    bound = llm.bind_tools([schema], tool_choice="auto")
+    resp = _invoke_with_retry(lambda: bound.invoke(messages))
     if resp.tool_calls:
         args = resp.tool_calls[0]["args"]
         if set(args) == {"parameters"} and isinstance(args.get("parameters"), dict):
