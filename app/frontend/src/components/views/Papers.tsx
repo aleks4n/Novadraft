@@ -6,8 +6,23 @@ import { RunTranscript } from "../RunTranscript";
 import { SourceDropZone } from "../SourceDropZone";
 import { useWorkspace } from "../../lib/store";
 import { api } from "../../lib/api";
-import type { Paper } from "../../lib/types";
+import type { Gap, Paper } from "../../lib/types";
 import { SUGGESTIONS } from "./AddPaper";
+
+// A short badge for where a gap is in the ingestion pipeline — the outcome of the
+// director/validator (falls back to the raw stage folder for gaps still in flight).
+function gapIngestionBadge(g: Gap): { label: string; tone: string } | null {
+  const outcome = g.ingestion?.outcome;
+  const stage = g.stage ?? g.ingestion?.stage ?? null;
+  if (outcome === "duplicate") return { label: "Duplicate", tone: "muted" };
+  if (outcome === "solved") return { label: "Already solved", tone: "muted" };
+  if (outcome === "partially_solved") return { label: "Partly solved", tone: "warn" };
+  if (outcome === "open") return { label: g.ranking ? "Ranked opportunity" : "Open opportunity", tone: "ok" };
+  if (outcome === "novel" || stage === "to_validate") return { label: "Validating", tone: "active" };
+  if (stage === "pending") return { label: "Mined", tone: "muted" };
+  if (stage === "master") return { label: "In master list", tone: "ok" };
+  return null;
+}
 
 function statusClass(s: string) {
   return (
@@ -148,7 +163,7 @@ export function PapersOverview() {
 }
 
 export function PaperDetail({ id }: { id: string }) {
-  const { bundle, activeSlug, setNav, run, startPaperRun, uploadSource } = useWorkspace();
+  const { bundle, activeSlug, setNav, run, startPaperRun, startPaperGapsResume, uploadSource } = useWorkspace();
   const [paper, setPaper] = useState<Paper | null>(null);
   const [tab, setTab] = useState<"paper" | "survey" | "gaps">("paper");
   const [showWarn, setShowWarn] = useState(false);
@@ -170,12 +185,20 @@ export function PaperDetail({ id }: { id: string }) {
 
   if (!paper) return <div className="empty-state">Loading paper…</div>;
   const survey = paper.survey;
-  const linkedGaps = (bundle?.gaps ?? []).filter((g) => g.derivedFrom.includes(paper.id));
+  // Gaps mined from this paper, across *every* stage (they move out of `pending`
+  // as the director/validator process them), so the tab keeps showing them with
+  // their current ingestion state rather than emptying out.
+  const linkedGaps = (bundle?.allGaps ?? bundle?.gaps ?? []).filter((g) => g.derivedFrom.includes(paper.id));
   const doneStages = paper.stages.filter((s) => s.done).length;
   // This paper's resume run is the live one when its query matches.
   const runForThisPaper =
     run.kind === "paper" && run.status !== "idle" && run.query === paper.resumeQuery;
   const resuming = runForThisPaper && run.status === "running";
+  // Gaps of this paper still mid-ingestion (awaiting the director or validator).
+  const unfinishedGaps = linkedGaps.filter((gp) => gp.stage === "pending" || gp.stage === "to_validate");
+  const resumeGapsForThisPaper =
+    run.kind === "resume" && run.resumeTarget?.kind === "paper" && run.resumeTarget.id === paper.id;
+  const resumingGaps = resumeGapsForThisPaper && run.status === "running";
 
   return (
     <div className="view view--detail">
@@ -256,6 +279,23 @@ export function PaperDetail({ id }: { id: string }) {
 
       {runForThisPaper && <RunTranscript run={run} />}
 
+      {/* Gaps mined but not yet pushed through the director/validator — resume the
+          ingestion tail for just this paper's unfinished gaps. */}
+      {unfinishedGaps.length > 0 && !runForThisPaper && (
+        <div className="notice notice--resume">
+          <Icon name="clock" />
+          <div style={{ flex: 1 }}>
+            <b>{unfinishedGaps.length} gap{unfinishedGaps.length === 1 ? "" : "s"} awaiting ingestion</b> —
+            {resumingGaps ? " deduplicating & validating…" : " run the director & validator to finish them."}
+          </div>
+          <button className="btn btn--primary" onClick={() => startPaperGapsResume(paper.id)} disabled={resumingGaps}>
+            <Icon name={resumingGaps ? "clock" : "play"} /> {resumingGaps ? "Resuming…" : "Resume gaps"}
+          </button>
+        </div>
+      )}
+
+      {resumeGapsForThisPaper && <RunTranscript run={run} />}
+
       {paper.warnings.length > 0 && !(paper.needsSource && !resuming) && (
         <div className="notice notice--warn">
           <Icon name="alert" />
@@ -322,16 +362,23 @@ export function PaperDetail({ id }: { id: string }) {
             <div className="card card--wide">
               <div className="card-label">Research gaps from this paper · {linkedGaps.length}</div>
               <div className="link-list">
-                {linkedGaps.map((g) => (
-                  <button key={g.id} className="link-row link-row--stacked" onClick={() => setNav({ view: "gap", id: g.id })}>
-                    <div className="link-row-head">
-                      <span className={"gap-severity gap-severity--" + g.severity}>{g.type.replace(/_/g, " ")}</span>
-                      <span>{g.title}</span>
-                      <Icon name="arrow-up-right" className="link-row-go" />
-                    </div>
-                    {g.short && <p className="link-row-sub">{g.short}</p>}
-                  </button>
-                ))}
+                {linkedGaps.map((g) => {
+                  const badge = gapIngestionBadge(g);
+                  return (
+                    <button key={g.id} className="link-row link-row--stacked" onClick={() => setNav({ view: "gap", id: g.id })}>
+                      <div className="link-row-head">
+                        <span className={"gap-severity gap-severity--" + g.severity}>{g.type.replace(/_/g, " ")}</span>
+                        <span>{g.title}</span>
+                        {badge && <span className={"ingest-badge ingest-badge--" + badge.tone}>{badge.label}</span>}
+                        <Icon name="arrow-up-right" className="link-row-go" />
+                      </div>
+                      {g.short && <p className="link-row-sub">{g.short}</p>}
+                      {g.ingestion?.outcome === "duplicate" && g.duplicateOf && (
+                        <p className="link-row-sub">Merged into <code>{g.duplicateOf}</code></p>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ) : (

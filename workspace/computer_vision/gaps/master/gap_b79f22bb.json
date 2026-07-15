@@ -1,0 +1,70 @@
+{
+  "gap_id": "gap_b79f22bb",
+  "status": "unchecked",
+  "title": "Learned positional embeddings produce nearly identical results to sinusoidal",
+  "description": "The authors experimented with learned positional embeddings and found they produced nearly identical results to the sinusoidal version, indicating the specific encoding form may not be critical.",
+  "type": "negative_result",
+  "canonical_description": "learned and fixed sinusoidal positional encodings produce equivalent results",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1706.03762",
+      "section": "method",
+      "anchor": "the two versions produced nearly identical results",
+      "quote": "We also experimented with using learned positional embeddings [CITE:JonasFaceNet2017] instead, and found that the two versions produced nearly identical results (see Table~[REF:tab:variations] row (E)).",
+      "char_offset": [
+        10225,
+        10427
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-07T09:05:22Z",
+  "verdict": {
+    "gap_id": "gap_b79f22bb",
+    "status": "open",
+    "confidence": 0.95,
+    "reasoning": "The only deep-read paper (on length generalization) explicitly states it uses sinusoidal APE because the learnable variant cannot handle unseen positions, and it never compares learned vs. sinusoidal positional embeddings. The gap's core claim — that learned and sinusoidal positional encodings produce nearly identical results — remains completely unexamined.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2305.19466",
+          "title": "The Impact of Positional Encoding on Length Generalization in Transformers",
+          "abstract": "Length generalization, the ability to generalize from small training context sizes to larger ones, is a critical challenge in the development of Transformer-based language models. Positional encoding (PE) has been identified as a major factor influencing length generalization, but the exact impact of different PE schemes on extrapolation in downstream tasks remains unclear. In this paper, we conduct a systematic empirical study comparing the length generalization performance of decoder-only Transformers with five different position encoding approaches including Absolute Position Embedding (APE), T5's Relative PE, ALiBi, and Rotary, in addition to Transformers without positional encoding (NoPE). Our evaluation encompasses a battery of reasoning and mathematical tasks. Our findings reveal that the most commonly used positional encoding methods, such as ALiBi, Rotary, and APE, are not well suited for length generalization in downstream tasks. More importantly, NoPE outperforms other explicit positional encoding methods while requiring no additional computation. We theoretically demonstrate that NoPE can represent both absolute and relative PEs, but when trained with SGD, it mostly resembles T5's relative PE attention patterns. Finally, we find that scratchpad is not always helpful to solve length generalization and its format highly impacts the model's performance. Overall, our work suggests that explicit position embeddings are not essential for decoder-only Transformers to generalize well to longer sequences.",
+          "authors": [
+            "Amirhossein Kazemnejad",
+            "Inkit Padhi",
+            "Karthikeyan Natesan Ramamurthy",
+            "Payel Das",
+            "Siva Reddy"
+          ],
+          "published_date": "2023-05-31T00:29:55Z",
+          "url": "https://arxiv.org/abs/2305.19466v2"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "This paper systematically compares length generalization of decoder-only Transformers with different positional encoding methods (APE sinusoidal, T5's Relative PE, ALiBi, Rotary, and NoPE) on reasoning and mathematical tasks. It finds that NoPE outperforms explicit PEs, and that T5's Relative PE is the best among explicit methods. It does not compare learned positional embeddings against sinusoidal ones.",
+        "what_remains_open": "The paper does not address the gap at all. It does not compare learned positional embeddings against sinusoidal/fixed positional embeddings. The paper uses only sinusoidal APE (not learned APE) and focuses on length generalization rather than the equivalence of learned vs sinusoidal encoding forms. The specific claim that \"learned positional embeddings produce nearly identical results to sinusoidal\" remains completely unexamined by this work.",
+        "evidence_snippets": [
+          "Note that we use APE with sinusoidal functions [CITE:Vaswani2017:Transformer] as the learnable variant cannot produce embeddings for unseen positions.",
+          "In the I.I.D evaluation of PEs, we demonstrate similar performance across different PEs, in line with observations of [CITE:Haviv2022:NoPETransformer] and [CITE:Scao2022:LMinOneMillionGPUHours], which makes the choice of optimal positional encoding challenging."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 1,
+      "skipped_ids": []
+    }
+  },
+  "ranking": {
+    "openness": 0.975,
+    "impact": 0.22147075825378762,
+    "feasibility": 0.9,
+    "feasibility_reasoning": "Highly tractable. This is a straightforward ablation: train the same Transformer architecture on standard benchmarks (e.g., WMT translation, language modeling) swapping only the positional encoding module. Data is abundant and freely available. Compute is modest — a single GPU suffices for base-size Transformers. Methodology is fully mature (the comparison itself is the method). Scope is narrow and well-defined. Evaluation metrics (BLEU, perplexity, attention pattern analysis) are clear and standard. The main nuance — length generalization out-of-distribution — is also easy to test by evaluating on longer sequences. The only reason it is not 1.0 is that the result may be somewhat dependent on task/depth/scale, so a thorough answer might require a handful of configurations, but this is still well within reach of a small team."
+  }
+}

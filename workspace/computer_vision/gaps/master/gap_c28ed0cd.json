@@ -1,0 +1,153 @@
+{
+  "gap_id": "gap_c28ed0cd",
+  "status": "unchecked",
+  "title": "Label smoothing hurts perplexity while improving BLEU",
+  "description": "During training, label smoothing of value 0.1 hurts perplexity as the model learns to be more unsure, though it improves accuracy and BLEU score.",
+  "type": "caveat",
+  "canonical_description": "label smoothing reduces perplexity at cost of increased model uncertainty",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1706.03762",
+      "section": "training",
+      "anchor": "This hurts perplexity, as the model learns to be more unsure",
+      "quote": "This hurts perplexity, as the model learns to be more unsure, but improves accuracy and BLEU score.",
+      "char_offset": [
+        2367,
+        2466
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-07T09:05:22Z",
+  "verdict": {
+    "gap_id": "gap_c28ed0cd",
+    "status": "open",
+    "confidence": 0.78,
+    "reasoning": "All five papers fail to investigate the core trade-off: why label smoothing (0.1) simultaneously hurts perplexity while improving BLEU/accuracy. Papers 1–3 do not measure perplexity at all, focusing instead on calibration (Paper 1), confidence-based smoothing (Paper 2), and length bias (Paper 3). Paper 4 identifies the under-confidence problem from LS and proposes CASLS, but evaluates only on calibration and accuracy, not on perplexity or BLEU. Paper 5 (MLS) shows that removing source-only token probability reduces perplexity relative to LS+VS, but this is a specific interaction with vocabulary sharing, not a general investigation of the perplexity–BLEU trade-off. No paper studies why LS degrades the model's own likelihood metric while improving task metrics, or whether this tension can be resolved. The gap remains open.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2005.00963",
+          "title": "On the Inference Calibration of Neural Machine Translation",
+          "abstract": "Confidence calibration, which aims to make model predictions equal to the true correctness measures, is important for neural machine translation (NMT) because it is able to offer useful indicators of translation errors in the generated output. While prior studies have shown that NMT models trained with label smoothing are well-calibrated on the ground-truth training data, we find that miscalibration still remains a severe challenge for NMT during inference due to the discrepancy between training and inference. By carefully designing experiments on three language pairs, our work provides in-depth analyses of the correlation between calibration and translation performance as well as linguistic properties of miscalibration and reports a number of interesting findings that might help humans better analyze, understand and improve NMT models. Based on these observations, we further propose a new graduated label smoothing method that can improve both inference calibration and translation performance.",
+          "authors": [
+            "Shuo Wang",
+            "Zhaopeng Tu",
+            "Shuming Shi",
+            "Yang Liu"
+          ],
+          "published_date": "2020-05-03T02:03:56Z",
+          "url": "https://arxiv.org/abs/2005.00963v1"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "This paper studies inference calibration (ECE) of NMT models, finding that models well-calibrated in training are miscalibrated during inference. It analyzes linguistic properties of miscalibration and proposes graduated label smoothing to improve both calibration and BLEU. The paper discusses label smoothing's effect on calibration error and translation performance, but does not address the relationship between label smoothing, perplexity, and BLEU.",
+        "what_remains_open": "The paper does not address the specific gap: that label smoothing of value 0.1 hurts perplexity while improving BLEU. The paper never measures or discusses perplexity at all. It focuses on calibration error (ECE) rather than model uncertainty/perplexity. The gap's core tension — that label smoothing degrades the model's own likelihood-based metric (perplexity) while improving task-based metrics (BLEU) — is not investigated. The paper's \"graduated label smoothing\" proposal is evaluated only on BLEU and ECE, not on perplexity, so it remains unknown whether it would also hurt perplexity.",
+        "evidence_snippets": []
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2203.11413",
+          "title": "Learning Confidence for Transformer-based Neural Machine Translation",
+          "abstract": "Confidence estimation aims to quantify the confidence of the model prediction, providing an expectation of success. A well-calibrated confidence estimate enables accurate failure prediction and proper risk measurement when given noisy samples and out-of-distribution data in real-world settings. However, this task remains a severe challenge for neural machine translation (NMT), where probabilities from softmax distribution fail to describe when the model is probably mistaken. To address this problem, we propose an unsupervised confidence estimate learning jointly with the training of the NMT model. We explain confidence as how many hints the NMT model needs to make a correct prediction, and more hints indicate low confidence. Specifically, the NMT model is given the option to ask for hints to improve translation accuracy at the cost of some slight penalty. Then, we approximate their level of confidence by counting the number of hints the model uses. We demonstrate that our learned confidence estimate achieves high accuracy on extensive sentence/word-level quality estimation tasks. Analytical results verify that our confidence estimate can correctly assess underlying risk in two real-world scenarios: (1) discovering noisy samples and (2) detecting out-of-domain data. We further propose a novel confidence-based instance-specific label smoothing approach based on our learned confidence estimate, which outperforms standard label smoothing.",
+          "authors": [
+            "Yu Lu",
+            "Jiali Zeng",
+            "Jiajun Zhang",
+            "Shuangzhi Wu",
+            "Mu Li"
+          ],
+          "published_date": "2022-03-22T01:51:58Z",
+          "url": "https://arxiv.org/abs/2203.11413v1"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "The paper proposes a learned confidence estimate for NMT and extends it to a confidence-based instance-specific label smoothing method, where tokens the model is less confident about receive more smoothing. This method improves BLEU scores over standard label smoothing (e.g., +0.72 BLEU on Zh→En, +0.35 on En→De). However, the paper does not examine or address the relationship between label smoothing and perplexity.",
+        "what_remains_open": "The research gap is specifically about the trade-off where label smoothing (value 0.1) hurts perplexity while improving BLEU/accuracy. This paper does not report perplexity numbers, does not analyze how its confidence-based smoothing affects perplexity, and does not investigate whether the perplexity degradation from label smoothing is mitigated or exacerbated. The core phenomenon — label smoothing's detrimental effect on perplexity — remains entirely unaddressed.",
+        "evidence_snippets": [
+          "We further propose a novel confidence-based label smoothing approach based on our learned confidence estimate, which outperforms standard label smoothing",
+          "As shown in Table~[REF:tab:my_label], our confidence-based label smoothing outperforms standard label smoothing by adaptively tuning the amount of each label smoothing.",
+          "We propose a novel instance-specific confidence-based label smoothing technique, where predictions with greater confidence receive less label smoothing and vice versa."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2205.00659",
+          "title": "The Implicit Length Bias of Label Smoothing on Beam Search Decoding",
+          "abstract": "Label smoothing is ubiquitously applied in Neural Machine Translation (NMT) training. While label smoothing offers a desired regularization effect during model training, in this paper we demonstrate that it nevertheless introduces length biases in the beam search decoding procedure. Our analysis shows that label smoothing implicitly applies a length penalty term to output sequence, causing a bias towards shorter translations. We also show that for a model fully optimized with label smoothing, translation length is implicitly upper bounded by a fixed constant independent of input. We verify our theory by applying a simple rectification function at inference time to restore the unbiased distributions from the label-smoothed model predictions. This rectification method led to consistent quality improvements on WMT English-German, English-French, English-Czech and English-Chinese tasks, up to +0.3 BLEU at beam size 4 and +2.8 BLEU at beam size 200.",
+          "authors": [
+            "Bowen Liang",
+            "Pidong Wang",
+            "Yuan Cao"
+          ],
+          "published_date": "2022-05-02T05:25:56Z",
+          "url": "https://arxiv.org/abs/2205.00659v1"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "This paper identifies and analyzes a length bias introduced by label smoothing during beam search decoding in NMT. It shows that label smoothing implicitly applies a per-token length penalty (log(1-α)) to sequence scores, biasing toward shorter translations, and that for a perfectly optimized LS model, output length is theoretically upper-bounded. The paper proposes a simple debiasing rectification at inference time that recovers unbiased distributions, yielding BLEU improvements of up to +2.8 on large beam sizes across multiple WMT language pairs.",
+        "what_remains_open": "The paper does not address the stated research gap at all. The gap concerns the tradeoff where label smoothing hurts perplexity (makes the model more uncertain) while improving BLEU/accuracy. This paper does not measure perplexity, does not analyze the uncertainty/confidence tradeoff in those terms, and does not investigate why label smoothing degrades perplexity while improving BLEU. Instead, it focuses on a separate phenomenon: label smoothing's effect on beam search decoding length bias. The core question of why label smoothing reduces perplexity (increases uncertainty) yet yields better BLEU scores remains entirely unaddressed.",
+        "evidence_snippets": []
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2303.06946",
+          "title": "Context-Aware Selective Label Smoothing for Calibrating Sequence Recognition Model",
+          "abstract": "Despite the success of deep neural network (DNN) on sequential data (i.e., scene text and speech) recognition, it suffers from the over-confidence problem mainly due to overfitting in training with the cross-entropy loss, which may make the decision-making less reliable. Confidence calibration has been recently proposed as one effective solution to this problem. Nevertheless, the majority of existing confidence calibration methods aims at non-sequential data, which is limited if directly applied to sequential data since the intrinsic contextual dependency in sequences or the class-specific statistical prior is seldom exploited. To the end, we propose a Context-Aware Selective Label Smoothing (CASLS) method for calibrating sequential data. The proposed CASLS fully leverages the contextual dependency in sequences to construct confusion matrices of contextual prediction statistics over different classes. Class-specific error rates are then used to adjust the weights of smoothing strength in order to achieve adaptive calibration. Experimental results on sequence recognition tasks, including scene text recognition and speech recognition, demonstrate that our method can achieve the state-of-the-art performance.",
+          "authors": [
+            "Shuangping Huang",
+            "Yu Luo",
+            "Zhenzhou Zhuang",
+            "Jin-Gang Yu",
+            "Mengchao He",
+            "Yongpan Wang"
+          ],
+          "published_date": "2023-03-13T09:27:52Z",
+          "url": "https://arxiv.org/abs/2303.06946v1"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper proposes Context-Aware Selective Label Smoothing (CASLS) for sequence recognition tasks. It identifies that standard label smoothing causes an \"exponential reduction on confidence\" (i.e., makes models less confident, which is related to hurting perplexity). To address this, it introduces adaptive smoothing strength that compensates for the cumulative confidence reduction, and selectively applies smoothing only to error-prone classes based on contextual confusion matrices. The method improves calibration (ECE, Brier Score) and accuracy on scene text and speech recognition tasks.",
+        "what_remains_open": "The paper does not directly address the gap about label smoothing hurting perplexity while improving BLEU. It never measures perplexity at all — its evaluation focuses on calibration metrics (ECE, Brier Score) and accuracy/WER, not perplexity or BLEU. The gap is specifically about the tradeoff between perplexity (model uncertainty) and BLEU/accuracy under label smoothing of value 0.1. While the paper proposes a method to mitigate the under-confidence problem of standard label smoothing (which is related to perplexity), it does not study the perplexity-BLEU tradeoff, does not report perplexity numbers, and does not compare against the standard label smoothing baseline on perplexity. The core question of whether the proposed method preserves the BLEU/accuracy gains of label smoothing while avoiding the perplexity degradation remains unanswered.",
+        "evidence_snippets": [
+          "imposing the same smoothing strength on the label of all the tokens indiscriminately is inapplicable for calibrating sequence. According to the Eq. [REF:eq1], even if all the tokens are correctly predicted, the sequential confidence is calculated as $\\mathbb{P}(\\hat{Y}|x)\\approx (1-\\alpha)^{L^{'}}$, which conversely leads to an exponential reduction on confidence.",
+          "We adaptively adjust the value of hyper-parameter $\\alpha$ according to the length $L$ of sequence. For each sequence, $\\alpha=1-\\sqrt[L]{1-\\alpha^{'}}$, which compensates for the negative impact of less confidence caused by the cumulative calculation."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2203.02889",
+          "title": "Focus on the Target's Vocabulary: Masked Label Smoothing for Machine Translation",
+          "abstract": "Label smoothing and vocabulary sharing are two widely used techniques in neural machine translation models. However, we argue that simply applying both techniques can be conflicting and even leads to sub-optimal performance. When allocating smoothed probability, original label smoothing treats the source-side words that would never appear in the target language equally to the real target-side words, which could bias the translation model. To address this issue, we propose Masked Label Smoothing (MLS), a new mechanism that masks the soft label probability of source-side words to zero. Simple yet effective, MLS manages to better integrate label smoothing with vocabulary sharing. Our extensive experiments show that MLS consistently yields improvement over original label smoothing on different datasets, including bilingual and multilingual translation from both translation quality and model's calibration. Our code is released at https://github.com/PKUnlp-icler/MLS",
+          "authors": [
+            "Liang Chen",
+            "Runxin Xu",
+            "Baobao Chang"
+          ],
+          "published_date": "2022-03-06T07:01:39Z",
+          "url": "https://arxiv.org/abs/2203.02889v2"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper identifies a conflict between label smoothing and vocabulary sharing in NMT: when both are used, smoothed probability is allocated to source-side tokens that can never appear in the target, which increases perplexity. The proposed Masked Label Smoothing (MLS) zeros out probability mass on source-only tokens, which reduces perplexity compared to standard label smoothing with vocabulary sharing. The paper shows that MLS improves both BLEU and perplexity relative to the LS+VS baseline, and also improves model calibration.",
+        "what_remains_open": "The paper does not directly address the fundamental trade-off described in the gap: that label smoothing (value 0.1) hurts perplexity while improving BLEU. Instead, it addresses a specific interaction problem between label smoothing and vocabulary sharing. The paper's MLS reduces perplexity (relative to LS+VS) by removing probability mass from source-only tokens, but this is a different phenomenon from the general perplexity-increasing property of label smoothing itself. The core question of why label smoothing's perplexity increase coexists with BLEU improvement, and whether this trade-off is inherent or can be resolved, remains open. The paper also does not study the perplexity-BLEU relationship in settings without vocabulary sharing, which is where the original gap is most relevant.",
+        "evidence_snippets": [
+          "Allocating smoothed probability to them might introduce extra bias for the translation system during training process, unavoidably leading to a higher translation perplexity as also revealed by [CITE:Mller2019WhenDL].",
+          "We also find out that MLS leads to a significantly lower perplexity than LS during the early stage of training in all of our experiments. It's not surprising since zeroing the source side words' smoothed probability can decrease the perplexity. It can be another reason for model's better translation performance since it gives a better training initialization."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 5,
+      "skipped_ids": []
+    }
+  },
+  "ranking": {
+    "openness": 0.89,
+    "impact": 0.22147075825378762,
+    "feasibility": 0.75,
+    "feasibility_reasoning": "The gap is empirically well-defined and narrowly scoped. Standard MT datasets (WMT, IWSLT) and modest compute (1–4 GPUs) suffice to train Transformer baselines with/without label smoothing. The phenomenon can be decomposed via diagnostic experiments: per-token perplexity breakdowns, analyzing which tokens benefit from LS vs. get hurt, and examining the relationship between confidence and BLEU gains. Both metrics (perplexity, BLEU) are standard and measurable. The main challenge is that the tension may be inherent (smoothing uniformly vs. optimizing likelihood), requiring careful analysis rather than a fundamental breakthrough. So moderately high tractability — clear path for progress, though a definitive resolution may be non-trivial."
+  }
+}

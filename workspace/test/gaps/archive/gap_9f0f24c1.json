@@ -1,0 +1,24 @@
+{
+  "gap_id": "gap_9f0f24c1",
+  "status": "duplicate",
+  "title": "Untested extrapolation of sinusoidal positional encodings",
+  "description": "The sinusoidal positional encoding is chosen because it may allow extrapolation to sequence lengths longer than those seen during training, but this capability is hypothesized and not empirically tested in the paper.",
+  "type": "caveat",
+  "canonical_description": "extrapolation of sinusoidal positional encodings to unseen sequence lengths is hypothesized but untested",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1706.03762",
+      "section": "method",
+      "anchor": "it may allow the model to extrapolate to sequence lengths longer than the ones encountered during training",
+      "quote": "We chose the sinusoidal version because it may allow the model to extrapolate to sequence lengths longer than the ones encountered during training.",
+      "char_offset": [
+        10429,
+        10576
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-06-26T21:37:09Z",
+  "duplicate_of": "gap_32aa334c"
+}

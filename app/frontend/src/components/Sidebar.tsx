@@ -23,7 +23,10 @@ export function Sidebar() {
   }, [pickerOpen]);
 
   const papers = bundle?.papers ?? [];
-  const gaps = bundle?.gaps ?? [];
+  // Every live gap (across stages), minus archived duplicates — those are only
+  // reachable from the Gaps list's Archived view, not the nav.
+  const gaps = (bundle?.allGaps ?? bundle?.gaps ?? [])
+    .filter((g) => (g.stage ?? g.ingestion?.stage) !== "archive");
   const ideas = bundle?.ideas ?? [];
   const isActive = (key: Partial<Nav>) => nav.view === key.view && nav.id === (key.id ?? null);
 

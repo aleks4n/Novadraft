@@ -140,6 +140,21 @@ def _discover() -> list[dict]:
         if not isinstance(manifest, dict):
             continue
         manifests.append({"name": entry.name, **manifest})
+
+    # Also discover the top-level graphs in ``src/graph`` (compose the agents
+    # above into end-to-end graphs — see src/graph/pipeline.py): the full
+    # ``pipeline`` and the ``resume`` tail.
+    if (ROOT / "src" / "graph" / "__init__.py").exists():
+        try:
+            gmod = importlib.import_module("src.graph")
+            for name, attr in (("pipeline", "MANIFEST"), ("resume", "MANIFEST_RESUME")):
+                gmanifest = getattr(gmod, attr, None)
+                if isinstance(gmanifest, dict):
+                    manifests.append({"name": name, **gmanifest})
+        except Exception as e:  # noqa: BLE001 — don't let it kill the harness
+            print(f"[registry] skipping src/graph: {type(e).__name__}: {e}",
+                  file=sys.stderr)
+
     return manifests
 
 

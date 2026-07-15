@@ -1,8 +1,16 @@
 import { useState } from "react";
 import { Icon } from "../Icon";
 import { TabButton, ViewHeader } from "../chrome";
+import { GapPipeline } from "../PaperPipeline";
+import { RunTranscript } from "../RunTranscript";
 import { useWorkspace } from "../../lib/store";
 import type { Gap, GapEvidence } from "../../lib/types";
+
+// A gap can still be pushed through ingestion while it sits in these stages.
+const RESUMABLE_STAGES = new Set(["pending", "to_validate"]);
+function gapResumable(g: Gap): boolean {
+  return RESUMABLE_STAGES.has(g.stage ?? g.ingestion?.stage ?? "");
+}
 
 // The gap agent's own classification — the real signal. Severity is derived from
 // it (mappers.py) and only used as the accent colour, not as a separate score.
@@ -61,15 +69,44 @@ function fmtScore(v: number | null): string {
   return v === null ? "—" : v.toFixed(2);
 }
 
+const gapStage = (g: Gap): string => g.stage ?? g.ingestion?.stage ?? "pending";
+
+// Stage filter tabs for the gaps list. "archive" is handled as a separate button.
+const STAGE_TABS: { key: string; label: string; icon: string }[] = [
+  { key: "all", label: "All", icon: "compass" },
+  { key: "pending", label: "Pending", icon: "clock" },
+  { key: "to_validate", label: "To validate", icon: "search" },
+  { key: "to_rank", label: "To rank", icon: "list" },
+  { key: "master", label: "Master", icon: "check" },
+];
+
+// A short badge for where a gap is (its director/validator outcome, else stage).
+function gapStageBadge(g: Gap): { label: string; tone: string } {
+  const o = g.ingestion?.outcome;
+  const st = gapStage(g);
+  if (o === "duplicate" || st === "archive") return { label: "Duplicate", tone: "muted" };
+  if (o === "solved") return { label: "Solved", tone: "muted" };
+  if (o === "partially_solved") return { label: "Partial", tone: "warn" };
+  if (o === "open") return { label: g.ranking ? "Ranked" : "Open", tone: "ok" };
+  if (st === "to_validate") return { label: "To validate", tone: "active" };
+  if (st === "to_rank") return { label: "To rank", tone: "active" };
+  if (st === "master") return { label: "Master", tone: "ok" };
+  return { label: "Pending", tone: "muted" };
+}
+
 export function GapsOverview() {
   const { active, bundle, setNav } = useWorkspace();
-  const pending = bundle?.gaps ?? [];
-  const master = bundle?.masterGaps ?? [];
-  // Pending = gaps freshly mined per-paper (what we have today); Master = the
-  // curated, deduplicated list a later phase promotes them into.
-  const [tab, setTab] = useState<"pending" | "master">("pending");
+  const all = bundle?.allGaps ?? bundle?.gaps ?? [];
+  const live = all.filter((g) => gapStage(g) !== "archive");
+  const archived = all.filter((g) => gapStage(g) === "archive");
+  const [tab, setTab] = useState<string>("all");
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: "type", dir: "asc" });
-  const gaps = tab === "pending" ? pending : master;
+
+  const count = (k: string) =>
+    k === "all" ? live.length : k === "archive" ? archived.length : live.filter((g) => gapStage(g) === k).length;
+  // Show every pipeline stage tab, even empty ones, so the whole flow is visible.
+  const tabs = STAGE_TABS;
+  const gaps = tab === "archive" ? archived : tab === "all" ? live : live.filter((g) => gapStage(g) === tab);
   const sorted = [...gaps].sort((a, b) => compareGaps(a, b, sort.key, sort.dir));
 
   function onSort(key: SortKey) {
@@ -84,10 +121,9 @@ export function GapsOverview() {
   return (
     <div className="view view--list">
       <ViewHeader
-        eyebrow={`Research gaps · ${pending.length + master.length}`}
+        eyebrow={`Research gaps · ${live.length}`}
         title="Research Gaps & Directions"
-        subtitle="Open problems each paper states about itself — limitations, future work, caveats, and threats to validity. Every gap is typed by the agent and cites the paper it came from."
-        actions={<button className="btn btn--ghost"><Icon name="filter" /> Filter</button>}
+        subtitle="Open problems each paper states about itself. Each gap flows through the ingestion pipeline — mined, deduplicated, validated against prior art, then ranked."
         breadcrumb={[
           { label: "Research" },
           { label: active?.shortTitle || "Topic", onClick: () => setNav({ view: "topic", id: null }) },
@@ -96,18 +132,24 @@ export function GapsOverview() {
       />
 
       <div className="tabbar">
-        <TabButton active={tab === "pending"} onClick={() => setTab("pending")}
-          icon="compass" label={`Pending · ${pending.length}`} />
-        <TabButton active={tab === "master"} onClick={() => setTab("master")}
-          icon="list" label={`Master list · ${master.length}`} />
+        {tabs.map((t) => (
+          <TabButton key={t.key} active={tab === t.key} onClick={() => setTab(t.key)}
+            icon={t.icon} label={`${t.label} · ${count(t.key)}`} />
+        ))}
+        {/* Archived duplicates — off to the side, and never in the left nav. */}
+        {archived.length > 0 && (
+          <TabButton active={tab === "archive"} onClick={() => setTab("archive")}
+            icon="archived" label={`Archived · ${archived.length}`} />
+        )}
       </div>
 
-      {tab === "pending" && pending.length === 0 ? (
-        <div className="empty-state">No gaps yet — they're extracted when a paper is ingested.</div>
-      ) : tab === "master" && master.length === 0 ? (
+      {gaps.length === 0 ? (
         <div className="empty-state">
-          The master gap list is empty. Pending gaps are promoted here once they're
-          reviewed and deduplicated into a single canonical set.
+          {tab === "archive"
+            ? "No archived gaps — the director parks duplicates here after merging them."
+            : all.length === 0
+              ? "No gaps yet — they're extracted when a paper is ingested."
+              : "No gaps in this stage."}
         </div>
       ) : (
         <table className="gaps-table">
@@ -139,18 +181,24 @@ export function GapsOverview() {
             </tr>
           </thead>
           <tbody>
-            {sorted.map((g) => (
-              <tr key={g.id} className="gaps-row" onClick={() => setNav({ view: "gap", id: g.id })}>
-                <td>
-                  <span className={"gap-type gap-type--" + g.severity}>{typeLabel(g.type)}</span>
-                </td>
-                <td className="gaps-cell-title">{g.title}</td>
-                <td><span className="gap-status">{statusLabel(g.status)}</span></td>
-                <td className="gaps-cell-num">{g.derivedFrom.length}</td>
-                <td className="gaps-cell-num">{fmtScore(g.novelty)}</td>
-                <td className="gaps-cell-num">{fmtScore(g.feasibility)}</td>
-              </tr>
-            ))}
+            {sorted.map((g) => {
+              const badge = gapStageBadge(g);
+              return (
+                <tr key={g.id} className="gaps-row" onClick={() => setNav({ view: "gap", id: g.id })}>
+                  <td>
+                    <span className={"gap-type gap-type--" + g.severity}>{typeLabel(g.type)}</span>
+                  </td>
+                  <td className="gaps-cell-title">
+                    {g.title}
+                    <span className={"ingest-badge ingest-badge--" + badge.tone} style={{ marginLeft: 8 }}>{badge.label}</span>
+                  </td>
+                  <td><span className="gap-status">{statusLabel(g.status)}</span></td>
+                  <td className="gaps-cell-num">{g.derivedFrom.length}</td>
+                  <td className="gaps-cell-num">{fmtScore(g.novelty)}</td>
+                  <td className="gaps-cell-num">{fmtScore(g.feasibility)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}
@@ -159,12 +207,18 @@ export function GapsOverview() {
 }
 
 export function GapDetail({ id }: { id: string }) {
-  const { bundle, setNav } = useWorkspace();
+  const { bundle, setNav, run, startGapResume } = useWorkspace();
   const g: Gap | undefined =
-    bundle?.gaps.find((x) => x.id === id) || bundle?.masterGaps.find((x) => x.id === id);
+    bundle?.allGaps?.find((x) => x.id === id)
+    || bundle?.gaps.find((x) => x.id === id)
+    || bundle?.masterGaps.find((x) => x.id === id);
   if (!g) return <div className="empty-state">Gap not found.</div>;
   const papers = bundle?.papers ?? [];
   const sources = g.derivedFrom.map((pid) => papers.find((p) => p.id === pid)).filter(Boolean);
+  const resumeForThisGap =
+    run.kind === "resume" && run.resumeTarget?.kind === "gap" && run.resumeTarget.id === g.id;
+  const resuming = resumeForThisGap && run.status === "running";
+  const canResume = gapResumable(g);
 
   return (
     <div className="view view--detail">
@@ -178,13 +232,40 @@ export function GapDetail({ id }: { id: string }) {
           </span>
         }
         title={g.title}
-        actions={<button className="btn btn--primary"><Icon name="sparkle" /> Spark an idea</button>}
+        actions={
+          <>
+            {canResume && (
+              <button className="btn btn--ghost" onClick={() => startGapResume(g.id)} disabled={resuming}>
+                <Icon name={resuming ? "clock" : "play"} /> {resuming ? "Resuming…" : "Resume ingestion"}
+              </button>
+            )}
+            <button className="btn btn--primary"><Icon name="sparkle" /> Spark an idea</button>
+          </>
+        }
         breadcrumb={[
           { label: "Research" },
           { label: "Gaps", onClick: () => setNav({ view: "gaps", id: null }) },
           { label: g.short, current: true },
         ]}
       />
+
+      {/* Where this gap is in the ingestion pipeline — a strip at the top, exactly
+          like the paper page's lifecycle strip. */}
+      {g.ingestion?.steps?.length ? (
+        <div className="pipeline-strip">
+          <GapPipeline steps={g.ingestion.steps} />
+          {g.ingestion.outcome === "duplicate" && g.duplicateOf && (
+            <div className="pipeline-note">
+              Duplicate — evidence merged into{" "}
+              <button className="inline-link" onClick={() => setNav({ view: "gap", id: g.duplicateOf! })}>
+                <code>{g.duplicateOf}</code>
+              </button>
+            </div>
+          )}
+        </div>
+      ) : null}
+
+      {resumeForThisGap && <RunTranscript run={run} />}
 
       <div className="view-grid view-grid--paper">
         <div className="card card--wide">
@@ -196,6 +277,47 @@ export function GapDetail({ id }: { id: string }) {
           <div className="card card--wide">
             <div className="card-label">Canonical form</div>
             <p className="card-body">{g.canonicalDescription}</p>
+          </div>
+        )}
+
+        {/* The validator's judgment: has prior art since addressed this gap? */}
+        {g.verdict && g.verdict.status && (
+          <div className="card card--wide">
+            <div className="card-label">Validator verdict</div>
+            <p className="card-body">
+              <span className={"ingest-badge ingest-badge--" + (g.verdict.status === "solved" ? "muted" : g.verdict.status === "partially_solved" ? "warn" : "ok")}>
+                {g.verdict.status.replace(/_/g, " ")}
+              </span>
+              {g.verdict.confidence != null && <> · confidence {Math.round(g.verdict.confidence * 100)}%</>}
+            </p>
+            {g.verdict.reasoning && <p className="card-body">{g.verdict.reasoning}</p>}
+            {g.verdict.addressedBy.length > 0 && (
+              <div className="link-list">
+                {g.verdict.addressedBy.map((a, i) => (
+                  <div key={i} className="evidence">
+                    <div className="evidence-quote">
+                      {a.url ? <a href={a.url} target="_blank" rel="noreferrer">{a.title || a.paperId}</a> : (a.title || a.paperId)}
+                      {a.relevance && <span className="evidence-section"> · {a.relevance.replace(/_/g, " ")}</span>}
+                    </div>
+                    {a.contribution && <div className="evidence-meta">{a.contribution}</div>}
+                    {a.remainsOpen && <div className="evidence-meta">Still open: {a.remainsOpen}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* The ranking agent's dimension scores (open opportunities only). */}
+        {g.ranking && (
+          <div className="card">
+            <div className="card-label">Ranking</div>
+            <div className="kv-grid">
+              <div className="kv"><span>Openness</span><b>{fmtScore(g.ranking.openness)}</b></div>
+              <div className="kv"><span>Impact</span><b>{fmtScore(g.ranking.impact)}</b></div>
+              <div className="kv"><span>Feasibility</span><b>{fmtScore(g.ranking.feasibility)}</b></div>
+            </div>
+            {g.ranking.feasibilityReasoning && <p className="card-body">{g.ranking.feasibilityReasoning}</p>}
           </div>
         )}
 

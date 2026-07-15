@@ -47,7 +47,7 @@ from src.agents.paper_agent.subagents.gap.agent import build_gap_graph
 # subgraphs each run a bounded extractor↔critic cycle (~2*MAX_LOOPS+2 steps),
 # plus this graph's own fetch/extract/assemble. The subgraph nodes inherit this
 # graph's run config, so the limit has to cover the sum, with headroom.
-_RECURSION_LIMIT = 60
+_RECURSION_LIMIT = 1 #60
 
 
 _SOURCE_UNAVAILABLE_WARNING = (

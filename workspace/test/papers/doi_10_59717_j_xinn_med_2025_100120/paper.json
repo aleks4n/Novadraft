@@ -1,0 +1,66 @@
+{
+  "paper_id": "doi_10_59717_j_xinn_med_2025_100120",
+  "metadata": {
+    "title": "Artificial intelligence for medicine 2025: Navigating the endless frontier",
+    "authors": [
+      "Ji Dai",
+      "Huiyu Xu",
+      "Tao Chen",
+      "Tao Huang",
+      "Weiqi Liang",
+      "Rui Zhang",
+      "Gengxin Xu",
+      "Zhiting Zhang",
+      "Le Xue",
+      "Yi Gao",
+      "Mingyue Zheng",
+      "Guoshuang Feng",
+      "Zhe Zhang",
+      "Jinle Tang",
+      "Jian Zhan",
+      "Yaoqi Zhou",
+      "Ye Li",
+      "Yixue Li",
+      "Mei Tian"
+    ],
+    "year": 2025,
+    "publication_date": "2025",
+    "venue": "The Innovation Medicine",
+    "abstract": "<jats:p xml:lang=\"en\">&lt;p&gt;Artificial intelligence (AI) is driving transformative changes in the field of medicine, with its successful application relying on accurate data and rigorous quality standards. By integrating clinical information, pathology, medical imaging, physiological signals, and omics data, AI significantly enhances the precision of research into disease mechanisms and patient prognoses. AI technologies also demonstrate exceptional potential in drug development, surgical automation, and brain-computer interface (BCI) research. Through the simulation of biological systems and prediction of intervention outcomes, AI enables researchers to rapidly translate innovations into practical clinical applications. While challenges such as computational demands, software development, and ethical considerations persist, the future of AI remains highly promising. AI plays a pivotal role in addressing societal issues like low birth rates and aging populations. AI can contribute to mitigating low birth rate issues through enhanced ovarian reserve evaluation, menopause forecasting, optimization of Assisted Reproductive Technologies (ART), sperm analysis and selection, endometrial receptivity evaluation, fertility forecasting, and remote consultations. In addressing the challenges posed by an aging population, AI can facilitate the development of dementia prediction models, cognitive health monitoring and intervention strategies, early disease screening and prediction systems, AI-driven telemedicine platforms, intelligent health monitoring systems, smart companion robots, and smart environments for aging-in-place. AI profoundly shapes the future of medicine.&lt;/p&gt;\n                            </jats:p>",
+    "identifiers": {
+      "arxiv_id": null,
+      "doi": "10.59717/j.xinn-med.2025.100120",
+      "semantic_scholar_id": null,
+      "openreview_id": null
+    }
+  },
+  "source": {
+    "input_query": "10.59717/j.xinn-med.2025.100120",
+    "input_type": "doi",
+    "resolved_via": "crossref+unpaywall",
+    "source_url": "https://doi.org/10.59717/j.xinn-med.2025.100120",
+    "files": {
+      "pdf": null,
+      "tex_dir": null,
+      "tex_main": null
+    },
+    "fetched_at": "2026-06-30T09:06:50Z"
+  },
+  "content": null,
+  "summary": null,
+  "summary_verification": null,
+  "gaps": {
+    "gap_ids": []
+  },
+  "processing": {
+    "fetched": true,
+    "extracted": false,
+    "summarized": false,
+    "summary_verified": false,
+    "gaps_extracted": false
+  },
+  "warnings": [
+    "no_open_access_pdf",
+    "source_unavailable: full text could not be downloaded (restricted or paywalled) — upload a PDF or LaTeX source (.zip/.tar.gz) to continue"
+  ]
+}

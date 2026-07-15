@@ -1,0 +1,41 @@
+{
+  "gap_id": "gap_197e10e2",
+  "status": "unchecked",
+  "title": "Independence assumption for query and key components",
+  "description": "To motivate the scaling factor in dot-product attention, the authors assume the components of queries and keys are independent random variables with mean 0 and variance 1, which is a simplifying assumption about the learned representations.",
+  "type": "assumption",
+  "canonical_description": "query and key components assumed independent with zero mean and unit variance to justify attention scaling",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1706.03762",
+      "section": "method",
+      "anchor": "assume that the components of $q$ and $k$ are independent random variables with mean $0$ and variance $1$",
+      "quote": "We suspect that for large values of $d_k$, the dot products grow large in magnitude, pushing the softmax function into regions where it has extremely small gradients  \\footnote{To illustrate why the dot products get large, assume that the components of $q$ and $k$ are independent random variables with mean $0$ and variance $1$.",
+      "char_offset": [
+        4204,
+        4533
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-06-26T21:37:09Z",
+  "verdict": {
+    "gap_id": "gap_197e10e2",
+    "status": "open",
+    "confidence": 0.2,
+    "reasoning": "No candidate papers were deep-read, so there is no evidence the gap has been addressed.",
+    "assessments": [],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 0,
+      "skipped_ids": []
+    }
+  },
+  "ranking": null
+}

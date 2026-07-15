@@ -1,27 +1,24 @@
-from .agent import run
+from .agent import build_director_graph, run
 
-__all__ = ["run", "MANIFEST"]
+__all__ = ["run", "build_director_graph", "MANIFEST"]
 
 MANIFEST = {
     "kind": "agent",
     "run": run,
-    "workspace_field": None,
+    "graph_builder": build_director_graph,
+    "workspace_field": "category_slug",
     "steps": [
-        "load_master",
-        "collect_gaps",
-        "deduplicate",
-        "merge_evidence",
-        "write_master",
+        "load_known",
+        "collect_pending",
+        "dedup",
+        "finalize",
     ],
     "schema": [
         {
-            "name": "paper_json_paths",
+            "name": "category_slug",
             "type": "text",
             "required": True,
-            "placeholder": (
-                "workspace/transformers/papers/arxiv_1706.03762/paper.json\n"
-                "workspace/transformers/papers/arxiv_1810.04805/paper.json"
-            ),
+            "placeholder": "transformers",
         },
     ],
 }

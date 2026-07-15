@@ -217,11 +217,114 @@ def map_paper(rec: dict, *, full: bool = False) -> dict:
 
 # --- gap ---------------------------------------------------------------------
 
-def map_gap(rec: dict) -> dict:
-    """A stored ``gaps/pending/<id>.json`` GapRecord → the design's gap object."""
+# A gap flows down the pipeline through stage folders; each stage is one step of
+# the ingestion lifecycle the paper page surfaces per gap:
+#   pending      → mined by the gap agent, awaiting the director
+#   to_validate  → the director judged it novel, awaiting the validator
+#   to_rank      → the validator judged it an open opportunity, awaiting ranking
+#   master       → in the master list (a ranked opportunity, or a solved gap)
+#   archive      → the director found it a duplicate; merged into another gap
+_GAP_STEPS = [
+    ("mined", "Mined"),
+    ("deduped", "Deduplicated"),
+    ("validated", "Validated"),
+    ("ranked", "Ranked"),
+]
+
+
+def _map_verdict(v: dict | None) -> dict | None:
+    """The validator's judgment on a gap: whether prior art has since addressed
+    it, and which papers do so."""
+    if not v:
+        return None
+    return {
+        "status": v.get("status"),  # "open" | "partially_solved" | "solved"
+        "confidence": v.get("confidence"),
+        "reasoning": v.get("reasoning", ""),
+        "addressedBy": [
+            {
+                "paperId": (a.get("paper") or {}).get("paper_id"),
+                "title": (a.get("paper") or {}).get("title"),
+                "url": (a.get("paper") or {}).get("url"),
+                "relevance": a.get("relevance_to_gap"),
+                "contribution": a.get("contribution_summary", ""),
+                "remainsOpen": a.get("what_remains_open", ""),
+            }
+            for a in (v.get("assessments") or [])
+        ],
+    }
+
+
+def _map_ranking(r: dict | None) -> dict | None:
+    """The ranking agent's three dimension scores for an open opportunity."""
+    if not r:
+        return None
+    return {
+        "openness": r.get("openness"),
+        "impact": r.get("impact"),
+        "feasibility": r.get("feasibility"),
+        "feasibilityReasoning": r.get("feasibility_reasoning", ""),
+    }
+
+
+def _gap_ingestion(rec: dict, stage: str | None) -> dict:
+    """Where the gap is in the ingestion pipeline + a per-step stepper.
+
+    ``outcome`` is the branch a gap took at a stage — ``duplicate`` (director),
+    or the validator's ``open`` / ``partially_solved`` / ``solved`` — so the UI can
+    badge a gap even though its physical ``stage`` folder only says *where* it sits.
+    """
+    verdict = rec.get("verdict") or {}
+    ranking = rec.get("ranking")
+    is_dup = stage == "archive" or rec.get("status") == "duplicate"
+
+    deduped = stage in ("to_validate", "to_rank", "master", "archive")
+    validated = bool(verdict) or stage in ("to_rank", "master")
+    ranked = ranking is not None
+
+    if is_dup:
+        outcome = "duplicate"
+    elif verdict:
+        outcome = verdict.get("status")  # open | partially_solved | solved
+    elif stage in ("to_validate",):
+        outcome = "novel"
+    else:
+        outcome = None
+
+    def _state(key: str, done: bool) -> str:
+        # Duplicates are merged after dedup, so validate/rank never apply to them.
+        if is_dup and key in ("validated", "ranked"):
+            return "skipped"
+        # Solved gaps are terminal (parked in master), never ranked.
+        if key == "ranked" and verdict.get("status") == "solved":
+            return "skipped"
+        return "done" if done else "todo"
+
+    done_by_key = {"mined": True, "deduped": deduped,
+                   "validated": validated, "ranked": ranked}
+    steps = [
+        {"key": k, "label": label, "done": done_by_key[k], "state": _state(k, done_by_key[k])}
+        for k, label in _GAP_STEPS
+    ]
+    return {
+        "stage": stage,
+        "outcome": outcome,
+        "duplicateOf": rec.get("duplicate_of"),
+        "steps": steps,
+    }
+
+
+def map_gap(rec: dict, stage: str | None = None) -> dict:
+    """A stored ``gaps/<stage>/<id>.json`` GapRecord → the design's gap object.
+
+    ``stage`` is the folder the record was read from — it drives the per-gap
+    ingestion stepper and lets the UI badge duplicates / validated / ranked gaps.
+    """
     evidence = rec.get("evidence") or []
     derived_from = list(dict.fromkeys(e.get("paper_id") for e in evidence if e.get("paper_id")))
     gtype = rec.get("type", "open_problem")
+    verdict = _map_verdict(rec.get("verdict"))
+    ranking = _map_ranking(rec.get("ranking"))
     return {
         "id": rec.get("gap_id", ""),
         "title": rec.get("title", ""),
@@ -251,6 +354,12 @@ def map_gap(rec: dict) -> dict:
         "relatedIdeas": [],
         "status": rec.get("status", "unchecked"),
         "extractedAt": (rec.get("extracted_at") or "")[:10],
+        # ingestion pipeline surface (director / validator / ranking outputs)
+        "stage": stage,
+        "ingestion": _gap_ingestion(rec, stage),
+        "duplicateOf": rec.get("duplicate_of"),
+        "verdict": verdict,
+        "ranking": ranking,
     }
 
 

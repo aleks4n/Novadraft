@@ -1923,3 +1923,35 @@ button { font-family: inherit; font-size: inherit; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; border: 2px solid transparent; background-clip: content-box; }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-strong); background-clip: content-box; }
+
+/* --- gap ingestion pipeline (director / validator / ranking) --------------- */
+.ingest-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.6;
+  border: 1px solid var(--border);
+  color: var(--text-3);
+  background: var(--bg-soft);
+  white-space: nowrap;
+}
+.ingest-badge--ok { color: var(--accent-green); border-color: color-mix(in srgb, var(--accent-green) 40%, var(--border)); background: color-mix(in srgb, var(--accent-green) 10%, transparent); }
+.ingest-badge--warn { color: var(--accent-amber); border-color: color-mix(in srgb, var(--accent-amber) 40%, var(--border)); background: color-mix(in srgb, var(--accent-amber) 12%, transparent); }
+.ingest-badge--active { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); background: var(--accent-soft); }
+.ingest-badge--muted { color: var(--text-4); }
+
+.gap-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.gap-step { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-4); }
+.gap-step-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--border-strong); flex-shrink: 0; }
+.gap-step--done { color: var(--text-2); }
+.gap-step--done .gap-step-dot { background: var(--accent-green); }
+.gap-step--active { color: var(--text); }
+.gap-step--active .gap-step-dot { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.gap-step--skipped { color: var(--text-5); }
+.gap-step--skipped .gap-step-dot { background: transparent; border: 1px dashed var(--border-strong); }
+.gap-step-note { font-size: 11px; color: var(--text-5); }
+
+.inline-link { background: none; border: none; padding: 0; cursor: pointer; color: var(--accent); font: inherit; }
+.inline-link:hover { text-decoration: underline; }

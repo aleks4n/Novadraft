@@ -19,3 +19,6 @@ marker-pdf
 
 # Gap evidence grounding (sentence segmentation)
 pysbd
+
+# Validator prior-art search (arXiv Atom feed parsing)
+feedparser>=6.0

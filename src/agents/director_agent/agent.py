@@ -1,5 +1,28 @@
-import json
+"""Director agent — the pipeline's gap de-duplicator.
+
+Sits between the paper agent and the validator. It drains the freshly mined
+gaps from ``gaps/pending/`` and, for each one, decides whether it is a *duplicate*
+of a gap the workspace already knows about (anything in ``gaps/master/``,
+``gaps/to_validate/`` or ``gaps/to_rank/``) or a *novel* gap:
+
+- **duplicate** → merge its evidence into the matching known gap (so the master
+  record accumulates every paper that raised it), then park the incoming copy in
+  ``gaps/archive/`` marked ``status="duplicate"`` with ``duplicate_of`` pointing
+  at the survivor. Nothing is deleted — the user can still see it on the paper.
+- **novel** → move it to ``gaps/to_validate/`` for the validator, and expose its
+  id in ``novel_gap_ids`` so the pipeline graph can fan the validator out over it.
+
+Built as a small LangGraph (``load_known → collect_pending → dedup → finalize``)
+so it mounts as a subgraph node in ``src/graph/pipeline.py`` and streams/logs
+through the shared ``GraphRunLog`` engine like every other agent. Duplicate
+detection reuses the local-Qwen cosine-similarity check (with a deterministic
+title/canonical fallback when torch/embeddings are unavailable).
+"""
+from __future__ import annotations
+
 import os
+import sys
+import json
 from functools import lru_cache
 from math import sqrt
 from pathlib import Path
@@ -13,51 +36,24 @@ except ModuleNotFoundError:
 	AutoModel = None
 	AutoTokenizer = None
 
+from langgraph.graph import END, START, StateGraph
 
-def collect_gap_strings(paper_json_path: str | Path) -> str:
-	paper_path = Path(paper_json_path)
-	paper_data = json.loads(paper_path.read_text(encoding="utf-8"))
-	gap_ids = paper_data.get("gaps", {}).get("gap_ids", [])
-	gap_dir = paper_path.parents[2] / "gaps" / "pending"
+REPO_ROOT = Path(__file__).resolve().parents[3]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
-	gap_strings: list[str] = []
-	for gap_id in gap_ids:
-		gap_path = gap_dir / f"{gap_id}.json"
-		if gap_path.exists():
-			gap_strings.append(gap_path.read_text(encoding="utf-8").strip())
+from src.common.utils import storage
+from src.common.utils.logging.runlog import GraphRunLog
+from src.common.utils.logging.trace import log_event
+from src.agents.director_agent.state import DirectorState
 
-	return "\n".join(gap_strings)
-
-def run(paper_json_paths: list[str]) -> str:
-    return main(paper_json_paths)
+# Stages that hold gaps the workspace already knows about — an incoming pending
+# gap is a duplicate if it matches any of these. (pending/ is this agent's inbox;
+# archive/ holds retired copies, not live gaps.)
+_KNOWN_STAGES = ("master", "to_validate", "to_rank")
 
 
-def collect_gap_objects(paper_json_path: str | Path) -> list[dict[str, Any]]:
-	paper_path = Path(paper_json_path)
-	paper_data = json.loads(paper_path.read_text(encoding="utf-8"))
-	gap_ids = paper_data.get("gaps", {}).get("gap_ids", [])
-	gap_dir = paper_path.parents[2] / "gaps" / "pending"
-
-	gap_objects: list[dict[str, Any]] = []
-	for gap_id in gap_ids:
-		gap_path = gap_dir / f"{gap_id}.json"
-		if not gap_path.exists():
-			continue
-		try:
-			gap_objects.append(json.loads(gap_path.read_text(encoding="utf-8")))
-		except json.JSONDecodeError:
-			continue
-
-	return gap_objects
-
-
-def ensure_master_gap_list() -> Path:
-	master_gap_list_path = Path(__file__).resolve().parent / "master_gap_list.json"
-	if not master_gap_list_path.exists():
-		master_gap_list_path.write_text("[]\n", encoding="utf-8")
-		print(f"Created {master_gap_list_path.name}")
-	return master_gap_list_path
-
+# --- duplicate detection (deterministic + optional local embeddings) ---------
 
 def _gap_embedding_text(gap: dict[str, Any]) -> str:
 	title = str(gap.get("title", "")).strip()
@@ -129,16 +125,16 @@ class _LocalQwenEmbeddings:
 
 @lru_cache(maxsize=1)
 def _safe_get_local_qwen_embeddings() -> Any | None:
-	if torch is None or AutoModel is None or AutoTokenizer is None:
-		return None
+    if torch is None or AutoModel is None or AutoTokenizer is None:
+        return None
 
-	model_name = os.getenv("NOVADRAFT_EMBEDDING_MODEL", "Qwen/Qwen3-Embedding-0.6B")
-	max_length = int(os.getenv("NOVADRAFT_EMBEDDING_MAX_LENGTH", "512"))
+    model_name = os.getenv("NOVADRAFT_EMBEDDING_MODEL", "Qwen/Qwen3-Embedding-0.6B")
+    max_length = int(os.getenv("NOVADRAFT_EMBEDDING_MAX_LENGTH", "512"))
 
-	try:
-		return _LocalQwenEmbeddings(model_name=model_name, max_length=max_length)
-	except Exception:
-		return None
+    try:
+        return _LocalQwenEmbeddings(model_name=model_name, max_length=max_length)
+    except Exception:
+        return None
 
 
 def _gaps_are_similar(
@@ -194,74 +190,155 @@ def _merge_evidence(existing_gap: dict[str, Any], incoming_gap: dict[str, Any]) 
 			existing_serialized.add(serialized)
 
 
-def _load_master_gaps(master_gap_list_path: Path) -> list[dict[str, Any]]:
-	try:
-		loaded = json.loads(master_gap_list_path.read_text(encoding="utf-8"))
-	except json.JSONDecodeError:
-		return []
+# --- graph nodes -------------------------------------------------------------
 
-	if isinstance(loaded, list):
-		return [item for item in loaded if isinstance(item, dict)]
-	return []
+def load_known(state: DirectorState) -> dict:
+    """Load every gap the workspace already knows about (master + both inboxes),
+    tagged with the stage folder it lives in so a merge can be written back."""
+    slug = state["category_slug"]
+    known: list[dict] = []
+    for stage in _KNOWN_STAGES:
+        for gap_id in storage.list_gap_ids(slug, stage):
+            rec = storage.read_gap_json(slug, gap_id, stage)
+            if rec is not None:
+                known.append({"stage": stage, "record": rec})
+    log_event(f"loaded {len(known)} known gap(s)", known=len(known))
+    return {"known_gaps": known}
 
 
-def main(paper_json_paths: list[str]) -> str:
+def _paper_gap_ids(slug: str, paper_id: str) -> list[str]:
+    rec = storage.read_paper_json(slug, paper_id) or {}
+    return list((rec.get("gaps") or {}).get("gap_ids") or [])
 
-	if isinstance(paper_json_paths, str):
-        # Split by comma if multiple paths are passed, otherwise wrap the single path
-		if "," in paper_json_paths:
-			paper_json_paths = [p.strip() for p in paper_json_paths.split(",")]
-		else:
-			paper_json_paths = [paper_json_paths]
 
-	master_gap_list_path = ensure_master_gap_list()
-	master_gaps = _load_master_gaps(master_gap_list_path)
-	all_gaps_text_parts: list[str] = []
+def _pending_scope(state: DirectorState) -> set[str] | None:
+    """Which pending gap_ids this run may triage. ``None`` = no restriction (the
+    whole inbox). Explicit ``scope_gap_ids`` wins; otherwise a ``paper_id`` scopes
+    to that paper's gaps so ingest/resume is per-paper, not category-wide."""
+    scope = state.get("scope_gap_ids")
+    if scope:
+        return set(scope)
+    if state.get("paper_id"):
+        return set(_paper_gap_ids(state["category_slug"], state["paper_id"]))
+    return None
 
-	for paper_json_path in paper_json_paths:
-		print(f"\nProcessing: {paper_json_path}")
-		all_gaps_text = collect_gap_strings(paper_json_path)
-		incoming_gaps = collect_gap_objects(paper_json_path)
-		all_gaps_text_parts.append(all_gaps_text)
 
-		if not master_gaps and not all_gaps_text_parts[0]:
-			# First paper, first call to main - initialize
-			master_gap_list_path.write_text(
-				json.dumps(incoming_gaps, indent=2, ensure_ascii=False) + "\n",
-				encoding="utf-8",
-			)
-			print(f"Initialized {master_gap_list_path.name} with {len(incoming_gaps)} gap(s)")
-			master_gaps = incoming_gaps
-		else:
-			# Process incoming gaps from this paper against current master
-			for incoming_gap in incoming_gaps:
-				matched = False
-				for existing_gap in master_gaps:
-					if _gaps_are_similar(incoming_gap, existing_gap):
-						print(
-							"Similar gaps recognized: "
-							f"incoming={incoming_gap.get('gap_id', '<unknown>')} -> "
-							f"master={existing_gap.get('gap_id', '<unknown>')}"
-						)
-						_merge_evidence(existing_gap, incoming_gap)
-						matched = True
-						break
-				if not matched:
-					master_gaps.append(incoming_gap)
+def collect_pending(state: DirectorState) -> dict:
+    """Drain the freshly mined gaps waiting in gaps/pending/ — restricted to this
+    run's scope (a paper's gaps / an explicit set) when one is given."""
+    slug = state["category_slug"]
+    scope = _pending_scope(state)
+    pending: list[dict] = []
+    for gap_id in storage.list_gap_ids(slug, "pending"):
+        if scope is not None and gap_id not in scope:
+            continue
+        rec = storage.read_gap_json(slug, gap_id, "pending")
+        if rec is not None:
+            pending.append(rec)
+    log_event(f"{len(pending)} pending gap(s) to triage", pending=len(pending))
+    return {"pending_gaps": pending}
 
-	# Save the final master gap list after processing all papers
-	master_gap_list_path.write_text(
-		json.dumps(master_gaps, indent=2, ensure_ascii=False) + "\n",
-		encoding="utf-8",
-	)
-	return "\n".join(all_gaps_text_parts)
+
+def dedup(state: DirectorState) -> dict:
+    """Route each pending gap: merge duplicates into the matching known gap and
+    archive the copy; move novel gaps to the validator inbox."""
+    slug = state["category_slug"]
+    known = list(state.get("known_gaps") or [])
+    novel_ids: list[str] = []
+    duplicate_ids: list[str] = []
+
+    for gap in state.get("pending_gaps") or []:
+        gid = gap.get("gap_id")
+        if not gid:
+            continue
+
+        match = next((k for k in known if _gaps_are_similar(gap, k["record"])), None)
+
+        if match is not None:
+            survivor = match["record"]
+            _merge_evidence(survivor, gap)
+            storage.write_gap_json(slug, survivor, match["stage"])
+            gap["status"] = "duplicate"
+            gap["duplicate_of"] = survivor.get("gap_id")
+            storage.write_gap_json(slug, gap, "archive")
+            storage.remove_gap_json(slug, gid, "pending")
+            duplicate_ids.append(gid)
+            log_event(f"duplicate: {gid} -> {survivor.get('gap_id')}",
+                      gap_id=gid, duplicate_of=survivor.get("gap_id"))
+        else:
+            storage.write_gap_json(slug, gap, "to_validate")
+            storage.remove_gap_json(slug, gid, "pending")
+            # A later pending gap can now dedupe against this one too.
+            known.append({"stage": "to_validate", "record": gap})
+            novel_ids.append(gid)
+            log_event(f"novel: {gid} -> to_validate", gap_id=gid)
+
+    return {"novel_gap_ids": novel_ids, "duplicate_gap_ids": duplicate_ids}
+
+
+def finalize(state: DirectorState) -> dict:
+    novel = state.get("novel_gap_ids") or []
+    dupes = state.get("duplicate_gap_ids") or []
+    return {"result": {
+        "status": "ok",
+        "category_slug": state["category_slug"],
+        "n_pending": len(state.get("pending_gaps") or []),
+        "novel_gap_ids": novel,
+        "duplicate_gap_ids": dupes,
+    }}
+
+
+def build_director_graph():
+    """Compile the director's dedup graph: load_known → collect_pending → dedup → finalize."""
+    g = StateGraph(DirectorState)
+    g.add_node("load_known", load_known)
+    g.add_node("collect_pending", collect_pending)
+    g.add_node("dedup", dedup)
+    g.add_node("finalize", finalize)
+
+    g.add_edge(START, "load_known")
+    g.add_edge("load_known", "collect_pending")
+    g.add_edge("collect_pending", "dedup")
+    g.add_edge("dedup", "finalize")
+    g.add_edge("finalize", END)
+    return g.compile()
+
+
+_GRAPH = None
+
+
+def _get_graph():
+    global _GRAPH
+    if _GRAPH is None:
+        _GRAPH = build_director_graph()
+    return _GRAPH
+
+
+def run(category_slug: str, *, stream: bool = True, echo: bool | None = None) -> dict:
+    """De-duplicate the gaps waiting in ``gaps/pending/`` for ``category_slug``
+    against the workspace's known gaps. Novel gaps move to ``gaps/to_validate/``;
+    duplicates are merged into the matching gap and archived. Returns a summary
+    dict (``novel_gap_ids`` / ``duplicate_gap_ids``). Standalone-callable.
+
+    By default streams the graph through a :class:`GraphRunLog`, writing the
+    standard per-run ``.jsonl`` to ``workspace/<slug>/logs/director_agent/`` and
+    echoing to the terminal on a TTY. Pass ``stream=False`` for a quiet
+    ``.invoke()``.
+    """
+    graph = _get_graph()
+    inputs = {"category_slug": category_slug}
+    if not stream:
+        return graph.invoke(inputs)["result"]
+
+    if echo is None:
+        echo = sys.stderr.isatty()
+    rl = GraphRunLog("director_agent", workspace=category_slug, run_hint=category_slug)
+    rl.run(graph, inputs, echo=echo)
+    if rl.error:
+        raise RuntimeError(rl.error)
+    return rl.output
 
 
 if __name__ == "__main__":
-	import sys
-
-	if len(sys.argv) < 2:
-		raise SystemExit("Usage: python agent.py path/to/paper1.json [path/to/paper2.json ...]")
-
-	paper_paths = sys.argv[1:]
-	main(paper_paths)
+    category = sys.argv[1] if len(sys.argv) > 1 else "test"
+    print(json.dumps(run(category), indent=2, ensure_ascii=False))

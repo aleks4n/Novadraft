@@ -181,8 +181,13 @@ def list_idea_ids(category_slug: str) -> list[str]:
 #   to_rank/      ranking inbox (the validator drops open / partially-solved gaps)
 #   master/       the master gap list (validated; opportunities also carry a ranking,
 #                 solved gaps are parked here directly for dedup)
+#   archive/      retired gaps kept for the record (the director parks duplicates
+#                 here after merging their evidence into the matching master gap)
 
-GapStage = Literal["pending", "to_validate", "to_rank", "master"]
+GapStage = Literal["pending", "to_validate", "to_rank", "master", "archive"]
+
+# Pipeline order — also the search order used to locate where a gap currently lives.
+GAP_STAGES: tuple[GapStage, ...] = ("pending", "to_validate", "to_rank", "master", "archive")
 
 
 def gap_stage_dir(category_slug: str, stage: GapStage) -> Path:
@@ -213,5 +218,18 @@ def list_gap_ids(category_slug: str, stage: GapStage) -> list[str]:
     if not d.exists():
         return []
     return sorted(p.stem for p in d.glob("*.json"))
+
+
+def find_gap(category_slug: str, gap_id: str) -> tuple[GapStage | None, dict | None]:
+    """Locate a gap by id across every stage folder, returning ``(stage, record)``.
+
+    A gap lives in exactly one stage at a time (it is moved, not copied, as it
+    flows down the pipeline), so the first hit in :data:`GAP_STAGES` order is
+    authoritative. Returns ``(None, None)`` if the gap is nowhere on disk."""
+    for stage in GAP_STAGES:
+        rec = read_gap_json(category_slug, gap_id, stage)
+        if rec is not None:
+            return stage, rec
+    return None, None
 
 

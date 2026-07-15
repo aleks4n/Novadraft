@@ -1,0 +1,162 @@
+{
+  "gap_id": "gap_e0a40a35",
+  "status": "unchecked",
+  "title": "Future work: making generation less sequential",
+  "description": "The authors identify reducing the auto-regressive nature of the decoder as a research goal, to make generation less sequential.",
+  "type": "future_work",
+  "canonical_description": "reducing sequential auto-regressive generation",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1706.03762",
+      "section": "conclusion",
+      "anchor": "Making generation less sequential is another research goals of ours",
+      "quote": "Making generation less sequential is another research goals of ours.",
+      "char_offset": [
+        910,
+        978
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-07T09:05:22Z",
+  "verdict": {
+    "gap_id": "gap_e0a40a35",
+    "status": "solved",
+    "confidence": 0.92,
+    "reasoning": "All five deep-read papers are assessed as direct solutions — they each propose concrete non-autoregressive architectures that eliminate or dramatically reduce sequential left-to-right decoding. DisCo Transformer, GLAT, and SNAT (Papers 1, 2, 4) achieve fully parallel generation for machine translation with substantial speedups (8–15×). Paper 5 (Latent Alignments) shows CTC can generate in a single step and Imputer in a constant number of steps, matching autoregressive quality. Paper 3 (NACF) extends the same principle to video captioning with parallel generation and iterative refinement, achieving 2–3× speedup. Together, these papers span multiple tasks (NMT and video captioning) and provide a variety of architectural strategies — masking-based, glancing training, latent alignments, structure-augmented — all demonstrating that the sequential auto-regressive bottleneck can be broken. The core problem stated in the gap (\"reducing sequential auto-regressive generation\") is squarely addressed. Remaining quality gaps (BLEU differences vs. autoregressive models) and the need for task-specific adaptations are follow-on optimization challenges, not failures to address the gap itself. Confidence is high because the evidence is direct, convergent, and from multiple independent groups.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2001.05136",
+          "title": "Non-Autoregressive Machine Translation with Disentangled Context Transformer",
+          "abstract": "State-of-the-art neural machine translation models generate a translation from left to right and every step is conditioned on the previously generated tokens. The sequential nature of this generation process causes fundamental latency in inference since we cannot generate multiple tokens in each sentence in parallel. We propose an attention-masking based model, called Disentangled Context (DisCo) transformer, that simultaneously generates all tokens given different contexts. The DisCo transformer is trained to predict every output token given an arbitrary subset of the other reference tokens. We also develop the parallel easy-first inference algorithm, which iteratively refines every token in parallel and reduces the number of required iterations. Our extensive experiments on 7 translation directions with varying data sizes demonstrate that our model achieves competitive, if not better, performance compared to the state of the art in non-autoregressive machine translation while significantly reducing decoding time on average. Our code is available at https://github.com/facebookresearch/DisCo.",
+          "authors": [
+            "Jungo Kasai",
+            "James Cross",
+            "Marjan Ghazvininejad",
+            "Jiatao Gu"
+          ],
+          "published_date": "2020-01-15T05:32:18Z",
+          "url": "https://arxiv.org/abs/2001.05136v2"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper directly addresses the gap of making generation less sequential by proposing the DisCo (Disentangled Context) Transformer, a non-autoregressive architecture that generates all target tokens in parallel rather than sequentially left-to-right. The model uses attention masking to predict every output token conditioned on an arbitrary subset of other reference tokens, and introduces a parallel easy-first inference algorithm that iteratively refines all tokens in parallel. The paper demonstrates competitive translation quality with significantly reduced decoding time compared to autoregressive models, directly tackling the sequential generation bottleneck.",
+        "what_remains_open": "The paper fully addresses the specific gap of making generation less sequential. However, it acknowledges that a performance gap still remains between non-autoregressive and autoregressive models, particularly when knowledge distillation is applied. The paper itself states: \"Nonetheless, a discrepancy still remains between autoregressive and non-autoregressive performance when knowledge distillation from a large transformer is applied to both.\" This is not a failure to address the gap (which is about reducing sequentiality), but rather a remaining quality gap. The paper explicitly solves the sequential generation problem by enabling fully parallel decoding with iterative refinement.",
+        "evidence_snippets": [
+          "State-of-the-art neural machine translation models generate a translation from left to right and every step is conditioned on the previously generated tokens. The sequential nature of this generation process causes fundamental latency in inference since we cannot generate multiple tokens in each sentence in parallel.",
+          "We propose an attention-masking based model, called Disentangled Context (DisCo) transformer, that simultaneously generates all tokens given different contexts.",
+          "We also develop the parallel easy-first inference algorithm, which iteratively refines every token in parallel and reduces the number of required iterations."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2008.07905",
+          "title": "Glancing Transformer for Non-Autoregressive Neural Machine Translation",
+          "abstract": "Recent work on non-autoregressive neural machine translation (NAT) aims at improving the efficiency by parallel decoding without sacrificing the quality. However, existing NAT methods are either inferior to Transformer or require multiple decoding passes, leading to reduced speedup. We propose the Glancing Language Model (GLM), a method to learn word interdependency for single-pass parallel generation models. With GLM, we develop Glancing Transformer (GLAT) for machine translation. With only single-pass parallel decoding, GLAT is able to generate high-quality translation with 8-15 times speedup. Experiments on multiple WMT language directions show that GLAT outperforms all previous single pass non-autoregressive methods, and is nearly comparable to Transformer, reducing the gap to 0.25-0.9 BLEU points.",
+          "authors": [
+            "Lihua Qian",
+            "Hao Zhou",
+            "Yu Bao",
+            "Mingxuan Wang",
+            "Lin Qiu",
+            "Weinan Zhang",
+            "Yong Yu",
+            "Lei Li"
+          ],
+          "published_date": "2020-08-18T13:04:03Z",
+          "url": "https://arxiv.org/abs/2008.07905v3"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "The paper proposes Glancing Transformer (GLAT), a non-autoregressive neural machine translation model that generates all target tokens in a single parallel pass, directly addressing the goal of making generation less sequential. It introduces the Glancing Language Model (GLM), a training method that adaptively samples fragments of the reference to teach the model word interdependency while maintaining fully parallel single-pass decoding at inference. GLAT achieves 8×-15× speedup over autoregressive Transformer and narrows the quality gap to within 0.25-0.9 BLEU points on WMT benchmarks.",
+        "what_remains_open": "The paper fully addresses the gap of reducing sequential auto-regressive generation for the specific task of neural machine translation. What remains open is: (1) applying similar single-pass non-autoregressive methods to other sequence generation tasks beyond NMT (e.g., text summarization, dialogue, code generation), where the conditional dependencies may differ; (2) completely closing the remaining 0.25-0.9 BLEU gap with autoregressive models; and (3) handling output length prediction more robustly without relying on techniques like NPD or CTC that add complexity.",
+        "evidence_snippets": [
+          "We propose the Glancing Language Model (\\glm), a method to learn word interdependency for single-pass parallel generation models.",
+          "With only single-pass parallel decoding, \\method is able to generate high-quality translation with 8$\\times$-15$\\times$ speedup.",
+          "\\method only modifies the training procedure. Its inference is fully parallel with only a single pass."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_1911.12018",
+          "title": "Non-Autoregressive Coarse-to-Fine Video Captioning",
+          "abstract": "It is encouraged to see that progress has been made to bridge videos and natural language. However, mainstream video captioning methods suffer from slow inference speed due to the sequential manner of autoregressive decoding, and prefer generating generic descriptions due to the insufficient training of visual words (e.g., nouns and verbs) and inadequate decoding paradigm. In this paper, we propose a non-autoregressive decoding based model with a coarse-to-fine captioning procedure to alleviate these defects. In implementations, we employ a bi-directional self-attention based network as our language model for achieving inference speedup, based on which we decompose the captioning procedure into two stages, where the model has different focuses. Specifically, given that visual words determine the semantic correctness of captions, we design a mechanism of generating visual words to not only promote the training of scene-related words but also capture relevant details from videos to construct a coarse-grained sentence \"template\". Thereafter, we devise dedicated decoding algorithms that fill in the \"template\" with suitable words and modify inappropriate phrasing via iterative refinement to obtain a fine-grained description. Extensive experiments on two mainstream video captioning benchmarks, i.e., MSVD and MSR-VTT, demonstrate that our approach achieves state-of-the-art performance, generates diverse descriptions, and obtains high inference efficiency. Our code is available at https://github.com/yangbang18/Non-Autoregressive-Video-Captioning.",
+          "authors": [
+            "Bang Yang",
+            "Yuexian Zou",
+            "Fenglin Liu",
+            "Can Zhang"
+          ],
+          "published_date": "2019-11-27T08:36:41Z",
+          "url": "https://arxiv.org/abs/1911.12018v6"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper directly addresses the gap of making generation less sequential by proposing a fully non-autoregressive video captioning model (NACF). It replaces the causal mask in the Transformer decoder with bi-directional self-attention, enabling parallel word generation instead of sequential left-to-right decoding. The model generates visual words (nouns and verbs) in parallel first to form a coarse \"template,\" then fills in remaining words via iterative refinement algorithms (Mask-Predict, Easy-First, Left-to-Right). The paper demonstrates 3.2x speedup over autoregressive baselines on MSVD and 2.2x on MSR-VTT without performance degradation, directly tackling the sequential generation bottleneck identified in the gap.",
+        "what_remains_open": "The paper fully addresses the gap of making generation less sequential for the specific task of video captioning. However, the approach is tailored to video captioning (with visual word generation leveraging video features) and may not directly transfer to other sequence generation tasks. Additionally, the method still uses iterative refinement (multiple passes) rather than single-shot fully parallel generation, so there is a trade-off between speed and quality that could be further optimized. The paper also notes that inadequate visual word generation can sometimes lead to errors, suggesting room for more robust mechanisms.",
+        "evidence_snippets": [
+          "we propose a non-autoregressive decoding based model with a coarse-to-fine captioning procedure to alleviate these defects",
+          "we employ a bi-directional self-attention based network as our language model for achieving inference speedup",
+          "our NACF can generate captions over 3.2 times ($B=4$, $T=1$) faster than AR-B ($B=5$) on MSVD while 2.2 times ($B=5$, $T=3$) on MSR-VTT without performance degradation"
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2101.08942",
+          "title": "Enriching Non-Autoregressive Transformer with Syntactic and SemanticStructures for Neural Machine Translation",
+          "abstract": "The non-autoregressive models have boosted the efficiency of neural machine translation through parallelized decoding at the cost of effectiveness when comparing with the autoregressive counterparts. In this paper, we claim that the syntactic and semantic structures among natural language are critical for non-autoregressive machine translation and can further improve the performance. However, these structures are rarely considered in the existing non-autoregressive models. Inspired by this intuition, we propose to incorporate the explicit syntactic and semantic structures of languages into a non-autoregressive Transformer, for the task of neural machine translation. Moreover, we also consider the intermediate latent alignment within target sentences to better learn the long-term token dependencies. Experimental results on two real-world datasets (i.e., WMT14 En-De and WMT16 En-Ro) show that our model achieves a significantly faster speed, as well as keeps the translation quality when compared with several state-of-the-art non-autoregressive models.",
+          "authors": [
+            "Ye Liu",
+            "Yao Wan",
+            "Jian-Guo Zhang",
+            "Wenting Zhao",
+            "Philip S. Yu"
+          ],
+          "published_date": "2021-01-22T04:12:17Z",
+          "url": "https://arxiv.org/abs/2101.08942v1"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper proposes a non-autoregressive Transformer (SNAT) for neural machine translation that generates all target tokens in parallel rather than auto-regressively. The core idea is to incorporate syntactic (POS) and semantic (NER) structure information into the model to mitigate the quality loss typically associated with non-autoregressive generation. The paper also introduces an intermediate alignment regularization to help the decoder learn long-term token dependencies. Experimental results show the model achieves significant decoding speedup (9.3x over Transformer) while maintaining competitive translation quality.",
+        "what_remains_open": "The paper fully addresses the gap of making generation less sequential by adopting a non-autoregressive architecture that generates all tokens in parallel. However, the gap description is broad (\"making generation less sequential\"), and this paper only addresses it for the specific task of neural machine translation. Additionally, the paper still relies on some sequential elements: (1) it uses an autoregressive teacher model for knowledge distillation during training, (2) it uses rescoring with an autoregressive teacher model during inference for best performance, and (3) the target length must be predicted before generation begins. The broader challenge of making generation fully non-sequential across all sequence generation tasks remains open.",
+        "evidence_snippets": [
+          "The non-autoregressive models have boosted the efficiency of neural machine translation through parallelized decoding at the cost of effectiveness, when comparing with the autoregressive counterparts.",
+          "non-autoregressive models, which aim to enable the parallel generation of output tokens without sacrificing translation quality",
+          "the best \\snat gets a 9.3 times decoding speedup than the Transformer, while achieving comparable or even better performance."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2004.07437",
+          "title": "Non-Autoregressive Machine Translation with Latent Alignments",
+          "abstract": "This paper presents two strong methods, CTC and Imputer, for non-autoregressive machine translation that model latent alignments with dynamic programming. We revisit CTC for machine translation and demonstrate that a simple CTC model can achieve state-of-the-art for single-step non-autoregressive machine translation, contrary to what prior work indicates. In addition, we adapt the Imputer model for non-autoregressive machine translation and demonstrate that Imputer with just 4 generation steps can match the performance of an autoregressive Transformer baseline. Our latent alignment models are simpler than many existing non-autoregressive translation baselines; for example, we do not require target length prediction or re-scoring with an autoregressive model. On the competitive WMT'14 En$\\rightarrow$De task, our CTC model achieves 25.7 BLEU with a single generation step, while Imputer achieves 27.5 BLEU with 2 generation steps, and 28.0 BLEU with 4 generation steps. This compares favourably to the autoregressive Transformer baseline at 27.8 BLEU.",
+          "authors": [
+            "Chitwan Saharia",
+            "William Chan",
+            "Saurabh Saxena",
+            "Mohammad Norouzi"
+          ],
+          "published_date": "2020-04-16T03:45:56Z",
+          "url": "https://arxiv.org/abs/2004.07437v3"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper directly addresses the gap of making generation less sequential by proposing two latent alignment models for non-autoregressive machine translation: CTC (which generates the entire output in a single parallel step) and Imputer (which generates in a constant number of steps, e.g., 2, 4, or 8, independent of sequence length). Both models break away from the traditional left-to-right autoregressive decoding that requires O(n) sequential steps. The paper demonstrates that CTC achieves 25.7 BLEU with a single generation step, and Imputer matches or exceeds an autoregressive Transformer baseline (27.8 BLEU) with just 4 generation steps (28.0 BLEU), showing that high-quality translation is possible with far less sequential generation.",
+        "what_remains_open": "The paper fully addresses the gap of making generation less sequential for machine translation. Both CTC (single-step) and Imputer (constant-number-of-steps) are concrete methods that reduce or eliminate the sequential nature of autoregressive decoding. The gap as stated (\"making generation less sequential\") is broadly addressed. However, the paper focuses specifically on machine translation; extending these latent alignment approaches to other sequence generation tasks (e.g., text summarization, image captioning) or to very long document-level translation remains open. Additionally, the paper acknowledges that CTC's strong conditional independence assumption limits its capacity to model complex multi-modal distributions, and Imputer still requires a small constant number of steps rather than being fully single-step.",
+        "evidence_snippets": [
+          "Non-autoregressive neural machine translation aims to enable the parallel generation of output tokens without sacrificing translation quality.",
+          "CTC generates the alignment distribution in parallel with a single generation step",
+          "Imputer is an iterative generative model needing only a constant number of generation steps for inference."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 5,
+      "skipped_ids": []
+    }
+  },
+  "ranking": null
+}

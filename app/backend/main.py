@@ -52,7 +52,11 @@ from src.common.utils import storage  # noqa: E402
 from app.backend import mappers  # noqa: E402
 
 # Generous super-step ceiling (the agent bounds its own loops); mirrors dev/ui.py.
-GRAPH_RECURSION_LIMIT = 80
+# Sized for the full pipeline: the nested paper subgraph (~60-step budget) plus the
+# director plus one super-step per gap in the sequential validate loop. The
+# validator runs via .invoke() with an independent budget, so only these outer
+# super-steps count here — but the per-gap loop grows with gap count, so keep room.
+GRAPH_RECURSION_LIMIT = 300
 
 app = FastAPI(title="novadraft · ideation ui")
 
@@ -93,17 +97,28 @@ def _read_papers(slug: str, *, full: bool = False) -> list[dict]:
 
 
 def _read_gaps(slug: str, bucket: str = "pending") -> list[dict]:
-    """Gaps from ``gaps/<bucket>/`` — ``pending`` (freshly mined, per-paper) or
-    ``master`` (the curated, deduplicated list, populated in a later phase)."""
+    """Gaps from ``gaps/<bucket>/`` — e.g. ``pending`` (freshly mined, per-paper)
+    or ``master`` (the validated, deduplicated list). Each gap is tagged with its
+    stage so the UI can show where it is in the ingestion pipeline."""
     gdir = storage.category_dir(slug) / "gaps" / bucket
     if not gdir.exists():
         return []
     out = []
     for f in sorted(gdir.glob("*.json")):
         try:
-            out.append(mappers.map_gap(json.loads(f.read_text())))
+            out.append(mappers.map_gap(json.loads(f.read_text()), stage=bucket))
         except (json.JSONDecodeError, OSError):
             continue
+    return out
+
+
+def _read_all_gaps(slug: str) -> list[dict]:
+    """Every gap across every stage folder, each tagged with its stage. A gap
+    lives in exactly one stage at a time, so this is the full per-paper picture
+    (mined → deduped → validated → ranked, plus archived duplicates)."""
+    out = []
+    for stage in storage.GAP_STAGES:
+        out.extend(_read_gaps(slug, stage))
     return out
 
 
@@ -123,8 +138,10 @@ def _read_ideas(slug: str) -> list[dict]:
 def _counts(slug: str) -> tuple[int, int, int]:
     pdir = storage.papers_dir(slug)
     n_papers = sum(1 for d in pdir.iterdir() if (d / "paper.json").exists()) if pdir.exists() else 0
-    gdir = storage.category_dir(slug) / "gaps" / "pending"
-    n_gaps = len(list(gdir.glob("*.json"))) if gdir.exists() else 0
+    # Every live gap (across stages, minus archived duplicates) — so the count is
+    # stable as gaps flow pending → to_validate → to_rank → master.
+    n_gaps = sum(len(storage.list_gap_ids(slug, s))
+                 for s in storage.GAP_STAGES if s != "archive")
     n_ideas = len(storage.list_idea_ids(slug))
     return n_papers, n_gaps, n_ideas
 
@@ -150,10 +167,11 @@ def api_topic(slug: str):
     papers = _read_papers(slug)
     gaps = _read_gaps(slug)
     master_gaps = _read_gaps(slug, "master")
+    all_gaps = _read_all_gaps(slug)
     ideas = _read_ideas(slug)
     topic = mappers.map_topic(meta, n_papers=len(papers), n_gaps=len(gaps), n_ideas=len(ideas))
     return {"meta": topic, "papers": papers, "gaps": gaps,
-            "masterGaps": master_gaps, "ideas": ideas}
+            "masterGaps": master_gaps, "allGaps": all_gaps, "ideas": ideas}
 
 
 @app.get("/api/topics/{slug}/papers")
@@ -265,10 +283,28 @@ def _stream_agent_run(agent: str, slug: str, inputs: dict, slug_hint: str):
 
 @app.post("/api/topics/{slug}/papers/run")
 def api_paper_run(slug: str, req: PaperRunRequest):
-    """Run the paper agent for ``query`` (fetch → extract → summarize → gap)."""
+    """Ingest ``query`` through the full pipeline: paper agent (fetch → extract →
+    summarize → gap) → director (dedup gaps) → validator (fan out over novel gaps).
+    Streams the whole graph as one SSE run."""
     _require_meta(slug)
     inputs = {"category_slug": slug, "query": req.query, "force": _truthy(req.force)}
-    return _stream_agent_run("paper_agent", slug, inputs, req.query)
+    return _stream_agent_run("pipeline", slug, inputs, req.query)
+
+
+@app.post("/api/topics/{slug}/gaps/{gap_id}/resume")
+def api_gap_resume(slug: str, gap_id: str):
+    """Resume ingestion for one gap (director → validator) from where it stopped.
+    Uses the gap's stage folder as the checkpoint — a no-op if it's already done."""
+    _require_meta(slug)
+    return _stream_agent_run("resume", slug, {"category_slug": slug, "gap_id": gap_id}, gap_id)
+
+
+@app.post("/api/topics/{slug}/papers/{paper_id}/resume-gaps")
+def api_paper_gaps_resume(slug: str, paper_id: str):
+    """Resume gap ingestion (director → validator) for all of a paper's gaps that
+    haven't finished — those still in pending/ (need dedup) or to_validate/."""
+    _require_meta(slug)
+    return _stream_agent_run("resume", slug, {"category_slug": slug, "paper_id": paper_id}, paper_id)
 
 
 _TEX_SOURCE_DIR = "source"  # paper-relative dir the extract step reads tex from

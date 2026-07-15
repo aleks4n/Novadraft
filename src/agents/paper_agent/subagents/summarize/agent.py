@@ -33,7 +33,7 @@ from .state import SummarizeState
 from .subagents.critic.agent import run_critic
 from .subagents.extractor.agent import PaperNotFoundError, run_extract
 
-MAX_SUMMARY_LOOPS = 10
+MAX_SUMMARY_LOOPS = 1 #10
 
 # enter + MAX_SUMMARY_LOOPS*(extractor+critic) + finalize, with headroom.
 _RECURSION_LIMIT = 2 * MAX_SUMMARY_LOOPS + 10

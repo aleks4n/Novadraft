@@ -7,7 +7,9 @@ export function TopicOverview() {
   const { active, bundle, setNav } = useWorkspace();
   if (!active) return <div className="empty-state">Loading topic…</div>;
   const papers = bundle?.papers ?? [];
-  const gaps = bundle?.gaps ?? [];
+  // Live gaps across all stages (minus archived duplicates) — not just pending,
+  // which empties out as gaps flow through the pipeline.
+  const gaps = (bundle?.allGaps ?? bundle?.gaps ?? []).filter((g) => (g.stage ?? g.ingestion?.stage) !== "archive");
   const ideas = bundle?.ideas ?? [];
 
   return (
