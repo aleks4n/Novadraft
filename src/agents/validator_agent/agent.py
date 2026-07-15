@@ -86,6 +86,7 @@ def _get_graph():
 
 def _load_gap(category_slug: str, gap_id: str) -> GapRecord:
     """Load a gap awaiting validation from gaps/to_validate/<gap_id>.json."""
+    storage.gap_stage_dir(category_slug, "to_validate").mkdir(parents=True, exist_ok=True)
     raw = storage.read_gap_json(category_slug, gap_id, "to_validate")
     if raw is None:
         inbox = storage.gap_stage_dir(category_slug, "to_validate")
