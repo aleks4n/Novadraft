@@ -6,13 +6,21 @@ import json as _json
 import tarfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from io import BytesIO
 from pathlib import Path
 
+from ...utils.ratelimit import wait_turn
+
 _UA = "novadraft-paper-fetch/0.1 (+research; mailto:noreply@example.com)"
 DEFAULT_TIMEOUT = 30
 _RETRY_STATUSES = {429, 500, 502, 503, 504}
+
+
+def _is_arxiv(url: str) -> bool:
+    host = urllib.parse.urlparse(url).hostname or ""
+    return host == "arxiv.org" or host.endswith(".arxiv.org")
 
 
 def _open(url: str, timeout: int = DEFAULT_TIMEOUT, accept: str | None = None,
@@ -24,6 +32,10 @@ def _open(url: str, timeout: int = DEFAULT_TIMEOUT, accept: str | None = None,
     last_err: Exception | None = None
     for attempt in range(retries + 1):
         try:
+            if _is_arxiv(url):
+                # every arXiv request (metadata / PDF / e-print) goes through the shared
+                # gate, so the ~1-per-3s spacing holds across fetchers, gaps and threads
+                wait_turn("arxiv")
             return urllib.request.urlopen(req, timeout=timeout)
         except urllib.error.HTTPError as e:
             last_err = e

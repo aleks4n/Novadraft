@@ -78,8 +78,8 @@ pending/  →  to_validate/  →  to_rank/   →  master/
   well, so this is the biggest speed lever; the reasoner's thinking phase (and its transient
   503s) isn't worth it here. **`verdict` stays on the reasoner** — a single call, the actual
   solved/partial/open judgment, and it already falls back to `cheap` on failure. Provisional
-  "for now"; revisit if deep_read quality dips. (Speeding it up further = parallelizing the
-  reads, deferred below.)
+  "for now"; revisit if deep_read quality dips. (The reads also run in parallel — see
+  Concurrency below.)
 - **A candidate that can't be fetched *or extracted* is skipped + backfilled, never fatal.**
   `_cache_fulltext` wraps `paper_extract` in a try/except and returns `None` on failure (e.g. a
   PDF-only prior-art paper when marker-pdf isn't installed), so one bad paper never aborts the gap.
@@ -99,6 +99,37 @@ pending/  →  to_validate/  →  to_rank/   →  master/
     a thin query list — e.g. 4 papers — would then flood the candidate pool, since rank
     within a short list is a weak signal. k=10 fixes the shut-out without the flooding.
     Tuned via an offline k-sweep over saved `step_02_search.json` traces.
+
+## Concurrency & external-resource policy
+
+Parallelism lives at two levels — the per-paper LLM reads inside `deep_read`
+(`_MAX_PARALLEL_READS = 5` = `_TARGET`, so one gap's reads run at once) and whole gaps
+inside `validate_all` (`_MAX_PARALLEL_GAPS = 3`). It is safe because every external
+resource has one shared, process-global gate that all call sites go through — callers
+never manage limits themselves:
+
+| Resource | Policy | Where |
+|---|---|---|
+| DeepSeek | no concurrency cap (the provider enforces none); transient 429/5xx/timeouts retried 4× with exponential backoff + jitter | `llm/registry.py` — every `chat*` call |
+| arXiv | ≥ 3s between requests, shared by search *and* every paper_fetch download (metadata/PDF/e-print) | `common/utils/ratelimit.py`, `wait_turn("arxiv")` |
+| marker PDF extraction | at most 2 at once (GBs of RAM + several cores each); the cheap tex path is uncapped | `paper_extract/extract.py` |
+| `_validator_cache` | per-paper lock: parallel gaps shortlisting the same candidate wait for one fetch+extract, then reuse it | `deep_read/agent.py` |
+
+Rules that keep this correct:
+
+- **The whole pipeline runs in ONE process.** The gates are process-global; separate OS
+  processes (e.g. a bash loop of runs) can't see each other and will trip arXiv's limit.
+- **Director contract: batch, then call `validate_all(category)` once** — drop all novel
+  gaps into `to_validate/`, then one call (CLI: `--all`). Overlapping invocations are
+  safe regardless: `validate_all` serializes on a module lock and lists the inbox only
+  *after* acquiring it, so a queued call sees only gaps the earlier batch didn't finish —
+  but they queue, they don't add parallelism.
+- **A failed gap stays in `to_validate/`** (retried on the next invocation) and doesn't
+  stop the rest of the batch.
+- Worker counts are sized to *saturate* the bottleneck gates, not exceed them (beyond
+  ~3 parallel gaps the extra workers would mostly queue at the arXiv/extraction gates).
+- `validate_all` runs each gap with `echo=False`: one console line per finished gap, full
+  detail still in the per-run `logs/validator_agent/<run>.jsonl` (unique file per gap).
 
 ## Integration with `main` (schema migration)
 
@@ -139,11 +170,13 @@ output is regenerable, so it isn't committed (the run's `logs/` and the prior-ar
 - **Precise prior-art cutoff.** `_cutoff_date` (`tools/search.py`) uses the earliest evidence
   *year* → `YYYY-01-01`. paper.json carries a finer `metadata.publication_date`; switch to it
   (via a `paper_access.get_publication_date`) for a precise cutoff when needed.
-- **Parallelize `deep_read` (speed).** The per-paper reads are independent and dominate the
-  validator's latency (currently sequential). A `ThreadPoolExecutor` version was prototyped and
-  reverted — redo it *with* per-call retry/backoff for arXiv 429/503 + DeepSeek 503, so it's
-  verifiable end-to-end rather than amplifying rate-limit failures. (Interim speed win already
-  taken: deep_read on the `cheap` model — see Key decisions.)
+- **Cross-process rate limiting.** The resource gates (see Concurrency) are process-global
+  only; if agents ever run as separate OS processes, the arXiv gate needs an external
+  mechanism (file lock / redis). Until then: one process is the rule, not a limitation.
+- **Claim-by-move for gaps.** If two `validate_all` runners ever run in *different*
+  processes, the module lock can't serialize them; the fix is claiming a gap by moving it
+  to a `validating/` folder (atomic on one filesystem) — brings crash-recovery baggage
+  (stuck claims), so deferred until someone actually needs two runners.
 - **Gap refinement.** Dropped `Verdict.refined_gap` entirely (was always `None`). Preferred
   future design: an **additive "coverage" array parallel to `evidence`** — each entry names a
   sub-part of the gap and the paper that addresses it — leaving the original gap text stable.
