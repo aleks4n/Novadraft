@@ -5,13 +5,18 @@ import { RunTranscript } from "../RunTranscript";
 import { useWorkspace } from "../../lib/store";
 
 export function NewIdea() {
-  const { active, bundle, run, startIdeaRun, setNav } = useWorkspace();
+  const { active, bundle, runs, startIdeaRun, setNav } = useWorkspace();
   const [sketch, setSketch] = useState("");
-  const running = run.kind === "idea" && run.status === "running";
+  // Every idea run streams here (several can develop in parallel); the textarea
+  // stays live so another sketch can be submitted while one is running. Runs
+  // restored from the server index after a reload show unless long done.
+  const ideaRuns = runs.filter((r) => r.kind === "idea" && (r.status !== "done" || r.events.length > 0));
+  const running = ideaRuns.some((r) => r.status === "running");
 
   const submit = () => {
-    if (!sketch.trim() || running) return;
+    if (!sketch.trim()) return;
     startIdeaRun({ mode: "expand", sketch });
+    setSketch("");
   };
 
   // A couple of starting points drawn from the topic's real gaps.
@@ -38,7 +43,6 @@ export function NewIdea() {
           value={sketch}
           onChange={(e) => setSketch(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit(); }}
-          disabled={running}
         />
 
         <div className="newidea-foot">
@@ -46,13 +50,13 @@ export function NewIdea() {
             <Icon name="target" /><span>Topic: <b>{active?.shortTitle || "—"}</b></span>
           </span>
           <div className="newidea-foot-right">
-            <button className="btn btn--primary btn--circle" onClick={submit} disabled={running || !sketch.trim()} title="Develop idea (⌘↵)">
+            <button className="btn btn--primary btn--circle" onClick={submit} disabled={!sketch.trim()} title="Develop idea (⌘↵)">
               <Icon name={running ? "clock" : "arrow-right"} />
             </button>
           </div>
         </div>
 
-        {run.kind === "idea" && run.status !== "idle" && <RunTranscript run={run} />}
+        {ideaRuns.map((r) => <RunTranscript key={r.id} run={r} />)}
       </div>
 
       {gapSeeds.length > 0 && (
@@ -60,7 +64,7 @@ export function NewIdea() {
           <div className="newidea-suggest-label">Or start from a stated gap</div>
           <div className="newidea-suggest-grid">
             {gapSeeds.map((g) => (
-              <button key={g.id} className="suggest-card" disabled={running}
+              <button key={g.id} className="suggest-card"
                 onClick={() => setSketch(`Address the gap: ${g.title}. ${g.description}`)}>
                 <div className="suggest-title">{g.short}</div>
                 <div className="suggest-from"><Icon name="compass" /> {g.type.replace(/_/g, " ")}</div>

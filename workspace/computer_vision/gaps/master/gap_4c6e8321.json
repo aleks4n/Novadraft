@@ -1,0 +1,167 @@
+{
+  "gap_id": "gap_4c6e8321",
+  "status": "unchecked",
+  "title": "Quadratic complexity for long sequences",
+  "description": "Self-attention layers attend to all positions, making computational complexity quadratic in sequence length. For very long sequences, the authors propose restricting attention to a local neighborhood and note this as future work.",
+  "type": "limitation",
+  "canonical_description": "self-attention complexity quadratic in sequence length, limiting application to very long sequences",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1706.03762",
+      "section": "why_self_attention",
+      "anchor": "self-attention could be restricted to considering only a neighborhood",
+      "quote": "To improve computational performance for tasks involving very long sequences, self-attention could be restricted to considering only a neighborhood of size $r$ in the input sequence centered around the respective output position.",
+      "char_offset": [
+        1905,
+        2134
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-15T09:31:35Z",
+  "verdict": {
+    "gap_id": "gap_4c6e8321",
+    "status": "solved",
+    "confidence": 0.95,
+    "reasoning": "The core gap — quadratic O(n²) complexity of self-attention limiting long-sequence use — has been decisively addressed by the subsequent literature, though through diverse mechanisms rather than the specific \"local neighborhood\" approach the original authors proposed. Four papers independently provide strong solutions: SparseK Attention achieves true O(n) complexity via differentiable top‑k sparsity (validated up to 16K tokens / 1.1B parameters); PoNet achieves O(n) via multi‑granularity pooling (9× speedup on LRA); Skeinformer reaches O(n log n) via sketching with theoretical guarantees; and SeerAttention delivers practical 2.8× speedup at 128K context with bounded error. The one non‑addressed paper (SALO) is a hardware accelerator that relies on existing sparse-attention methods — it does not detract. Collectively, these works leave little of the original quadratic-complexity problem open; remaining limitations (e.g., PoNet failing Path-X, or limited validation scale in some papers) are narrow and do not undermine the overall resolution.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2406.16747",
+          "title": "Sparser is Faster and Less is More: Efficient Sparse Attention for Long-Range Transformers",
+          "abstract": "Accommodating long sequences efficiently in autoregressive Transformers, especially within an extended context window, poses significant challenges due to the quadratic computational complexity and substantial KV memory requirements inherent in self-attention mechanisms. In this work, we introduce SPARSEK Attention, a novel sparse attention mechanism designed to overcome these computational and memory obstacles while maintaining performance. Our approach integrates a scoring network and a differentiable top-k mask operator, SPARSEK, to select a constant number of KV pairs for each query, thereby enabling gradient-based optimization. As a result, SPARSEK Attention offers linear time complexity and constant memory footprint during generation. Experimental results reveal that SPARSEK Attention outperforms previous sparse attention methods and provides significant speed improvements during both training and inference, particularly in language modeling and downstream tasks. Furthermore, our method can be seamlessly integrated into pre-trained Large Language Models (LLMs) with minimal fine-tuning, offering a practical solution for effectively managing long-range dependencies in diverse applications.",
+          "authors": [
+            "Chao Lou",
+            "Zixia Jia",
+            "Zilong Zheng",
+            "Kewei Tu"
+          ],
+          "published_date": "2024-06-24T15:55:59Z",
+          "url": "https://arxiv.org/abs/2406.16747v1"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper directly addresses the quadratic complexity problem of self-attention for long sequences by proposing SparseK Attention, which selects a constant number (k) of key-value pairs per query using a differentiable top-k operator. This reduces the computational complexity from quadratic O(n²) to linear O(n) in sequence length, and achieves constant memory footprint during inference. The method is validated on language modeling tasks with context lengths up to 16K tokens and models up to 1.1B parameters, showing consistent improvements over prior efficient attention methods.",
+        "what_remains_open": "The paper fully solves the specific gap of quadratic complexity for long sequences by providing a linear-complexity sparse attention mechanism. However, some limitations remain: (1) the method is validated only up to 16K context length and 1.1B parameter models (limited by computational resources, not by the method itself); (2) it is decoder-only focused; (3) text-only evaluation. These are practical limitations of the experiments, not gaps in addressing the core complexity problem.",
+        "evidence_snippets": [
+          "Our approach integrates a scoring network and a differentiable top-k mask operator, $\\sparsek$, to select a constant number of KV pairs for each query, thereby enabling gradient-based optimization. As a result, $\\sparsek$ Attention offers linear time complexity and constant memory footprint during generation.",
+          "$\\sparsek$ reduces the quadratic training-time complexity of previous learnable sparse attention methods ... to linear time and achieves constant memory cost in inference.",
+          "The quadratic complexity of self-attention is contributed by the quadratically sized attention weight $\\bS$.  Inspired by~[CITE:Ainslie2023CoLT5FL], we propose to select a constant number of key-value pairs for each query in an irreversible way ... leading to linear training complexity and a constant inference-time memory cost."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2512.09238",
+          "title": "Training-free Context-adaptive Attention for Efficient Long Context Modeling",
+          "abstract": "Large Language Models (LLMs) have demonstrated remarkable capabilities across a wide range of natural language processing tasks. These capabilities stem primarily from the self-attention mechanism, which enables modeling of long-range dependencies. However, the quadratic complexity of self-attention with respect to sequence length poses significant computational and memory challenges, especially as sequence length extends to extremes. While various sparse attention and KV cache compression methods have been proposed to improve efficiency, they often suffer from limitations such as reliance on fixed patterns, inability to handle both prefilling and decoding stages, or the requirement for additional training. In this paper, we propose Training-free Context-adaptive Attention (TCA-Attention), a training-free sparse attention mechanism that selectively attends to only the informative tokens for efficient long-context inference. Our method consists of two lightweight phases: i) an offline calibration phase that determines head-specific sparsity budgets via a single forward pass, and ii) an online token selection phase that adaptively retains core context tokens using a lightweight redundancy metric. TCA-Attention provides a unified solution that accelerates both prefilling and decoding while reducing KV cache memory footprint, without requiring parameter updates or architectural changes. Theoretical analysis shows that our approach maintains bounded approximation error. Extensive experiments demonstrate that TCA-Attention achieves a 2.8$\\times$ speedup and reduces KV cache by 61% at 128K context length while maintaining performance comparable to full attention across various benchmarks, offering a practical plug-and-play solution for efficient long-context inference.",
+          "authors": [
+            "Zeng You",
+            "Yaofo Chen",
+            "Shuhai Zhang",
+            "Zhijie Qiu",
+            "Tingyu Wu",
+            "Yingjian Li",
+            "Yaowei Wang",
+            "Mingkui Tan"
+          ],
+          "published_date": "2025-12-10T01:54:57Z",
+          "url": "https://arxiv.org/abs/2512.09238v2"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "The paper proposes SeerAttention (SeerAttn), a training-free sparse attention mechanism that directly addresses the quadratic complexity of self-attention for long sequences. It uses an offline calibration phase to determine head-specific sparsity budgets and an online token selection phase that dynamically retains only informative tokens using a lightweight redundancy metric. The method accelerates both prefilling and decoding stages, reduces KV cache memory footprint, and achieves a 2.8× speedup with 61% KV cache reduction at 128K context length while maintaining competitive performance. Theoretical analysis proves bounded approximation error.",
+        "what_remains_open": "The paper fully addresses the gap of quadratic complexity for long sequences by providing a practical, training-free sparse attention mechanism. However, the method still computes attention over selected tokens and does not achieve true linear complexity in the theoretical worst case (if many tokens are retained per head). The speedup is empirical (2.8×) rather than asymptotic complexity reduction. Additionally, the method requires an offline calibration phase (though lightweight) and introduces hyperparameters (block size, window size, threshold) that may need tuning for different models or tasks.",
+        "evidence_snippets": [
+          "the quadratic complexity of self-attention with respect to sequence length poses significant computational and memory challenges",
+          "we propose \\methodname (\\sexyname), a training-free sparse attention mechanism that selectively attends to only the informative tokens for efficient long-context inference",
+          "achieves a \\textbf{2.8$\\times$} speedup and reduces KV cache by \\textbf{61\\%} at 128K context length while maintaining performance comparable to full attention"
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2112.05359",
+          "title": "Sketching as a Tool for Understanding and Accelerating Self-attention for Long Sequences",
+          "abstract": "Transformer-based models are not efficient in processing long sequences due to the quadratic space and time complexity of the self-attention modules. To address this limitation, Linformer and Informer are proposed to reduce the quadratic complexity to linear (modulo logarithmic factors) via low-dimensional projection and row selection respectively. These two models are intrinsically connected, and to understand their connection, we introduce a theoretical framework of matrix sketching. Based on the theoretical analysis, we propose Skeinformer to accelerate self-attention and further improve the accuracy of matrix approximation to self-attention with three carefully designed components: column sampling, adaptive row normalization and pilot sampling reutilization. Experiments on the Long Range Arena (LRA) benchmark demonstrate that our methods outperform alternatives with a consistently smaller time/space footprint.",
+          "authors": [
+            "Yifan Chen",
+            "Qi Zeng",
+            "Dilek Hakkani-Tur",
+            "Di Jin",
+            "Heng Ji",
+            "Yun Yang"
+          ],
+          "published_date": "2021-12-10T06:58:05Z",
+          "url": "https://arxiv.org/abs/2112.05359v1"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "The paper proposes Skeinformer, which uses matrix sketching techniques (column sampling, adaptive row normalization, and pilot sampling reutilization) to reduce the quadratic O(n²) complexity of self-attention to O(n log n). It provides theoretical guarantees for the approximation accuracy and demonstrates on the Long Range Arena benchmark that Skeinformer achieves better accuracy than alternatives while using less time and space. The paper also introduces a theoretical framework (sketching) that unifies understanding of Linformer and Informer.",
+        "what_remains_open": "The paper fully addresses the core problem of quadratic complexity for long sequences by reducing it to O(n log n). However, the gap description mentions \"restricting attention to a local neighborhood\" as a specific proposed approach — Skeinformer does not use local neighborhood attention but rather sketching/sampling methods. The paper does not explore or validate the local-neighborhood approach that the gap's authors noted as future work. Additionally, while Skeinformer reduces complexity, it still has O(n log n) rather than true O(n) complexity, and the theoretical guarantees rely on assumptions about low-rank structure in the attention matrix.",
+        "evidence_snippets": [
+          "The time and space complexity of the dot-product self-attention is quadratic in the input sequence length, which restricts the largest sequence length and batch size.",
+          "Skeinformer applies sub-sampling sketching to reduce time complexity and exploits the information from the value matrix V with column sampling.",
+          "the total time and space complexity for Algorithm 1 is at most O(n log n), much lower than the O(n^2) complexity for the original softmax self-attention."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2110.02442",
+          "title": "PoNet: Pooling Network for Efficient Token Mixing in Long Sequences",
+          "abstract": "Transformer-based models have achieved great success in various NLP, vision, and speech tasks. However, the core of Transformer, the self-attention mechanism, has a quadratic time and memory complexity with respect to the sequence length, which hinders applications of Transformer-based models to long sequences. Many approaches have been proposed to mitigate this problem, such as sparse attention mechanisms, low-rank matrix approximations and scalable kernels, and token mixing alternatives to self-attention. We propose a novel Pooling Network (PoNet) for token mixing in long sequences with linear complexity. We design multi-granularity pooling and pooling fusion to capture different levels of contextual information and combine their interactions with tokens. On the Long Range Arena benchmark, PoNet significantly outperforms Transformer and achieves competitive accuracy, while being only slightly slower than the fastest model, FNet, across all sequence lengths measured on GPUs. We also conduct systematic studies on the transfer learning capability of PoNet and observe that PoNet achieves 95.7% of the accuracy of BERT on the GLUE benchmark, outperforming FNet by 4.5% relative. Comprehensive ablation analysis demonstrates effectiveness of the designed multi-granularity pooling and pooling fusion for token mixing in long sequences and efficacy of the designed pre-training tasks for PoNet to learn transferable contextualized language representations.",
+          "authors": [
+            "Chao-Hong Tan",
+            "Qian Chen",
+            "Wen Wang",
+            "Qinglin Zhang",
+            "Siqi Zheng",
+            "Zhen-Hua Ling"
+          ],
+          "published_date": "2021-10-06T01:07:54Z",
+          "url": "https://arxiv.org/abs/2110.02442v4"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "PoNet directly addresses the quadratic complexity problem of self-attention by replacing it with a multi-granularity pooling block that achieves linear O(N) time and memory complexity. The paper provides detailed complexity analysis showing O(N) operations, evaluates on the Long Range Arena benchmark (sequences up to 16K), demonstrates speedups of up to 9x over Transformer on GPUs, and shows competitive accuracy. The method is a drop-in replacement for self-attention in Transformer architectures.",
+        "what_remains_open": "The paper fully solves the core problem stated in the gap: quadratic complexity for long sequences. PoNet achieves linear complexity and is evaluated on sequences up to 16K length. However, the paper notes some limitations: (1) PoNet fails on the Path-X task (16K sequence length) in LRA, (2) supporting causal attention for autoregressive generation requires removing the second-stage global aggregation (SS-GA), which may affect performance, and (3) the model has not been tested on extremely long sequences beyond 16K or on generation tasks. The paper explicitly states \"Future work includes further optimization of model structure as well as applying PoNet to a broader range of tasks including generation tasks.\"",
+        "evidence_snippets": [
+          "We propose a novel Pooling Network (PoNet) for token mixing in long sequences with linear complexity.",
+          "PoNet replaces the O(N^2) complexity self-attention with a O(N) complexity multi-granularity pooling block.",
+          "The multi-granularity pooling block hence has linear time and memory complexity with respect to the input length."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2206.14550",
+          "title": "SALO: An Efficient Spatial Accelerator Enabling Hybrid Sparse Attention Mechanisms for Long Sequences",
+          "abstract": "The attention mechanisms of transformers effectively extract pertinent information from the input sequence. However, the quadratic complexity of self-attention w.r.t the sequence length incurs heavy computational and memory burdens, especially for tasks with long sequences. Existing accelerators face performance degradation in these tasks. To this end, we propose SALO to enable hybrid sparse attention mechanisms for long sequences. SALO contains a data scheduler to map hybrid sparse attention patterns onto hardware and a spatial accelerator to perform the efficient attention computation. We show that SALO achieves 17.66x and 89.33x speedup on average compared to GPU and CPU implementations, respectively, on typical workloads, i.e., Longformer and ViL.",
+          "authors": [
+            "Guan Shen",
+            "Jieru Zhao",
+            "Quan Chen",
+            "Jingwen Leng",
+            "Chao Li",
+            "Minyi Guo"
+          ],
+          "published_date": "2022-06-29T12:01:19Z",
+          "url": "https://arxiv.org/abs/2206.14550v1"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "SALO proposes a hardware accelerator (spatial systolic array with a data scheduler) to speed up inference of hybrid sparse attention mechanisms (sliding window + global attention) that already have linear complexity. It does not propose any new algorithmic approach to reduce the quadratic complexity of self-attention; rather, it accelerates existing sparse attention models like Longformer and ViL on hardware.",
+        "what_remains_open": "The core gap — the quadratic O(n²) complexity of self-attention with respect to sequence length — remains entirely unaddressed. The paper does not propose any algorithmic modification to reduce complexity; it relies on existing sparse attention mechanisms (Longformer, ViL) that already achieve linear complexity. The gap asks for restricting attention to a local neighborhood as an algorithmic solution; this paper provides hardware acceleration for such mechanisms but does not contribute to the algorithmic problem itself.",
+        "evidence_snippets": [
+          "To remedy this issue, several models with hybrid sparse attention mechanisms are proposed to handle long sequences, such as Longformer ... and ViL ... They hybridize two variants of the attention mechanism and perform the computation of a local window attention and a task-motivated global attention. Such a hybrid sparse attention mechanism successfully reduce the complexity of attention to a linear level.",
+          "We propose SALO, an efficient spatial accelerator based on systolic array, to enable hybrid sparse attention mechanisms for long sequences.",
+          "Our work, in contrast, can accelerate the attention computation with long input sequences efficiently and fit in various sparse attention mechanisms without any modification of the algorithm."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 5,
+      "skipped_ids": []
+    }
+  },
+  "ranking": null
+}

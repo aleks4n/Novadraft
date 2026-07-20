@@ -17,7 +17,9 @@
 .run-panel-query {
   margin-left: auto; font-family: var(--font-mono); font-size: 11.5px;
   color: var(--text-3); background: var(--bg-inset); padding: 2px 8px; border-radius: 6px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40%;
 }
+.run-panel-head:has(.run-panel-query) .run-panel-actions { margin-left: 0; }
 
 /* Live paper-agent run transcript. */
 .run-transcript { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; }
@@ -253,6 +255,54 @@
   animation: spin 0.7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+/* Sidebar running indicator — an entity with a live agent run spins in the nav. */
+.sidebar-spin {
+  display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  border: 2px solid var(--accent-soft); border-top-color: var(--accent);
+  animation: spin 0.7s linear infinite;
+}
+.sidebar-item--busy .sidebar-item-label { color: var(--accent); }
+
+/* --- ingest box (Papers overview) — a growing multi-line query field -------- */
+.papers-ingest-box {
+  background: var(--bg-panel); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 12px 14px 10px;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.02);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.papers-ingest-textarea {
+  width: 100%; border: 0; outline: 0; background: transparent; resize: none;
+  font-family: var(--font-sans); font-size: 14px; line-height: 1.5; color: var(--text);
+}
+.papers-ingest-textarea::placeholder { color: var(--text-5); }
+.papers-ingest-actions { display: flex; align-items: center; gap: 10px; }
+.papers-ingest-hint {
+  flex: 1; min-width: 0; font-size: 11.5px; color: var(--text-4);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* --- ingest queue (Papers overview) — one row per still-resolving query ----- */
+.ingestq { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.ingestq-row {
+  border: 1px solid var(--border); border-radius: 10px; background: var(--bg-inset);
+  padding: 8px 12px;
+}
+.ingestq-row--error { border-color: #f0d2d2; background: #fdf6f6; }
+.ingestq-main { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ingestq-icon { display: flex; align-items: center; color: var(--text-4); flex-shrink: 0; }
+.ingestq-query {
+  font-family: var(--font-mono); font-size: 12.5px; color: var(--text-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%;
+}
+.ingestq-status { font-size: 12px; color: var(--text-4); flex: 1; min-width: 0; }
+.ingestq-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.run-candidates--queue { margin-top: 10px; }
+.ingestq-batch { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.ingestq-batch-foot { display: flex; align-items: center; justify-content: space-between; }
+.ingestq-batch-hint { font-size: 12px; color: var(--text-4); }
+
+/* Run-panel head actions (cancel / resume / dismiss) sit at the right edge. */
+.run-panel-actions { margin-left: auto; display: flex; gap: 6px; flex-shrink: 0; }
 .run-stage-body { padding-top: 1px; min-width: 0; }
 .run-stage-label { font-size: 13px; font-weight: 500; color: var(--text-3); display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .run-stage-pass { font-size: 11px; font-weight: 500; color: var(--accent); font-family: var(--font-mono); }

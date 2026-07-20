@@ -30,13 +30,11 @@ _NOVADRAFT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_NOVADRAFT_ROOT))
 import _env_bootstrap  # noqa: F401,E402
 
+import asyncio  # noqa: E402
 import io  # noqa: E402
 import json  # noqa: E402
-import re  # noqa: E402
 import tarfile  # noqa: E402
-import time  # noqa: E402
 import zipfile  # noqa: E402
-from datetime import datetime  # noqa: E402
 
 from fastapi import FastAPI, File, HTTPException, UploadFile  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
@@ -44,19 +42,12 @@ from fastapi.responses import StreamingResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
-from dev.registry import GRAPH_BUILDERS, LOGGED_AGENTS, _truthy  # noqa: E402
-from dev.runlog import RunRecorder  # noqa: E402
+from dev.registry import _truthy  # noqa: E402
 from dev.eval_paper_pipeline import _fully_extracted_papers, list_workspaces  # noqa: E402
 from src.common.utils import storage  # noqa: E402
 
 from app.backend import mappers  # noqa: E402
-
-# Generous super-step ceiling (the agent bounds its own loops); mirrors dev/ui.py.
-# Sized for the full pipeline: the nested paper subgraph (~60-step budget) plus the
-# director plus one super-step per gap in the sequential validate loop. The
-# validator runs via .invoke() with an independent budget, so only these outer
-# super-steps count here — but the per-gap loop grows with gap count, so keep room.
-GRAPH_RECURSION_LIMIT = 300
+from app.backend.runs import MANAGER  # noqa: E402
 
 app = FastAPI(title="novadraft · ideation ui")
 
@@ -208,7 +199,10 @@ def api_idea(slug: str, idea_id: str):
     return mappers.map_idea(rec)
 
 
-# --- agent runs (SSE) --------------------------------------------------------
+# --- agent runs (server-tracked; see app/backend/runs.py) ---------------------
+# Runs execute in manager threads, detached from any HTTP connection: starting a
+# run returns its meta immediately, progress is observed via a replay-and-follow
+# SSE stream, and the run survives page reloads / navigation / dropped clients.
 
 class PaperRunRequest(BaseModel):
     query: str
@@ -221,74 +215,26 @@ class IdeaRunRequest(BaseModel):
     count: int = 3
 
 
-def _run_slug(text: str) -> str:
-    s = re.sub(r"[^A-Za-z0-9]+", "-", text or "").strip("-").lower()
-    return s[:40] or "run"
-
-
 def _sse(obj: dict) -> str:
     return f"data: {json.dumps(obj, default=str)}\n\n"
 
 
-def _stream_agent_run(agent: str, slug: str, inputs: dict, slug_hint: str):
-    """Run a registered graph agent and stream its progress as SSE.
-
-    Emits ``run_start`` (with the agent's Mermaid graph), one ``event`` per
-    node/llm/tool/note, then ``run_end`` and a final ``done`` event. Byte-for-byte
-    the same event stream the dev harness records, written to the workspace's run
-    log in the same pass — so the frontend renders any agent's run identically.
-    """
-    builder = GRAPH_BUILDERS.get(agent)
-    if builder is None:
-        raise HTTPException(500, f"{agent} graph not registered")
-
-    def generate():
-        graph = builder()
-        mermaid = graph.get_graph(xray=True).draw_mermaid()
-
-        run_id = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{_run_slug(slug_hint)}"
-        log_dir = storage.agent_log_dir(slug, agent)
-        log_dir.mkdir(parents=True, exist_ok=True)
-        log_path = log_dir / f"{run_id}.jsonl"
-
-        t0 = time.time()
-        error = None
-        with open(log_path, "w") as fh:
-            rec = RunRecorder(fh, agent, slug, inputs)
-            yield _sse({"type": "run_start", "event": rec.start(mermaid)})
-            try:
-                for ns, mode, data in graph.stream(
-                    inputs, stream_mode=["updates", "custom"], subgraphs=True,
-                    config={"recursion_limit": GRAPH_RECURSION_LIMIT},
-                ):
-                    for ev in rec.record(ns, mode, data):
-                        yield _sse({"type": "event", "event": ev})
-            except Exception as e:  # noqa: BLE001
-                error = f"{type(e).__name__}: {e}"
-            footer = rec.finish(error=error)
-            yield _sse({"type": "run_end", "event": footer})
-
-        yield _sse({
-            "type": "done",
-            "record": {
-                "agent": agent, "inputs": inputs,
-                "output": footer.get("output"), "error": error,
-                "duration_s": round(time.time() - t0, 3),
-                "run_log": f"{run_id}.jsonl",
-            },
-        })
-
-    return StreamingResponse(generate(), media_type="text/event-stream")
+@app.get("/api/topics/{slug}/runs")
+def api_runs(slug: str):
+    """Every tracked run of this workspace (active, paused, and recent terminal
+    ones) — what the frontend restores its queue/transcripts from after a reload."""
+    _require_meta(slug)
+    return {"runs": MANAGER.list(slug)}
 
 
 @app.post("/api/topics/{slug}/papers/run")
 def api_paper_run(slug: str, req: PaperRunRequest):
-    """Ingest ``query`` through the full pipeline: paper agent (fetch → extract →
-    summarize → gap) → director (dedup gaps) → validator (fan out over novel gaps).
-    Streams the whole graph as one SSE run."""
+    """Start ingesting ``query`` through the full pipeline (paper agent → director
+    → validator → ranking) in a detached run. Returns the run meta immediately;
+    an identical query already in flight is returned instead of duplicated."""
     _require_meta(slug)
     inputs = {"category_slug": slug, "query": req.query, "force": _truthy(req.force)}
-    return _stream_agent_run("pipeline", slug, inputs, req.query)
+    return MANAGER.start(slug, "pipeline", "paper", inputs, req.query)
 
 
 @app.post("/api/topics/{slug}/gaps/{gap_id}/resume")
@@ -296,7 +242,9 @@ def api_gap_resume(slug: str, gap_id: str):
     """Resume ingestion for one gap (director → validator) from where it stopped.
     Uses the gap's stage folder as the checkpoint — a no-op if it's already done."""
     _require_meta(slug)
-    return _stream_agent_run("resume", slug, {"category_slug": slug, "gap_id": gap_id}, gap_id)
+    return MANAGER.start(slug, "resume", "resume",
+                         {"category_slug": slug, "gap_id": gap_id}, f"Resume {gap_id}",
+                         target={"kind": "gap", "id": gap_id})
 
 
 @app.post("/api/topics/{slug}/papers/{paper_id}/resume-gaps")
@@ -304,7 +252,83 @@ def api_paper_gaps_resume(slug: str, paper_id: str):
     """Resume gap ingestion (director → validator) for all of a paper's gaps that
     haven't finished — those still in pending/ (need dedup) or to_validate/."""
     _require_meta(slug)
-    return _stream_agent_run("resume", slug, {"category_slug": slug, "paper_id": paper_id}, paper_id)
+    return MANAGER.start(slug, "resume", "resume",
+                         {"category_slug": slug, "paper_id": paper_id},
+                         f"Resume gaps · {paper_id}", target={"kind": "paper", "id": paper_id})
+
+
+@app.get("/api/runs/{run_id}/stream")
+async def api_run_stream(run_id: str, since: int = 0):
+    """Replay a run's recorded events from ``since`` and follow the log live
+    until the run reaches a terminal/paused state. Reconnect-safe: the ``.jsonl``
+    is the source of truth, so a reloaded client re-attaches with full history."""
+    meta = MANAGER.get(run_id)
+    if meta is None:
+        raise HTTPException(404, f"unknown run '{run_id}'")
+    path = MANAGER.log_path(run_id)
+
+    async def generate():
+        pos = 0
+        buf = ""
+        while True:
+            m = MANAGER.get(run_id)
+            if path is not None and path.exists():
+                with open(path) as f:
+                    f.seek(pos)
+                    buf += f.read()
+                    pos = f.tell()
+                # Emit only complete lines; a partially-flushed line waits.
+                while "\n" in buf:
+                    line, buf = buf.split("\n", 1)
+                    if not line.strip():
+                        continue
+                    ev = json.loads(line)
+                    if ev.get("seq", 0) < since:
+                        continue
+                    kind = ev.get("kind")
+                    typ = "run_start" if kind == "run_start" else "run_end" if kind == "run_end" else "event"
+                    yield _sse({"type": typ, "event": ev})
+                    if kind == "run_end":
+                        yield _sse({"type": "meta", "run": MANAGER.get(run_id)})
+                        return
+            if m is None or m["status"] != "running":
+                # Interrupted runs have no footer — close with the meta we have.
+                yield _sse({"type": "meta", "run": m})
+                return
+            await asyncio.sleep(0.3)
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+@app.post("/api/runs/{run_id}/cancel")
+def api_run_cancel(run_id: str):
+    """Stop a running run after its current step (resumable via restart)."""
+    try:
+        return MANAGER.cancel(run_id)
+    except KeyError:
+        raise HTTPException(404, f"unknown run '{run_id}'")
+
+
+@app.post("/api/runs/{run_id}/restart")
+def api_run_restart(run_id: str):
+    """Re-run a cancelled/interrupted/failed run with its original inputs —
+    completed stages are skipped (stage folders are the checkpoint)."""
+    try:
+        return MANAGER.restart(run_id)
+    except KeyError:
+        raise HTTPException(404, f"unknown run '{run_id}'")
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+
+
+@app.delete("/api/runs/{run_id}")
+def api_run_delete(run_id: str):
+    """Drop a non-active run from the queue (its log file stays on disk)."""
+    try:
+        MANAGER.delete(run_id)
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+    return {"ok": True}
 
 
 _TEX_SOURCE_DIR = "source"  # paper-relative dir the extract step reads tex from
@@ -391,8 +415,8 @@ def api_idea_run(slug: str, req: IdeaRunRequest):
     _require_meta(slug)
     inputs = {"category_slug": slug, "mode": req.mode,
               "sketch": req.sketch, "count": req.count}
-    hint = req.sketch if req.mode == "expand" else f"generate-{req.count}"
-    return _stream_agent_run("idea_agent", slug, inputs, hint)
+    hint = req.sketch if req.mode == "expand" else f"Generate {req.count} ideas from gaps"
+    return MANAGER.start(slug, "idea_agent", "idea", inputs, hint)
 
 
 # --- static frontend (production / Tauri) ------------------------------------

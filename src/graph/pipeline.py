@@ -9,16 +9,20 @@
 - ``director`` — the director_agent subgraph. Dedups the pending gaps against the
   workspace's known gaps: duplicates are merged + archived, novel gaps move to
   ``gaps/to_validate/`` and are exposed as ``novel_gap_ids``.
-- ``enqueue`` → ``validate_gap`` — the validator runs **sequentially**, one gap at a
-  time: ``enqueue`` seeds a queue of the novel gaps, then ``validate_gap`` pops the
-  front, invokes the validator subgraph (which routes the gap to ``gaps/master/``
-  if solved or ``gaps/to_rank/`` if still open), appends the record to ``verdicts``,
-  and loops back until the queue drains. Sequential on purpose: running the
-  validators in parallel hammers the arXiv prior-art search into HTTP 429s.
+- ``enqueue`` → ``validate_gap`` — ``enqueue`` *claims* this run's novel gaps via
+  the process-global ``claims`` registry (so a concurrent run sweeping the same
+  folder skips them) and seeds the queue; ``validate_gap`` then drains the whole
+  queue with a bounded thread pool (``_MAX_PARALLEL_GAPS`` at a time), invoking
+  the validator subgraph per gap (which routes it to ``gaps/master/`` if solved
+  or ``gaps/to_rank/`` if still open). Parallelism is safe because every arXiv
+  call site goes through the shared ``ratelimit`` gate — requests stay spaced
+  across threads and across concurrent runs. Per-gap progress is emitted as
+  ``gap_validate_start`` / ``gap_validated`` trace events so the UI can tick
+  gaps individually.
 - ``enqueue_rank`` → ``rank_gap`` — the ranking agent then scores each open
   opportunity the validator left in ``gaps/to_rank/`` (openness / impact /
-  feasibility) and moves it into ``gaps/master/``. Same sequential one-at-a-time
-  loop, scoped to this run's gaps.
+  feasibility) and moves it into ``gaps/master/``. Same claim-then-drain
+  bounded-parallel pattern, scoped to this run's gaps.
 - ``collect`` — assembles the run's ``result``.
 
 The validator is invoked with ``.invoke()`` inside ``validate_gap`` (its own
@@ -32,6 +36,8 @@ shared ``GraphRunLog`` (same ``.jsonl`` the dev harness/app produce), so the app
 from __future__ import annotations
 
 import sys
+from concurrent.futures import ThreadPoolExecutor
+from contextvars import copy_context
 from pathlib import Path
 
 from langgraph.graph import END, START, StateGraph
@@ -41,7 +47,8 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.common.schemas.gap import GapRecord
-from src.common.utils import storage
+from src.common.utils import claims, storage
+from src.common.utils.logging import trace
 from src.common.utils.logging.runlog import GraphRunLog
 from src.agents.paper_agent.agent import build_paper_graph
 from src.agents.director_agent.agent import build_director_graph
@@ -51,11 +58,17 @@ from src.agents.ranking_agent.schemas import RankingConfig
 from src.graph.state import PipelineState
 
 # Worst case: the paper subgraph (~fetch/extract + two bounded extractor↔critic
-# cycles) + the director's nodes + one super-step per gap in the sequential
-# validate loop + collect. The validator runs via .invoke() with its own
-# independent recursion budget, so only these outer super-steps count here — but
-# the per-gap loop grows with the gap count, so keep plenty of headroom.
+# cycles) + the director's nodes + the validate/rank phases + collect. The
+# validate/rank nodes each drain their whole queue in one super-step (bounded
+# thread pool inside the node), and the validator/ranking subgraphs run via
+# .invoke() with their own independent recursion budgets — so the outer
+# super-step count no longer grows with the gap count. Headroom kept anyway.
 _RECURSION_LIMIT = 300
+
+# Concurrent gap validations / rankings within one run. Bounded on purpose:
+# external calls stay safe via the shared ratelimit gate, but each gap is a
+# full subgraph run with several LLM calls — keep the fan-out modest.
+_MAX_PARALLEL_GAPS = 3
 
 _VALIDATOR = None
 _RANKING = None
@@ -110,76 +123,120 @@ def _scope_ids(state: PipelineState) -> set[str] | None:
     return None
 
 
-# --- phase 1: validate (one gap at a time) -----------------------------------
+# --- parallel drain helper ----------------------------------------------------
+
+def _drain_parallel(slug: str, queue: list[str], worker, phase: str) -> list[dict]:
+    """Process every claimed gap in ``queue`` with a bounded thread pool and
+    return the finalized records (order of completion is irrelevant — the
+    reducer just accumulates them).
+
+    Each task runs under ``copy_context()`` so LangGraph's stream writer (and
+    the current node tag) is visible from the worker threads — the per-gap trace
+    events and every LLM call inside the subgraphs keep landing in the run log.
+    One gap failing doesn't stop the others: the error is narrated as a trace
+    event and the gap stays in its stage folder for a later retry. Claims are
+    released per gap in ``finally`` — success or failure — so a crashed gap is
+    immediately claimable again."""
+
+    def _one(gid: str) -> dict | None:
+        try:
+            return worker(gid)
+        except Exception as exc:  # noqa: BLE001 — gap stays put for a retry
+            trace.log_event(f"gap_{phase}_failed", gap_id=gid, error=str(exc))
+            return None
+        finally:
+            claims.release(slug, gid)
+
+    try:
+        with ThreadPoolExecutor(max_workers=_MAX_PARALLEL_GAPS) as pool:
+            futures = [pool.submit(copy_context().run, _one, gid) for gid in queue]
+            return [rec for rec in (f.result() for f in futures) if rec is not None]
+    finally:
+        # Backstop: if the pool itself blew up, don't leak the batch's claims.
+        claims.release_all(slug, queue)
+
+
+# --- phase 1: validate (claim, then drain in bounded parallel) -----------------
 
 def enqueue(state: PipelineState) -> dict:
-    """Seed the validation queue with this run's novel gaps (the ones the director
-    just moved into to_validate)."""
+    """Claim + seed the validation queue with this run's novel gaps (the ones the
+    director just moved into to_validate). Gaps already claimed by a concurrent
+    run are skipped — they're being handled."""
     slug = state["category_slug"]
-    return {"queue": _in_validate_inbox(slug, state.get("novel_gap_ids") or [])}
+    inbox = _in_validate_inbox(slug, state.get("novel_gap_ids") or [])
+    return {"queue": claims.claim_batch(slug, inbox)}
 
 
 def _next_validate(state: PipelineState) -> str:
-    """Loop control: another gap queued → validate it; else move on to ranking."""
+    """Anything queued → validate it; else move on to ranking. (The validate node
+    drains the whole queue in one step, so this fires at most once per phase.)"""
     return "validate_gap" if (state.get("queue") or []) else "enqueue_rank"
 
 
 def validate_gap(state: PipelineState) -> dict:
-    """Validate the next queued gap **sequentially** (one at a time — running the
-    validators in parallel hammers the arXiv prior-art search into HTTP 429s).
-    Loads the gap from the to_validate inbox, runs the validator subgraph (which
-    persists the verdict and moves the gap to master/ or to_rank/), records the
-    finalized gap, and pops it off the queue so the loop advances."""
+    """Validate every queued gap, up to ``_MAX_PARALLEL_GAPS`` at a time. Each gap
+    runs the validator subgraph (which persists the verdict and moves the gap to
+    master/ or to_rank/); parallel arXiv traffic stays spaced by the shared
+    ``ratelimit`` gate. Emits ``gap_validate_start`` / ``gap_validated`` trace
+    events so the UI can show per-gap progress."""
     queue = list(state.get("queue") or [])
     if not queue:
         return {}
-    gid, rest = queue[0], queue[1:]
     slug = state["category_slug"]
-    verdicts: list[dict] = []
-    raw = storage.read_gap_json(slug, gid, "to_validate")
-    if raw is not None:
+
+    def _validate(gid: str) -> dict | None:
+        raw = storage.read_gap_json(slug, gid, "to_validate")
+        if raw is None:
+            return None
+        trace.log_event("gap_validate_start", gap_id=gid)
         _validator().invoke({"gap": GapRecord.model_validate(raw), "category_slug": slug})
         rec = (storage.read_gap_json(slug, gid, "master")
                or storage.read_gap_json(slug, gid, "to_rank"))
-        if rec is not None:
-            verdicts = [rec]
-    return {"queue": rest, "verdicts": verdicts}
+        trace.log_event("gap_validated", gap_id=gid,
+                        status=((rec or {}).get("verdict") or {}).get("status"))
+        return rec
+
+    return {"queue": [], "verdicts": _drain_parallel(slug, queue, _validate, "validate")}
 
 
-# --- phase 2: rank the open opportunities (one gap at a time) -----------------
+# --- phase 2: rank the open opportunities (claim, then drain in parallel) ------
 
 def enqueue_rank(state: PipelineState) -> dict:
-    """Seed the ranking queue with this run's open/partial gaps — the ones the
-    validator left in to_rank/ (scoped to this paper / gap)."""
+    """Claim + seed the ranking queue with this run's open/partial gaps — the ones
+    the validator left in to_rank/ (scoped to this paper / gap)."""
     slug = state["category_slug"]
     scope = _scope_ids(state)
     inbox = storage.list_gap_ids(slug, "to_rank")
-    return {"queue": [g for g in inbox if (scope is None or g in scope)]}
+    return {"queue": claims.claim_batch(slug, [g for g in inbox if (scope is None or g in scope)])}
 
 
 def _next_rank(state: PipelineState) -> str:
-    """Loop control: another opportunity queued → rank it; else finish."""
+    """Anything queued → rank it; else finish."""
     return "rank_gap" if (state.get("queue") or []) else "collect"
 
 
 def rank_gap(state: PipelineState) -> dict:
-    """Rank the next queued opportunity: run the ranking subgraph (which scores it
-    on openness / impact / feasibility and moves it from to_rank/ into master/),
-    record it, and pop it off the queue."""
+    """Rank every queued opportunity, up to ``_MAX_PARALLEL_GAPS`` at a time. Each
+    gap runs the ranking subgraph (which scores it on openness / impact /
+    feasibility and moves it from to_rank/ into master/). Emits
+    ``gap_rank_start`` / ``gap_ranked`` trace events for per-gap progress."""
     queue = list(state.get("queue") or [])
     if not queue:
         return {}
-    gid, rest = queue[0], queue[1:]
     slug = state["category_slug"]
-    ranked: list[dict] = []
-    raw = storage.read_gap_json(slug, gid, "to_rank")
-    if raw is not None:
+
+    def _rank(gid: str) -> dict | None:
+        raw = storage.read_gap_json(slug, gid, "to_rank")
+        if raw is None:
+            return None
+        trace.log_event("gap_rank_start", gap_id=gid)
         _ranking().invoke({"gap": GapRecord.model_validate(raw), "category_slug": slug,
                            "config": RankingConfig()})
         rec = storage.read_gap_json(slug, gid, "master")
-        if rec is not None:
-            ranked = [rec]
-    return {"queue": rest, "ranked": ranked}
+        trace.log_event("gap_ranked", gap_id=gid)
+        return rec
+
+    return {"queue": [], "ranked": _drain_parallel(slug, queue, _rank, "rank")}
 
 
 def collect(state: PipelineState) -> dict:
@@ -218,12 +275,13 @@ def plan(state: PipelineState) -> dict:
 
 
 def enqueue_resume(state: PipelineState) -> dict:
-    """Seed the validation queue for a resume: the gaps awaiting validation
-    (in to_validate/) that fall in this run's scope (a gap / a paper / all)."""
+    """Claim + seed the validation queue for a resume: the gaps awaiting
+    validation (in to_validate/) that fall in this run's scope (a gap / a paper /
+    all). Gaps a concurrent run already claimed are skipped."""
     slug = state["category_slug"]
     scope = set(state.get("scope_gap_ids") or [])
     inbox = storage.list_gap_ids(slug, "to_validate")
-    return {"queue": [g for g in inbox if (not scope or g in scope)]}
+    return {"queue": claims.claim_batch(slug, [g for g in inbox if (not scope or g in scope)])}
 
 
 def build_resume_graph():
@@ -255,8 +313,9 @@ def build_resume_graph():
 
 
 def build_pipeline_graph():
-    """Compile the full paper → director → validator ingestion graph. The validator
-    runs sequentially over the paper's novel gaps (enqueue → validate_gap loop)."""
+    """Compile the full paper → director → validator ingestion graph. The validate
+    and rank phases each claim their gaps, then drain them in bounded parallel
+    (``_MAX_PARALLEL_GAPS`` at a time) inside one node step."""
     g = StateGraph(PipelineState)
     # Mount the paper + director agents as first-class subgraph nodes so their
     # internal stages expand in the diagram and stream nested under this run.

@@ -1,17 +1,43 @@
 // Sidebar v2 — workspace brand, topic card with a real topic picker, and
-// per-topic Papers / Gaps / Ideas sections fed from the backend.
-import { useEffect, useRef, useState } from "react";
+// per-topic Papers / Gaps / Ideas sections fed from the backend. Entities with
+// a live agent run get a spinner, so parallel runs are visible at a glance.
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Icon, SeverityDot, StatusPip } from "./Icon";
 import { useWorkspace } from "../lib/store";
-import type { Nav } from "../lib/types";
+import type { Nav, RunState } from "../lib/types";
+
+// Which papers/gaps are being worked on right now. Papers come from each running
+// run's target; gaps from the per-gap trace events the parallel validate/rank
+// phases emit (a gap is busy between its `_start` event and its done/failed one).
+function busyEntities(runs: RunState[]) {
+  const papers = new Set<string>();
+  const gaps = new Set<string>();
+  for (const r of runs) {
+    if (r.status !== "running") continue;
+    if (r.target?.kind === "paper") papers.add(r.target.id);
+    if (r.target?.kind === "gap") gaps.add(r.target.id);
+    const inFlight = new Set<string>();
+    for (const ev of r.events) {
+      if (ev.kind !== "event" || !ev.name) continue;
+      const gid = (ev.data as Record<string, unknown> | undefined)?.["gap_id"];
+      if (typeof gid !== "string") continue;
+      if (ev.name === "gap_validate_start" || ev.name === "gap_rank_start") inFlight.add(gid);
+      else if (["gap_validated", "gap_validate_failed", "gap_ranked", "gap_rank_failed"].includes(ev.name)) inFlight.delete(gid);
+    }
+    inFlight.forEach((gid) => gaps.add(gid));
+  }
+  return { papers, gaps };
+}
 
 export function Sidebar() {
-  const { topics, activeSlug, active, bundle, nav, setNav, setActiveSlug } = useWorkspace();
+  const { topics, activeSlug, active, bundle, nav, setNav, setActiveSlug, runs } = useWorkspace();
   const [open, setOpen] = useState({ papers: true, gaps: true, ideas: true });
   const [pickerOpen, setPickerOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
   const toggle = (k: keyof typeof open) => setOpen((s) => ({ ...s, [k]: !s[k] }));
+  const busy = useMemo(() => busyEntities(runs), [runs]);
+  const ideasRunning = runs.some((r) => r.kind === "idea" && r.status === "running");
 
   useEffect(() => {
     if (!pickerOpen) return;
@@ -33,10 +59,10 @@ export function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="brand">
-        <div className="brand-mark">A</div>
+        <div className="brand-mark">N</div>
         <div className="brand-text">
-          <div className="brand-title">AI OS</div>
-          <div className="brand-sub">· Research</div>
+          <div className="brand-title">Novadraft</div>
+          <div className="brand-sub">· Ideate</div>
         </div>
         <button className="icon-btn brand-collapse" title="Collapse"><Icon name="chevrons-left" /></button>
       </div>
@@ -111,17 +137,11 @@ export function Sidebar() {
           onHeaderClick={() => setNav({ view: "papers", id: null })}
           headerAction={
             <button className="ghost-btn" title="Add paper"
-              onClick={(e) => { e.stopPropagation(); setNav({ view: "add-paper", id: null }); }}>
+              onClick={(e) => { e.stopPropagation(); setNav({ view: "papers", id: null }); }}>
               <Icon name="plus" />
             </button>
           }
         >
-          <button
-            className={"new-idea-row" + (isActive({ view: "add-paper" }) ? " new-idea-row--active" : "")}
-            onClick={() => setNav({ view: "add-paper", id: null })}
-          >
-            <Icon name="sparkle" /><span>Add paper</span>
-          </button>
           {papers.map((p) => (
             <SidebarItem
               key={p.id}
@@ -129,6 +149,7 @@ export function Sidebar() {
               onClick={() => setNav({ view: "paper", id: p.id })}
               icon={<Icon name="file-text" />}
               label={p.short}
+              busy={busy.papers.has(p.id)}
               meta={<span className="item-year">{p.year ?? ""}</span>}
             />
           ))}
@@ -149,6 +170,7 @@ export function Sidebar() {
               onClick={() => setNav({ view: "gap", id: g.id })}
               icon={<SeverityDot severity={g.severity} />}
               label={g.short}
+              busy={busy.gaps.has(g.id)}
             />
           ))}
         </Section>
@@ -171,7 +193,8 @@ export function Sidebar() {
             className={"new-idea-row" + (isActive({ view: "new-idea" }) ? " new-idea-row--active" : "")}
             onClick={() => setNav({ view: "new-idea", id: null })}
           >
-            <Icon name="sparkle" /><span>New ideation</span>
+            {ideasRunning ? <span className="sidebar-spin" /> : <Icon name="sparkle" />}
+            <span>New ideation</span>
           </button>
           {ideas.map((i) => (
             <SidebarItem
@@ -222,13 +245,16 @@ function Section({
 }
 
 function SidebarItem({
-  active, onClick, icon, label, meta,
+  active, onClick, icon, label, meta, busy,
 }: {
-  active: boolean; onClick: () => void; icon: ReactNode; label: string; meta?: ReactNode;
+  active: boolean; onClick: () => void; icon: ReactNode; label: string; meta?: ReactNode; busy?: boolean;
 }) {
   return (
-    <button className={"sidebar-item" + (active ? " sidebar-item--active" : "")} onClick={onClick}>
-      <span className="sidebar-item-icon">{icon}</span>
+    <button
+      className={"sidebar-item" + (active ? " sidebar-item--active" : "") + (busy ? " sidebar-item--busy" : "")}
+      onClick={onClick}
+    >
+      <span className="sidebar-item-icon">{busy ? <span className="sidebar-spin" /> : icon}</span>
       <span className="sidebar-item-label">{label}</span>
       {meta && <span className="sidebar-item-meta">{meta}</span>}
     </button>

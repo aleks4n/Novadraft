@@ -36,13 +36,13 @@ class PipelineState(TypedDict, total=False):
     # single-gap resume input (which gap to resume)
     gap_id: str
 
-    # sequential work queue — reused across the two loop phases (validate, then
-    # rank). Each phase's enqueue seeds it; the loop node pops the front and loops
-    # back until it's empty (one gap at a time, so the arXiv prior-art search isn't
-    # hammered in parallel).
+    # work queue — reused across the two phases (validate, then rank). Each
+    # phase's enqueue *claims* this run's gaps (see common/utils/claims.py) and
+    # seeds the queue; the phase node then drains the whole queue in bounded
+    # parallel in one step (arXiv spacing held by the shared ratelimit gate).
     queue: list[str]
 
-    # results accumulated across the sequential passes
+    # results accumulated across the phases
     verdicts: Annotated[list[dict], operator.add]   # validator: solved / open / partial
     ranked: Annotated[list[dict], operator.add]     # ranking: open opportunities scored
 

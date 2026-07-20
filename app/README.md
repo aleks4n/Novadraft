@@ -25,7 +25,19 @@ app/
 
 ## Run it
 
-Three pieces. The backend is shared by both the web and desktop apps.
+**Quickstart — one command** (backend + web frontend together):
+
+```bash
+./app/start.sh    # from the novadraft root (or ./start.sh from inside app/)
+```
+
+Installs frontend deps on first run, starts the backend on :8787 and the web
+app on :5173, and tears both down on Ctrl-C. This covers the web app only —
+for the desktop shell, see step 3 below.
+
+Or run each piece manually — useful for the desktop app, or when you want
+backend/frontend logs in separate terminals. Three pieces; the backend is
+shared by both the web and desktop apps.
 
 **1 — Backend** (from the `code/novadraft` root, so `dev.*`/`src.*` resolve):
 

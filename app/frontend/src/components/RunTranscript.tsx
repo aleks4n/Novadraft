@@ -64,6 +64,25 @@ function nodeCount(events: RunEvent[], gnode: string): number {
   return events.filter((ev) => ev.kind === "node" && bareNode(ev) === gnode).length;
 }
 
+// Count named trace events (the per-gap progress notes the parallel validate/rank
+// phases emit: gap_validate_start / gap_validated / gap_rank_start / gap_ranked).
+function traceCount(events: RunEvent[], name: string): number {
+  return events.filter((ev) => ev.kind === "event" && ev.name === name).length;
+}
+
+// Per-gap progress of a fan-out phase: done + currently in flight. The phase node
+// fires once for the whole batch, so gap-level progress comes from the trace
+// events; the node-count fallback keeps old (sequential-loop) run logs rendering.
+function fanoutProgress(events: RunEvent[], phase: "validate" | "rank", loopGnode: string) {
+  const doneName = phase === "validate" ? "gap_validated" : "gap_ranked";
+  const started = traceCount(events, `gap_${phase}_start`);
+  const done = traceCount(events, doneName) + traceCount(events, `gap_${phase}_failed`);
+  return {
+    done: Math.max(done, started ? 0 : nodeCount(events, loopGnode)),
+    inFlight: Math.max(0, started - done),
+  };
+}
+
 // Critic passes per looping stage. Both loops collapse to gnode ``paper:critic``,
 // so we attribute each pass by its namespace (which still carries summarize/gap).
 function passCounts(events: RunEvent[]): Record<string, number> {
@@ -116,19 +135,21 @@ function eventLine(ev: RunEvent): { glyph: string; text: string; sub?: string } 
 }
 
 export function RunTranscript({ run }: { run: RunState }) {
-  const { startPaperRun, uploadSource } = useWorkspace();
+  const { startPaperRun, uploadSource, cancelRun, restartRun, deleteRun, isCancelling } = useWorkspace();
   const [showLog, setShowLog] = useState(false);
   const [uploading, setUploading] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
 
   const running = run.status === "running";
+  const cancelling = running && isCancelling(run.id);
   const paused = run.status === "ambiguous" || run.status === "needs_source";
+  const resumable = run.status === "cancelled" || run.status === "interrupted" || run.status === "error";
   const stages = run.kind === "idea" ? IDEA_STAGES : run.kind === "resume" ? RESUME_STAGES : PAPER_STAGES;
   const done = completedGnodes(run.events);
   const passes = passCounts(run.events);
-  const aggCount: Record<string, number> = {
-    validate: nodeCount(run.events, "validate_gap"),
-    rank: nodeCount(run.events, "rank_gap"),
+  const fanout: Record<string, { done: number; inFlight: number }> = {
+    validate: fanoutProgress(run.events, "validate", "validate_gap"),
+    rank: fanoutProgress(run.events, "rank", "rank_gap"),
   };
 
   // The active stage is the first not-yet-completed one while the run is live.
@@ -147,17 +168,47 @@ export function RunTranscript({ run }: { run: RunState }) {
   return (
     <div className="run-panel">
       <div className="run-panel-head">
-        <span className={"status-led " + (running || paused ? "status-led--amber" : run.status === "error" ? "status-led--red" : "status-led--green")}></span>
+        <span className={"status-led " + (running || paused ? "status-led--amber" : run.status === "error" ? "status-led--red" : resumable ? "status-led--amber" : "status-led--green")}></span>
         <span className="run-panel-title">
-          {running
+          {cancelling ? "Cancelling — stopping after the current step…"
+            : running
             ? run.kind === "resume" ? "Resuming gap ingestion"
               : `Running ${run.kind === "idea" ? "idea" : "paper"} agent`
             : run.status === "ambiguous" ? "Which paper did you mean?"
               : run.status === "needs_source" ? "Full text unavailable"
-                : run.status === "error" ? "Run failed" : "Run complete"}
+                : run.status === "error" ? "Run failed"
+                  : run.status === "cancelled" ? "Run cancelled"
+                    : run.status === "interrupted" ? "Run interrupted"
+                      : "Run complete"}
         </span>
         {run.query && <span className="run-panel-query">{run.query}</span>}
+        <span className="run-panel-actions">
+          {running && (
+            <button className="btn btn--ghost btn--sm" title="Stop after the current step"
+              onClick={() => cancelRun(run.id)} disabled={cancelling}>
+              <Icon name={cancelling ? "clock" : "x"} /> {cancelling ? "Cancelling…" : "Cancel"}
+            </button>
+          )}
+          {resumable && (
+            <button className="btn btn--ghost btn--sm" title="Re-run — completed stages are skipped"
+              onClick={() => restartRun(run.id)}>
+              <Icon name="play" /> Resume
+            </button>
+          )}
+          {!running && (
+            <button className="btn btn--ghost btn--sm" title="Dismiss this run"
+              onClick={() => deleteRun(run.id)}>
+              <Icon name="x" /> Dismiss
+            </button>
+          )}
+        </span>
       </div>
+
+      {run.note === "duplicate" && (
+        <p className="run-note">
+          This paper was already in the library — completed stages were skipped.
+        </p>
+      )}
 
       <ol className="run-pipe">
         {stages.map((s, i) => {
@@ -180,8 +231,12 @@ export function RunTranscript({ run }: { run: RunState }) {
                   {s.loop && n > 0 && (
                     <span className="run-stage-pass">{isActive ? "refining · " : ""}{n} pass{n === 1 ? "" : "es"}</span>
                   )}
-                  {AGGREGATE_KEYS.has(s.key) && aggCount[s.key] > 0 && (
-                    <span className="run-stage-pass">{isActive ? "" : "done · "}{aggCount[s.key]} gap{aggCount[s.key] === 1 ? "" : "s"}</span>
+                  {AGGREGATE_KEYS.has(s.key) && (fanout[s.key].done > 0 || fanout[s.key].inFlight > 0) && (
+                    <span className="run-stage-pass">
+                      {fanout[s.key].inFlight > 0 && `${fanout[s.key].inFlight} in parallel`}
+                      {fanout[s.key].inFlight > 0 && fanout[s.key].done > 0 && " · "}
+                      {fanout[s.key].done > 0 && `${fanout[s.key].done} gap${fanout[s.key].done === 1 ? "" : "s"} done`}
+                    </span>
                   )}
                 </div>
                 {(isActive || (!isDone && s.hint)) && s.hint && <div className="run-stage-hint">{s.hint}</div>}
@@ -198,9 +253,7 @@ export function RunTranscript({ run }: { run: RunState }) {
         <p className="run-done">
           {run.kind === "idea"
             ? `${run.resultIdeaIds.length} idea${run.resultIdeaIds.length === 1 ? "" : "s"} added to the workspace.`
-            : run.resultPaperId
-              ? "Knowledge base updated — opening the new paper."
-              : "Knowledge base updated."}
+            : "Knowledge base updated."}
         </p>
       )}
 
@@ -221,7 +274,7 @@ export function RunTranscript({ run }: { run: RunState }) {
                   className="candidate-card"
                   disabled={!id}
                   title={id ? "Re-run the search with this paper" : "No fetchable identifier"}
-                  onClick={() => id && startPaperRun(id)}
+                  onClick={() => { if (id) { startPaperRun(id); deleteRun(run.id); } }}
                 >
                   <div className="candidate-title">{c.title || "Untitled"}</div>
                   <div className="candidate-meta">

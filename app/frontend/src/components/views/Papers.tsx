@@ -4,10 +4,32 @@ import { TabButton, ViewHeader } from "../chrome";
 import { PaperPipeline } from "../PaperPipeline";
 import { RunTranscript } from "../RunTranscript";
 import { SourceDropZone } from "../SourceDropZone";
-import { useWorkspace } from "../../lib/store";
+import { runForTarget, useWorkspace } from "../../lib/store";
 import { api } from "../../lib/api";
-import type { Gap, Paper } from "../../lib/types";
-import { SUGGESTIONS } from "./AddPaper";
+import type { Gap, Paper, RunState } from "../../lib/types";
+
+export const SUGGESTIONS = [
+  // --- One example per input query type ---
+  { q: "1706.03762", label: "Attention Is All You Need", from: "arXiv ID", note: "Query type: arXiv ID" },
+  { q: "https://arxiv.org/abs/2010.11929", label: "An Image is Worth 16x16 Words", from: "arXiv URL", note: "Query type: arXiv URL" },
+  { q: "10.48550/arXiv.1810.04805", label: "BERT", from: "DOI", note: "Query type: DOI" },
+  { q: "Deep Residual Learning for Image Recognition", label: "ResNet", from: "Paper title", note: "Query type: free-text title" },
+  { q: "https://proceedings.mlr.press/v37/ioffe15.pdf", label: "Batch Normalization", from: "PDF URL", note: "Query type: direct PDF URL" },
+
+  // --- Different paper types ---
+  { q: "2203.02155", label: "InstructGPT (conference paper)", from: "arXiv ID", note: "Paper type: conference paper" },
+  { q: "10.1038/nature14539", label: "Deep Learning (Nature review)", from: "DOI", note: "Paper type: journal review article" },
+  { q: "10.6028/NIST.SP.800-207", label: "Zero Trust Architecture", from: "DOI", note: "Paper type: technical report / standard" },
+  { q: "Distilling the Knowledge in a Neural Network", label: "Knowledge Distillation (workshop)", from: "Paper title", note: "Paper type: workshop paper" },
+
+  // --- PDF-only: no arXiv record, parsed straight from the PDF ---
+  { q: "https://www.cs.toronto.edu/~hinton/absps/JMLRdropout.pdf", label: "Dropout (PDF only, no arXiv)", from: "PDF URL", note: "Edge case: PDF only — no arXiv ID" },
+  { q: "10.1145/3292500.3330701", label: "ACM paper (PDF behind publisher)", from: "DOI", note: "Edge case: PDF only — resolve via DOI" },
+
+  // --- No download access: metadata resolves but full text is paywalled / gated ---
+  { q: "10.1126/science.aaa8415", label: "Machine learning (Science, paywalled)", from: "DOI", note: "Edge case: no download access — paywalled" },
+  { q: "10.1109/5.726791", label: "LeNet (IEEE, gated)", from: "DOI", note: "Edge case: no download access — gated full text" },
+];
 
 // A short badge for where a gap is in the ingestion pipeline — the outcome of the
 // director/validator (falls back to the raw stage folder for gaps still in flight).
@@ -35,13 +57,102 @@ function statusClass(s: string) {
   );
 }
 
+// One row of the ingest queue: a query that hasn't become a paper yet. While a
+// run is fetching it spins here; the moment it attaches to a paper the row
+// disappears (the process continues on the paper's page, spinner in the nav).
+// Paused/failed queries stay with pick / resume / delete controls.
+function IngestQueueRow({ run }: { run: RunState }) {
+  const { startPaperRun, cancelRun, restartRun, deleteRun, isCancelling } = useWorkspace();
+  const running = run.status === "running";
+  const cancelling = running && isCancelling(run.id);
+
+  const statusLabel =
+    cancelling ? "Cancelling…"
+      : running ? "Fetching…"
+      : run.status === "ambiguous" ? "No exact match — pick the paper you meant"
+        : run.status === "cancelled" ? "Cancelled"
+          : run.status === "interrupted" ? "Interrupted (backend restarted)"
+            : run.status === "error" ? `Failed — ${run.error || "unknown error"}`
+              : "Finished";
+
+  return (
+    <div className={"ingestq-row" + (run.status === "error" ? " ingestq-row--error" : "")}>
+      <div className="ingestq-main">
+        <span className="ingestq-icon">
+          {running ? <span className="sidebar-spin" />
+            : run.status === "ambiguous" ? <Icon name="search" />
+              : run.status === "error" ? <Icon name="alert" />
+                : <Icon name="clock" />}
+        </span>
+        <span className="ingestq-query" title={run.query || ""}>{run.query}</span>
+        <span className="ingestq-status">{statusLabel}</span>
+        <span className="ingestq-actions">
+          {running && (
+            <button className="btn btn--ghost btn--sm" onClick={() => cancelRun(run.id)} disabled={cancelling}>
+              <Icon name={cancelling ? "clock" : "x"} /> {cancelling ? "Cancelling…" : "Cancel"}
+            </button>
+          )}
+          {(run.status === "cancelled" || run.status === "interrupted" || run.status === "error") && (
+            <button className="btn btn--ghost btn--sm" onClick={() => restartRun(run.id)}>
+              <Icon name="play" /> Resume
+            </button>
+          )}
+          {!running && (
+            <button className="btn btn--ghost btn--sm" title="Remove this query"
+              onClick={() => deleteRun(run.id)}>
+              <Icon name="archived" /> Delete
+            </button>
+          )}
+        </span>
+      </div>
+
+      {/* Ambiguous → inline candidate picker; picking re-runs the query with the
+          candidate's identifier and removes this row. */}
+      {run.status === "ambiguous" && (
+        <div className="run-candidates run-candidates--queue">
+          {run.candidates.map((c, i) => {
+            const id = c.arxiv_id || c.doi || c.pdf_url;
+            const idLabel = c.arxiv_id ? `arXiv:${c.arxiv_id}`
+              : c.doi ? `doi:${c.doi}`
+                : c.pdf_url ? "PDF source" : "no identifier";
+            return (
+              <button
+                key={i}
+                className="candidate-card"
+                disabled={!id}
+                title={id ? "Re-run the search with this paper" : "No fetchable identifier"}
+                onClick={() => { if (id) { startPaperRun(id); deleteRun(run.id); } }}
+              >
+                <div className="candidate-title">{c.title || "Untitled"}</div>
+                <div className="candidate-meta">
+                  {(c.authors?.slice(0, 3).join(", ")) || "Unknown authors"}
+                  {c.year ? ` · ${c.year}` : ""}
+                </div>
+                <div className="candidate-id">{idLabel}{c.source ? ` · ${c.source}` : ""}</div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function PapersOverview() {
-  const { active, bundle, setNav, run, startPaperRun } = useWorkspace();
+  const { active, bundle, setNav, runs, startPaperRun } = useWorkspace();
   const papers = bundle?.papers ?? [];
   const [query, setQuery] = useState("");
   const [tryOpen, setTryOpen] = useState(false);
   const tryRef = useRef<HTMLDivElement>(null);
-  const running = run.kind === "paper" && run.status === "running";
+  // The ingest queue: paper runs that haven't attached to a paper yet. As soon
+  // as a run learns its paper id it leaves this list (its process streams on the
+  // paper's page; the nav shows the spinner). Any number can be live at once.
+  const queue = runs.filter((r) => r.kind === "paper" && !r.target);
+
+  // One query per non-empty line — so pasting or Shift+Enter-building a list adds
+  // several at once. The field grows with the content up to a cap.
+  const queries = query.split("\n").map((q) => q.trim()).filter(Boolean);
+  const rows = Math.min(Math.max(query.split("\n").length, 1), 8);
 
   useEffect(() => {
     if (!tryOpen) return;
@@ -52,9 +163,13 @@ export function PapersOverview() {
     return () => document.removeEventListener("mousedown", onDoc);
   }, [tryOpen]);
 
+  // Enter ingests every non-empty line; a single line auto-opens its paper, a
+  // batch stays on this page so the queue stays in view. Shift+Enter → newline.
   const submit = () => {
-    if (!query.trim() || running) return;
-    startPaperRun(query);
+    if (!queries.length) return;
+    const autoOpen = queries.length === 1;
+    for (const q of queries) startPaperRun(q, { autoOpen });
+    setQuery("");
   };
 
   return (
@@ -73,54 +188,75 @@ export function PapersOverview() {
         ]}
       />
 
-      {/* Inline ingestion: enter an arXiv ID / URL / DOI / title, or pick a sample
-          from the dropdown. Mirrors the Add-paper view but as a one-line bar. */}
+      {/* Inline ingestion: type an arXiv ID / URL / DOI / title and press Enter,
+          or add several (Shift+Enter or paste one per line) to ingest a batch in
+          parallel. The field grows with what you type. */}
       <div className="papers-ingest">
-        <div className="papers-ingest-bar">
-          <Icon name="plus" className="papers-ingest-icon" />
-          <input
-            className="papers-ingest-input"
-            placeholder="arXiv ID (1706.03762), URL, DOI, or paper title…"
+        <div className="papers-ingest-box">
+          <textarea
+            className="papers-ingest-textarea"
+            rows={rows}
+            placeholder="arXiv ID, URL, DOI, or paper title — one per line to add several"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
-            disabled={running}
+            onKeyDown={(e) => {
+              // Enter ingests; Shift+Enter (or ⌘/Ctrl+Enter) inserts a newline.
+              if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+                e.preventDefault();
+                submit();
+              }
+            }}
           />
-          <div className="papers-ingest-try" ref={tryRef}>
-            <button
-              className={"btn btn--ghost" + (tryOpen ? " btn--active" : "")}
-              onClick={() => setTryOpen((v) => !v)}
-              disabled={running}
-              aria-expanded={tryOpen}
-            >
-              <Icon name="compass" /> Try one of these <Icon name="chevron-down" />
-            </button>
-            {tryOpen && (
-              <div className="ingest-menu">
-                <div className="ingest-menu-label">Try one of these</div>
-                <div className="ingest-menu-scroll">
-                  {SUGGESTIONS.map((s, i) => (
-                    <button
-                      key={i}
-                      className="ingest-menu-row"
-                      onClick={() => { setQuery(s.q); setTryOpen(false); }}
-                    >
-                      <span className="ingest-menu-text">
-                        <span className="ingest-menu-title">{s.label}</span>
-                        <span className="ingest-menu-note">{s.note}</span>
-                      </span>
-                      <span className="ingest-menu-from"><Icon name="compass" /> {s.from}</span>
-                    </button>
-                  ))}
+          <div className="papers-ingest-actions">
+            <div className="papers-ingest-try" ref={tryRef}>
+              <button
+                className={"btn btn--ghost" + (tryOpen ? " btn--active" : "")}
+                onClick={() => setTryOpen((v) => !v)}
+                aria-expanded={tryOpen}
+              >
+                <Icon name="compass" /> Try one of these <Icon name="chevron-down" />
+              </button>
+              {tryOpen && (
+                <div className="ingest-menu">
+                  <div className="ingest-menu-label">Try one of these</div>
+                  <div className="ingest-menu-scroll">
+                    {SUGGESTIONS.map((s, i) => (
+                      <button
+                        key={i}
+                        className="ingest-menu-row"
+                        onClick={() => {
+                          // Append to the list when the user is building one.
+                          setQuery((q) => (q.trim() ? q.replace(/\s*$/, "") + "\n" + s.q : s.q));
+                          setTryOpen(false);
+                        }}
+                      >
+                        <span className="ingest-menu-text">
+                          <span className="ingest-menu-title">{s.label}</span>
+                          <span className="ingest-menu-note">{s.note}</span>
+                        </span>
+                        <span className="ingest-menu-from"><Icon name="compass" /> {s.from}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+            <span className="papers-ingest-hint">
+              {queries.length > 1 ? `${queries.length} papers — ingest in parallel` : "↵ to ingest · ⇧↵ for a new line"}
+            </span>
+            <button className="btn btn--primary" onClick={submit} disabled={!queries.length}>
+              <Icon name="arrow-right" /> {queries.length > 1 ? `Ingest ${queries.length}` : "Ingest"}
+            </button>
           </div>
-          <button className="btn btn--primary" onClick={submit} disabled={running || !query.trim()}>
-            <Icon name={running ? "clock" : "arrow-right"} /> Ingest
-          </button>
         </div>
-        {run.kind === "paper" && run.status !== "idle" && <RunTranscript run={run} />}
+
+        {/* The ingest queue: every query still resolving (or waiting on you).
+            Rows disappear as their paper appears in the tree on the left. */}
+        {queue.length > 0 && (
+          <div className="ingestq">
+            {queue.map((r) => <IngestQueueRow key={r.id} run={r} />)}
+          </div>
+        )}
       </div>
 
       {papers.length === 0 ? (
@@ -163,25 +299,48 @@ export function PapersOverview() {
 }
 
 export function PaperDetail({ id }: { id: string }) {
-  const { bundle, activeSlug, setNav, run, startPaperRun, startPaperGapsResume, uploadSource } = useWorkspace();
+  const { bundle, activeSlug, setNav, runs, startPaperRun, startPaperGapsResume, uploadSource } = useWorkspace();
   const [paper, setPaper] = useState<Paper | null>(null);
   const [tab, setTab] = useState<"paper" | "survey" | "gaps">("paper");
   const [showWarn, setShowWarn] = useState(false);
   const [uploading, setUploading] = useState(false);
 
+  // The latest run about this paper — an ingest that attached to it (kind
+  // "paper") or a gaps-resume scoped to it (kind "resume"). Its full process
+  // streams right here on the paper page. A long-finished run restored from the
+  // server index (no events) stays hidden — the pipeline strip covers it.
+  const lastRun = runForTarget(runs, "paper", id);
+  const liveRun = lastRun && (lastRun.status !== "done" || lastRun.events.length > 0) ? lastRun : undefined;
+  const running = liveRun?.status === "running";
+
   useEffect(() => {
     let cancelled = false;
+    let timer: number | undefined;
     setPaper(null);
-    if (activeSlug) api.paper(activeSlug, id).then((p) => { if (!cancelled) setPaper(p); }).catch(() => {});
-    return () => { cancelled = true; };
+    const load = () => {
+      if (!activeSlug || cancelled) return;
+      api.paper(activeSlug, id)
+        .then((p) => { if (!cancelled) setPaper(p); })
+        // Mid-ingest the record may not exist yet (we navigate here right after
+        // the fetch stage reports the id) — retry until it lands.
+        .catch(() => { if (!cancelled) timer = window.setTimeout(load, 1500); });
+    };
+    load();
+    return () => { cancelled = true; if (timer) window.clearTimeout(timer); };
   }, [activeSlug, id]);
 
-  // When a resume run for this paper finishes, re-fetch so the pipeline strip and
-  // any newly-extracted survey/gaps reflect the progress the agent just made.
+  // While a run for this paper is live, keep the record fresh (stages tick as the
+  // agent progresses); one final re-fetch when it finishes.
   useEffect(() => {
-    if (run.kind === "paper" && run.status === "done" && activeSlug)
-      api.paper(activeSlug, id).then(setPaper).catch(() => {});
-  }, [run.status, run.kind, activeSlug, id]);
+    if (!liveRun || !activeSlug) return;
+    if (liveRun.status === "running") {
+      const t = window.setInterval(() => {
+        api.paper(activeSlug, id).then(setPaper).catch(() => {});
+      }, 2500);
+      return () => window.clearInterval(t);
+    }
+    api.paper(activeSlug, id).then(setPaper).catch(() => {});
+  }, [liveRun?.status, liveRun, activeSlug, id]);
 
   if (!paper) return <div className="empty-state">Loading paper…</div>;
   const survey = paper.survey;
@@ -190,15 +349,10 @@ export function PaperDetail({ id }: { id: string }) {
   // their current ingestion state rather than emptying out.
   const linkedGaps = (bundle?.allGaps ?? bundle?.gaps ?? []).filter((g) => g.derivedFrom.includes(paper.id));
   const doneStages = paper.stages.filter((s) => s.done).length;
-  // This paper's resume run is the live one when its query matches.
-  const runForThisPaper =
-    run.kind === "paper" && run.status !== "idle" && run.query === paper.resumeQuery;
-  const resuming = runForThisPaper && run.status === "running";
+  const resuming = running;
   // Gaps of this paper still mid-ingestion (awaiting the director or validator).
   const unfinishedGaps = linkedGaps.filter((gp) => gp.stage === "pending" || gp.stage === "to_validate");
-  const resumeGapsForThisPaper =
-    run.kind === "resume" && run.resumeTarget?.kind === "paper" && run.resumeTarget.id === paper.id;
-  const resumingGaps = resumeGapsForThisPaper && run.status === "running";
+  const resumingGaps = liveRun?.kind === "resume" && running;
 
   return (
     <div className="view view--detail">
@@ -223,14 +377,19 @@ export function PaperDetail({ id }: { id: string }) {
         ]}
       />
 
-      {/* Where this paper got to in the ingestion pipeline. */}
-      <div className="pipeline-strip">
-        <PaperPipeline stages={paper.stages} />
-      </div>
+      {/* Live run → the full detailed process (same stage list as the ingest
+          transcript) streams right here; the thin summary strip takes over once
+          nothing is running. */}
+      {liveRun ? <RunTranscript run={liveRun} /> : (
+        <div className="pipeline-strip">
+          <PaperPipeline stages={paper.stages} />
+        </div>
+      )}
 
       {/* Resolved but no downloadable full text → let the user supply a pdf/tex
-          source, which uploads and then resumes the pipeline. */}
-      {paper.needsSource && !resuming && (
+          source, which uploads and then resumes the pipeline. (Hidden while the
+          live transcript is already offering its own drop zone.) */}
+      {paper.needsSource && !resuming && liveRun?.status !== "needs_source" && (
         <div className="notice notice--warn">
           <Icon name="alert" />
           <div style={{ flex: 1 }}>
@@ -256,9 +415,10 @@ export function PaperDetail({ id }: { id: string }) {
         </div>
       )}
 
-      {/* Incomplete ingestion → offer to resume the agent from where it stalled,
-          streaming the same process view the Add-paper step shows. */}
-      {!paper.complete && !paper.needsSource && (
+      {/* Incomplete ingestion → offer to resume the agent from where it stalled.
+          Hidden while a run for this paper is live — the transcript above already
+          shows the progress, so the redundant "resuming…" notice just adds noise. */}
+      {!paper.complete && !paper.needsSource && !running && (
         <div className="notice notice--resume">
           <Icon name="clock" />
           <div style={{ flex: 1 }}>
@@ -277,11 +437,9 @@ export function PaperDetail({ id }: { id: string }) {
         </div>
       )}
 
-      {runForThisPaper && <RunTranscript run={run} />}
-
       {/* Gaps mined but not yet pushed through the director/validator — resume the
           ingestion tail for just this paper's unfinished gaps. */}
-      {unfinishedGaps.length > 0 && !runForThisPaper && (
+      {unfinishedGaps.length > 0 && !running && (
         <div className="notice notice--resume">
           <Icon name="clock" />
           <div style={{ flex: 1 }}>
@@ -294,9 +452,7 @@ export function PaperDetail({ id }: { id: string }) {
         </div>
       )}
 
-      {resumeGapsForThisPaper && <RunTranscript run={run} />}
-
-      {paper.warnings.length > 0 && !(paper.needsSource && !resuming) && (
+      {paper.warnings.length > 0 && !running && !(paper.needsSource && !resuming) && (
         <div className="notice notice--warn">
           <Icon name="alert" />
           <div style={{ flex: 1 }}>

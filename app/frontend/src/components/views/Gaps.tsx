@@ -3,7 +3,7 @@ import { Icon } from "../Icon";
 import { TabButton, ViewHeader } from "../chrome";
 import { GapPipeline } from "../PaperPipeline";
 import { RunTranscript } from "../RunTranscript";
-import { useWorkspace } from "../../lib/store";
+import { runForTarget, useWorkspace } from "../../lib/store";
 import type { Gap, GapEvidence } from "../../lib/types";
 
 // A gap can still be pushed through ingestion while it sits in these stages.
@@ -207,7 +207,7 @@ export function GapsOverview() {
 }
 
 export function GapDetail({ id }: { id: string }) {
-  const { bundle, setNav, run, startGapResume } = useWorkspace();
+  const { bundle, setNav, runs, startGapResume } = useWorkspace();
   const g: Gap | undefined =
     bundle?.allGaps?.find((x) => x.id === id)
     || bundle?.gaps.find((x) => x.id === id)
@@ -215,9 +215,11 @@ export function GapDetail({ id }: { id: string }) {
   if (!g) return <div className="empty-state">Gap not found.</div>;
   const papers = bundle?.papers ?? [];
   const sources = g.derivedFrom.map((pid) => papers.find((p) => p.id === pid)).filter(Boolean);
-  const resumeForThisGap =
-    run.kind === "resume" && run.resumeTarget?.kind === "gap" && run.resumeTarget.id === g.id;
-  const resuming = resumeForThisGap && run.status === "running";
+  // The latest run targeting this gap (a resume) streams inline on this page;
+  // long-finished runs restored from the server index (no events) stay hidden.
+  const lastRun = runForTarget(runs, "gap", g.id);
+  const liveRun = lastRun && (lastRun.status !== "done" || lastRun.events.length > 0) ? lastRun : undefined;
+  const resuming = liveRun?.status === "running";
   const canResume = gapResumable(g);
 
   return (
@@ -265,7 +267,7 @@ export function GapDetail({ id }: { id: string }) {
         </div>
       ) : null}
 
-      {resumeForThisGap && <RunTranscript run={run} />}
+      {liveRun && <RunTranscript run={liveRun} />}
 
       <div className="view-grid view-grid--paper">
         <div className="card card--wide">

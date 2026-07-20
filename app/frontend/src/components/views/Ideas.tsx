@@ -5,9 +5,9 @@ import { useWorkspace } from "../../lib/store";
 import type { Idea } from "../../lib/types";
 
 export function IdeasOverview() {
-  const { active, bundle, setNav, startIdeaRun, run } = useWorkspace();
+  const { active, bundle, setNav, startIdeaRun, runs } = useWorkspace();
   const ideas = bundle?.ideas ?? [];
-  const generating = run.kind === "idea" && run.status === "running";
+  const generating = runs.some((r) => r.kind === "idea" && r.status === "running");
 
   return (
     <div className="view view--list">

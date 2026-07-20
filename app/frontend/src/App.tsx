@@ -3,7 +3,6 @@ import { Sidebar } from "./components/Sidebar";
 import { TopicOverview } from "./components/views/TopicOverview";
 import { PapersOverview, PaperDetail } from "./components/views/Papers";
 import { GapsOverview, GapDetail } from "./components/views/Gaps";
-import { AddPaper } from "./components/views/AddPaper";
 import { IdeasOverview, IdeaDetail } from "./components/views/Ideas";
 import { NewIdea } from "./components/views/NewIdea";
 import { useWorkspace } from "./lib/store";
@@ -54,7 +53,6 @@ function View({ nav }: { nav: Nav }) {
     case "paper": return nav.id ? <PaperDetail id={nav.id} /> : null;
     case "gaps": return <GapsOverview />;
     case "gap": return nav.id ? <GapDetail id={nav.id} /> : null;
-    case "add-paper": return <AddPaper />;
     case "ideas": return <IdeasOverview />;
     case "new-idea": return <NewIdea />;
     case "idea": return nav.id ? <IdeaDetail id={nav.id} /> : null;

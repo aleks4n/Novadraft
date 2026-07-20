@@ -1,0 +1,35 @@
+{
+  "idea_id": "idea_cv0dummy2",
+  "title": "Test-Time Geometric Consistency for Open-Vocabulary 3D Segmentation",
+  "short": "Geo-Consistent 3D Seg",
+  "description": "Improves open-vocabulary 3D scene segmentation by enforcing that 2D vision-language predictions projected from multiple views agree on the underlying 3D geometry, refining noisy per-view masks into a coherent 3D labeling at test time without any 3D-labeled training data.",
+  "summary": "Open-vocabulary 2D segmenters (e.g., CLIP-based) can label pixels for arbitrary text prompts, but lifting these predictions to 3D scenes is unreliable because each view is segmented independently, producing labels that flicker and disagree across viewpoints. This idea proposes a test-time optimization that treats multi-view 2D predictions as noisy observations of a single 3D field: given a posed RGB-D sequence, per-pixel open-vocabulary logits are back-projected onto a shared 3D representation (a point cloud or feature grid), and a consistency objective penalizes disagreement between the fused 3D labeling and each view's re-rendered prediction. No 3D annotations are used; the only supervision is geometric agreement across views. The method is evaluated on ScanNet and Replica for open-vocabulary semantic segmentation, measuring both accuracy and cross-view label stability.",
+  "status": "draft",
+  "source": "agent",
+  "related_gaps": [],
+  "related_papers": [],
+  "method": [
+    "Run a frozen open-vocabulary 2D segmenter on each posed RGB-D frame to obtain per-pixel text-conditioned logits.",
+    "Back-project per-pixel logits into a shared 3D representation (point cloud or voxel feature grid) using known camera poses and depth.",
+    "Define a test-time consistency loss that penalizes divergence between the fused 3D label field re-rendered into each view and that view's original 2D prediction.",
+    "Optimize the 3D field (not the 2D backbone) at test time per scene, optionally with a spatial smoothness prior on the 3D labels.",
+    "Evaluate on ScanNet and Replica for open-vocabulary semantic segmentation, reporting mIoU and a cross-view label-consistency metric against per-view baselines."
+  ],
+  "evaluation": {
+    "novelty_score": 0.71,
+    "novelty": "Multi-view fusion of 2D features into 3D is known (e.g., OpenScene), but framing cross-view agreement as an explicit per-scene test-time consistency objective for label refinement — with no 3D supervision — is a distinct angle.",
+    "feasibility_score": 0.77,
+    "feasibility": "Builds entirely on frozen pretrained 2D models and standard posed RGB-D datasets; the test-time optimization is a per-scene loop that runs on a single GPU without retraining.",
+    "impact_score": 0.73,
+    "impact": "Reliable open-vocabulary 3D segmentation without 3D labels would help robotics, AR/VR scene understanding, and any application needing to query 3D spaces with free-form text.",
+    "rigour_score": 0.76,
+    "rigour": "Evaluated on two established indoor benchmarks with both an accuracy metric and an explicit consistency metric, plus ablations on the smoothness prior and the fusion representation.",
+    "risks": [
+      "Depth and pose noise could corrupt back-projection, so geometric consistency might reinforce errors rather than correct them.",
+      "Per-scene test-time optimization adds latency that may be impractical for real-time use.",
+      "Gains may be marginal in scenes where the 2D segmenter is already view-consistent."
+    ]
+  },
+  "created_at": "2026-07-20T00:00:00Z",
+  "updated_at": "2026-07-20T00:00:00Z"
+}

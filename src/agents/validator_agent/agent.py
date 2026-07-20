@@ -22,7 +22,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.common.schemas.gap import GapRecord
-from src.common.utils import storage
+from src.common.utils import claims, storage
 from src.common.utils.logging.runlog import GraphRunLog
 from src.agents.validator_agent.state import ValidatorState
 from src.agents.validator_agent.subagents.query_gen.agent import generate_queries
@@ -134,9 +134,10 @@ def validate_all(category_slug: str) -> dict:
     """Validate every gap waiting in gaps/to_validate/, up to _MAX_PARALLEL_GAPS at a time.
 
     Contract with the director: drop the whole batch of novel gaps into to_validate/,
-    then call this once. The inbox is listed once, AFTER acquiring the module lock —
-    so overlapping invocations queue instead of racing, and a queued invocation only
-    sees gaps the earlier batch didn't finish (finished gaps were moved out by finalize).
+    then call this once. The inbox is listed once, AFTER acquiring the module lock,
+    and each gap is then *claimed* in the process-global ``claims`` registry — so
+    overlapping invocations queue instead of racing, and a gap another run (e.g. a
+    live pipeline ingest in the app) is already processing is skipped entirely.
 
     One gap failing doesn't stop the others: its error is caught and reported, and the
     gap simply stays in to_validate/ (it will be retried on the next invocation). Prints
@@ -146,9 +147,11 @@ def validate_all(category_slug: str) -> dict:
     Returns {"validated": {gap_id: gap record}, "failed": {gap_id: error message}}.
     """
     with _validate_all_lock:
-        gap_ids = storage.list_gap_ids(category_slug, "to_validate")  # list after locking
+        inbox = storage.list_gap_ids(category_slug, "to_validate")  # list after locking
+        gap_ids = claims.claim_batch(category_slug, inbox)  # skip gaps another run holds
         if not gap_ids:
-            print(f"to_validate/ of '{category_slug}' is empty — nothing to validate.")
+            print(f"to_validate/ of '{category_slug}' is empty (or fully claimed by "
+                  "other runs) — nothing to validate.")
             return {"validated": {}, "failed": {}}
         _get_graph()  # build once here, not lazily from three threads at once
 
@@ -166,9 +169,14 @@ def validate_all(category_slug: str) -> dict:
             except Exception as exc:  # noqa: BLE001 — gap stays in to_validate/ for a retry
                 print(f"  {gap_id} -> FAILED after {time.monotonic() - t0:.0f}s: {exc}")
                 failed[gap_id] = str(exc)
+            finally:
+                claims.release(category_slug, gap_id)
 
-        with ThreadPoolExecutor(max_workers=_MAX_PARALLEL_GAPS) as pool:
-            list(pool.map(_one, gap_ids))
+        try:
+            with ThreadPoolExecutor(max_workers=_MAX_PARALLEL_GAPS) as pool:
+                list(pool.map(_one, gap_ids))
+        finally:
+            claims.release_all(category_slug, gap_ids)  # backstop — no leaked claims
 
         summary = f"done: {len(validated)} validated, {len(failed)} failed"
         print(summary + (" — failed gaps stay in to_validate/" if failed else ""))
