@@ -1,0 +1,144 @@
+{
+  "gap_id": "gap_4678e8e2",
+  "status": "validated",
+  "title": "Selection mechanism may impede continuous-time data performance",
+  "description": "The selection mechanism that improves performance on discrete modalities (text, DNA) can conversely impede performance on continuous-time data modalities where LTI SSMs excel, as shown in audio waveform ablations where the selective SSM significantly hampers performance.",
+  "type": "limitation",
+  "canonical_description": "selection mechanism reduces performance on continuous-time data where time-invariant models excel",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2312.00752",
+      "section": "discussion",
+      "anchor": "this conversely can impede their performance on data that LTI SSMs excel on",
+      "quote": "but this conversely can impede their performance on data that LTI SSMs excel on.",
+      "char_offset": [
+        713,
+        793
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T07:37:05Z",
+  "verdict": {
+    "gap_id": "gap_4678e8e2",
+    "status": "solved",
+    "confidence": 0.95,
+    "reasoning": "Paper 1 (TIDES) directly and completely addresses the gap. It identifies the exact failure mode: Mamba's input-dependent Δ collapses from a physical sampling interval into a learned gate, which destroys continuous-time handling. It proposes an architectural fix — move input-dependence from Δ to the diagonal state matrix Λ, keeping Δ as the physical timestep — and validates empirically with state-of-the-art results on UEA classification and Physiome-ODE regression, including a Fading Flash diagnostic that shows TIDES extrapolates cleanly across varying Δ while Mamba collapses. The other four papers (stability analysis of selective SSMs, wavelet-based LTI SSMs, time-varying basis-function SSMs, and theoretical token-dynamics of Mamba on text/images) do not address the gap at all — they neither diagnose why selection hurts continuous-time performance nor propose or test a remedy for it. TIDES alone provides a mechanistic explanation and a validated solution, leaving no substantive piece of the gap open.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2605.09742",
+          "title": "TIDES: Implicit Time-Awareness in Selective State Space Models",
+          "abstract": "Selective state space models (SSMs), such as Mamba, achieve strong per-token expressivity by making the time discretization step $\\TildeΔ$ a learned function of the input. However, in doing so, $\\TildeΔ$ ceases to represent a physical sampling interval, limiting its irregular time series modeling capability. Continuous-time SSMs, such as S5, preserve the physical meaning of $\\TildeΔ$ and handle irregular timestamps natively ($\\TildeΔ\\equivΔ)$, but their dynamics remain linear time-invariant (LTI), limiting per-token expressivity. We propose \\textbf{TIDES}, a selective SSM variant that reconciles selective and continuous architectures by moving input-dependence off the step size and onto the diagonal state matrix. As a result, $\\TildeΔ$ retains its physical meaning, tied to the state discretization, allowing the model to handle irregular timestamps natively without sacrificing the per-token expressivity that makes selective SSMs effective. We show this on a novel \\emph{Fading Flash} experimental benchmark, a compact controlled diagnostic for sequence models that jointly tests input-dependence and extrapolation to out-of-distribution $Δ$ values, and isolates the distinct failure modes of current state-of-the-art architectures that TIDES avoids by construction. On large-scale benchmarks, TIDES sets the new state-of-the-art average rank on UEA time-series classification and the Physiome-ODE regression benchmark. Code available at: https://github.com/TaylanSoydan/TIDES.",
+          "authors": [
+            "Taylan Soydan",
+            "Miguel A. Bessa",
+            "Dirk Mohr",
+            "Rui Barreira"
+          ],
+          "published_date": "2026-05-10T20:34:06Z",
+          "url": "https://arxiv.org/abs/2605.09742v1"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "The paper identifies that Mamba's selection mechanism (making Δ input-dependent) collapses Δ from a physical sampling interval into a learned gate, which impedes performance on continuous-time/irregularly-sampled data. TIDES solves this by moving input-dependence from Δ to the diagonal state matrix Λ (specifically Re(Λ)), while keeping Δ as the physical timestep tied to the discretization. This preserves both per-token expressivity (selectivity) and faithful handling of continuous-time dynamics. The Fading Flash diagnostic and random-drop ablation empirically demonstrate that TIDES overcomes the failure modes of both S5 (LTI rigidity) and Mamba (failure to extrapolate across Δ values), and TIDES achieves SOTA on UEA classification and Physiome-ODE regression.",
+        "what_remains_open": "The paper fully addresses the gap: it identifies the specific failure mode (selection on Δ impedes continuous-time performance), provides a mechanistic explanation, proposes an architectural fix (move selection to Λ), and validates it empirically. The paper explicitly acknowledges that TIDES is not intended as a general replacement for Mamba on regular-grid tasks like language modeling, but for the specific gap about continuous-time data performance, it provides a direct and complete solution.",
+        "evidence_snippets": [
+          "Selective SSMs such as Mamba ... removed this rigidity by making $\\Tilde{\\Delta}$ and the input and output projections functions of the input. ... But this comes at a cost: $\\Tilde{\\Delta}$ is no longer a physical sampling interval, i.e., $\\Tilde{\\Delta}\\neq \\Delta$, but a learned, content-dependent gate.",
+          "We propose a third design that avoids this tradeoff by routing input-dependence through the state matrix instead ... making the per-component decay rate and the input and output projections functions of the input, while keeping the oscillation frequency static and leaving $\\Tilde{\\Delta}$ as a physical timestep quantity rather than a learned gate.",
+          "Input-dependent $\\tilde\\Delta$ does not extrapolate: Mamba$_{\\text{S}}$ matches TIDES for $r_\\mathrm{test}\\le0.7$ but collapses from $\\sim$0.7 to $\\sim$0.4 at $r_\\mathrm{test}{=}0.9$ ... Input-dependent $\\mathrm{Re}(\\Lambda)$ recovers expressivity and extrapolation: TIDES achieves the best mean accuracy ($0.739$) and stays flat across the full $r_\\mathrm{test}$ range."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2505.11602",
+          "title": "Regularity and Stability Properties of Selective SSMs with Discontinuous Gating",
+          "abstract": "Selective State-Space Models (SSMs) such as Mamba have become central to long-sequence modeling. Still, their stability is poorly understood: their state-space coefficients are modulated online by a token-dependent gating signal, making the recurrence neither linear time-invariant nor classically nonlinear. We study continuous-time selective SSMs through passivity, dissipativity, and Input-to-State Stability (ISS), explicitly separating the selection signal $x(\\cdot)$ from the driving input $u(\\cdot)$. We obtain four results: exponential forgetting under strict dissipativity; a canonical $\\mathrm{AUC}_{\\mathrm{loc}}$ quadratic storage for the frozen-selection subsystem that accommodates discontinuous gating; a parametric LMI together with universal kernel constraints and \"irreversible forgetting\" under universal quadratic storage; and sufficient conditions for global ISS uniformly over admissible selection schedules. We then bridge to practice by deriving a sampled block LMI for the Mamba selective-scan core, which is used as a differentiable training-time regularizer. Across seven standard time-series datasets and four prediction horizons, the regularizer reduces sampled Mamba-core LMI violations by roughly $92\\%$ in $28/28$ pairs at a clean-MSE cost of less than $0.018\\%$. It improves internal Mamba passivity and state-norm diagnostics under injected perturbations. Our results turn classical control-theoretic tools into verifiable structural and training criteria for selective SSMs, while honestly scoping which guarantees transfer to a deep selective-scan architecture.",
+          "authors": [
+            "Nikola Zubić",
+            "Davide Scaramuzza"
+          ],
+          "published_date": "2025-05-16T18:08:40Z",
+          "url": "https://arxiv.org/abs/2505.11602v3"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "This paper provides a theoretical stability analysis of selective SSMs (like Mamba) using passivity, dissipativity, and ISS frameworks. It derives continuous-time structural properties, parametric LMIs, and a discrete-time regularizer for the Mamba selective-scan core. The regularizer reduces LMI violations in Mamba-based architectures on time-series forecasting tasks (ETTh1/2, ETTm1/2, weather, electricity, traffic) with negligible MSE cost. However, the paper does not study the performance gap between selective and non-selective SSMs on continuous-time data, nor does it address why selection mechanisms might impede continuous-time performance.",
+        "what_remains_open": "The paper does not address the specific gap: that the selection mechanism which helps on discrete modalities (text, DNA) can impede performance on continuous-time data modalities (like audio waveforms) where LTI SSMs excel. The paper does not compare selective vs. non-selective SSMs on continuous-time data, does not study audio waveforms or similar continuous-time modalities, does not analyze why selection hurts continuous-time performance, and does not propose any modification to the selection mechanism to recover LTI-like performance on continuous-time data. The paper's experiments are on discrete-time forecasting datasets, not continuous-time data. The gap about selection impeding continuous-time data performance remains entirely open.",
+        "evidence_snippets": [
+          "Across seven standard time-series datasets and four prediction horizons, the regularizer reduces sampled Mamba-core LMI violations by roughly 92% in 28/28 pairs at a clean-MSE cost of less than 0.018%.",
+          "We then bridge to practice by deriving a sampled block LMI for the Mamba selective-scan core, which is used as a differentiable training-time regularizer.",
+          "Our results turn classical control-theoretic tools into verifiable structural and training criteria for selective SSMs, while honestly scoping which guarantees transfer to a deep selective-scan architecture."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2602.22266",
+          "title": "WaveSSM: Multiscale State-Space Models for Non-stationary Signal Attention",
+          "abstract": "State-space models (SSMs) have emerged as a powerful foundation for long-range sequence modeling, with the HiPPO framework showing that continuous-time projection operators can be used to derive stable, memory-efficient dynamical systems that encode the past history of the input signal. However, existing projection-based SSMs often rely on polynomial bases with global temporal support, whose inductive biases are poorly matched to signals exhibiting localized or transient structure. In this work, we introduce \\emph{WaveSSM}, a collection of SSMs constructed over wavelet frames. Our key observation is that wavelet frames yield a localized support on the temporal dimension, useful for tasks requiring precise localization. Empirically, we show that on equal conditions, \\textit{WaveSSM} outperforms orthogonal counterparts as S4 on real-world datasets with transient dynamics, including physiological signals on the PTB-XL dataset and raw audio on Speech Commands.",
+          "authors": [
+            "Ruben Solozabal",
+            "Velibor Bojkovic",
+            "Hilal Alquabeh",
+            "Klea Ziu",
+            "Kentaro Inui",
+            "Martin Takac"
+          ],
+          "published_date": "2026-02-25T06:27:22Z",
+          "url": "https://arxiv.org/abs/2602.22266v1"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "WaveSSM proposes replacing globally-supported polynomial bases (HiPPO/Legendre) with localized wavelet frames in state-space models, deriving SSM dynamics from wavelet frames via the SaFARi framework. The paper shows that wavelet-based SSMs outperform polynomial-based S4 on tasks with transient/non-stationary signals (ECG, audio, time series forecasting) due to better localization properties. However, the paper does not study, implement, or compare against any selection mechanism (input-dependent parameterization of SSM matrices).",
+        "what_remains_open": "The paper does not address the gap at all. The gap concerns whether the selection mechanism (as in Mamba's input-dependent A, B, C matrices) impedes performance on continuous-time data where LTI SSMs excel. WaveSSM uses standard LTI SSMs (S4 architecture with DPLR parameterization) throughout — it changes the basis functions from polynomials to wavelets but keeps the dynamics linear and time-invariant. The question of whether selection mechanisms harm continuous-time performance remains entirely open and unexamined by this work.",
+        "evidence_snippets": []
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2605.15311",
+          "title": "Time-Varying Deep State Space Models for Sequences with Switching Dynamics",
+          "abstract": "The identification and modeling of time-varying systems is a fundamental challenge in signal processing and system identification. To address this challenge, we propose a class of time-varying state-space model (SSM) based neural networks in which the neurons' states are governed by time-varying dynamics. The proposed model provides the learnable time-varying dynamics through a dictionary of basis functions, where each basis function evolves differently over time. We evaluate the proposed approach on both synthetic data from switching systems and a speech denoising task where real audio is corrupted with switching dynamics noise. The results show that the proposed time-varying model consistently outperforms its time-invariant counterparts while maintaining comparable computational complexity. Our investigations also reveal which aspects of the time-varying dynamics of the data most need to be captured by the proposed time-invariant models, how the additional freedom provided by time-varying basis functions should be allocated across model components, and to what extent larger models can compensate for time-invariant limitations.",
+          "authors": [
+            "Sanja Karilanova",
+            "Subhrakanti Dey",
+            "Ayça Özçelikkale"
+          ],
+          "published_date": "2026-05-14T18:25:04Z",
+          "url": "https://arxiv.org/abs/2605.15311v1"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "This paper proposes time-varying deep SSMs where the state transition, input, and output matrices are parameterized as linear combinations of learnable basis functions (e.g., Gaussians) over time. This allows the model to capture smoothly varying dynamics without requiring explicit switching modes. The paper evaluates on synthetic switching systems and a speech denoising task with switching noise dynamics, showing that the time-varying model outperforms time-invariant counterparts. However, the paper does not study, analyze, or address the selection mechanism (input-dependent gating as in Mamba) or its impact on continuous-time data performance.",
+        "what_remains_open": "The paper does not address the specific gap: that the selection mechanism (input-dependent dynamics) used in models like Mamba can impede performance on continuous-time data modalities where LTI SSMs excel. The paper proposes an alternative approach (explicit time-varying dynamics via basis functions) rather than studying, diagnosing, or fixing the selection mechanism's shortcomings on continuous-time data. It does not compare against selective SSMs (Mamba) on continuous-time tasks, nor does it analyze why selection might hurt continuous-time performance. The gap remains entirely open.",
+        "evidence_snippets": []
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2410.03292",
+          "title": "Demystifying the Token Dynamics of Deep Selective State Space Models",
+          "abstract": "Selective state space models (SSM), such as Mamba, have gained prominence for their effectiveness in modeling sequential data. Despite their outstanding empirical performance, a comprehensive theoretical understanding of deep selective SSM remains elusive, hindering their further development and adoption for applications that need high fidelity. In this paper, we investigate the dynamical properties of tokens in a pre-trained Mamba model. In particular, we derive the dynamical system governing the continuous-time limit of the Mamba model and characterize the asymptotic behavior of its solutions. In the one-dimensional case, we prove that only one of the following two scenarios happens: either all tokens converge to zero, or all tokens diverge to infinity. We provide criteria based on model parameters to determine when each scenario occurs. For the convergent scenario, we empirically verify that this scenario negatively impacts the model's performance. For the divergent scenario, we prove that different tokens will diverge to infinity at different rates, thereby contributing unequally to the updates during model training. Based on these investigations, we propose two refinements for the model: excluding the convergent scenario and reordering tokens based on their importance scores, both aimed at improving practical performance. Our experimental results validate these refinements, offering insights into enhancing Mamba's effectiveness in real-world applications.",
+          "authors": [
+            "Thieu N Vo",
+            "Tung D. Pham",
+            "Xin T. Tong",
+            "Tan Minh Nguyen"
+          ],
+          "published_date": "2024-10-04T10:06:17Z",
+          "url": "https://arxiv.org/abs/2410.03292v2"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "This paper provides a theoretical analysis of token dynamics in Mamba (a selective SSM), proving that in the one-dimensional case tokens either converge to zero or diverge to infinity depending on the sign of the input-output matrix. It proposes two refinements: excluding the convergence scenario (negative eigenvalues) and reordering tokens by importance scores. Experiments are conducted on language modeling (WikiText103) and image classification (ImageNet).",
+        "what_remains_open": "The paper does not address the specific gap at all. The gap concerns the finding that the selection mechanism (which helps on discrete modalities like text/DNA) harms performance on continuous-time data modalities (e.g., audio waveforms) where time-invariant LTI SSMs excel. This paper studies Mamba's internal dynamics theoretically and proposes improvements, but it never evaluates performance on continuous-time data, never compares selective vs. non-selective SSMs on such data, and never discusses the trade-off between discrete and continuous-time modalities. The experiments are limited to text (WikiText103) and images (ImageNet) — both discrete modalities. The question of whether and why selection mechanisms impede continuous-time data performance remains entirely open.",
+        "evidence_snippets": []
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 5,
+      "skipped_ids": []
+    }
+  },
+  "ranking": null
+}

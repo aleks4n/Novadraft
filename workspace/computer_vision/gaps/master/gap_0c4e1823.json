@@ -1,0 +1,65 @@
+{
+  "gap_id": "gap_0c4e1823",
+  "status": "validated",
+  "title": "Importance sampling ineffective for hybrid objective",
+  "description": "The importance sampling technique that reduced noise for L_vlb was not helpful when applied to the less-noisy L_hybrid objective.",
+  "type": "negative_result",
+  "canonical_description": "Importance sampling for loss variance reduction ineffective on hybrid training objective",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2102.09672",
+      "section": "improving_the_log_likelihood",
+      "anchor": "importance sampling technique was not helpful",
+      "quote": "We found that the importance sampling technique was not helpful when optimizing the less-noisy $L_{\\text{hybrid}}$ objective directly.",
+      "char_offset": [
+        10422,
+        10556
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T07:37:20Z",
+  "verdict": {
+    "gap_id": "gap_0c4e1823",
+    "status": "open",
+    "confidence": 0.85,
+    "reasoning": "The only paper assessed (\"Loss Functions in Diffusion Models: A Comparative Study\") compares NELBO and weighted loss formulations across different prediction targets (x-space, epsilon-space, etc.) but does not discuss importance sampling, L_vlb, L_hybrid, or any variance-reduction technique for loss objectives. It is entirely off-topic for the gap. Since no paper addresses the specific problem of why importance sampling fails to reduce noise for L_hybrid despite working for L_vlb, the gap remains open.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2507.01516",
+          "title": "Loss Functions in Diffusion Models: A Comparative Study",
+          "abstract": "Diffusion models have emerged as powerful generative models, inspiring extensive research into their underlying mechanisms. One of the key questions in this area is the loss functions these models shall train with. Multiple formulations have been introduced in the literature over the past several years with some links and some critical differences stemming from various initial considerations. In this paper, we explore the different target objectives and corresponding loss functions in detail. We present a systematic overview of their relationships, unifying them under the framework of the variational lower bound objective. We complement this theoretical analysis with an empirical study providing insights into the conditions under which these objectives diverge in performance and the underlying factors contributing to such deviations. Additionally, we evaluate how the choice of objective impacts the model ability to achieve specific goals, such as generating high-quality samples or accurately estimating likelihoods. This study offers a unified understanding of loss functions in diffusion models, contributing to more efficient and goal-oriented model designs in future research.",
+          "authors": [
+            "Dibyanshu Kumar",
+            "Philipp Vaeth",
+            "Magda Gregorová"
+          ],
+          "published_date": "2025-07-02T09:23:34Z",
+          "url": "https://arxiv.org/abs/2507.01516v1"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "This paper provides a systematic comparison of NELBO and weighted loss formulations across four different target predictions (x-space, epsilon-space, v-space, and score-space) in diffusion models. It derives the mathematical relationships between these formulations and empirically evaluates their convergence behavior, sample quality, and loss dynamics across timesteps on 2D synthetic datasets and CIFAR-10. The paper shows that despite theoretical equivalence, different loss formulations exhibit different practical performance in terms of likelihood estimation and sample quality.",
+        "what_remains_open": "The paper does not address the research gap at all. The gap concerns the ineffectiveness of importance sampling for reducing variance in the L_hybrid objective (compared to its effectiveness for L_vlb). This paper does not discuss importance sampling, L_vlb, L_hybrid, or any variance reduction techniques for loss functions. It focuses on comparing NELBO vs weighted loss formulations across different target predictions, which is an entirely different topic.",
+        "evidence_snippets": []
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 1,
+      "skipped_ids": []
+    }
+  },
+  "ranking": {
+    "openness": 0.925,
+    "impact": 0.26439912906339846,
+    "feasibility": 0.62,
+    "feasibility_reasoning": "The gap is well-scoped: understand why importance sampling (which works for L_vlb) fails for L_hybrid. Evaluation is clear (gradient variance, FID/IS, training loss curves). Data is standard (CIFAR-10, ImageNet). The main feasibility driver is compute: training diffusion models to convergence is moderate but doable on a single GPU for smaller datasets. Methodological maturity is decent — the importance-sampling technique for L_vlb is well understood (Nichol & Dhariwal, 2021), so analysis can build on known variance-reduction theory. However, tractability is not 1.0 because (a) this is a documented negative result, so the improvement may be fundamentally limited by the lower baseline noise of L_hybrid, and (b) a full resolution may require non-trivial theoretical analysis (e.g., variance decomposition of the hybrid loss). Still, meaningful partial progress — characterizing the regimes where importance sampling helps or doesn't — is achievable with moderate effort."
+  }
+}

@@ -130,7 +130,7 @@ def rescore_impact(category_slug: str, gap_id: str, *,
         return None
     gap = GapRecord.model_validate(raw)
     if gap.ranking is None:
-        return None  # not a ranked gap (e.g. a solved gap parked in master/) — nothing to recompute
+        return None  # not a ranked gap — nothing to recompute (master/ holds ranked gaps only)
     breakdown = compute_impact(gap, category_slug, config or RankingConfig())
     updated = gap.model_copy(
         update={"ranking": gap.ranking.model_copy(update={"impact": breakdown.score})}

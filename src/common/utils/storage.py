@@ -179,10 +179,12 @@ def list_idea_ids(category_slug: str) -> list[str]:
 #   pending/      gap agent's output (freshly extracted)
 #   to_validate/  validator inbox (the director drops novel gaps here)
 #   to_rank/      ranking inbox (the validator drops open / partially-solved gaps)
-#   master/       the master gap list (validated; opportunities also carry a ranking,
-#                 solved gaps are parked here directly for dedup)
-#   archive/      retired gaps kept for the record (the director parks duplicates
-#                 here after merging their evidence into the matching master gap)
+#   master/       the master gap list (validated, live opportunities — each carries
+#                 a ranking)
+#   archive/      retired gaps kept for the record: the director parks duplicates
+#                 here after merging their evidence into the matching master gap,
+#                 and the validator parks solved gaps here (already addressed by
+#                 prior art, so not an opportunity)
 
 GapStage = Literal["pending", "to_validate", "to_rank", "master", "archive"]
 

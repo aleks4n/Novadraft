@@ -1,0 +1,167 @@
+{
+  "gap_id": "gap_0d8eb685",
+  "status": "validated",
+  "title": "Video applications unexplored for selective state space models",
+  "description": "The paper identifies video as an emerging modality requiring long context that remains unexplored for selective state space models, while audio and genomics are already evaluated.",
+  "type": "future_work",
+  "canonical_description": "application of selective state space models to video and longer genomics sequences unexplored",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2312.00752",
+      "section": "conclusion",
+      "anchor": "emerging modalities requiring long context such as genomics, audio, and video",
+      "quote": "We are excited about the broad applications of selective state space models to build foundation models for different domains, especially in emerging modalities requiring long context such as genomics, audio, and video.",
+      "char_offset": [
+        369,
+        587
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T07:37:05Z",
+  "verdict": {
+    "gap_id": "gap_0d8eb685",
+    "status": "solved",
+    "confidence": 0.95,
+    "reasoning": "Five independent papers – Video Mamba Suite, Vamba, Video-Ma²mba, Mamba-ND, and Mamba4D – all directly apply selective SSMs (Mamba/Mamba-2) to video, each judged direct_solution. Together they cover conventional RGB video, long-form video (hour-long), point-cloud video, and diverse tasks (action recognition, temporal grounding, dense captioning, long-video QA, etc.), with concrete empirical results and efficiency gains over transformers. The gap's central claim that video is \"unexplored\" for selective SSMs is definitively overturned. The genomics sub-clause in the canonical gap is not addressed by these papers, but it was already noted as \"already evaluated\" in the original gap description and none of the assessments raise it as a remaining open issue. Confidence is very high because the evidence is direct, convergent from multiple groups, and covers the full scope of the claimed void.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2403.09626",
+          "title": "Video Mamba Suite: State Space Model as a Versatile Alternative for Video Understanding",
+          "abstract": "Understanding videos is one of the fundamental directions in computer vision research, with extensive efforts dedicated to exploring various architectures such as RNN, 3D CNN, and Transformers. The newly proposed architecture of state space model, e.g., Mamba, shows promising traits to extend its success in long sequence modeling to video modeling. To assess whether Mamba can be a viable alternative to Transformers in the video understanding domain, in this work, we conduct a comprehensive set of studies, probing different roles Mamba can play in modeling videos, while investigating diverse tasks where Mamba could exhibit superiority. We categorize Mamba into four roles for modeling videos, deriving a Video Mamba Suite composed of 14 models/modules, and evaluating them on 12 video understanding tasks. Our extensive experiments reveal the strong potential of Mamba on both video-only and video-language tasks while showing promising efficiency-performance trade-offs. We hope this work could provide valuable data points and insights for future research on video understanding. Code is public: https://github.com/OpenGVLab/video-mamba-suite.",
+          "authors": [
+            "Guo Chen",
+            "Yifei Huang",
+            "Jilan Xu",
+            "Baoqi Pei",
+            "Zhe Chen",
+            "Zhiqi Li",
+            "Jiahao Wang",
+            "Kunchang Li",
+            "Tong Lu",
+            "Limin Wang"
+          ],
+          "published_date": "2024-03-14T17:57:07Z",
+          "url": "https://arxiv.org/abs/2403.09626v1"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper provides a comprehensive empirical investigation of Mamba (a selective state space model) for video understanding. It categorizes Mamba into four roles (temporal model, temporal module, multi-modal interaction network, and spatial-temporal model), constructs 14 models/modules, and evaluates them on 12 video understanding tasks including temporal action localization, action segmentation, dense video captioning, video paragraph captioning, action anticipation, video temporal grounding, zero-shot retrieval, action recognition, and long-form video QA. The paper demonstrates that Mamba-based models achieve competitive or superior performance compared to transformer baselines across these tasks, with favorable efficiency for long sequences.",
+        "what_remains_open": "The paper fully addresses the gap. It systematically explores selective state space models (specifically Mamba) for video understanding across a wide range of tasks and roles, directly filling the claimed void. No part of the gap remains unaddressed by this work.",
+        "evidence_snippets": [
+          "Despite some initial attempts to explore how Mamba can be applied in image modeling~[CITE:zhu2024vim] [CITE:liu2024vmamba], its effectiveness in video understanding remains unclear. The absence of a comprehensive study on Mamba's potential for video understanding hinders further exploration of its capabilities in the diverse range of video-related tasks.",
+          "In this paper, we do not propose a novel method. Instead, we conduct an extensive investigation into the potential of SSM exemplified by Mamba in the context of video understanding. Our objective is to assess whether Mamba can be a viable alternative to transformers in this domain.",
+          "We categorize Mamba into four roles for modeling videos: 1) temporal model, 2) temporal module, 3) multi-modal interaction network, and 4) spatial-temporal model. For each role, we investigate its video modeling capabilities on different video understanding tasks."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2503.11579",
+          "title": "Vamba: Understanding Hour-Long Videos with Hybrid Mamba-Transformers",
+          "abstract": "State-of-the-art transformer-based large multimodal models (LMMs) struggle to handle hour-long video inputs due to the quadratic complexity of the causal self-attention operations, leading to high computational costs during training and inference. Existing token compression-based methods reduce the number of video tokens but often incur information loss and remain inefficient for extremely long sequences. In this paper, we explore an orthogonal direction to build a hybrid Mamba-Transformer model (VAMBA) that employs Mamba-2 blocks to encode video tokens with linear complexity. Without any token reduction, VAMBA can encode more than 1024 frames (640$\\times$360) on a single GPU, while transformer-based models can only encode 256 frames. On long video input, VAMBA achieves at least 50% reduction in GPU memory usage during training and inference, and nearly doubles the speed per training step compared to transformer-based LMMs. Our experimental results demonstrate that VAMBA improves accuracy by 4.3% on the challenging hour-long video understanding benchmark LVBench over prior efficient video LMMs, and maintains strong performance on a broad spectrum of long and short video understanding tasks.",
+          "authors": [
+            "Weiming Ren",
+            "Wentao Ma",
+            "Huan Yang",
+            "Cong Wei",
+            "Ge Zhang",
+            "Wenhu Chen"
+          ],
+          "published_date": "2025-03-14T16:45:23Z",
+          "url": "https://arxiv.org/abs/2503.11579v2"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper proposes VAMBA, a hybrid Mamba-Transformer model specifically designed for hour-long video understanding. It replaces the costly causal self-attention operations for video tokens with Mamba-2 blocks (selective state space models), achieving linear complexity in video token processing. The model can encode over 1024 frames on a single GPU (vs. 256 for transformers), reduces GPU memory by over 50%, and achieves strong performance on long video benchmarks like LVBench. This directly applies selective state space models to the video modality, which the gap identifies as unexplored.",
+        "what_remains_open": "The paper fully addresses the gap of applying selective state space models to video. It demonstrates that Mamba-2 (a selective SSM) can be effectively used for long video understanding, achieving both efficiency gains and competitive accuracy. The gap's specific claim that \"video applications unexplored for selective state space models\" is directly solved by this paper's contribution. No part of this specific gap remains open — the paper explicitly explores and validates selective SSMs for video understanding.",
+        "evidence_snippets": [
+          "In this paper, we explore an orthogonal direction to build a hybrid Mamba-Transformer model (VAMBA) that employs Mamba-2 blocks to encode video tokens with linear complexity.",
+          "Motivated by the success of the Mamba architectures in image and video modelling, we propose to employ Mamba blocks to effectively process the video tokens.",
+          "Crucially, Mamba reduces the complexity of updating video tokens from O(dM^2) in causal self-attentions to O(d^2M)."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2411.19460",
+          "title": "Look Every Frame All at Once: Video-Ma$^2$mba for Efficient Long-form Video Understanding with Multi-Axis Gradient Checkpointing",
+          "abstract": "With the growing scale and complexity of video data, efficiently processing long video sequences poses significant challenges due to the quadratic increase in memory and computational demands associated with existing transformer-based Large Multi-modal Models (LMMs). To address these issues, we introduce Video-Ma$^2$mba, a novel architecture that incorporates State Space Models (SSMs) within the Mamba-2 framework, replacing the attention mechanisms. This allows the LMMs to scale linearly in terms of time and memory requirements, making it feasible to handle long-duration video content. Furthermore, we enhance the memory efficiency introducing the Multi-Axis Gradient Checkpointing (MA-GC) method, which strategically manages memory by retaining only essential activations across multiple computational axes. Our approach significantly reduces the memory footprint compared to standard gradient checkpointing. Empirical analyses show that Video-Ma$^2$mba can process extensive video sequences-equivalent to millions of tokens or over two hours of continuous sequences at 1 FPS-on a single GPU. By maintaining a detailed capture of temporal dynamics, our model improves the accuracy and relevance of responses in long video understanding tasks, demonstrating substantial advantages over existing frameworks.",
+          "authors": [
+            "Hosu Lee",
+            "Junho Kim",
+            "Hyunjun Kim",
+            "Yong Man Ro"
+          ],
+          "published_date": "2024-11-29T04:12:13Z",
+          "url": "https://arxiv.org/abs/2411.19460v1"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper directly addresses the gap by proposing Video-Ma²mba, a novel architecture that integrates selective state space models (Mamba-2) into a video large multimodal model. It replaces the standard Transformer attention mechanism with Mamba-2's SSM-based processing, enabling linear-time scaling for long video sequences. The paper demonstrates processing of up to 0.8M tokens (over 2 hours of video at 1 FPS) on a single GPU, and evaluates on multiple long-video benchmarks including Video-MME and LongVideoBench, showing competitive performance against larger Transformer-based models.",
+        "what_remains_open": "The paper fully addresses the gap of applying selective SSMs to video. It provides a complete architecture, training methodology, memory optimization (MA-GC), and empirical validation on video benchmarks. No part of the gap remains open — the paper explicitly explores what the gap identified as unexplored.",
+        "evidence_snippets": [
+          "We introduce Video-Ma$^2$mba, a novel architecture that incorporates State Space Models (SSMs) within the Mamba-2 framework, replacing the attention mechanisms.",
+          "We substitute the Transformer-based LLMs to Mamba-2 structure, utilizing State Space Models (SSMs) as a replacement for the attention mechanism.",
+          "Our empirical analyses indicate that the proposed method performs effectively in handling extended sequences, successfully processing sequence lengths in the millions on a single GPU, corresponding to over 2-hours of continuous video input at a frame rate of 1 FPS."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2402.05892",
+          "title": "Mamba-ND: Selective State Space Modeling for Multi-Dimensional Data",
+          "abstract": "In recent years, Transformers have become the de-facto architecture for sequence modeling on text and a variety of multi-dimensional data, such as images and video. However, the use of self-attention layers in a Transformer incurs prohibitive compute and memory complexity that scales quadratically w.r.t. the sequence length. A recent architecture, Mamba, based on state space models has been shown to achieve comparable performance for modeling text sequences, while scaling linearly with the sequence length. In this work, we present Mamba-ND, a generalized design extending the Mamba architecture to arbitrary multi-dimensional data. Our design alternatively unravels the input data across different dimensions following row-major orderings. We provide a systematic comparison of Mamba-ND with several other alternatives, based on prior multi-dimensional extensions such as Bi-directional LSTMs and S4ND. Empirically, we show that Mamba-ND demonstrates performance competitive with the state-of-the-art on a variety of multi-dimensional benchmarks, including ImageNet-1K classification, HMDB-51 action recognition, and ERA5 weather forecasting.",
+          "authors": [
+            "Shufan Li",
+            "Harkanwar Singh",
+            "Aditya Grover"
+          ],
+          "published_date": "2024-02-08T18:30:50Z",
+          "url": "https://arxiv.org/abs/2402.05892v5"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper proposes Mamba-ND, a generalized extension of the Mamba selective state space model to multi-dimensional data including video (3D). It evaluates video action recognition on HMDB-51, UCF-101, and Kinetics-400 datasets, showing competitive performance against Video Swin Transformer with fewer parameters. It also evaluates on long video classification (Breakfast dataset). The paper directly addresses the gap of video applications being unexplored for selective state space models by providing both a method and empirical results on video tasks.",
+        "what_remains_open": "The paper fully addresses the gap. It demonstrates that selective state space models (Mamba) can be effectively applied to video data, provides a concrete architecture (Mamba-ND) for doing so, and shows competitive results on multiple video benchmarks. The gap stated that \"video applications unexplored for selective state space models\" — this paper explores exactly that and provides working solutions.",
+        "evidence_snippets": [
+          "This leaves open the question whether Mamba can be effectively extended to multi-dimensional data such as images, video, or scientific datasets, which is the focus of this work.",
+          "We propose \\ourmethod~, which extends SSM to higher dimension through simply alternating sequence ordering across layers.",
+          "Our method achieves a $+1.3$ accuracy on Kinectics-400 dataset compared to Video Swin Transformer while using only 44\\% of the parameters."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2405.14338",
+          "title": "MAMBA4D: Efficient Long-Sequence Point Cloud Video Understanding with Disentangled Spatial-Temporal State Space Models",
+          "abstract": "Point cloud videos can faithfully capture real-world spatial geometries and temporal dynamics, which are essential for enabling intelligent agents to understand the dynamically changing world. However, designing an effective 4D backbone remains challenging, mainly due to the irregular and unordered distribution of points and temporal inconsistencies across frames. Also, recent transformer-based 4D backbones commonly suffer from large computational costs due to their quadratic complexity, particularly for long video sequences. To address these challenges, we propose a novel point cloud video understanding backbone purely based on the State Space Models (SSMs). Specifically, we first disentangle space and time in 4D video sequences and then establish the spatio-temporal correlation with our designed Mamba blocks. The Intra-frame Spatial Mamba module is developed to encode locally similar geometric structures within a certain temporal stride. Subsequently, locally correlated tokens are delivered to the Inter-frame Temporal Mamba module, which integrates long-term point features across the entire video with linear complexity. Our proposed Mamba4d achieves competitive performance on the MSR-Action3D action recognition (+10.4% accuracy), HOI4D action segmentation (+0.7 F1 Score), and Synthia4D semantic segmentation (+0.19 mIoU) datasets. Especially, for long video sequences, our method has a significant efficiency improvement with 87.5% GPU memory reduction and 5.36 times speed-up. Codes will be released at https://github.com/IRMVLab/Mamba4D.",
+          "authors": [
+            "Jiuming Liu",
+            "Jinru Han",
+            "Lihao Liu",
+            "Angelica I. Aviles-Rivero",
+            "Chaokang Jiang",
+            "Zhe Liu",
+            "Hesheng Wang"
+          ],
+          "published_date": "2024-05-23T09:08:09Z",
+          "url": "https://arxiv.org/abs/2405.14338v3"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper proposes Mamba4D, the first pure SSM-based backbone for point cloud video (4D) understanding. It applies selective state space models (Mamba) to video data — specifically 4D point cloud videos — using disentangled spatial-temporal Mamba modules. The paper demonstrates that SSMs can effectively model long-range spatio-temporal dependencies in video with linear complexity, achieving competitive results on action recognition, action segmentation, and semantic segmentation tasks while dramatically reducing GPU memory (87.5% reduction) and improving speed (5.36x faster) compared to transformer-based video backbones.",
+        "what_remains_open": "This paper directly addresses the gap by applying selective SSMs to video (point cloud video). However, it focuses specifically on point cloud video (4D data with irregular 3D point clouds over time), not on conventional RGB video. The gap as stated was broader — \"video applications\" in general. So while it substantially solves the gap for the point cloud video modality, conventional RGB video applications of selective SSMs remain partially open (though other concurrent works like VideoMamba, ViViM, etc. also exist). The paper itself acknowledges this distinction, noting that existing Mamba-based vision backbones cover 2D images, 3D point clouds, and RGB video, while 4D point cloud video was unexplored.",
+        "evidence_snippets": [
+          "To the best of our knowledge, this is the first Mamba-based generic 4D backbone, taking advantages of both long-range dependencies modeling capability and linear complexity.",
+          "We propose a novel 4D backbone for generic point cloud video understanding purely based on the state space model, termed Mamba4D.",
+          "However, the great potential of Mamba in the 4D point cloud video processing is still unexplored."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 5,
+      "skipped_ids": []
+    }
+  },
+  "ranking": null
+}

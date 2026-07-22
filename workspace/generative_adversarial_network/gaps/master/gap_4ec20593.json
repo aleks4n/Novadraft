@@ -1,0 +1,155 @@
+{
+  "gap_id": "gap_4ec20593",
+  "status": "validated",
+  "title": "Remaining model instability causes filter collapse",
+  "description": "The paper states there are still some forms of model instability remaining: as models are trained longer they sometimes collapse a subset of filters to a single oscillating mode. Further work is needed.",
+  "type": "limitation",
+  "canonical_description": "GANs still exhibit remaining instability causing filter collapse over long training",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1511.06434",
+      "section": "conclusion_and_future_work",
+      "anchor": "There are still some forms of model instability remaining",
+      "quote": "There are still some forms of model instability remaining - we noticed as models are trained longer they sometimes collapse a subset of filters to a single oscillating mode.",
+      "char_offset": [
+        224,
+        397
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T08:20:44Z",
+  "verdict": {
+    "gap_id": "gap_4ec20593",
+    "status": "open",
+    "confidence": 0.85,
+    "reasoning": "None of the five papers address the specific gap. Papers 1, 2, and 5 are clearly not_addressed — they study distribution-level mode collapse (generator failing to cover data modes) and convergence theory, not internal filter dynamics. Paper 3 (catastrophic forgetting) is partial_solution but targets discriminator forgetting and its link to distribution-mode collapse, not individual filters oscillating. Paper 4 (unrolled GANs) reduces mode collapse and stabilizes training, but again at the output-distribution level, not the filter level. The gap is about a finer-grained phenomenon: specific filters within the network degenerating into a single oscillatory mode during prolonged training. No paper measures, analyzes, or proposes a solution for filter-level oscillatory collapse. The gap remains entirely open.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2212.04580",
+          "title": "Effective Dynamics of Generative Adversarial Networks",
+          "abstract": "Generative adversarial networks (GANs) are a class of machine-learning models that use adversarial training to generate new samples with the same (potentially very complex) statistics as the training samples. One major form of training failure, known as mode collapse, involves the generator failing to reproduce the full diversity of modes in the target probability distribution. Here, we present an effective model of GAN training, which captures the learning dynamics by replacing the generator neural network with a collection of particles in the output space; particles are coupled by a universal kernel valid for certain wide neural networks and high-dimensional inputs. The generality of our simplified model allows us to study the conditions under which mode collapse occurs. Indeed, experiments which vary the effective kernel of the generator reveal a mode collapse transition, the shape of which can be related to the type of discriminator through the frequency principle. Further, we find that gradient regularizers of intermediate strengths can optimally yield convergence through critical damping of the generator dynamics. Our effective GAN model thus provides an interpretable physical framework for understanding and improving adversarial training.",
+          "authors": [
+            "Steven Durr",
+            "Youssef Mroueh",
+            "Yuhai Tu",
+            "Shenshen Wang"
+          ],
+          "published_date": "2022-12-08T22:04:01Z",
+          "url": "https://arxiv.org/abs/2212.04580v1"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "This paper studies mode collapse in GANs — the failure of the generator to reproduce all modes of the target data distribution, causing it to switch between modes. It develops an effective particle model using a static NTK to study this phenomenon, finding a transition from convergence to mode collapse as a function of the NTK ratio g2/g1 and discriminator training dynamics. It also studies gradient regularization and finds regimes analogous to damped oscillators (underdamped, overdamped, critically damped).",
+        "what_remains_open": "The paper does not address the specific gap of \"filter collapse\" — where individual filters/neurons within a network collapse to a single oscillating mode during long training. The paper studies mode collapse of the generator's output distribution (a well-known GAN failure mode), not the collapse of internal network filters. The gap concerns remaining model instability causing individual filters to oscillate in unison, which is a different phenomenon at a different scale (internal network components vs. output distribution modes). This paper provides no analysis of filter-level dynamics or filter collapse.",
+        "evidence_snippets": [
+          "One important form of non-convergence commonly encountered during GAN training is known as mode collapse [CITE:veegan] [CITE:mode_reg]. Mode collapse occurs when samples from the generator fail to capture the full diversity of modes present in the data-set.",
+          "This behavior is a key signature of mode collapse, and suggests an understanding of this phenomenon through the lens of our model.",
+          "For the remainder of this work, we will identify the observed failure of convergence and switching between modes with mode collapse."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_1705.07215",
+          "title": "On Convergence and Stability of GANs",
+          "abstract": "We propose studying GAN training dynamics as regret minimization, which is in contrast to the popular view that there is consistent minimization of a divergence between real and generated distributions. We analyze the convergence of GAN training from this new point of view to understand why mode collapse happens. We hypothesize the existence of undesirable local equilibria in this non-convex game to be responsible for mode collapse. We observe that these local equilibria often exhibit sharp gradients of the discriminator function around some real data points. We demonstrate that these degenerate local equilibria can be avoided with a gradient penalty scheme called DRAGAN. We show that DRAGAN enables faster training, achieves improved stability with fewer mode collapses, and leads to generator networks with better modeling performance across a variety of architectures and objective functions.",
+          "authors": [
+            "Naveen Kodali",
+            "Jacob Abernethy",
+            "James Hays",
+            "Zsolt Kira"
+          ],
+          "published_date": "2017-05-19T22:41:56Z",
+          "url": "https://arxiv.org/abs/1705.07215v5"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "The paper provides theoretical analysis of GAN convergence and stability, showing conditions under which GAN training converges locally (e.g., when the discriminator is optimal or near-optimal). It analyzes the gradient dynamics of the two-player game and establishes convergence guarantees under certain assumptions about the discriminator's optimality.",
+        "what_remains_open": "The paper does not address the specific phenomenon of filter collapse — where a subset of filters collapse to a single oscillating mode during long training. The paper's theoretical analysis focuses on local convergence guarantees under ideal conditions (e.g., optimal discriminator), not on the practical failure mode where filters oscillate or collapse. The gap about remaining instability causing filter collapse over long training remains entirely open, as the paper does not study filter-level dynamics, oscillatory collapse of filters, or long-training degradation of GAN filters.",
+        "evidence_snippets": []
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_1807.04015",
+          "title": "On Catastrophic Forgetting and Mode Collapse in Generative Adversarial Networks",
+          "abstract": "In this paper, we show that Generative Adversarial Networks (GANs) suffer from catastrophic forgetting even when they are trained to approximate a single target distribution. We show that GAN training is a continual learning problem in which the sequence of changing model distributions is the sequence of tasks to the discriminator. The level of mismatch between tasks in the sequence determines the level of forgetting. Catastrophic forgetting is interrelated to mode collapse and can make the training of GANs non-convergent. We investigate the landscape of the discriminator's output in different variants of GANs and find that when a GAN converges to a good equilibrium, real training datapoints are wide local maxima of the discriminator. We empirically show the relationship between the sharpness of local maxima and mode collapse and generalization in GANs. We show how catastrophic forgetting prevents the discriminator from making real datapoints local maxima, and thus causes non-convergence. Finally, we study methods for preventing catastrophic forgetting in GANs.",
+          "authors": [
+            "Hoang Thanh-Tung",
+            "Truyen Tran"
+          ],
+          "published_date": "2018-07-11T09:08:34Z",
+          "url": "https://arxiv.org/abs/1807.04015v8"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "This paper identifies catastrophic forgetting (CF) as a key instability problem in GANs and shows its relationship to mode collapse and non-convergence during training. It demonstrates that CF causes the discriminator to become directionally monotonic, preventing convergence, and that methods like gradient penalties (R1, 0GP, WGAN-GP), momentum, and continual learning can mitigate these instabilities. The paper also introduces an imbalanced loss to help discriminators maintain real datapoints as local maxima.",
+        "what_remains_open": "The paper addresses mode collapse at the distribution level (generator collapsing to few modes) and training instability from catastrophic forgetting, but does not specifically study the phenomenon of individual filters/neurons collapsing to a single oscillating mode during long training. The gap describes a finer-grained \"filter collapse\" where a subset of internal network filters degenerate into oscillatory behavior, which is a different mechanism from the distribution-level mode collapse studied here. The paper's analysis focuses on the discriminator's output landscape and catastrophic forgetting of previous model distributions, not on the internal filter dynamics of the networks.",
+        "evidence_snippets": [
+          "We show that catastrophic forgetting and mode collapse [CITE:gan] are two different but interrelated problems and together, they can make the training of GANs non-convergent",
+          "Because of CF, the generator is unable to break out of mode collapse.",
+          "Mode collapse and CF are interrelated, one problem makes the other more severe."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_1611.02163",
+          "title": "Unrolled Generative Adversarial Networks",
+          "abstract": "We introduce a method to stabilize Generative Adversarial Networks (GANs) by defining the generator objective with respect to an unrolled optimization of the discriminator. This allows training to be adjusted between using the optimal discriminator in the generator's objective, which is ideal but infeasible in practice, and using the current value of the discriminator, which is often unstable and leads to poor solutions. We show how this technique solves the common problem of mode collapse, stabilizes training of GANs with complex recurrent generators, and increases diversity and coverage of the data distribution by the generator.",
+          "authors": [
+            "Luke Metz",
+            "Ben Poole",
+            "David Pfau",
+            "Jascha Sohl-Dickstein"
+          ],
+          "published_date": "2016-11-07T16:42:09Z",
+          "url": "https://arxiv.org/abs/1611.02163v4"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "This paper introduces unrolled GANs, where the generator's objective is defined with respect to an unrolled optimization of the discriminator. This allows the generator to \"see into the future\" and anticipate how the discriminator would respond to its changes. The method is shown to reduce mode collapse, stabilize training (including for recurrent generators), and improve diversity and coverage of the data distribution across multiple datasets (mixture of Gaussians, MNIST variants, CIFAR-10). The key mechanism is that the second gradient term (backpropagating through the unrolled discriminator updates) discourages the generator from collapsing to a single mode, since it accounts for how the discriminator would react to such collapse.",
+        "what_remains_open": "The paper addresses general mode collapse and training instability in GANs, but does not specifically study or claim to solve the exact phenomenon of \"filter collapse\" — where a subset of convolutional filters collapse to a single oscillating mode over long training durations. The paper's experiments focus on mode coverage (discrete modes, manifold coverage) and overall stability, not on the behavior of individual filters or the specific oscillating filter collapse pattern. Additionally, the paper acknowledges that the method has a linear computational cost with unrolling steps, and that there remains a tradeoff between approximation quality and computation. The paper also notes that further investigation is needed into more efficient approximations of the unrolling gradient.",
+        "evidence_snippets": [
+          "We show how this technique solves the common problem of mode collapse, stabilizes training of GANs with complex recurrent generators, and increases diversity and coverage of the data distribution by the generator.",
+          "The second term captures how the discriminator would react to a change in the generator. It reduces the tendency of the generator to engage in mode collapse. For instance, the second term reflects that as the generator collapses towards a delta function, the discriminator reacts and assigns lower probability to that state, increasing the generator loss. It therefore discourages the generator from collapsing, and may improve stability.",
+          "Without unrolling the generator rotates around the valid modes of the data distribution but is never able to spread out mass. When adding in unrolling steps G quickly learns to spread probability mass and the system converges to the data distribution."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_1802.01765",
+          "title": "Training Generative Adversarial Networks via Primal-Dual Subgradient Methods: A Lagrangian Perspective on GAN",
+          "abstract": "We relate the minimax game of generative adversarial networks (GANs) to finding the saddle points of the Lagrangian function for a convex optimization problem, where the discriminator outputs and the distribution of generator outputs play the roles of primal variables and dual variables, respectively. This formulation shows the connection between the standard GAN training process and the primal-dual subgradient methods for convex optimization. The inherent connection does not only provide a theoretical convergence proof for training GANs in the function space, but also inspires a novel objective function for training. The modified objective function forces the distribution of generator outputs to be updated along the direction according to the primal-dual subgradient methods. A toy example shows that the proposed method is able to resolve mode collapse, which in this case cannot be avoided by the standard GAN or Wasserstein GAN. Experiments on both Gaussian mixture synthetic data and real-world image datasets demonstrate the performance of the proposed method on generating diverse samples.",
+          "authors": [
+            "Xu Chen",
+            "Jiang Wang",
+            "Hao Ge"
+          ],
+          "published_date": "2018-02-06T02:31:43Z",
+          "url": "https://arxiv.org/abs/1802.01765v1"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "This paper proposes a primal-dual subgradient method for training GANs, framing the minimax game as finding saddle points of a Lagrangian for a convex optimization problem. It introduces a modified generator loss function that pushes the generated distribution along the theoretically optimal update direction derived from primal-dual algorithms. The method is shown to alleviate mode collapse (where the generator covers only a subset of data modes) in toy examples and real datasets.",
+        "what_remains_open": "The paper does not address the specific problem of filter collapse — where individual filters in the network collapse to a single oscillating mode during long training. The paper focuses on mode collapse (lack of diversity in generated samples across data modes), which is a different phenomenon. Filter collapse concerns the internal dynamics of network filters oscillating or degenerating over extended training, which is not studied, measured, or addressed by the proposed method. The paper's convergence analysis is in function space under convexity assumptions, not in parameter space where filter collapse occurs, and does not examine long-term filter-level stability.",
+        "evidence_snippets": [
+          "One notable inconvergence issue with GAN training is referred to as mode collapse, where the generator characterizes only a few modes of the true data distribution",
+          "A toy example shows that the proposed method is able to resolve mode collapse, which in this case cannot be avoided by the standard GAN or Wasserstein GAN.",
+          "Experiments have shown that this simple objective function can effectively alleviate mode collapse in GAN training."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 5,
+      "skipped_ids": []
+    }
+  },
+  "ranking": {
+    "openness": 0.925,
+    "impact": 0.21219672324397482,
+    "feasibility": 0.75,
+    "feasibility_reasoning": "This is a focused empirical characterization problem. Data is readily available (standard GAN training datasets), compute requirements are modest (single GPU suffices to train and monitor filter dynamics), and the analysis toolkit is mature — filter weights can be tracked over time, and oscillatory modes can be detected via spectral analysis or variance monitoring. The phenomenon is clearly measurable: one can define a collapse metric (e.g., filters converging to a limit cycle vs. diverse steady states). Potential mitigations can draw from existing regularization or spectral normalization techniques. The main challenge is careful experimental isolation — distinguishing filter-level oscillatory collapse from other instabilities — but this is a tractable diagnostic task, not a fundamental breakthrough."
+  }
+}

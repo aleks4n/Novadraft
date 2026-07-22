@@ -1,0 +1,26 @@
+{
+  "gap_id": "gap_723232c6",
+  "status": "duplicate",
+  "title": "Standard GAN training is delicate and unstable",
+  "description": "The paper acknowledges that training GANs is well known for being delicate and unstable, due to theoretical issues with the JS divergence becoming discontinuous when distributions have disjoint supports.",
+  "type": "limitation",
+  "canonical_description": "standard GAN training is delicate and unstable due to discontinuities in JS divergence",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1701.07875",
+      "section": "introduction",
+      "anchor": "training GANs is well known for being delicate and unstable",
+      "quote": "On the other hand, training GANs is well known for\nbeing delicate and unstable, for reasons theoretically investigated in",
+      "char_offset": [
+        3784,
+        3905
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T08:20:46Z",
+  "verdict": null,
+  "ranking": null,
+  "duplicate_of": "gap_717e5114"
+}

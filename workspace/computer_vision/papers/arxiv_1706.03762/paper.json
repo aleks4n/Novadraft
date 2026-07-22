@@ -24,8 +24,8 @@
     }
   },
   "source": {
-    "input_query": "Attention is all you need",
-    "input_type": "title",
+    "input_query": "arXiv:1706.03762",
+    "input_type": "arxiv_id",
     "resolved_via": "arxiv",
     "source_url": "https://arxiv.org/abs/1706.03762",
     "files": {
@@ -33,7 +33,7 @@
       "tex_dir": "source",
       "tex_main": "source/ms.tex"
     },
-    "fetched_at": "2026-07-15T09:29:20Z"
+    "fetched_at": "2026-07-21T07:33:07Z"
   },
   "content": {
     "sections": {
@@ -210,6 +210,7 @@
     "paper_type": "method",
     "keywords": [
       "Transformer",
+      "attention",
       "self-attention",
       "multi-head attention",
       "scaled dot-product attention",
@@ -218,67 +219,74 @@
       "machine translation"
     ],
     "topics": [
+      "neural sequence transduction",
       "attention mechanisms",
-      "neural machine translation",
-      "sequence-to-sequence models",
       "deep learning architectures",
-      "natural language processing"
+      "natural language processing",
+      "parallel computation"
     ],
     "problem": {
-      "statement": "Dominant sequence transduction models rely on recurrent or convolutional neural networks whose sequential computation precludes parallelization within training examples, creating a bottleneck for training speed and scalability to long sequences.",
-      "motivation": "Recurrent models factor computation along symbol positions of input/output sequences, generating hidden states sequentially. This inherently sequential nature prevents parallelization and becomes critical at longer sequence lengths as memory constraints limit batching across examples.",
+      "statement": "Sequence transduction models rely on recurrent or convolutional neural networks whose sequential computation precludes parallelization within training examples, making them slow to train, especially on long sequences.",
+      "motivation": "A more parallelizable architecture could dramatically reduce training time while maintaining or improving model quality, enabling faster iteration and larger-scale experimentation.",
       "prior_limitations": [
-        "Recurrent models process tokens sequentially, preventing parallelization within training examples",
-        "Even with factorization tricks and conditional computation, the fundamental constraint of sequential computation remains",
-        "Attention mechanisms, while widely used, are almost always paired with recurrent networks, inheriting their sequential bottleneck"
+        "Recurrent models factor computation along symbol positions, creating an inherently sequential hidden-state dependency that prevents parallelization within training examples",
+        "Memory constraints limit batching across examples for long sequences",
+        "Factorization tricks and conditional computation improve efficiency but do not remove the fundamental sequential-computation constraint",
+        "Attention mechanisms are used almost exclusively in conjunction with recurrent networks, inheriting their sequential bottleneck"
       ]
     },
     "approach": {
-      "summary": "The Transformer is a sequence transduction model based solely on attention mechanisms, entirely dispensing with recurrence and convolutions. It uses an encoder-decoder architecture with stacked layers, each containing multi-head self-attention sub-layers and position-wise feed-forward networks, connected by residual connections and layer normalization. Instead of recurrence to model sequence order, the Transformer injects positional information via sinusoidal positional encodings added to input embeddings. The core attention function is scaled dot-product attention, computing compatibility as QK^T / sqrt(d_k), and multi-head attention projects queries, keys, and values h times with different learned linear projections to attend to information from multiple representation subspaces in parallel.",
+      "summary": "The Transformer is an encoder-decoder architecture that replaces all recurrent and convolutional layers with stacked multi-head self-attention mechanisms and position-wise feed-forward networks. The encoder consists of 6 identical layers, each with a multi-head self-attention sub-layer and a feed-forward sub-layer, both wrapped with residual connections and layer normalization. The decoder has 6 identical layers with an additional encoder-decoder attention sub-layer inserted between the self-attention and feed-forward sub-layers, plus masking to preserve auto-regressive generation. Scaled dot-product attention computes attention weights as softmax(QK^T / sqrt(d_k))V, with multi-head attention linearly projecting queries, keys, and values h=8 times before applying attention in parallel. Since the model has no recurrence or convolution, sinusoidal positional encodings are added to input embeddings to encode sequence order.",
       "key_ideas": [
-        "Scaled dot-product attention with softmax(QK^T / sqrt(d_k)) to prevent vanishing gradients for large key dimensions",
-        "Multi-head attention with h=8 parallel attention heads, allowing the model to jointly attend to information from different representation subspaces",
-        "Positional encoding using sinusoidal functions of different frequencies to inject sequence order information without recurrence",
-        "Complete removal of recurrence and convolution, relying entirely on self-attention and feed-forward layers"
+        "Dispensing entirely with recurrence and convolution, relying solely on attention mechanisms to capture global dependencies",
+        "Multi-head attention allows the model to attend jointly to information from different representation subspaces at different positions",
+        "Scaled dot-product attention with 1/sqrt(d_k) factor prevents softmax gradients from vanishing for large key dimensions",
+        "Sinusoidal positional encodings inject sequence-order information without learned parameters and may extrapolate to unseen sequence lengths"
       ],
       "assumptions": [
-        "Self-attention can capture all relevant dependencies between input and output positions without the sequential processing of RNNs",
-        "Sinusoidal positional encodings (or learned alternatives) provide sufficient positional information for the model to use sequence order",
-        "Multi-head attention with reduced per-head dimensionality (d_k = d_v = d_model/h) achieves similar computational cost to single-head attention while improving quality"
+        "Attention mechanisms alone are sufficient to capture all necessary sequential dependencies without recurrence or convolution",
+        "Dot-product attention with scaling is an effective compatibility function for sequence modeling",
+        "Multi-head projections into lower-dimensional subspaces preserve representational capacity at reduced computational cost",
+        "Sinusoidal positional encodings allow the model to learn relative-position dependencies"
       ]
     },
     "contributions": [
       {
         "type": "method",
-        "description": "Introduces the Transformer architecture, the first sequence transduction model based entirely on attention mechanisms, eliminating recurrence and convolutions",
-        "evidence_section": "3 Method"
+        "description": "The Transformer architecture, the first sequence transduction model based entirely on attention mechanisms, replacing all recurrent and convolutional layers with stacked multi-head self-attention and position-wise feed-forward networks.",
+        "evidence_section": "method"
+      },
+      {
+        "type": "method",
+        "description": "Scaled dot-product attention and multi-head attention mechanisms that enable efficient parallel computation and joint attention across representation subspaces.",
+        "evidence_section": "method"
       },
       {
         "type": "experimental",
-        "description": "Achieves new state-of-the-art BLEU score of 28.4 on WMT 2014 English-to-German translation, outperforming all previously reported ensembles by over 2 BLEU",
-        "evidence_section": "4 Results"
+        "description": "State-of-the-art BLEU score of 28.4 on WMT 2014 English-to-German translation, outperforming all previously reported ensembles by over 2 BLEU.",
+        "evidence_section": "results"
       },
       {
         "type": "experimental",
-        "description": "Establishes new single-model state-of-the-art BLEU score of 41.8 on WMT 2014 English-to-French translation after 3.5 days of training on 8 GPUs",
-        "evidence_section": "4 Results"
+        "description": "Single-model state-of-the-art BLEU score of 41.8 on WMT 2014 English-to-French translation, achieved after 3.5 days of training on 8 GPUs.",
+        "evidence_section": "results"
       },
       {
         "type": "experimental",
-        "description": "Demonstrates generalization to English constituency parsing, achieving competitive results with both large and limited training data",
-        "evidence_section": "4 Results"
+        "description": "Successful generalization to English constituency parsing with both large and limited training data, demonstrating the architecture's applicability beyond machine translation.",
+        "evidence_section": "results"
       }
     ],
     "datasets": [
       {
-        "name": "WMT 2014 English-German",
-        "task": "machine translation",
-        "role": "training and evaluation"
+        "name": "WMT 2014 English-to-German",
+        "task": "machine translation (English-to-German)",
+        "role": "evaluation"
       },
       {
-        "name": "WMT 2014 English-French",
-        "task": "machine translation",
-        "role": "training and evaluation"
+        "name": "WMT 2014 English-to-French",
+        "task": "machine translation (English-to-French)",
+        "role": "evaluation"
       },
       {
         "name": "Wall Street Journal (WSJ) portion of Penn Treebank",
@@ -290,43 +298,32 @@
       {
         "name": "BLEU",
         "value": "28.4",
-        "dataset": "WMT 2014 English-German",
-        "comparison": "prior_work (beats all previously reported results including ensembles by over 2 BLEU)"
+        "dataset": "WMT 2014 English-to-German",
+        "comparison": "SOTA"
       },
       {
         "name": "BLEU",
         "value": "41.8",
-        "dataset": "WMT 2014 English-French",
-        "comparison": "prior_work (new single-model state-of-the-art)"
-      },
-      {
-        "name": "F1",
-        "value": "not specified in abstract",
-        "dataset": "WSJ constituency parsing",
-        "comparison": "prior_work (competitive with existing models)"
+        "dataset": "WMT 2014 English-to-French",
+        "comparison": "SOTA"
       }
     ],
     "results": {
-      "headline": "The Transformer achieves new state-of-the-art translation quality on WMT 2014 English-to-German (28.4 BLEU) and English-to-French (41.8 BLEU) while requiring significantly less training time and being more parallelizable than recurrent or convolutional models.",
+      "headline": "The Transformer achieves new state-of-the-art BLEU scores on both WMT 2014 English-to-German (28.4, outperforming all ensembles) and English-to-French (41.8, single model) translation tasks while requiring significantly less training time than recurrent or convolutional baselines.",
       "caveats": [
-        "The BLEU scores are from models trained with hyperparameters tuned for translation; performance on other tasks may require adaptation",
-        "The parsing results are mentioned qualitatively but exact F1 scores are not given in the abstract",
-        "Training costs, while lower than competing models, still require 8 GPUs"
+        "Results are reported only on machine translation and constituency parsing tasks; generalization to other domains is demonstrated but not exhaustively evaluated",
+        "The 28.4 BLEU on English-to-German is outperforming ensembles with a single model, but this is a single reported score without explicit variance intervals",
+        "Training was conducted on 8 GPUs; relative efficiency claims depend on this specific hardware configuration"
       ]
     },
-    "limitations_stated": [
-      "Self-attention layers attend to all positions, making computational complexity quadratic in sequence length, which limits application to very long sequences",
-      "The model processes text only; the authors note the need to extend to other modalities such as images, audio, and video",
-      "Generation remains partially sequential due to the auto-regressive nature of the decoder",
-      "The sinusoidal positional encoding may not extrapolate to substantially longer sequences than those seen during training (though this is hypothesized, not confirmed)"
-    ],
+    "limitations_stated": [],
     "open_threads": [
-      "How can attention-based models be extended to handle large inputs and outputs such as images, audio, and video, potentially using local/restricted attention mechanisms?",
-      "Can the Transformer architecture be applied to problems involving input and output modalities other than text?",
-      "How can generation be made less sequential (beyond the auto-regressive decoder) while maintaining quality?",
-      "How do learned positional embeddings compare to sinusoidal ones for tasks requiring extrapolation to unseen sequence lengths?"
+      "Extending the Transformer to problems involving input and output modalities other than text (e.g., images, audio, video)",
+      "Investigating local, restricted attention mechanisms to efficiently handle very large inputs and outputs",
+      "Making generation less sequential (reducing auto-regressive dependency)",
+      "Applying attention-based models to other tasks beyond sequence transduction"
     ],
-    "context_summary": "The paper introduces the Transformer, a novel neural network architecture for sequence transduction that is based entirely on attention mechanisms, completely dispensing with recurrent and convolutional layers that had dominated the field. Prior to this work, state-of-the-art sequence models (RNNs, LSTMs, GRUs) processed tokens sequentially, which prevented parallelization within training examples and created a bottleneck for training speed. While attention mechanisms were already widely used in encoder-decoder models, they were typically paired with recurrence. The Transformer's key innovations include scaled dot-product attention (with a 1/√d_k scaling factor to prevent vanishing gradients), multi-head attention (using h=8 parallel attention heads to attend to different representation subspaces), and sinusoidal positional encodings to inject sequence order information without recurrence. The architecture uses stacked encoder and decoder layers, each containing multi-head self-attention and position-wise feed-forward sub-layers with residual connections and layer normalization. On WMT 2014 English-to-German translation, the Transformer achieves 28.4 BLEU (outperforming all previously reported ensembles by over 2 BLEU), and on English-to-French it achieves 41.8 BLEU as a single model after only 3.5 days of training on 8 GPUs. The model also generalizes successfully to English constituency parsing. This work fundamentally changed sequence modeling in deep learning and has been enormously influential across computer vision, natural language processing, and other fields."
+    "context_summary": "The paper introduces the Transformer, a neural architecture for sequence transduction that replaces all recurrent and convolutional layers with attention mechanisms. Prior to this work, the dominant approach to sequence modeling relied on RNNs (LSTMs, GRUs) or CNNs with attention mechanisms as auxiliary components. These recurrent architectures inherently factor computation along symbol positions, creating sequential hidden-state dependencies that preclude parallelization within training examples—a critical bottleneck as sequence lengths grow. The Transformer eliminates recurrence entirely by using stacked multi-head self-attention layers in both encoder and decoder, complemented by position-wise feed-forward networks and sinusoidal positional encodings to inject order information. Its scaled dot-product attention mechanism employs a 1/√d_k scaling factor to prevent vanishing gradients at large dimensions, while multi-head attention (h=8) allows the model to attend jointly to information from different representation subspaces. On WMT 2014 English-to-German translation, the Transformer achieves 28.4 BLEU (outperforming all previously reported ensembles by over 2 BLEU), and on English-to-French it achieves 41.8 BLEU as a single model after 3.5 days of training on 8 GPUs—a fraction of prior state-of-the-art training costs. The model also generalizes successfully to English constituency parsing with both large and limited training data, indicating broad applicability beyond machine translation."
   },
   "summary_verification": {
     "status": "issues",
@@ -335,64 +332,41 @@
     "grounding": {
       "checked": [
         "28.4",
-        "WMT 2014 English-German",
+        "WMT 2014 English-to-German",
         "41.8",
-        "WMT 2014 English-French",
-        "not specified in abstract",
-        "WSJ constituency parsing",
+        "WMT 2014 English-to-French",
         "Wall Street Journal (WSJ) portion of Penn Treebank",
         "2014"
       ],
       "unmatched": [
-        "not specified in abstract",
-        "WSJ constituency parsing",
         "Wall Street Journal (WSJ) portion of Penn Treebank"
       ]
     },
-    "issues": [
-      {
-        "id": "9206cff747",
-        "resolved": false,
-        "created_round": 1,
-        "resolved_round": null,
-        "reconfirm_count": 0,
-        "field": "limitations_stated[3]",
-        "severity": "major",
-        "description": "The summary claims that the sinusoidal positional encoding 'may not extrapolate to substantially longer sequences,' but the source says the opposite: 'we chose the sinusoidal version because it may allow the model to extrapolate to sequence lengths longer than the ones encountered during training.' This directly contradicts the paper's stated rationale.",
-        "evidence_section": "3.5 Positional Encoding"
-      },
-      {
-        "id": "c96fa401a4",
-        "resolved": false,
-        "created_round": 1,
-        "resolved_round": null,
-        "reconfirm_count": 0,
-        "field": "limitations_stated[0]",
-        "severity": "minor",
-        "description": "The claim that self-attention has 'computational complexity quadratic in sequence length' is not explicitly stated in the provided source sections. The source mentions needing 'local, restricted attention mechanisms' for large inputs, which implies a limitation, but the quadratic complexity claim goes beyond what the source text says.",
-        "evidence_section": "5 Conclusion"
-      }
-    ],
+    "issues": [],
     "missing_hints": [
       {
-        "id": "3dbbb73ad4",
+        "id": "47ec20ad58",
         "resolved": false,
         "created_round": 1,
         "resolved_round": null,
         "reconfirm_count": 0,
-        "hint": "Code availability: the conclusion states 'The code we used to train and evaluate our models is available at https://github.com/tensorflow/tensor2tensor.' This reproducibility detail is not captured anywhere in the summary."
+        "hint": "Code availability: the conclusion explicitly states the code is available at https://github.com/tensorflow/tensor2tensor, but no field in the summary captures this (could be in context_summary or a new 'code' field)"
       }
     ],
-    "checked_at": "2026-07-15T09:30:33Z"
+    "checked_at": "2026-07-21T07:34:11Z"
   },
   "gaps": {
     "gap_ids": [
-      "gap_4c6e8321",
-      "gap_27ac214c",
-      "gap_ba55e619",
-      "gap_6329b3eb",
-      "gap_3cd1e5e1",
-      "gap_ba69110d"
+      "gap_4801d2e5",
+      "gap_6758d979",
+      "gap_27f312db",
+      "gap_aaceac9e",
+      "gap_7aa40a94",
+      "gap_612695bf",
+      "gap_04e60ada",
+      "gap_f5653cb9",
+      "gap_3e57767d",
+      "gap_ec9401af"
     ]
   },
   "processing": {
@@ -409,8 +383,8 @@
     "loop_trail": [
       {
         "attempt": 1,
-        "n_candidates": 6,
-        "n_new_or_fixed": 6,
+        "n_candidates": 10,
+        "n_new_or_fixed": 10,
         "n_major_issues": 0,
         "n_open_minor_issues": 0,
         "coverage_complete": true
@@ -419,6 +393,6 @@
     "rejected": {},
     "issues": [],
     "missing_hints": [],
-    "checked_at": "2026-07-15T09:31:35Z"
+    "checked_at": "2026-07-21T07:35:12Z"
   }
 }

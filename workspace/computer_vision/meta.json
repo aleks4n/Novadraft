@@ -1,7 +1,8 @@
 {
   "category_slug": "computer_vision",
-  "name": "Computer Vision",
-  "description": "Computer vision is a field of artificial intelligence that enables computers to interpret and understand visual information from the world, such as images and videos. It involves the development of algorithms and models that can analyze, process, and extract meaningful insights from visual data. Computer vision has applications in various domains, including image recognition, object detection, facial recognition, autonomous vehicles, medical imaging, and augmented reality.",
-  "created_at": "2026-06-07T00:00:00Z",
-  "updated_at": "2026-06-07T00:00:00Z"
+  "name": "Computer vision",
+  "description": "Computer vision tasks include methods for acquiring, processing, analyzing, and understanding digital images, and extraction of high-dimensional data from the real world in order to produce numerical or symbolic information, e.g. in the form of decisions. \"Understanding\" in this context signifies the transformation of visual images into descriptions of the world that make sense to thought processes and can elicit appropriate action.",
+  "source_url": "https://en.wikipedia.org/wiki/Computer_vision",
+  "created_at": "2026-07-21T07:32:48Z",
+  "updated_at": "2026-07-21T07:32:48Z"
 }

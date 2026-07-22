@@ -1,0 +1,140 @@
+{
+  "gap_id": "gap_73cfe00d",
+  "status": "validated",
+  "title": "Direct VLB optimization suffers from high gradient noise",
+  "description": "The authors found that optimizing the variational lower bound (L_vlb) directly was difficult due to high gradient noise, requiring importance sampling to reduce variance.",
+  "type": "negative_result",
+  "canonical_description": "Direct optimization of the variational lower bound objective suffers from high gradient noise during training",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2102.09672",
+      "section": "improving_the_log_likelihood",
+      "anchor": "actually quite difficult to optimize in practice",
+      "quote": "However, we were surprised to find that $L_{\\text{vlb}}$ was actually quite difficult to optimize in practice, at least on the diverse ImageNet $64 \\times 64$ dataset.",
+      "char_offset": [
+        8532,
+        8699
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T07:37:20Z",
+  "verdict": {
+    "gap_id": "gap_73cfe00d",
+    "status": "partially_solved",
+    "confidence": 0.45,
+    "reasoning": "Paper 4 (LSGM) is the only assessment that directly engages with the gap: it identifies high variance from time-sampling in the VLB-based training objective of latent score-based models and proposes concrete variance reduction techniques — including analytically derived importance sampling distributions and a geometric VPSDE — that empirically stabilize training and reduce variance. This shows that importance sampling can indeed address high gradient noise in VLB optimization for a specific model class.\n\nHowever, the solution is not general. Paper 4's techniques are derived under the assumption of near-Normal latent distributions and are specific to the score-matching formulation within diffusion/score-based models. The broader problem — high gradient noise when directly optimizing the VLB in arbitrary variational models (e.g., standard VAEs without diffusion priors) — remains open.\n\nPapers 1–3 do not address the gap. Paper 1 (VRPO) tackles variance in ELBO estimates used as likelihood surrogates within DPO preference optimization, not direct VLB optimization as a training objective. Papers 2 and 3 are about fine-tuning/sampling algorithms and RL policy gradient stability respectively, completely different settings.\n\nThus: partially solved — Paper 4 provides a targeted, working solution for one important subclass of VLB optimization, but the general challenge of high gradient noise in direct VLB training across model architectures is still unresolved.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2505.19223",
+          "title": "LLaDA 1.5: Variance-Reduced Preference Optimization for Large Language Diffusion Models",
+          "abstract": "While Masked Diffusion Models (MDMs), such as LLaDA, present a promising paradigm for language modeling, there has been relatively little effort in aligning these models with human preferences via reinforcement learning. The challenge primarily arises from the high variance in Evidence Lower Bound (ELBO)-based likelihood estimates required for preference optimization. To address this issue, we propose Variance-Reduced Preference Optimization (VRPO), a framework that formally analyzes the variance of ELBO estimators and derives bounds on both the bias and variance of preference optimization gradients. Building on this theoretical foundation, we introduce unbiased variance reduction strategies, including optimal Monte Carlo budget allocation and antithetic sampling, that significantly improve the performance of MDM alignment. We demonstrate the effectiveness of VRPO by applying it to LLaDA, and the resulting model, LLaDA 1.5, outperforms its SFT-only predecessor consistently and significantly across mathematical (GSM8K +4.7), code (HumanEval +3.0, MBPP +1.8), and alignment benchmarks (IFEval +4.0, Arena-Hard +4.3). Furthermore, LLaDA 1.5 demonstrates a highly competitive mathematical performance compared to strong language MDMs and ARMs. Project page: https://ml-gsai.github.io/LLaDA-1.5-Demo/.",
+          "authors": [
+            "Fengqi Zhu",
+            "Rongzhen Wang",
+            "Shen Nie",
+            "Xiaolu Zhang",
+            "Chunwei Wu",
+            "Jun Hu",
+            "Jun Zhou",
+            "Jianfei Chen",
+            "Yankai Lin",
+            "Ji-Rong Wen",
+            "Chongxuan Li"
+          ],
+          "published_date": "2025-05-25T16:36:20Z",
+          "url": "https://arxiv.org/abs/2505.19223v2"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "This paper addresses variance in ELBO-based estimation within the context of Direct Preference Optimization (DPO) for masked diffusion language models. It identifies that using ELBO estimates as substitutes for exact log-likelihoods in DPO introduces high variance in the preference score estimator, which degrades alignment performance. The paper proposes VRPO, a framework with three variance reduction techniques (increasing sampling budget, optimal budget allocation across timesteps, and antithetic sampling) that are theoretically proven and empirically validated to reduce this variance. However, the paper does not address direct VLB optimization as a training objective; rather, it addresses variance in ELBO estimates used within a downstream preference optimization objective.",
+        "what_remains_open": "The research gap concerns direct optimization of the variational lower bound (VLB) as a training objective, where high gradient noise makes optimization difficult. This paper does not address that problem. Instead, it addresses variance in ELBO estimates used as likelihood surrogates within a DPO preference optimization framework. The gap's core problem — high gradient noise when directly optimizing the VLB for training — remains unaddressed. The paper's variance reduction techniques (budget allocation, antithetic sampling) could potentially be adapted to direct VLB optimization, but the paper does not study or claim this application.",
+        "evidence_snippets": [
+          "The key challenge is that the original DPO formulation requires exact log-likelihoods, which are intractable for diffusion models. A natural solution under this scenario is to approximate these log-likelihoods with their evidence lower bounds (ELBOs)",
+          "We demonstrate that this estimation introduces additional bias and variance into the preference optimization loss and gradient.",
+          "In this paper, we identify a primary challenge for this problem: the high variance in Evidence Lower Bound (ELBO)-based likelihood estimates required for preference optimization."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2605.00229",
+          "title": "A unified perspective on fine-tuning and sampling with diffusion and flow models",
+          "abstract": "We study the problem of training diffusion and flow generative models to sample from target distributions defined by an exponential tilting of a base density; a formulation that subsumes both sampling from unnormalized densities and reward fine-tuning of pre-trained models. This problem can be approached from a stochastic optimal control (SOC) perspective, using adjoint-based or score matching methods, or from a non-equilibrium thermodynamics perspective. We provide a unified framework encompassing these approaches and make three main contributions: (i) bias-variance decompositions revealing that Adjoint Matching/Sampling and Novel Score Matching have finite gradient variance, while Target and Conditional Score Matching do not; (ii) norm bounds on the lean adjoint ODE that theoretically support the effectiveness of adjoint-based methods; and (iii) adaptations of the CMCD and NETS loss functions, along with novel Crooks and Jarzynski identities, to the exponential tilting setting. We validate our analysis with reward fine-tuning experiments on Stable Diffusion 1.5 and 3.",
+          "authors": [
+            "Carles Domingo-Enrich",
+            "Yuanqi Du",
+            "Michael S. Albergo"
+          ],
+          "published_date": "2026-04-30T21:06:46Z",
+          "url": "https://arxiv.org/abs/2605.00229v1"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "This paper provides a unified framework for fine-tuning diffusion and flow models to sample from exponentially tilted distributions (reward fine-tuning and sampling from unnormalized densities). It derives bias-variance decompositions for various algorithms (Adjoint Matching/Sampling, Target/Conditional/Novel Score Matching) and shows that some methods have finite gradient variance while others have infinite variance. It also adapts thermodynamic loss functions (CMCD, NETS) and proves Crooks/Jarzynski identities for the exponential tilting setting. The paper focuses on comparing fine-tuning/sampling algorithms, not on the standard VLB training objective for diffusion models.",
+        "what_remains_open": "The paper does not address the research gap at all. The gap concerns high gradient noise in direct optimization of the variational lower bound (VLB) — the standard training objective for diffusion/flow matching models from scratch. This paper studies a completely different problem: fine-tuning pre-trained models or sampling from unnormalized densities via exponential tilting. The variance analysis in this paper is about the gradient variance of fine-tuning losses (AM, AS, TSM, CSM, NSM), not about the VLB training objective. The problem of high gradient noise in direct VLB optimization and the need for importance sampling to reduce it remains entirely unaddressed.",
+        "evidence_snippets": []
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2603.06743",
+          "title": "Stabilizing Reinforcement Learning for Diffusion Language Models",
+          "abstract": "Group Relative Policy Optimization (GRPO) is highly effective for post-training autoregressive (AR) language models, yet its direct application to diffusion large language models (dLLMs) often triggers reward collapse. We identify two sources of incompatibility. First, GRPO relies on importance ratios defined by sequence probabilities, which are intractable in dLLMs and must be estimated (e.g., via ELBO-based or mean-field likelihood proxies), yielding inherently noisy ratios. Second, standard GRPO's formulation is not designed for estimated ratios: its conditional clipping can be anomalously bypassed by model-agnostic estimation noise, producing gradient spikes, while its fixed group-size normalization amplifies gradient-magnitude fluctuations under high-variance ratio estimates. We show these effects form a self-reinforcing instability loop that drives policy drift and further increases ratio variance. To break this loop, we propose StableDRL, a reformulation of GRPO tailored for dLLMs that uses (i) unconditional clipping to suppress outlier-induced spikes and (ii) self-normalization to constrain updates within the convex hull of per-sample gradients. We further extend StableDRL to block-wise diffusion models via a staircase attention mechanism.",
+          "authors": [
+            "Jianyuan Zhong",
+            "Kaibo Wang",
+            "Ding Ding",
+            "Zijin Feng",
+            "Haoli Bai",
+            "Yang Xiang",
+            "Jiacheng Sun",
+            "Qiang Xu"
+          ],
+          "published_date": "2026-03-06T08:55:37Z",
+          "url": "https://arxiv.org/abs/2603.06743v1"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "This paper addresses training instability in Group Relative Policy Optimization (GRPO) for discrete diffusion language models (dLLMs). It identifies that noisy importance ratios—estimated via Monte Carlo sampling of the Evidence Lower Bound (ELBO)—cause gradient spikes and a self-reinforcing instability loop during RL fine-tuning. The paper proposes StableDRL, which uses unconditional clipping and self-normalization to stabilize the RL training process. The paper's focus is on stabilizing RL policy gradient updates, not on reducing gradient noise in direct VLB optimization.",
+        "what_remains_open": "The paper does not address the research gap of \"Direct VLB optimization suffers from high gradient noise.\" The gap concerns the difficulty of directly optimizing the variational lower bound (ELBO) as a training objective due to high gradient noise. This paper instead addresses a different problem: the instability of GRPO (a reinforcement learning algorithm) when importance ratios are estimated using noisy ELBO approximations. The paper's proposed solutions (unconditional clipping and self-normalization) are designed for the RL importance-sampling setting, not for reducing gradient noise in direct ELBO optimization. The fundamental challenge of high gradient variance when directly optimizing the VLB remains unaddressed.",
+        "evidence_snippets": []
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2106.05931",
+          "title": "Score-based Generative Modeling in Latent Space",
+          "abstract": "Score-based generative models (SGMs) have recently demonstrated impressive results in terms of both sample quality and distribution coverage. However, they are usually applied directly in data space and often require thousands of network evaluations for sampling. Here, we propose the Latent Score-based Generative Model (LSGM), a novel approach that trains SGMs in a latent space, relying on the variational autoencoder framework. Moving from data to latent space allows us to train more expressive generative models, apply SGMs to non-continuous data, and learn smoother SGMs in a smaller space, resulting in fewer network evaluations and faster sampling. To enable training LSGMs end-to-end in a scalable and stable manner, we (i) introduce a new score-matching objective suitable to the LSGM setting, (ii) propose a novel parameterization of the score function that allows SGM to focus on the mismatch of the target distribution with respect to a simple Normal one, and (iii) analytically derive multiple techniques for variance reduction of the training objective. LSGM obtains a state-of-the-art FID score of 2.10 on CIFAR-10, outperforming all existing generative results on this dataset. On CelebA-HQ-256, LSGM is on a par with previous SGMs in sample quality while outperforming them in sampling time by two orders of magnitude. In modeling binary images, LSGM achieves state-of-the-art likelihood on the binarized OMNIGLOT dataset. Our project page and code can be found at https://nvlabs.github.io/LSGM .",
+          "authors": [
+            "Arash Vahdat",
+            "Karsten Kreis",
+            "Jan Kautz"
+          ],
+          "published_date": "2021-06-10T17:26:35Z",
+          "url": "https://arxiv.org/abs/2106.05931v3"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper addresses high variance in the training objective of Latent Score-based Generative Models (LSGM), which is trained via a variational bound (ELBO). The authors identify that sampling the time variable t in the score matching objective introduces high variance. They propose several variance reduction techniques: (1) a geometric VPSDE that makes the variance progression constant over time, (2) analytically derived importance sampling distributions for different weighting mechanisms (likelihood, unweighted, reweighted), and (3) sample reweighting strategies. These techniques are shown empirically to stabilize training and reduce variance in the objective.",
+        "what_remains_open": "The paper addresses variance from time-sampling in the score matching component of a specific VLB-based objective (for LSGM), not the general problem of high gradient noise in direct VLB optimization for arbitrary variational models. The variance reduction techniques are derived under the assumption that the latent distributions are close to Normal, and are specific to the score matching formulation within the diffusion/score-based framework. The broader gap of high gradient noise when directly optimizing the VLB (e.g., in standard VAEs without diffusion priors) remains unaddressed. Additionally, the paper does not provide a general-purpose solution for VLB gradient noise that would apply across different model architectures.",
+        "evidence_snippets": [
+          "The objectives in Eqs.~[REF:eq:vae_obj] and~[REF:eq:prior_obj] involve sampling of the time variable $t$, which has high variance~[CITE:nichol2021improved]. We introduce several techniques for reducing this variance for all three objective weightings.",
+          "We empirically observe that the variance reduction techniques developed with this assumption still work well when $q(\\bz_0)$ and $p(\\bz_0)$ are not exactly $\\N(\\bz_0; \\bzero, \\beye)$.",
+          "In Fig.~[REF:fig:variance], we train a small LSGM on CIFAR-10 with $w_{\\we}$ weighting using (i) the original VPSDE with uniform $t$ sampling, (ii) the same SDE but with our IS from $t$, and (iii) the proposed geometric VPSDE. Note how both (ii) and (iii) significantly reduce the variance and allow us to monitor the progress of the training objective."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 4,
+      "skipped_ids": []
+    }
+  },
+  "ranking": {
+    "openness": 0.375,
+    "impact": 0.26439912906339846,
+    "feasibility": 0.4,
+    "feasibility_reasoning": "The gap is partially solved for one model class (diffusion/score-based models via importance sampling), showing that progress is possible. However, the remaining problem — \"arbitrary variational models\" — is very broad, spanning standard VAEs, hierarchical VAEs, flow-based models, etc., each with different gradient noise structure. Methodologically, existing variance reduction tools (importance sampling, control variates, Rao-Blackwellization) could be adapted, but a unified solution likely requires model-specific analysis. Data is not a bottleneck (standard benchmarks suffice), and compute is modest. The main barrier is scope: a truly general solution is a sprawling agenda, while a focused attack on one additional model class is tractable but leaves the core gap unsolved. Evaluatability is straightforward (measure gradient variance and training stability)."
+  }
+}

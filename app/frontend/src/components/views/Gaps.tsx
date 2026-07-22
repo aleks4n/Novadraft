@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { Icon } from "../Icon";
 import { TabButton, ViewHeader } from "../chrome";
 import { GapPipeline } from "../PaperPipeline";
 import { RunTranscript } from "../RunTranscript";
 import { runForTarget, useWorkspace } from "../../lib/store";
-import type { Gap, GapEvidence } from "../../lib/types";
+import type { Gap, GapEvidence, RankingConfig } from "../../lib/types";
+import { DEFAULT_RANKING_CONFIG, fmtScore, overallScore, passesFloors } from "../../lib/ranking";
 
 // A gap can still be pushed through ingestion while it sits in these stages.
 const RESUMABLE_STAGES = new Set(["pending", "to_validate"]);
@@ -38,21 +40,41 @@ function GroundingChip({ g }: { g: GapEvidence["grounding"] }) {
 
 // Columns the table can be sorted by. `get` returns a sortable value; numeric
 // columns return null when the metric isn't computed yet so they sort last.
-// New metrics (novelty, feasibility, …) just need a row added here + a <th>.
-type SortKey = "type" | "title" | "status" | "sources" | "novelty" | "feasibility";
+// The ranking columns read the ranking agent's three dimensions (g.ranking) plus
+// the combined "Overall" score (weighted by the config); they stay null (—) until
+// a gap has been ranked. New metrics just need a row added here + a <th>.
+type SortKey = "type" | "title" | "status" | "sources" | "overall" | "openness" | "impact" | "feasibility";
 type SortDir = "asc" | "desc";
+type Column = { key: SortKey; label: string; numeric?: boolean; get: (g: Gap) => string | number | null };
 
-const COLUMNS: { key: SortKey; label: string; numeric?: boolean; get: (g: Gap) => string | number | null }[] = [
-  { key: "type", label: "Type", get: (g) => g.type },
-  { key: "title", label: "Gap", get: (g) => g.title.toLowerCase() },
-  { key: "status", label: "Status", get: (g) => g.status },
-  { key: "sources", label: "Sources", numeric: true, get: (g) => g.derivedFrom.length },
-  { key: "novelty", label: "Novelty", numeric: true, get: (g) => g.novelty },
-  { key: "feasibility", label: "Feasibility", numeric: true, get: (g) => g.feasibility },
-];
+// Overall depends on the live weights, so columns are built per-render from cfg.
+function buildColumns(cfg: RankingConfig): Column[] {
+  return [
+    { key: "type", label: "Type", get: (g) => g.type },
+    { key: "title", label: "Gap", get: (g) => g.title.toLowerCase() },
+    { key: "status", label: "Status", get: (g) => gapStageBadge(g).label },
+    { key: "sources", label: "Sources", numeric: true, get: (g) => g.derivedFrom.length },
+    { key: "overall", label: "Overall", numeric: true, get: (g) => overallScore(g, cfg) },
+    { key: "openness", label: "Openness", numeric: true, get: (g) => g.ranking?.openness ?? null },
+    { key: "impact", label: "Impact", numeric: true, get: (g) => g.ranking?.impact ?? null },
+    { key: "feasibility", label: "Feasibility", numeric: true, get: (g) => g.ranking?.feasibility ?? null },
+  ];
+}
 
-function compareGaps(a: Gap, b: Gap, key: SortKey, dir: SortDir): number {
-  const col = COLUMNS.find((c) => c.key === key)!;
+// Numeric columns lead with the highest value first — static, independent of cfg.
+const NUMERIC_KEYS = new Set<SortKey>(["sources", "overall", "openness", "impact", "feasibility"]);
+
+// Default column widths as fractions of the table (they sum to 1). The table is
+// table-layout:fixed, so these are honoured exactly; the resize handles shift
+// width between two neighbours, keeping the sum — and thus the total width — fixed.
+const DEFAULT_COL_FRAC: Record<SortKey, number> = {
+  type: 0.13, title: 0.31, status: 0.12, sources: 0.08,
+  overall: 0.09, openness: 0.09, impact: 0.09, feasibility: 0.09,
+};
+const MIN_COL_FRAC = 0.05; // a column can't be dragged narrower than this
+
+function compareGaps(a: Gap, b: Gap, key: SortKey, dir: SortDir, columns: Column[]): number {
+  const col = columns.find((c) => c.key === key)!;
   const va = col.get(a);
   const vb = col.get(b);
   // Nulls (uncomputed metrics) always sink to the bottom regardless of dir.
@@ -65,9 +87,6 @@ function compareGaps(a: Gap, b: Gap, key: SortKey, dir: SortDir): number {
   return dir === "asc" ? cmp : -cmp;
 }
 
-function fmtScore(v: number | null): string {
-  return v === null ? "—" : v.toFixed(2);
-}
 
 const gapStage = (g: Gap): string => g.stage ?? g.ingestion?.stage ?? "pending";
 
@@ -81,11 +100,20 @@ const STAGE_TABS: { key: string; label: string; icon: string }[] = [
 ];
 
 // A short badge for where a gap is (its director/validator outcome, else stage).
+// The archive/ stage now holds two kinds of retired gap — director duplicates
+// and validator-solved gaps — so distinguish them rather than labelling every
+// archived gap "Duplicate".
 function gapStageBadge(g: Gap): { label: string; tone: string } {
   const o = g.ingestion?.outcome;
   const st = gapStage(g);
-  if (o === "duplicate" || st === "archive") return { label: "Duplicate", tone: "muted" };
-  if (o === "solved") return { label: "Solved", tone: "muted" };
+  // A validator-solved gap and a director duplicate both live in archive/, so
+  // key off each gap's own markers. Check solved first: the mapper's stage-derived
+  // outcome can lag, but verdict.status === "solved" is unambiguous.
+  const isSolved = g.verdict?.status === "solved" || o === "solved";
+  const isDuplicate = !isSolved && (!!g.duplicateOf || g.status === "duplicate" || o === "duplicate");
+  if (isSolved) return { label: "Solved", tone: "muted" };
+  if (isDuplicate) return { label: "Duplicate", tone: "muted" };
+  if (st === "archive") return { label: "Archived", tone: "muted" };
   if (o === "partially_solved") return { label: "Partial", tone: "warn" };
   if (o === "open") return { label: g.ranking ? "Ranked" : "Open", tone: "ok" };
   if (st === "to_validate") return { label: "To validate", tone: "active" };
@@ -100,21 +128,68 @@ export function GapsOverview() {
   const live = all.filter((g) => gapStage(g) !== "archive");
   const archived = all.filter((g) => gapStage(g) === "archive");
   const [tab, setTab] = useState<string>("all");
-  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: "type", dir: "asc" });
+  // Lead with the strongest opportunities: highest combined score first.
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: "overall", dir: "desc" });
+
+  // View-time ranking knobs: seeded from the config the backend serves, then
+  // tunable live in the controls panel. We re-seed only when the topic changes
+  // (via the ref, so background bundle refetches don't clobber the user's edits).
+  const served = bundle?.rankingConfig;
+  const servedRef = useRef(served);
+  servedRef.current = served;
+  const [cfg, setCfg] = useState<RankingConfig>(() => served ?? DEFAULT_RANKING_CONFIG);
+  const [showControls, setShowControls] = useState(false);
+  useEffect(() => {
+    if (servedRef.current) setCfg(servedRef.current);
+  }, [active?.slug]);
+
+  const columns = buildColumns(cfg);
+
+  // Resizable columns. Widths are fractions of the table that always sum to 1, so
+  // dragging a divider moves width between the two neighbouring columns without
+  // ever changing the table's total width. tableRef measures the pixel width so a
+  // drag delta in px maps to a delta in fraction.
+  const tableRef = useRef<HTMLTableElement>(null);
+  const [colFrac, setColFrac] = useState<Record<SortKey, number>>(DEFAULT_COL_FRAC);
+  function startResize(e: ReactPointerEvent, leftKey: SortKey, rightKey: SortKey) {
+    e.preventDefault();
+    e.stopPropagation();
+    const tableW = tableRef.current?.getBoundingClientRect().width ?? 1;
+    const startX = e.clientX;
+    const startLeft = colFrac[leftKey];
+    const startRight = colFrac[rightKey];
+    const pair = startLeft + startRight; // conserved across the drag
+    const onMove = (ev: PointerEvent) => {
+      const d = (ev.clientX - startX) / tableW;
+      const left = Math.min(Math.max(startLeft + d, MIN_COL_FRAC), pair - MIN_COL_FRAC);
+      setColFrac((f) => ({ ...f, [leftKey]: left, [rightKey]: pair - left }));
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      document.body.classList.remove("col-resizing");
+    };
+    document.body.classList.add("col-resizing");
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
 
   const count = (k: string) =>
     k === "all" ? live.length : k === "archive" ? archived.length : live.filter((g) => gapStage(g) === k).length;
   // Show every pipeline stage tab, even empty ones, so the whole flow is visible.
   const tabs = STAGE_TABS;
-  const gaps = tab === "archive" ? archived : tab === "all" ? live : live.filter((g) => gapStage(g) === tab);
-  const sorted = [...gaps].sort((a, b) => compareGaps(a, b, sort.key, sort.dir));
+  const staged = tab === "archive" ? archived : tab === "all" ? live : live.filter((g) => gapStage(g) === tab);
+  // Apply the min-floor filters, then sort. Track how many ranked gaps the floors hid.
+  const gaps = staged.filter((g) => passesFloors(g, cfg));
+  const hidden = staged.length - gaps.length;
+  const sorted = [...gaps].sort((a, b) => compareGaps(a, b, sort.key, sort.dir, columns));
 
   function onSort(key: SortKey) {
     setSort((s) =>
       s.key === key
         ? { key, dir: s.dir === "asc" ? "desc" : "asc" }
         // numeric columns lead with the most interesting (highest) value first
-        : { key, dir: COLUMNS.find((c) => c.key === key)?.numeric ? "desc" : "asc" }
+        : { key, dir: NUMERIC_KEYS.has(key) ? "desc" : "asc" }
     );
   }
 
@@ -136,26 +211,47 @@ export function GapsOverview() {
           <TabButton key={t.key} active={tab === t.key} onClick={() => setTab(t.key)}
             icon={t.icon} label={`${t.label} · ${count(t.key)}`} />
         ))}
-        {/* Archived duplicates — off to the side, and never in the left nav. */}
+        {/* Archived gaps — duplicates + solved — off to the side, never in the left nav. */}
         {archived.length > 0 && (
           <TabButton active={tab === "archive"} onClick={() => setTab("archive")}
             icon="archived" label={`Archived · ${archived.length}`} />
         )}
+        <button
+          type="button"
+          className={"rank-controls-toggle" + (showControls ? " is-open" : "")}
+          onClick={() => setShowControls((v) => !v)}
+          title="Tune the ranking weights and filter floors"
+        >
+          <Icon name="list" className="rank-controls-toggle-icon" />
+          Ranking
+          {hidden > 0 && <span className="rank-controls-badge">{hidden}</span>}
+        </button>
       </div>
+
+      {showControls && (
+        <RankingControls cfg={cfg} setCfg={setCfg} served={served} hidden={hidden} />
+      )}
 
       {gaps.length === 0 ? (
         <div className="empty-state">
-          {tab === "archive"
-            ? "No archived gaps — the director parks duplicates here after merging them."
+          {hidden > 0
+            ? `All ${hidden} gap${hidden === 1 ? "" : "s"} in this view are hidden by the ranking filters — lower the min floors to see them.`
+            : tab === "archive"
+            ? "No archived gaps — duplicates and already-solved gaps are parked here."
             : all.length === 0
               ? "No gaps yet — they're extracted when a paper is ingested."
               : "No gaps in this stage."}
         </div>
       ) : (
-        <table className="gaps-table">
+        <table className="gaps-table" ref={tableRef}>
+          <colgroup>
+            {columns.map((c) => (
+              <col key={c.key} style={{ width: (colFrac[c.key] * 100).toFixed(3) + "%" }} />
+            ))}
+          </colgroup>
           <thead>
             <tr>
-              {COLUMNS.map((c) => (
+              {columns.map((c, i) => (
                 <th
                   key={c.key}
                   className={
@@ -176,6 +272,13 @@ export function GapsOverview() {
                       }
                     />
                   </span>
+                  {i < columns.length - 1 && (
+                    <span
+                      className="gaps-col-resize"
+                      onPointerDown={(e) => startResize(e, c.key, columns[i + 1].key)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  )}
                 </th>
               ))}
             </tr>
@@ -188,20 +291,80 @@ export function GapsOverview() {
                   <td>
                     <span className={"gap-type gap-type--" + g.severity}>{typeLabel(g.type)}</span>
                   </td>
-                  <td className="gaps-cell-title">
-                    {g.title}
-                    <span className={"ingest-badge ingest-badge--" + badge.tone} style={{ marginLeft: 8 }}>{badge.label}</span>
+                  <td className="gaps-cell-title">{g.title}</td>
+                  <td>
+                    <span className={"ingest-badge ingest-badge--" + badge.tone}>{badge.label}</span>
                   </td>
-                  <td><span className="gap-status">{statusLabel(g.status)}</span></td>
                   <td className="gaps-cell-num">{g.derivedFrom.length}</td>
-                  <td className="gaps-cell-num">{fmtScore(g.novelty)}</td>
-                  <td className="gaps-cell-num">{fmtScore(g.feasibility)}</td>
+                  <td className="gaps-cell-num gaps-cell-num--strong">{fmtScore(overallScore(g, cfg))}</td>
+                  <td className="gaps-cell-num">{fmtScore(g.ranking?.openness ?? null)}</td>
+                  <td className="gaps-cell-num">{fmtScore(g.ranking?.impact ?? null)}</td>
+                  <td className="gaps-cell-num">{fmtScore(g.ranking?.feasibility ?? null)}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
       )}
+    </div>
+  );
+}
+
+// The view-time ranking panel: live sliders for the three dimension weights
+// (feed the Overall score's weighted geometric mean) and the three min-floors
+// (hide gaps whose dimension falls below). Purely view-time — nothing is written
+// back to the agent; Reset returns to the config the backend served.
+function RankingControls({ cfg, setCfg, served, hidden }: {
+  cfg: RankingConfig;
+  setCfg: (updater: (c: RankingConfig) => RankingConfig) => void;
+  served?: RankingConfig;
+  hidden: number;
+}) {
+  const set = (key: keyof RankingConfig, v: number) => setCfg((c) => ({ ...c, [key]: v }));
+  const WEIGHT_ROWS: { key: keyof RankingConfig; label: string }[] = [
+    { key: "wOpenness", label: "Openness" },
+    { key: "wImpact", label: "Impact" },
+    { key: "wFeasibility", label: "Feasibility" },
+  ];
+  const FLOOR_ROWS: { key: keyof RankingConfig; label: string }[] = [
+    { key: "minOpenness", label: "Openness" },
+    { key: "minImpact", label: "Impact" },
+    { key: "minFeasibility", label: "Feasibility" },
+  ];
+  return (
+    <div className="rank-controls">
+      <div className="rank-controls-group">
+        <div className="rank-controls-head">
+          <span className="rank-controls-title">Weights</span>
+          <span className="rank-controls-hint">geometric mean → Overall</span>
+        </div>
+        {WEIGHT_ROWS.map((r) => (
+          <label key={r.key} className="rank-knob">
+            <span className="rank-knob-label">{r.label}</span>
+            <input type="range" min={0} max={2} step={0.1}
+              value={cfg[r.key]} onChange={(e) => set(r.key, Number(e.target.value))} />
+            <span className="rank-knob-val">{cfg[r.key].toFixed(1)}</span>
+          </label>
+        ))}
+      </div>
+      <div className="rank-controls-group">
+        <div className="rank-controls-head">
+          <span className="rank-controls-title">Min filters</span>
+          <span className="rank-controls-hint">{hidden > 0 ? `${hidden} hidden` : "hide below"}</span>
+        </div>
+        {FLOOR_ROWS.map((r) => (
+          <label key={r.key} className="rank-knob">
+            <span className="rank-knob-label">{r.label}</span>
+            <input type="range" min={0} max={1} step={0.05}
+              value={cfg[r.key]} onChange={(e) => set(r.key, Number(e.target.value))} />
+            <span className="rank-knob-val">{cfg[r.key].toFixed(2)}</span>
+          </label>
+        ))}
+      </div>
+      <button type="button" className="rank-controls-reset"
+        onClick={() => setCfg(() => served ?? DEFAULT_RANKING_CONFIG)}>
+        Reset
+      </button>
     </div>
   );
 }

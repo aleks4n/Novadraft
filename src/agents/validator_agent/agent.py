@@ -33,22 +33,24 @@ from src.agents.validator_agent.subagents.deep_read.agent import deep_read
 from src.agents.validator_agent.subagents.verdict.agent import verdict
 
 def finalize(state: ValidatorState) -> dict:
-    """Attach the verdict to the gap and route it out of the to_validate/ inbox:
-    a *solved* gap is terminal (parked for dedup, not an opportunity) -> gaps/master/;
-    an open / partially-solved gap goes to gaps/to_rank/ for the ranking agent.
-    Side-effect only; no state change."""
+    """Attach the verdict to the gap, advance its status past "unchecked", and
+    route it out of the to_validate/ inbox: a *solved* gap is terminal (already
+    addressed by prior art, not an opportunity) -> gaps/archive/, alongside
+    duplicates; an open / partially-solved gap goes to gaps/to_rank/ for the
+    ranking agent. This keeps gaps/master/ as the list of live, ranked
+    opportunities only. Side-effect only; no state change."""
     category = state["category_slug"]
     verdict = state["verdict"]
-    gap = state["gap"].model_copy(update={"verdict": verdict})
-    stage = "master" if verdict.status == "solved" else "to_rank"
+    gap = state["gap"].model_copy(update={"verdict": verdict, "status": "validated"})
+    stage = "archive" if verdict.status == "solved" else "to_rank"
     storage.write_gap_json(category, gap.model_dump(mode="json"), stage)
     storage.remove_gap_json(category, gap.gap_id, "to_validate")
     return {}
 
 
 def _read_result(category_slug: str, gap_id: str) -> dict | None:
-    """The finalized gap lands in master/ (solved) or to_rank/ (to be ranked)."""
-    return (storage.read_gap_json(category_slug, gap_id, "master")
+    """The finalized gap lands in archive/ (solved) or to_rank/ (to be ranked)."""
+    return (storage.read_gap_json(category_slug, gap_id, "archive")
             or storage.read_gap_json(category_slug, gap_id, "to_rank"))
 
 

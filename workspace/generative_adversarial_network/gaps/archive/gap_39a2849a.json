@@ -1,0 +1,107 @@
+{
+  "gap_id": "gap_39a2849a",
+  "status": "validated",
+  "title": "Conditional generative model extension",
+  "description": "The adversarial framework can be extended to conditional generative modeling by adding the conditioning variable c as input to both G and D.",
+  "type": "future_work",
+  "canonical_description": "extend adversarial nets to conditional generative modeling",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1406.2661",
+      "section": "conclusions_and_future_work",
+      "anchor": "adding $\\bm{c}$ as input to both $G$ and $D$",
+      "quote": "\\item A { conditional generative} model $p(\\bm{x} \\mid \\bm{c})$ can be obtained by adding $\\bm{c}$\nas input to both $G$ and $D$.",
+      "char_offset": [
+        101,
+        229
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T08:20:48Z",
+  "verdict": {
+    "gap_id": "gap_39a2849a",
+    "status": "solved",
+    "confidence": 0.85,
+    "reasoning": "Paper 1 (\"Ways of Conditioning Generative Adversarial Networks\") is a direct_solution: it squarely works within the conditional GAN paradigm, proposes concrete conditioning methods (Spatial Bilinear Pooling and IRGAN), and validates them on standard benchmarks, showing improved log-likelihood over the baseline CGAN. The remaining items it notes as open (more complex conditions like text descriptions, computational efficiency for high-dim vectors) are worthwhile extensions but do not undercut the core gap — the basic feasibility and effectiveness of extending adversarial nets to conditional modeling via adding c to G and D is demonstrated and confirmed. Papers 2 and 3 are both not_addressed: they take the conditional GAN framework as already given by prior work (Mirza &amp; Osindero 2014) and solve downstream problems (pixel-wise regularization for inpainting; robustness to missing conditioning variables). They neither advance nor challenge the core gap. Since one direct_solution already covers the gap with concrete results, the status is solved.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_1611.01455",
+          "title": "Ways of Conditioning Generative Adversarial Networks",
+          "abstract": "The GANs are generative models whose random samples realistically reflect natural images. It also can generate samples with specific attributes by concatenating a condition vector into the input, yet research on this field is not well studied. We propose novel methods of conditioning generative adversarial networks (GANs) that achieve state-of-the-art results on MNIST and CIFAR-10. We mainly introduce two models: an information retrieving model that extracts conditional information from the samples, and a spatial bilinear pooling model that forms bilinear features derived from the spatial cross product of an image and a condition vector. These methods significantly enhance log-likelihood of test data under the conditional distributions compared to the methods of concatenation.",
+          "authors": [
+            "Hanock Kwak",
+            "Byoung-Tak Zhang"
+          ],
+          "published_date": "2016-11-04T17:08:54Z",
+          "url": "https://arxiv.org/abs/1611.01455v1"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper directly addresses the extension of GANs to conditional generative modeling. It proposes two novel conditioning methods beyond simple concatenation: Spatial Bilinear Pooling (SBP), which provides multiplicative interaction between image features and condition vectors, and Information Retrieving GAN (IRGAN), which uses a pre-trained classifier to maximize mutual information between generated samples and conditions. The paper evaluates these methods on MNIST and CIFAR-10, showing improved log-likelihood over the standard conditional GAN baseline (CGAN) that simply concatenates the condition vector.",
+        "what_remains_open": "The paper fully addresses the gap of extending adversarial nets to conditional generative modeling. It works within the conditional GAN framework and proposes concrete methods for conditioning. However, the paper itself notes that more experiments on complex conditions (multi-labels, text descriptions, style embedding) are needed, and that the computational efficiency of bilinear pooling for high-dimensional condition vectors remains a practical concern.",
+        "evidence_snippets": [
+          "After the conditional GAN[CITE:mirza2014conditional] was first introduced to generate samples of specific labels from a single generator, further research was not made thoroughly despite of its practical usage.",
+          "We propose novel methods of conditioning generative adversarial networks (GANs) that achieve state-of-the-art results on MNIST and CIFAR-10.",
+          "The objective of conditioned GANs is to fit conditional probability distribution $p(x|c)$ where $c$ is condition that describes $x$."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_1911.00689",
+          "title": "Pixel-wise Conditioning of Generative Adversarial Networks",
+          "abstract": "Generative Adversarial Networks (GANs) have proven successful for unsupervised image generation. Several works extended GANs to image inpainting by conditioning the generation with parts of the image one wants to reconstruct. However, these methods have limitations in settings where only a small subset of the image pixels is known beforehand. In this paper, we study the effectiveness of conditioning GANs by adding an explicit regularization term to enforce pixel-wise conditions when very few pixel values are provided. In addition, we also investigate the influence of this regularization term on the quality of the generated images and the satisfaction of the conditions. Conducted experiments on MNIST and FashionMNIST show evidence that this regularization term allows for controlling the trade-off between quality of the generated images and constraint satisfaction.",
+          "authors": [
+            "Cyprien Ruffino",
+            "Romain Hérault",
+            "Eric Laloy",
+            "Gilles Gasso"
+          ],
+          "published_date": "2019-11-02T10:13:39Z",
+          "url": "https://arxiv.org/abs/1911.00689v1"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "This paper does not propose the general extension of adversarial nets to conditional generative modeling. Instead, it builds on the existing Conditional GAN (CGAN) framework (Mirza & Osindero, 2014) — which already adds conditioning variable c as input to both G and D — and adds an L2 regularization term to enforce pixel-wise constraints for a specific image inpainting task where very few pixels are known. The paper's contribution is the regularization term and its analysis, not the conditional GAN extension itself.",
+        "what_remains_open": "The gap asks about extending adversarial nets to conditional generative modeling by adding conditioning variable c as input to both G and D. This paper does not address that gap because the general conditional GAN framework was already proposed by prior work (Mirza & Osindero, 2014), which the paper explicitly cites and builds upon. The paper's own contribution is a regularization term for a specific pixel-wise conditioning task, not the general conditional extension.",
+        "evidence_snippets": [
+          "Some other approaches rely on Conditional Generative Adversarial Networks~(CGAN) [CITE:mirza2014]. This is a variant of GANs in which additional information,~$c$, is given to both the generator and the discriminator as an input",
+          "In this work, we retain the CGAN approach and add a reconstruction loss term to further enforce the prescribed pixel values"
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2007.02845",
+          "title": "Partially Conditioned Generative Adversarial Networks",
+          "abstract": "Generative models are undoubtedly a hot topic in Artificial Intelligence, among which the most common type is Generative Adversarial Networks (GANs). These architectures let one synthesise artificial datasets by implicitly modelling the underlying probability distribution of a real-world training dataset. With the introduction of Conditional GANs and their variants, these methods were extended to generating samples conditioned on ancillary information available for each sample within the dataset. From a practical standpoint, however, one might desire to generate data conditioned on partial information. That is, only a subset of the ancillary conditioning variables might be of interest when synthesising data. In this work, we argue that standard Conditional GANs are not suitable for such a task and propose a new Adversarial Network architecture and training strategy to deal with the ensuing problems. Experiments illustrating the value of the proposed approach in digit and face image synthesis under partial conditioning information are presented, showing that the proposed method can effectively outperform the standard approach under these circumstances.",
+          "authors": [
+            "Francisco J. Ibarrola",
+            "Nishant Ravikumar",
+            "Alejandro F. Frangi"
+          ],
+          "published_date": "2020-07-06T15:59:28Z",
+          "url": "https://arxiv.org/abs/2007.02845v1"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "This paper proposes a Partially Conditioned GAN (PCGAN) architecture and training strategy for generating samples when only a subset of conditioning variables is available (partial conditioning information). It introduces a feature extraction network F that processes the incomplete conditioning vector, and a training procedure where conditioning entries are randomly dropped to teach the network to handle missing information. The paper does not address the basic extension of adversarial nets to conditional generative modeling (the standard CGAN formulation), but rather addresses a downstream problem of robustness to missing conditioning variables.",
+        "what_remains_open": "The paper does not address the stated research gap at all. The gap is about extending adversarial nets to conditional generative modeling by adding conditioning variables as input to both G and D — which is the standard Conditional GAN formulation already established by Mirza & Osindero (2014). This paper takes that formulation as given and addresses a different problem: how to handle partial/missing conditioning information during inference. The basic conditional GAN extension remains unaddressed by this paper (it is already established in prior work).",
+        "evidence_snippets": [
+          "A recent yet widespread approach to dealing with these problems is the use of Conditional GANs ([CITE:mirza2014conditional]) where two distinct Neural Networks, a Generator and a Discriminator, are trained in an adversarial fashion.",
+          "In this work we show standard Conditional GANs fail in this problem setting, thus highlighting the need to either retrain the model for every set of conditioning variables or to infer the missing inputs by learning their joint latent space, which is often non-trivial. To overcome this issue, we propose an adversarial architecture that generates samples from incomplete conditioning vectors without estimating the missing entries.",
+          "In this study we addressed the problem of building a generative model that can work under partial conditioning information."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 3,
+      "skipped_ids": []
+    }
+  },
+  "ranking": null
+}

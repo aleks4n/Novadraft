@@ -1,0 +1,26 @@
+{
+  "gap_id": "gap_ebf6b0d9",
+  "status": "duplicate",
+  "title": "Overfitting observed on class-conditional ImageNet 64x64",
+  "description": "Despite ImageNet being a much larger and more diverse dataset, overfitting was surprisingly observed on class-conditional ImageNet 64x64, with FID worsening over training.",
+  "type": "threat_to_validity",
+  "canonical_description": "Generative model overfits even on large-scale diverse datasets during extended training",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2102.09672",
+      "section": "early_stopping_for_fid",
+      "anchor": "observed overfitting on class-conditional ImageNet",
+      "quote": "Like on CIFAR-10, we surprisingly observed overfitting on class-conditional ImageNet $64 \\times 64$, despite it being a much larger and more diverse dataset.",
+      "char_offset": [
+        89,
+        246
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T07:37:20Z",
+  "verdict": null,
+  "ranking": null,
+  "duplicate_of": "gap_808c55f7"
+}

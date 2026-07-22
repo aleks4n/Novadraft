@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { Icon, SeverityDot, StatusPip } from "./Icon";
 import { useWorkspace } from "../lib/store";
 import type { Nav, RunState } from "../lib/types";
+import { DEFAULT_RANKING_CONFIG, fmtScore, overallScore } from "../lib/ranking";
 
 // Which papers/gaps are being worked on right now. Papers come from each running
 // run's target; gaps from the per-gap trace events the parallel validate/rank
@@ -31,11 +32,29 @@ function busyEntities(runs: RunState[]) {
 }
 
 export function Sidebar() {
-  const { topics, activeSlug, active, bundle, nav, setNav, setActiveSlug, runs } = useWorkspace();
+  const { topics, activeSlug, active, bundle, nav, setNav, setActiveSlug, createTopic, runs } = useWorkspace();
   const [open, setOpen] = useState({ papers: true, gaps: true, ideas: true });
   const [pickerOpen, setPickerOpen] = useState(false);
+  // New-topic creation: inline field in the picker; `creating` shows the field,
+  // `newTopic` holds its value, `busy` covers the (few-second) agent run.
+  const [creating, setCreating] = useState(false);
+  const [newTopic, setNewTopic] = useState("");
+  const [creatingBusy, setCreatingBusy] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
   const toggle = (k: keyof typeof open) => setOpen((s) => ({ ...s, [k]: !s[k] }));
+
+  const submitNewTopic = async () => {
+    const name = newTopic.trim();
+    if (!name || creatingBusy) return;
+    setCreatingBusy(true);
+    const slug = await createTopic(name);
+    setCreatingBusy(false);
+    if (slug) {
+      setNewTopic("");
+      setCreating(false);
+      setPickerOpen(false);
+    }
+  };
   const busy = useMemo(() => busyEntities(runs), [runs]);
   const ideasRunning = runs.some((r) => r.kind === "idea" && r.status === "running");
 
@@ -49,10 +68,13 @@ export function Sidebar() {
   }, [pickerOpen]);
 
   const papers = bundle?.papers ?? [];
-  // Every live gap (across stages), minus archived duplicates — those are only
-  // reachable from the Gaps list's Archived view, not the nav.
+  // The nav tree shows only the master gap list — the ranked, live opportunities —
+  // ordered by the combined Overall score (highest first). Other stages and
+  // archived (duplicate/solved) gaps are reachable from the Gaps list, not here.
+  const rankCfg = bundle?.rankingConfig ?? DEFAULT_RANKING_CONFIG;
   const gaps = (bundle?.allGaps ?? bundle?.gaps ?? [])
-    .filter((g) => (g.stage ?? g.ingestion?.stage) !== "archive");
+    .filter((g) => (g.stage ?? g.ingestion?.stage) === "master")
+    .sort((a, b) => (overallScore(b, rankCfg) ?? -1) - (overallScore(a, rankCfg) ?? -1));
   const ideas = bundle?.ideas ?? [];
   const isActive = (key: Partial<Nav>) => nav.view === key.view && nav.id === (key.id ?? null);
 
@@ -116,13 +138,41 @@ export function Sidebar() {
               </button>
             ))}
             <div className="topic-picker-divider"></div>
-            <button className="topic-picker-row topic-picker-row--new">
-              <span className="topic-picker-dot topic-picker-dot--new"><Icon name="plus" /></span>
-              <span className="topic-picker-text">
-                <span className="topic-picker-title">New research topic</span>
-                <span className="topic-picker-cat">Define papers, gaps, and ideas</span>
-              </span>
-            </button>
+            {creating ? (
+              <div className="topic-create">
+                <input
+                  className="topic-create-input"
+                  autoFocus
+                  placeholder="e.g. Reinforcement Learning"
+                  value={newTopic}
+                  disabled={creatingBusy}
+                  onChange={(e) => setNewTopic(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") { e.preventDefault(); submitNewTopic(); }
+                    if (e.key === "Escape") { setCreating(false); setNewTopic(""); }
+                  }}
+                />
+                <button
+                  className="btn btn--primary topic-create-go"
+                  onClick={submitNewTopic}
+                  disabled={creatingBusy || !newTopic.trim()}
+                >
+                  {creatingBusy ? <span className="sidebar-spin" /> : <Icon name="arrow-right" />}
+                  {creatingBusy ? "Researching…" : "Create"}
+                </button>
+                <div className="topic-create-hint">
+                  The category agent researches the field and writes a short description.
+                </div>
+              </div>
+            ) : (
+              <button className="topic-picker-row topic-picker-row--new" onClick={() => setCreating(true)}>
+                <span className="topic-picker-dot topic-picker-dot--new"><Icon name="plus" /></span>
+                <span className="topic-picker-text">
+                  <span className="topic-picker-title">New research topic</span>
+                  <span className="topic-picker-cat">Define papers, gaps, and ideas</span>
+                </span>
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -170,6 +220,7 @@ export function Sidebar() {
               onClick={() => setNav({ view: "gap", id: g.id })}
               icon={<SeverityDot severity={g.severity} />}
               label={g.short}
+              meta={<span className="sidebar-score" title="Overall score">{fmtScore(overallScore(g, rankCfg))}</span>}
               busy={busy.gaps.has(g.id)}
             />
           ))}

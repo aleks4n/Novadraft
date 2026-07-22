@@ -1,16 +1,32 @@
 import { Icon } from "../Icon";
 import { ViewHeader } from "../chrome";
 import { useWorkspace } from "../../lib/store";
-import type { Nav } from "../../lib/types";
+import type { Nav, Paper, SeminalPaper } from "../../lib/types";
+
+// Loose title match so we can tell whether a seminal paper is already ingested —
+// exact strings rarely line up (subtitles, casing, punctuation), so compare on a
+// normalized alphanumeric key and accept either being a prefix of the other.
+function normTitle(t: string): string {
+  return t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+function findIngested(title: string, papers: Paper[]): Paper | undefined {
+  const key = normTitle(title);
+  if (!key) return undefined;
+  return papers.find((p) => {
+    const pk = normTitle(p.title);
+    return pk === key || pk.startsWith(key) || key.startsWith(pk);
+  });
+}
 
 export function TopicOverview() {
-  const { active, bundle, setNav } = useWorkspace();
+  const { active, bundle, setNav, runs, startPaperRun } = useWorkspace();
   if (!active) return <div className="empty-state">Loading topic…</div>;
   const papers = bundle?.papers ?? [];
   // Live gaps across all stages (minus archived duplicates) — not just pending,
   // which empties out as gaps flow through the pipeline.
   const gaps = (bundle?.allGaps ?? bundle?.gaps ?? []).filter((g) => (g.stage ?? g.ingestion?.stage) !== "archive");
   const ideas = bundle?.ideas ?? [];
+  const seminal = active.seminalPapers ?? [];
 
   return (
     <div className="view view--topic">
@@ -62,6 +78,30 @@ export function TopicOverview() {
         )}
       </div>
 
+      {seminal.length > 0 && (
+        <>
+          <div className="section-divider"><span>Foundational Papers</span></div>
+          <p className="section-lead">
+            Seminal papers of this field, suggested when the topic was created. Click one to
+            ingest it through the full pipeline — fetch, parse, summarize, and mine its gaps.
+          </p>
+          <div className="foundational-grid">
+            {seminal.map((sp, i) => (
+              <FoundationalCard
+                key={i}
+                paper={sp}
+                ingested={findIngested(sp.title, papers)}
+                running={runs.some(
+                  (r) => r.kind === "paper" && r.query === sp.title && r.status === "running",
+                )}
+                onOpen={(id) => setNav({ view: "paper", id })}
+                onIngest={() => startPaperRun(sp.title, { autoOpen: true })}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
       <div className="section-divider"><span>Workspace</span></div>
 
       <div className="view-grid view-grid--summary">
@@ -74,6 +114,46 @@ export function TopicOverview() {
           onClick={() => setNav({ view: "ideas", id: null })} />
       </div>
     </div>
+  );
+}
+
+function FoundationalCard({
+  paper, ingested, running, onOpen, onIngest,
+}: {
+  paper: SeminalPaper;
+  ingested?: Paper;
+  running: boolean;
+  onOpen: (id: string) => void;
+  onIngest: () => void;
+}) {
+  // Three states: already in the library (open it), currently ingesting (spinner,
+  // disabled), or not yet added (click to push it through the pipeline).
+  const state = ingested ? "done" : running ? "running" : "idle";
+  const onClick = () => {
+    if (ingested) onOpen(ingested.id);
+    else if (!running) onIngest();
+  };
+  return (
+    <button className={"foundational-card foundational-card--" + state} onClick={onClick}>
+      <div className="foundational-head">
+        <div className="foundational-icon"><Icon name="file-text" /></div>
+        <div className="foundational-status">
+          {state === "done" && <span className="foundational-badge foundational-badge--done"><Icon name="check" /> In library</span>}
+          {state === "running" && <span className="foundational-badge foundational-badge--running"><span className="sidebar-spin" /> Ingesting…</span>}
+          {state === "idle" && <span className="foundational-badge foundational-badge--idle"><Icon name="plus" /> Ingest</span>}
+        </div>
+      </div>
+      <div className="foundational-title">{paper.title}</div>
+      <div className="foundational-meta">
+        {paper.authors || "Unknown authors"}{paper.year ? ` · ${paper.year}` : ""}
+      </div>
+      {paper.why && <div className="foundational-why">{paper.why}</div>}
+      <div className="foundational-cta">
+        {state === "done" ? <>Open paper <Icon name="arrow-right" /></>
+          : state === "running" ? <>Running through pipeline…</>
+          : <>Add to knowledge base <Icon name="arrow-right" /></>}
+      </div>
+    </button>
   );
 }
 

@@ -164,13 +164,18 @@
   font-size: 11px; color: var(--text-4); text-transform: capitalize;
 }
 
-/* Sortable gaps table. Header cells toggle sort; rows route to the gap detail. */
+/* Sortable gaps table. Header cells toggle sort; rows route to the gap detail.
+   table-layout:fixed + width:100% makes it span the full content column and gives
+   every column an explicit width (from the <colgroup>), so the resize handles can
+   trade width between neighbours without changing the total. */
 .gaps-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+  table-layout: fixed;
 }
 .gaps-th {
+  position: relative;
   text-align: left;
   padding: 8px 12px;
   font-size: 11px;
@@ -182,7 +187,24 @@
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+/* Drag handle straddling the right edge of each header cell. */
+.gaps-col-resize {
+  position: absolute; top: 0; right: -4px;
+  width: 8px; height: 100%;
+  cursor: col-resize; touch-action: none; z-index: 2;
+}
+.gaps-col-resize::after {
+  content: ""; position: absolute; top: 25%; right: 4px;
+  width: 2px; height: 50%; border-radius: 1px;
+  background: transparent; transition: background 80ms;
+}
+.gaps-th:hover .gaps-col-resize::after { background: var(--border); }
+.gaps-col-resize:hover::after { background: var(--accent); }
+body.col-resizing { cursor: col-resize; user-select: none; }
+body.col-resizing .gaps-row:hover { background: transparent; }
 .gaps-th:hover { color: var(--text-2); }
 .gaps-th--active { color: var(--text); }
 .gaps-th--num { text-align: right; }
@@ -202,12 +224,13 @@
   border-bottom: 1px solid var(--border);
 }
 .gaps-row:hover { background: var(--bg-soft); }
-.gaps-row td { padding: 10px 12px; color: var(--text-3); vertical-align: middle; }
+.gaps-row td {
+  padding: 10px 12px; color: var(--text-3); vertical-align: middle;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .gaps-cell-title {
   color: var(--text);
   font-weight: 500;
-  max-width: 480px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .gaps-cell-num {
   text-align: right;
@@ -216,6 +239,86 @@
   color: var(--text-2);
   letter-spacing: -0.02em;
 }
+
+/* The combined "Overall" score — the headline metric, emphasised over the
+   individual dimensions beside it. */
+.gaps-cell-num--strong {
+  color: var(--text-1);
+  font-weight: 600;
+}
+
+/* --- Ranking controls: view-time weights + min-floor filters --------------- */
+/* Toggle lives in the tabbar, pushed to the far right. */
+.rank-controls-toggle {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 10px; margin-bottom: -1px;
+  background: transparent; border: 1px solid var(--border); border-radius: 7px;
+  color: var(--text-2); font-size: 12.5px; cursor: pointer;
+}
+.rank-controls-toggle:hover { color: var(--text); border-color: var(--text-4); }
+.rank-controls-toggle.is-open {
+  color: var(--accent); border-color: var(--accent); background: var(--accent-soft);
+}
+.rank-controls-toggle-icon { width: 13px; height: 13px; }
+.rank-controls-badge {
+  font-family: var(--font-mono); font-size: 10.5px; line-height: 1;
+  padding: 2px 5px; border-radius: 6px;
+  background: var(--accent-warm); color: #fff;
+}
+
+.rank-controls {
+  display: flex; flex-wrap: wrap; align-items: flex-start; gap: 28px;
+  margin: -8px 0 22px; padding: 16px 18px;
+  background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius);
+}
+.rank-controls-group { display: flex; flex-direction: column; gap: 8px; min-width: 230px; }
+.rank-controls-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+.rank-controls-title {
+  font-size: 12px; font-weight: 600; color: var(--text-2);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.rank-controls-hint { font-size: 11px; color: var(--text-4); }
+.rank-knob { display: grid; grid-template-columns: 74px 1fr 34px; align-items: center; gap: 10px; }
+.rank-knob-label { font-size: 12.5px; color: var(--text-2); }
+.rank-knob-val {
+  font-family: var(--font-mono); font-size: 11.5px; color: var(--text-3);
+  text-align: right; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+}
+
+/* Range inputs, restyled to the app's tokens: a thin inset track with an accent
+   thumb ringed in the panel colour. Track + thumb must be set per-engine. */
+.rank-knob input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 16px; background: transparent; cursor: pointer; outline: none;
+}
+.rank-knob input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 3px; background: var(--bg-inset); border: 1px solid var(--border);
+}
+.rank-knob input[type="range"]::-moz-range-track {
+  height: 4px; border-radius: 3px; background: var(--bg-inset); border: 1px solid var(--border);
+}
+.rank-knob input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 13px; height: 13px; margin-top: -6px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--bg-panel);
+  box-shadow: 0 0 0 1px var(--accent); transition: box-shadow 80ms;
+}
+.rank-knob input[type="range"]::-moz-range-thumb {
+  width: 13px; height: 13px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--bg-panel);
+  box-shadow: 0 0 0 1px var(--accent); transition: box-shadow 80ms;
+}
+.rank-knob input[type="range"]:hover::-webkit-slider-thumb { box-shadow: 0 0 0 1px var(--accent), 0 0 0 4px var(--accent-soft); }
+.rank-knob input[type="range"]:hover::-moz-range-thumb { box-shadow: 0 0 0 1px var(--accent), 0 0 0 4px var(--accent-soft); }
+.rank-knob input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 1px var(--accent), 0 0 0 4px var(--accent-soft); }
+.rank-knob input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 1px var(--accent), 0 0 0 4px var(--accent-soft); }
+.rank-controls-reset {
+  align-self: center; padding: 6px 12px;
+  background: var(--bg-inset); border: 1px solid var(--border); border-radius: 7px;
+  color: var(--text-2); font-size: 12.5px; cursor: pointer;
+}
+.rank-controls-reset:hover { color: var(--text); border-color: var(--text-4); }
 
 /* Evidence blocks on the gap detail. */
 .evidence {
@@ -262,6 +365,14 @@
   animation: spin 0.7s linear infinite;
 }
 .sidebar-item--busy .sidebar-item-label { color: var(--accent); }
+/* Overall score shown after a gap's name in the nav tree. */
+.sidebar-score {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-3);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
 
 /* --- ingest box (Papers overview) — a growing multi-line query field -------- */
 .papers-ingest-box {

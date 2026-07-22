@@ -1,0 +1,132 @@
+{
+  "gap_id": "gap_954e877a",
+  "status": "validated",
+  "title": "Efficiency improvements for training coordination",
+  "description": "Training could be accelerated greatly by devising better methods for coordinating G and D or determining better distributions to sample z from during training.",
+  "type": "future_work",
+  "canonical_description": "improve training efficiency through better G-D coordination and noise distributions",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1406.2661",
+      "section": "conclusions_and_future_work",
+      "anchor": "training could be accelerated greatly by divising better methods",
+      "quote": "\\item { Efficiency improvements:} training could be accelerated greatly by divising better methods for",
+      "char_offset": [
+        1096,
+        1198
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T08:20:48Z",
+  "verdict": {
+    "gap_id": "gap_954e877a",
+    "status": "partially_solved",
+    "confidence": 0.65,
+    "reasoning": "DE-GAN (Paper 1) addresses the noise-distribution sub-problem by learning informative noise vectors from a VAE decoder-encoder, showing faster convergence. This is the most direct hit on one of the gap's two axes. The other three papers (iWGAN, IGAN, AEGAN) offer stability improvements and indirect coordination benefits through architectural changes (encoders, dual discriminators, duality gaps), but none devises a targeted coordination strategy for G vs. D — they still use standard alternating SGD with fixed update schedules. Moreover, AEGAN explicitly doubles the network size, reducing per-step efficiency. The noise-distribution improvement from DE-GAN requires pre-training a VAE and is only tested on image generation. Together, the papers cover parts of the gap but leave the core challenge of great acceleration through G-D coordination largely untouched, and the noise-distribution fix comes with practical caveats.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_1807.03923",
+          "title": "Generative Adversarial Networks with Decoder-Encoder Output Noise",
+          "abstract": "In recent years, research on image generation methods has been developing fast. The auto-encoding variational Bayes method (VAEs) was proposed in 2013, which uses variational inference to learn a latent space from the image database and then generates images using the decoder. The generative adversarial networks (GANs) came out as a promising framework, which uses adversarial training to improve the generative ability of the generator. However, the generated pictures by GANs are generally blurry. The deep convolutional generative adversarial networks (DCGANs) were then proposed to leverage the quality of generated images. Since the input noise vectors are randomly sampled from a Gaussian distribution, the generator has to map from a whole normal distribution to the images. This makes DCGANs unable to reflect the inherent structure of the training data. In this paper, we propose a novel deep model, called generative adversarial networks with decoder-encoder output noise (DE-GANs), which takes advantage of both the adversarial training and the variational Bayesain inference to improve the performance of image generation. DE-GANs use a pre-trained decoder-encoder architecture to map the random Gaussian noise vectors to informative ones and pass them to the generator of the adversarial networks. Since the decoder-encoder architecture is trained by the same images as the generators, the output vectors could carry the intrinsic distribution information of the original images. Moreover, the loss function of DE-GANs is different from GANs and DCGANs. A hidden-space loss function is added to the adversarial loss function to enhance the robustness of the model. Extensive empirical results show that DE-GANs can accelerate the convergence of the adversarial training process and improve the quality of the generated images.",
+          "authors": [
+            "Guoqiang Zhong",
+            "Wei Gao",
+            "Yongbin Liu",
+            "Youzhao Yang"
+          ],
+          "published_date": "2018-07-11T01:50:17Z",
+          "url": "https://arxiv.org/abs/1807.03923v1"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper proposes DE-GANs, which uses a pre-trained Decoder-Encoder (from a VAE trained on the same dataset) to transform random Gaussian noise into \"informative\" noise vectors that carry information about the real image distribution. This addresses the gap's sub-problem of \"determining better distributions to sample z from.\" The paper also adds a hidden-space loss function using discriminator activations. Empirical results on MNIST, celebA, and CIFAR-10 show faster convergence (e.g., 95% test accuracy after 1 epoch on MNIST vs. slower DCGAN baseline) and improved image quality.",
+        "what_remains_open": "The paper does NOT address the \"coordinating G and D\" aspect of the gap. It uses standard alternating SGD training with no novel mechanism for coordinating the generator and discriminator. The hidden-space loss uses discriminator features but is a loss function modification, not a coordination strategy. Additionally, the approach requires pre-training a VAE on the same dataset, which adds overhead and may not generalize to settings where such pre-training is impractical. The method is also evaluated only on image generation tasks, leaving open whether it applies to other domains where GANs are used.",
+        "evidence_snippets": [
+          "In both GANs and DCGANs models, the noise vectors are simply sampled from a normal distribution N(0, I), which may cause a deviation from the real distribution of real images. Hence, in this paper we are to find a method to learn a better distribution of noise. Inspired by the structure of VAEs, we present a novel Decoder-Encoder architecture to fit a noise distribution which carries the information of the image datasets.",
+          "The experiment demonstrates that the posterior noise is better since it can accelerate the convergence of the adversarial networks and improve the quality of generated images.",
+          "We propose a Decoder-Encoder structure which transforms the original Gaussian noise to a posterior one and it can carry information of the real images. These noise vectors could preserve the inherent structure of images, accelerate the training process and improve the quality of the generated images."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2109.05652",
+          "title": "Inferential Wasserstein Generative Adversarial Networks",
+          "abstract": "Generative Adversarial Networks (GANs) have been impactful on many problems and applications but suffer from unstable training. The Wasserstein GAN (WGAN) leverages the Wasserstein distance to avoid the caveats in the minmax two-player training of GANs but has other defects such as mode collapse and lack of metric to detect the convergence. We introduce a novel inferential Wasserstein GAN (iWGAN) model, which is a principled framework to fuse auto-encoders and WGANs. The iWGAN model jointly learns an encoder network and a generator network motivated by the iterative primal dual optimization process. The encoder network maps the observed samples to the latent space and the generator network maps the samples from the latent space to the data space. We establish the generalization error bound of the iWGAN to theoretically justify its performance. We further provide a rigorous probabilistic interpretation of our model under the framework of maximum likelihood estimation. The iWGAN, with a clear stopping criteria, has many advantages over other autoencoder GANs. The empirical experiments show that the iWGAN greatly mitigates the symptom of mode collapse, speeds up the convergence, and is able to provide a measurement of quality check for each individual sample. We illustrate the ability of the iWGAN by obtaining competitive and stable performances for benchmark datasets.",
+          "authors": [
+            "Yao Chen",
+            "Qingyi Gao",
+            "Xiao Wang"
+          ],
+          "published_date": "2021-09-13T00:43:21Z",
+          "url": "https://arxiv.org/abs/2109.05652v1"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The iWGAN paper introduces an encoder network alongside the generator and discriminator, using a primal-dual optimization framework that jointly learns all three components. It provides a duality gap as a natural stopping criterion for training convergence, and uses an MMD penalty to enforce that the encoder's latent distribution matches the prior (standard normal). These elements partially address training coordination by providing a more structured training objective and a convergence metric. The paper also claims faster convergence and mitigation of mode collapse in experiments.",
+        "what_remains_open": "The paper does not directly address the core of the gap: devising better methods for coordinating the G and D training dynamics (e.g., adaptive update ratios, curriculum learning for G/D, or novel scheduling strategies). The coordination between G and D remains the standard alternating gradient descent with the same update frequency. The noise distribution is fixed to standard normal throughout — the paper does not explore determining better distributions to sample z from during training (it only enforces that the encoder's output matches the fixed prior). The iWGAN's improvements come from adding an encoder and a different objective, not from novel coordination strategies between G and D or from adaptive noise distribution selection.",
+        "evidence_snippets": [
+          "The iWGAN, with a clear stopping criteria, has many advantages over other autoencoder GANs. The empirical experiments show that the iWGAN greatly mitigates the symptom of mode collapse, speeds up the convergence, and is able to provide a measurement of quality check for each individual sample.",
+          "We have proposed a stopping criteria for our algorithm and a metric for individual sample quality checking.",
+          "In this paper, we consider models with $Z\\sim {\\cal N}(0, I)$."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2109.13360",
+          "title": "IGAN: Inferent and Generative Adversarial Networks",
+          "abstract": "I present IGAN (Inferent Generative Adversarial Networks), a neural architecture that learns both a generative and an inference model on a complex high dimensional data distribution, i.e. a bidirectional mapping between data samples and a simpler low-dimensional latent space. It extends the traditional GAN framework with inference by rewriting the adversarial strategy in both the image and the latent space with an entangled game between data-latent encoded posteriors and priors. It brings a measurable stability and convergence to the classical GAN scheme, while keeping its generative quality and remaining simple and frugal in order to run on a lab PC. IGAN fosters the encoded latents to span the full prior space: this enables the exploitation of an enlarged and self-organised latent space in an unsupervised manner. An analysis of previously published articles sets the theoretical ground for the proposed algorithm. A qualitative demonstration of potential applications like self-supervision or multi-modal data translation is given on common image datasets including SAR and optical imagery.",
+          "authors": [
+            "Luc Vignaud"
+          ],
+          "published_date": "2021-09-27T21:48:35Z",
+          "url": "https://arxiv.org/abs/2109.13360v1"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "IGAN proposes an entangled adversarial game in both data and latent spaces, adding an encoder to create a bidirectional mapping. This architecture introduces a modified coordination between the generator, encoder, and discriminator through joint probability matching in an embedded space, and encourages the encoded latents to span the full prior distribution (addressing the \"noise distribution\" aspect of the gap). The paper reports improved stability and convergence compared to vanilla GANs, and demonstrates measurable convergence indicators.",
+        "what_remains_open": "The paper does not directly address training efficiency as a primary goal — its focus is on adding inference capabilities and latent-space applications (self-supervision, multi-domain translation). The \"coordination\" improvement is a byproduct of the architecture rather than a targeted efficiency optimization. The paper does not provide systematic efficiency comparisons (e.g., training time, convergence speed, sample complexity) against baselines. The noise distribution aspect is addressed only indirectly: IGAN encourages latents to span the prior space but does not propose methods for actively determining better sampling distributions for z during training — it uses a fixed prior (e.g., Gaussian). The approach also adds computational overhead (encoder network, additional adversarial terms) whose net efficiency impact is not quantified.",
+        "evidence_snippets": [
+          "It brings a measurable stability and convergence to the classical GAN scheme, while keeping its generative quality and remaining simple and frugal in order to run on a lab PC.",
+          "IGAN fosters the encoded latents to span the full prior space: this enables the exploitation of an enlarged and self-organised latent space in an unsupervised manner.",
+          "It balances, stabilizes the generation of data (and latents) and avoids mode collapse, while keeping the data generative quality. It provides measurable performance and convergence indicators."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2004.05472",
+          "title": "Autoencoding Generative Adversarial Networks",
+          "abstract": "In the years since Goodfellow et al. introduced Generative Adversarial Networks (GANs), there has been an explosion in the breadth and quality of generative model applications. Despite this work, GANs still have a long way to go before they see mainstream adoption, owing largely to their infamous training instability. Here I propose the Autoencoding Generative Adversarial Network (AEGAN), a four-network model which learns a bijective mapping between a specified latent space and a given sample space by applying an adversarial loss and a reconstruction loss to both the generated images and the generated latent vectors. The AEGAN technique offers several improvements to typical GAN training, including training stabilization, mode-collapse prevention, and permitting the direct interpolation between real samples. The effectiveness of the technique is illustrated using an anime face dataset.",
+          "authors": [
+            "Conor Lazarou"
+          ],
+          "published_date": "2020-04-11T19:51:04Z",
+          "url": "https://arxiv.org/abs/2004.05472v1"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper proposes AEGAN, which adds an encoder network and a second discriminator (for latent space) to create a bijective mapping between latent space and sample space. This is trained with both adversarial losses (four components) and reconstruction losses (L1 for images, L2 for latent vectors). The technique stabilizes GAN training and prevents mode collapse by exposing the generator to the dataset through the reconstruction path, rather than relying solely on discriminator feedback. The paper demonstrates this on an anime face dataset, showing that AEGAN avoids the mode collapse that a comparable GAN suffers from.",
+        "what_remains_open": "The gap asks about \"efficiency improvements for training coordination\" — specifically better methods for coordinating G and D, or determining better distributions to sample z from. While AEGAN does improve training stability and prevents mode collapse (which indirectly affects training efficiency), it does not directly address training efficiency in terms of computational cost or convergence speed. In fact, the paper explicitly notes that AEGAN \"effectively doubles the size of the network, from two sub-networks to four, requiring more time and resources to train\" — making it less efficient in terms of per-step computation. The paper also does not propose any method for determining better distributions to sample z from; it uses a standard multivariate normal distribution N(0,I). The coordination improvement is architectural (adding an encoder + reconstruction loss) rather than a novel coordination strategy between G and D that improves training speed or sample efficiency.",
+        "evidence_snippets": [
+          "The AEGAN technique stabilizes GAN training by directing the generator towards the low-dimensional manifold in high-dimensional pixel space.",
+          "The primary limitation of the AEGAN technique is that it effectively doubles the size of the network, from two sub-networks to four, requiring more time and resources to train.",
+          "random vectors Z were drawn from the N_{32}(0, I) distribution"
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 4,
+      "skipped_ids": []
+    }
+  },
+  "ranking": {
+    "openness": 0.27499999999999997,
+    "impact": 0.20924514205417982,
+    "feasibility": 0.55,
+    "feasibility_reasoning": "Moderate tractability. On the plus side: standard GAN datasets are abundant, training is feasible on a single GPU for moderate-scale settings, and a rich methodological toolkit exists (TTUR, spectral normalization, WGAN, adaptive schedules) to build on — no fundamental breakthrough needed. The noise-distribution sub-problem has already been broached by DE-GAN with a VAE-based approach, providing a concrete starting point. Progress can be measured via standard metrics (FID, IS, convergence wall-clock time). However, the gap is somewhat sprawling and ill-defined: \"better coordination\" could mean adaptive update ratios, loss-balancing schemes, or entirely new optimization dynamics, and the bar of \"great acceleration\" is ambitious. A researcher would first need to narrow the problem substantially. The computational cost of grid-searching coordination strategies can also add up. Overall, doable but requires careful scoping."
+  }
+}

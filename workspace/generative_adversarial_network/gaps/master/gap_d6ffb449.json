@@ -1,0 +1,46 @@
+{
+  "gap_id": "gap_d6ffb449",
+  "status": "validated",
+  "title": "No claim of sample quality superiority over existing methods",
+  "description": "The authors state that they make no claim that samples from adversarial nets are better than samples from existing generative models, only that they are competitive.",
+  "type": "caveat",
+  "canonical_description": "no claim that generated samples outperform existing methods",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1406.2661",
+      "section": "experiments",
+      "anchor": "make no claim that these samples are better than",
+      "quote": "While we make no claim that these samples are better than",
+      "char_offset": [
+        1708,
+        1765
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T08:20:48Z",
+  "verdict": {
+    "gap_id": "gap_d6ffb449",
+    "status": "open",
+    "confidence": 0.2,
+    "reasoning": "No candidate papers were deep-read, so there is no evidence the gap has been addressed.",
+    "assessments": [],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 0,
+      "skipped_ids": []
+    }
+  },
+  "ranking": {
+    "openness": 0.6,
+    "impact": 0.20924514205417982,
+    "feasibility": 0.35,
+    "feasibility_reasoning": "The gap is vague (\"superiority over existing methods\" — which methods? on what metric? in what domain?) and the field has already moved on. Since 2014, hundreds of papers have compared GANs to VAEs, normalizing flows, autoregressive models, and diffusion models across many benchmarks. On standard quality metrics (FID, IS), GANs were shown to be superior to many earlier methods, and later diffusion models surpassed GANs. So the gap has been implicitly and extensively addressed — GANs *have* been shown superior in some settings and inferior in others. What remains is context-dependent and unlikely to yield a clean, general answer. Data and evaluation tools exist, and modest compute suffices for evaluation (using pre-trained models), so it's not intractable. But the scope is ill-defined, the literature is vast, and the question is no longer novel — making it hard for a small team to produce a meaningful, impactful contribution that resolves the gap definitively."
+  }
+}

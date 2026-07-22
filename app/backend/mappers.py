@@ -222,8 +222,9 @@ def map_paper(rec: dict, *, full: bool = False) -> dict:
 #   pending      → mined by the gap agent, awaiting the director
 #   to_validate  → the director judged it novel, awaiting the validator
 #   to_rank      → the validator judged it an open opportunity, awaiting ranking
-#   master       → in the master list (a ranked opportunity, or a solved gap)
-#   archive      → the director found it a duplicate; merged into another gap
+#   master       → in the master list (a ranked, live opportunity)
+#   archive      → retired: a director duplicate (merged into another gap) or a
+#                  validator-solved gap (already addressed by prior art)
 _GAP_STEPS = [
     ("mined", "Mined"),
     ("deduped", "Deduplicated"),
@@ -267,6 +268,25 @@ def _map_ranking(r: dict | None) -> dict | None:
     }
 
 
+def map_ranking_config(cfg) -> dict:
+    """The RankingConfig's *view-time* knobs, for the UI's ranking panel.
+
+    Only the knobs the UI actually applies at view time are exposed: the three
+    dimension weights (`w_*`, used in the weighted geometric mean that produces
+    the Overall score) and the three filter floors (`min_*`, below which a gap is
+    dropped). The compute-time knobs (venue/citation/recency) are the agent's and
+    are not surfaced here. `cfg` is a RankingConfig (or any object with these
+    attributes)."""
+    return {
+        "wOpenness": cfg.w_openness,
+        "wImpact": cfg.w_impact,
+        "wFeasibility": cfg.w_feasibility,
+        "minOpenness": cfg.min_openness,
+        "minImpact": cfg.min_impact,
+        "minFeasibility": cfg.min_feasibility,
+    }
+
+
 def _gap_ingestion(rec: dict, stage: str | None) -> dict:
     """Where the gap is in the ingestion pipeline + a per-step stepper.
 
@@ -276,7 +296,10 @@ def _gap_ingestion(rec: dict, stage: str | None) -> dict:
     """
     verdict = rec.get("verdict") or {}
     ranking = rec.get("ranking")
-    is_dup = stage == "archive" or rec.get("status") == "duplicate"
+    # The archive/ stage holds two kinds of retired gap: director duplicates and
+    # validator-solved gaps. Detect a duplicate from its own markers, not the
+    # stage folder, so a solved gap parked in archive/ keeps its "solved" outcome.
+    is_dup = rec.get("status") == "duplicate" or bool(rec.get("duplicate_of"))
 
     deduped = stage in ("to_validate", "to_rank", "master", "archive")
     validated = bool(verdict) or stage in ("to_rank", "master")
@@ -295,7 +318,7 @@ def _gap_ingestion(rec: dict, stage: str | None) -> dict:
         # Duplicates are merged after dedup, so validate/rank never apply to them.
         if is_dup and key in ("validated", "ranked"):
             return "skipped"
-        # Solved gaps are terminal (parked in master), never ranked.
+        # Solved gaps are terminal (parked in archive), never ranked.
         if key == "ranked" and verdict.get("status") == "solved":
             return "skipped"
         return "done" if done else "todo"
@@ -412,6 +435,19 @@ def map_topic(meta: dict, *, n_papers: int, n_gaps: int, n_ideas: int = 0) -> di
         "category": meta.get("category") or "Research workspace",
         "categoryColor": topic_color(slug),
         "description": meta.get("description") or "",
+        # Foundational papers the category agent wrote into meta.json. Each is a
+        # one-click ingest into the paper pipeline (the frontend passes ``title``
+        # as the fetch query), so the field carries just what a paper card needs.
+        "seminalPapers": [
+            {
+                "title": p.get("title", ""),
+                "authors": p.get("authors", ""),
+                "year": p.get("year"),
+                "why": p.get("why", ""),
+            }
+            for p in (meta.get("seminal_papers") or [])
+            if isinstance(p, dict) and p.get("title")
+        ],
         "createdAt": (meta.get("created_at") or "")[:10],
         "updatedAt": (meta.get("updated_at") or "")[:10],
         "starred": bool(meta.get("starred")),

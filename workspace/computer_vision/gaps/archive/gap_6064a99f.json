@@ -1,0 +1,154 @@
+{
+  "gap_id": "gap_6064a99f",
+  "status": "validated",
+  "title": "Simplified assumptions in DDPM formulation",
+  "description": "The DDPM formulation makes various simplifying assumptions about the forward noising process, including that it is fixed and adds diagonal Gaussian noise at each timestep, which may not hold for all data distributions.",
+  "type": "assumption",
+  "canonical_description": "Diffusion model assumes fixed noising process with diagonal Gaussian noise",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2102.09672",
+      "section": "denoising_diffusion_probabilistic_models",
+      "anchor": "various simplifying assumptions, such as a fixed noising process",
+      "quote": "This formulation makes various simplifying assumptions, such as a fixed noising process $q$ which adds diagonal Gaussian noise at each timestep.",
+      "char_offset": [
+        61,
+        205
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T07:37:20Z",
+  "verdict": {
+    "gap_id": "gap_6064a99f",
+    "status": "solved",
+    "confidence": 0.9,
+    "reasoning": "Paper 1 (Neural Flow Diffusion Models) directly solves the gap. The gap has two components: (1) the forward process is fixed, and (2) it uses diagonal Gaussian noise. NFDM replaces both: its forward process is parameterized by a learnable invertible transformation F_φ(ε, t, x) that can accommodate *any* continuous distribution expressible as an invertible mapping applied to noise — explicitly going beyond fixed, diagonal Gaussian noise. The paper cites the standard DDPM assumption as a limitation and demonstrates SOTA likelihoods on CIFAR-10, ImageNet 32/64. The other four papers each address only the \"fixed\" component (Papers 2–5 make the forward process learnable or data-dependent) but leave the diagonal-Gaussian-noise component untouched — Paper 3 and Paper 5 explicitly retain diagonal Gaussian noise. Since Paper 1 covers the full gap with concrete results, the gap is solved. The 0.9 confidence reflects that NFDM's framework covers all distributions expressible via invertible mappings (a very broad but not completely universal class), and that computational overhead remains a practical concern, but the core theoretical assumption has been relaxed.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2404.12940",
+          "title": "Neural Flow Diffusion Models: Learnable Forward Process for Improved Diffusion Modelling",
+          "abstract": "Conventional diffusion models typically relies on a fixed forward process, which implicitly defines complex marginal distributions over latent variables. This can often complicate the reverse process' task in learning generative trajectories, and results in costly inference for diffusion models. To address these limitations, we introduce Neural Flow Diffusion Models (NFDM), a novel framework that enhances diffusion models by supporting a broader range of forward processes beyond the standard Gaussian. We also propose a novel parameterization technique for learning the forward process. Our framework provides an end-to-end, simulation-free optimization objective, effectively minimizing a variational upper bound on the negative log-likelihood. Experimental results demonstrate NFDM's strong performance, evidenced by state-of-the-art likelihood estimation. Furthermore, we investigate NFDM's capacity for learning generative dynamics with specific characteristics, such as deterministic straight lines trajectories, and demonstrate how the framework may be adopted for learning bridges between two distributions. The results underscores NFDM's versatility and its potential for a wide range of applications.",
+          "authors": [
+            "Grigory Bartosh",
+            "Dmitry Vetrov",
+            "Christian A. Naesseth"
+          ],
+          "published_date": "2024-04-19T15:10:54Z",
+          "url": "https://arxiv.org/abs/2404.12940v3"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper directly addresses the gap of simplified assumptions in DDPM formulation by introducing Neural Flow Diffusion Models (NFDM), a framework that generalizes the forward process beyond the standard fixed, diagonal Gaussian noise. The paper proposes a learnable forward process parameterized via an invertible transformation F_φ(ε, t, x), which can accommodate any continuous (and learnable) distribution that can be expressed as an invertible mapping applied to noise. This includes non-Gaussian parameterizations and time-dependent, data-dependent transformations. The framework retains desirable properties like simulation-free training and likelihood-based optimization. The paper demonstrates state-of-the-art likelihood results on CIFAR-10, ImageNet 32 and 64, showing that relaxing the fixed diagonal Gaussian assumption yields tangible improvements.",
+        "what_remains_open": "The paper fully addresses the core gap: it shows that the fixed diagonal Gaussian assumption can be relaxed to a learnable forward process, and provides a practical framework for doing so. However, some specific aspects remain open for future work: (1) The paper notes that NFDM is limited to forward process parameterizations with functions that match specific conditions (differentiable, invertible w.r.t. ε), so not all possible forward processes are covered. (2) The paper focuses on continuous-time SDE/ODE formulations; discrete-time DDPMs with learnable forward processes are not explicitly addressed. (3) The computational overhead (~2.2x longer per iteration) is a practical limitation. But these are extensions, not failures to address the gap.",
+        "evidence_snippets": [
+          "Conventional diffusion models often rely on a fixed forward process, which implicitly defines complex marginal distributions over latent variables. This can often complicate the reverse process' task in learning generative trajectories, and results in costly inference for diffusion models. To address these limitations, we introduce NFDM, a novel framework that enhances diffusion models by supporting a broader range of forward processes beyond the standard linear Gaussian.",
+          "Unlike conventional diffusion models [CITE:ho2020denoising], which rely on a conditional Gaussian forward process, NFDM can accommodate any continuous (and learnable) distribution that can be expressed as an invertible mapping applied to noise.",
+          "We propose a generalized form of the forward process that enables the definition and learning of a broad range of distributions in the latent space. From a practical perspective, a more flexible forward process can simplify the task of learning the reverse process."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2503.01006",
+          "title": "Underdamped Diffusion Bridges with Applications to Sampling",
+          "abstract": "We provide a general framework for learning diffusion bridges that transport prior to target distributions. It includes existing diffusion models for generative modeling, but also underdamped versions with degenerate diffusion matrices, where the noise only acts in certain dimensions. Extending previous findings, our framework allows to rigorously show that score matching in the underdamped case is indeed equivalent to maximizing a lower bound on the likelihood. Motivated by superior convergence properties and compatibility with sophisticated numerical integration schemes of underdamped stochastic processes, we propose \\emph{underdamped diffusion bridges}, where a general density evolution is learned rather than prescribed by a fixed noising process. We apply our method to the challenging task of sampling from unnormalized densities without access to samples from the target distribution. Across a diverse range of sampling problems, our approach demonstrates state-of-the-art performance, notably outperforming alternative methods, while requiring significantly fewer discretization steps and no hyperparameter tuning.",
+          "authors": [
+            "Denis Blessing",
+            "Julius Berner",
+            "Lorenz Richter",
+            "Gerhard Neumann"
+          ],
+          "published_date": "2025-03-02T20:22:09Z",
+          "url": "https://arxiv.org/abs/2503.01006v2"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper proposes underdamped diffusion bridges where \"a general density evolution is learned rather than prescribed by a fixed noising process\" (abstract), directly addressing the assumption of a fixed forward noising process. It generalizes diffusion models to allow degenerate diffusion matrices (noise acting only in certain dimensions), relaxing the diagonal Gaussian noise assumption. The framework derives ELBOs and score-matching objectives for these generalized settings, showing that learning both forward and backward controls is feasible. However, the primary focus is on sampling from unnormalized densities rather than generative modeling of arbitrary data distributions.",
+        "what_remains_open": "The paper does not fully address the assumption that the noise is Gaussian — the noise remains Gaussian (Wiener process) even in the underdamped/degenerate setting. The diagonal Gaussian noise assumption is only partially relaxed by allowing degenerate diffusion matrices (zero noise in some dimensions), but the noise that does act is still diagonal Gaussian. Additionally, the paper's main experimental focus is on sampling from known unnormalized densities (Bayesian inference, synthetic targets) rather than generative modeling of complex data distributions (images, audio) where the DDPM assumptions are typically used. The paper does not explore non-Gaussian noise distributions or noise that is correlated across dimensions in a learned way.",
+        "evidence_snippets": [
+          "a general density evolution is learned rather than prescribed by a fixed noising process",
+          "we generalize diffusion-based sampling to processes with degenerate noise, in particular including controlled underdamped Langevin equations",
+          "For (underdamped) diffusion models with degenerate η, a corresponding (hybrid) score matching loss has been suggested and connected to likelihood optimization by [CITE:dockhorn2021score]. In the following proposition, we show that this also follows as a special case from [REF:lem:elbo]."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2301.12003",
+          "title": "Minimizing Trajectory Curvature of ODE-based Generative Models",
+          "abstract": "Recent ODE/SDE-based generative models, such as diffusion models, rectified flows, and flow matching, define a generative process as a time reversal of a fixed forward process. Even though these models show impressive performance on large-scale datasets, numerical simulation requires multiple evaluations of a neural network, leading to a slow sampling speed. We attribute the reason to the high curvature of the learned generative trajectories, as it is directly related to the truncation error of a numerical solver. Based on the relationship between the forward process and the curvature, here we present an efficient method of training the forward process to minimize the curvature of generative trajectories without any ODE/SDE simulation. Experiments show that our method achieves a lower curvature than previous models and, therefore, decreased sampling costs while maintaining competitive performance. Code is available at https://github.com/sangyun884/fast-ode.",
+          "authors": [
+            "Sangyun Lee",
+            "Beomsu Kim",
+            "Jong Chul Ye"
+          ],
+          "published_date": "2023-01-27T21:52:03Z",
+          "url": "https://arxiv.org/abs/2301.12003v3"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "This paper addresses the \"fixed forward process\" assumption in DDPMs by proposing to learn the forward coupling \\(q(\\x, \\z)\\) via a neural network encoder rather than keeping it fixed as independent coupling. The authors parameterize the forward process as \\(q_\\phi(\\z|\\x)\\) and jointly train it with the generative model to minimize trajectory curvature. This directly challenges the standard DDPM assumption that the forward noising process must be fixed and predefined.",
+        "what_remains_open": "The paper does NOT address the \"diagonal Gaussian noise\" assumption. The learned forward process still uses a diagonal Gaussian distribution for \\(q_\\phi(\\z|\\x)\\) (as stated: \"we define \\(q_\\phib(\\z | \\x)\\) as a Gaussian distribution\"). The paper also acknowledges this limitation explicitly: \"for our encoding distribution \\(q_\\phib(\\z | \\x)\\), we use a Gaussian distribution for theoretical and practical conveniences... However, our simple Gaussian encoder cannot eliminate the intersection completely.\" The question of whether the diagonal Gaussian noise assumption holds for all data distributions remains open. Additionally, the paper's motivation is curvature minimization for sampling efficiency, not a general investigation of the validity of DDPM assumptions across different data distributions.",
+        "evidence_snippets": [
+          "In previous work, $q(\\x, \\z)$ is fixed, and so is the curvature of the generative process in optima. In the following, we further examine the relationship between forward coupling and curvature and show that we can improve the curvature by finding better $q(\\x, \\z)$.",
+          "Therefore, we propose to parameterize the coupling as a neural network $q_\\phib(\\x,\\z) = q_\\phib(\\z | \\x)p(\\x)$, where we define $q_\\phib(\\z | \\x)$ as a Gaussian distribution.",
+          "One limitation of our method is that for our encoding distribution $q_\\phib(\\z | \\x)$, we use a Gaussian distribution for theoretical and practical conveniences... However, our simple Gaussian encoder cannot eliminate the intersection completely."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2601.21812",
+          "title": "A Decomposable Forward Process in Diffusion Models for Time-Series Forecasting",
+          "abstract": "We introduce a model-agnostic forward diffusion process for time-series forecasting that decomposes signals into spectral components, preserving structured temporal patterns such as seasonality more effectively than standard diffusion. Unlike prior work that modifies the network architecture or diffuses directly in the frequency domain, our proposed method alters only the diffusion process itself, making it compatible with existing diffusion backbones (e.g., DiffWave, TimeGrad, CSDI). By staging noise injection according to component energy, it maintains high signal-to-noise ratios for dominant frequencies throughout the diffusion trajectory, thereby improving the recoverability of long-term patterns. This strategy enables the model to maintain the signal structure for a longer period in the forward process, leading to improved forecast quality. Across standard forecasting benchmarks, we show that applying spectral decomposition strategies, such as the Fourier or Wavelet transform, consistently improves upon diffusion models using the baseline forward process, with negligible computational overhead. The code for this paper is available at https://anonymous.4open.science/r/D-FDP-4A29.",
+          "authors": [
+            "Francisco Caldas",
+            "Sahil Kumar",
+            "Cláudia Soares"
+          ],
+          "published_date": "2026-01-29T14:55:43Z",
+          "url": "https://arxiv.org/abs/2601.21812v2"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "This paper proposes a \"Decomposable Forward Diffusion Process\" that modifies the standard DDPM forward process for time-series forecasting. Instead of adding noise indiscriminately to the entire signal, it decomposes the time series into spectral components (via Fourier or wavelet transforms) and injects noise sequentially in ascending order of component amplitude. This makes the forward process data-dependent and adaptive to the signal's structure, rather than being a fixed schedule applied uniformly. The approach preserves structured temporal patterns (e.g., seasonality) longer in the diffusion trajectory.",
+        "what_remains_open": "The paper addresses the \"fixed\" assumption of the DDPM forward process by making it adaptive to the data's spectral structure. However, it does NOT address the \"diagonal Gaussian noise\" assumption — the noise added at each timestep remains diagonal Gaussian (the same isotropic Gaussian noise as standard DDPM). The gap's concern about diagonal Gaussian noise \"not hold[ing] for all data distributions\" is not tackled; the paper does not consider non-Gaussian, correlated, or structured noise distributions. Additionally, the approach is specifically designed for time-series data with additive decomposable structure, so it does not generalize the DDPM formulation for arbitrary data distributions.",
+        "evidence_snippets": [
+          "In standard diffusion models, noise is applied indiscriminately to the entire input~[CITE:Ho_2021], so every diffusion step simultaneously corrupts all aspects of the signal. In contrast, many time-series can be decomposed into disjoint spectral components (e.g., seasonalities and residuals) whose sum reconstructs the original signal. Our process leverages this additive property by staging noise injection across components",
+          "We propose a decomposable Forward Diffusion Process, a model-agnostic modification of the diffusion forward process for time-series forecasting.",
+          "z_t^k = \\sqrt{\\bar{\\alpha}_t} f_0^k + \\sum_{n>k}^{K} f_0^n + \\sqrt{d_k(1-\\bar{\\alpha}_t)} \\epsilon + \\sqrt{\\sum_{n=1}^{k-1} d_n} \\epsilon"
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2302.02373",
+          "title": "ShiftDDPMs: Exploring Conditional Diffusion Models by Shifting Diffusion Trajectories",
+          "abstract": "Diffusion models have recently exhibited remarkable abilities to synthesize striking image samples since the introduction of denoising diffusion probabilistic models (DDPMs). Their key idea is to disrupt images into noise through a fixed forward process and learn its reverse process to generate samples from noise in a denoising way. For conditional DDPMs, most existing practices relate conditions only to the reverse process and fit it to the reversal of unconditional forward process. We find this will limit the condition modeling and generation in a small time window. In this paper, we propose a novel and flexible conditional diffusion model by introducing conditions into the forward process. We utilize extra latent space to allocate an exclusive diffusion trajectory for each condition based on some shifting rules, which will disperse condition modeling to all timesteps and improve the learning capacity of model. We formulate our method, which we call \\textbf{ShiftDDPMs}, and provide a unified point of view on existing related methods. Extensive qualitative and quantitative experiments on image synthesis demonstrate the feasibility and effectiveness of ShiftDDPMs.",
+          "authors": [
+            "Zijian Zhang",
+            "Zhou Zhao",
+            "Jun Yu",
+            "Qi Tian"
+          ],
+          "published_date": "2023-02-05T12:48:21Z",
+          "url": "https://arxiv.org/abs/2302.02373v3"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper proposes ShiftDDPMs, which relax the \"fixed\" assumption of the DDPM forward process by introducing a condition-dependent mean shift ($k_t \\cdot E(c)$) that allocates different diffusion trajectories for different conditions. This makes the forward process no longer fixed but dependent on the condition variable. However, the paper does not address the diagonal Gaussian noise assumption — it fixes $\\Sigma(c) = I$ (diagonal) in all image experiments, noting that trainable non-diagonal $\\Sigma$ leads to unstable training and poor results.",
+        "what_remains_open": "The paper only partially addresses the gap. It relaxes the \"fixed forward process\" assumption by making the mean of the forward process condition-dependent, but it does NOT address the \"diagonal Gaussian noise\" assumption. The noise remains diagonal Gaussian ($\\Sigma(c) = I$) throughout all experiments. The paper explicitly states that trainable $\\Sigma(\\cdot)$ leads to unstable training and poor results, so it does not provide a solution for non-diagonal or non-Gaussian noise. Additionally, the paper's approach is specifically designed for conditional generation (requiring condition labels), not for general data distributions where the simplifying assumptions may fail. The broader question of whether the diagonal Gaussian noise assumption holds for all data distributions remains completely open.",
+        "evidence_snippets": [
+          "In our experiments on image synthesis, trainable $\\bm{\\Sigma}(\\cdot)$ leads to complex training and sampling procedure, unstable training and poor results, so we fix $\\bm{\\Sigma}(\\bm{c}) = \\bm{I}$ like that in Eq.([REF:original_forward_direct]).",
+          "We utilize extra latent space to allocate an exclusive diffusion trajectory for each condition based on some shifting rules, which will disperse condition modeling to all timesteps and improve the learning capacity of model.",
+          "Specifically, $k_{t} \\cdot \\bm{E}(\\bm{c})$ is the cumulative mean shift of diffusion trajectories at $t$-th step, where $k_{t}$ is a shift coefficient schedule that decides the shift mode and $\\bm{E}(\\cdot)$ is a function which we call shift predictor that maps conditions into the latent space."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 5,
+      "skipped_ids": []
+    }
+  },
+  "ranking": null
+}

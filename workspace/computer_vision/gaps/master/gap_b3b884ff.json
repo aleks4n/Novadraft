@@ -1,0 +1,82 @@
+{
+  "gap_id": "gap_b3b884ff",
+  "status": "validated",
+  "title": "Hybrid objective models sacrifice optimal log-likelihood",
+  "description": "Models trained with the L_hybrid objective do not achieve optimal log-likelihoods because L_hybrid trades off likelihood for sample quality.",
+  "type": "caveat",
+  "canonical_description": "Hybrid training objective trades off optimal log-likelihood for sample quality",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2102.09672",
+      "section": "scaling_model_size",
+      "anchor": "do not achieve optimal log-likelihoods in general",
+      "quote": "We also note that these models do not achieve optimal log-likelihoods in general because they were trained with our $L_{\\text{hybrid}}$ objective and not directly with $L_{\\text{vlb}}$ to keep both good log-likelihoods and sample quality.",
+      "char_offset": [
+        1841,
+        2079
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T07:37:20Z",
+  "verdict": {
+    "gap_id": "gap_b3b884ff",
+    "status": "open",
+    "confidence": 0.95,
+    "reasoning": "Both deep-read papers are assessed as not_addressed. Paper 1 compares standard NELBO vs. weighted losses — a different axis entirely — and never studies hybrid objectives that combine likelihood with other loss terms. Paper 2 reinterprets reweighted ELBOs as improved variational bounds but remains within pure likelihood-based losses; it does not propose, analyze, or even mention hybrid objectives that trade off log-likelihood for sample quality. Neither paper tackles the specific problem of how L_hybrid sacrifices optimal log-likelihood, so the gap remains entirely open. Confidence is high because the assessments are clear, consistent, and directly explain why the gap is untouched.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2507.01516",
+          "title": "Loss Functions in Diffusion Models: A Comparative Study",
+          "abstract": "Diffusion models have emerged as powerful generative models, inspiring extensive research into their underlying mechanisms. One of the key questions in this area is the loss functions these models shall train with. Multiple formulations have been introduced in the literature over the past several years with some links and some critical differences stemming from various initial considerations. In this paper, we explore the different target objectives and corresponding loss functions in detail. We present a systematic overview of their relationships, unifying them under the framework of the variational lower bound objective. We complement this theoretical analysis with an empirical study providing insights into the conditions under which these objectives diverge in performance and the underlying factors contributing to such deviations. Additionally, we evaluate how the choice of objective impacts the model ability to achieve specific goals, such as generating high-quality samples or accurately estimating likelihoods. This study offers a unified understanding of loss functions in diffusion models, contributing to more efficient and goal-oriented model designs in future research.",
+          "authors": [
+            "Dibyanshu Kumar",
+            "Philipp Vaeth",
+            "Magda Gregorová"
+          ],
+          "published_date": "2025-07-02T09:23:34Z",
+          "url": "https://arxiv.org/abs/2507.01516v1"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "This paper provides a systematic comparison of standard diffusion model loss functions (NELBO and weighted formulations) across different prediction targets (x-space, epsilon-space, v-space, s-space). It shows theoretical equivalence of NELBO formulations and empirically examines their convergence behavior, sample quality, and loss-vs-timestep characteristics on 2D synthetic data and CIFAR-10. The paper does not study hybrid objectives that combine multiple loss terms.",
+        "what_remains_open": "The paper does not address hybrid objective models at all. It does not study L_hybrid — an objective that deliberately combines multiple loss terms to trade off optimal log-likelihood for improved sample quality. The gap about whether and how hybrid objectives sacrifice optimal log-likelihood remains completely open. The paper compares standard NELBO vs weighted losses, which is a different axis of comparison.",
+        "evidence_snippets": []
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2511.19664",
+          "title": "Demystifying Diffusion Objectives: Reweighted Losses are Better Variational Bounds",
+          "abstract": "We derive a new theoretical interpretation of the reweighted losses that are widely used for training diffusion models. Our method is based on constructing a cascade of time-dependent variational lower bounds on the data log-likelihood, that provably improves upon the standard evidence lower bound and results in reduced data-model KL-divergences. Combining such bounds gives rise to reweighted objectives that can be applied to any generative diffusion model including both continuous Gaussian diffusion and masked (discrete) diffusion models. Then, we showcase this framework in masked diffusion and report significant improvements over previous training losses in pixel-space image modeling, approaching sample quality comparable to continuous diffusion models. Our results also provide a theoretical justification for the simple weighting scheme widely used in masked image models.",
+          "authors": [
+            "Jiaxin Shi",
+            "Michalis K. Titsias"
+          ],
+          "published_date": "2025-11-24T19:58:45Z",
+          "url": "https://arxiv.org/abs/2511.19664v1"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "This paper provides a new theoretical interpretation of reweighted losses (e.g., the \"simple\" objective) used in diffusion model training. It shows that these reweighted losses can be expressed as weighted sums of improved time-dependent ELBOs that have smaller KL divergences than the standard ELBO, thus providing a variational justification for why reweighted objectives improve sample quality. The paper extends this analysis from continuous Gaussian diffusion to masked discrete diffusion models and demonstrates improved FID scores on ImageNet 64×64.",
+        "what_remains_open": "The paper does not address hybrid objective models (L_hybrid) that combine likelihood-based losses with other terms (e.g., adversarial losses) and thereby sacrifice optimal log-likelihood. The paper focuses entirely on reweighted versions of the ELBO itself — which are still pure likelihood-based variational bounds — and does not study, propose, or analyze any hybrid objective that trades off likelihood for sample quality by mixing different types of loss functions. The specific problem of how hybrid objectives degrade log-likelihood and whether that degradation can be mitigated remains unaddressed.",
+        "evidence_snippets": []
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 2,
+      "skipped_ids": []
+    }
+  },
+  "ranking": {
+    "openness": 0.975,
+    "impact": 0.26439912906339846,
+    "feasibility": 0.75,
+    "feasibility_reasoning": "The gap is empirically well-defined and easy to evaluate: you can directly measure log-likelihood (or ELBO/NELBO) and sample quality (FID, IS, etc.) on standard benchmarks (CIFAR-10, ImageNet, etc.). Data and modest compute suffice for small-scale studies (e.g., diffusion models or VAEs with hybrid losses). The trade-off itself is known, so the feasible contributions are (a) characterizing its Pareto frontier more precisely, (b) deriving theoretical bounds on the likelihood sacrifice given a sample-quality target, and (c) designing regularizers that push the frontier outward. No fundamental breakthrough is needed — the methods exist (e.g., weighting schedules, Lagrangian approaches). The main limitation is that sweeping architectural or very-large-scale experiments require more compute, but a focused theoretical or small-scale empirical study is clearly tractable."
+  }
+}

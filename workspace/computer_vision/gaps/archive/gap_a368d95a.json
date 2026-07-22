@@ -1,0 +1,150 @@
+{
+  "gap_id": "gap_a368d95a",
+  "status": "validated",
+  "title": "Cosine schedule design chosen arbitrarily",
+  "description": "The choice of the cosine-squared function for the noise schedule was arbitrary, and many other functions with similar shapes would likely work as well.",
+  "type": "caveat",
+  "canonical_description": "Noise schedule functional form chosen arbitrarily without theoretical justification",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2102.09672",
+      "section": "improving_the_log_likelihood",
+      "anchor": "This choice was arbitrary, and we expect that many other functions",
+      "quote": "This choice was arbitrary, and we expect that many other functions with similar shapes would work as well.",
+      "char_offset": [
+        8131,
+        8237
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T07:37:20Z",
+  "verdict": {
+    "gap_id": "gap_a368d95a",
+    "status": "solved",
+    "confidence": 0.75,
+    "reasoning": "Paper 1 directly solves the gap by deriving the cosine-squared schedule from Fisher Information of the Ornstein-Uhlenbeck process, showing it is not arbitrary but emerges from a principled information-theoretic design. The gap's core claim—that the schedule was chosen without theoretical justification—is refuted. Papers 2–4 provide partial supporting frameworks but don't address the cosine schedule specifically; Paper 5 is purely empirical. Confidence is moderate because Paper 1 is a research note whose derivation assumes a single-channel process, and the broader question of optimal schedules in real-world settings remains open, but the specific gap about the cosine schedule's arbitrariness is squarely resolved.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2311.17673",
+          "title": "Using Ornstein-Uhlenbeck Process to understand Denoising Diffusion Probabilistic Model and its Noise Schedules",
+          "abstract": "The aim of this short note is to show that Denoising Diffusion Probabilistic Model DDPM, a non-homogeneous discrete-time Markov process, can be represented by a time-homogeneous continuous-time Markov process observed at non-uniformly sampled discrete times. Surprisingly, this continuous-time Markov process is the well-known and well-studied Ornstein-Ohlenbeck (OU) process, which was developed in 1930's for studying Brownian particles in Harmonic potentials. We establish the formal equivalence between DDPM and the OU process using its analytical solution. We further demonstrate that the design problem of the noise scheduler for non-homogeneous DDPM is equivalent to designing observation times for the OU process. We present several heuristic designs for observation times based on principled quantities such as auto-variance and Fisher Information and connect them to ad hoc noise schedules for DDPM. Interestingly, we show that the Fisher-Information-motivated schedule corresponds exactly the cosine schedule, which was developed without any theoretical foundation but is the current state-of-the-art noise schedule.",
+          "authors": [
+            "Javier E. Santos",
+            "Yen Ting Lin"
+          ],
+          "published_date": "2023-11-29T14:36:33Z",
+          "url": "https://arxiv.org/abs/2311.17673v1"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper establishes an exact equivalence between DDPM and the time-homogeneous Ornstein-Uhlenbeck (OU) process observed at non-uniformly sampled times. Using this equivalence, it derives several noise schedules from principled quantities of the OU process (auto-variance, coefficient of variation, differential entropy, and Fisher Information). Most importantly, it shows that the Fisher-Information-motivated schedule yields exactly the cosine schedule (ᾱ_k = cos²(kπ/2T)), providing a theoretical foundation for what was previously considered an ad hoc design. The paper thus directly addresses the gap by demonstrating that the cosine schedule is not arbitrary but emerges from an information-theoretic principle.",
+        "what_remains_open": "The paper fully addresses the gap's core claim that the cosine schedule was chosen arbitrarily without theoretical justification — it provides a principled derivation from Fisher Information. However, the gap also notes that \"many other functions with similar shapes would likely work as well.\" The paper does not systematically compare whether other similar-shaped functions would perform comparably, nor does it prove that the cosine schedule is uniquely optimal. Additionally, the paper acknowledges its own limitations: all the proposed designs are \"one-dimensional designs based on the process on a single channel\" and \"can at best be described as heuristic approaches,\" leaving open the question of optimal noise schedule design in the multi-channel, data-dependent setting.",
+        "evidence_snippets": [
+          "we show that the Fisher-Information-motivated schedule corresponds exactly the \\emph{cosine schedule}, which was developed without any theoretical foundation but is the current state-of-the-art noise schedule.",
+          "in contrast to the common belief that the cosine schedule is an ad hoc engineered construct, it may have come from a deeper information-theoretic principle.",
+          "Perhaps the most interesting discovery of this research note is the identification of the Fisher-Information-motivated observation times leads to the cosine schedule, which was deemed as an ad hoc design even by the original designer"
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2605.21911",
+          "title": "Noise Schedule Design for Diffusion Models: An Optimal Control Perspective",
+          "abstract": "We develop a principled framework for analyzing and designing noise schedules in diffusion models. We show that one can recast this design problem as an optimal control problem, whose state is the Fisher information of the diffusion process which evolves according to an ODE and the control input is the noise schedule. The objective of the optimal control problem is a functional involving the Fisher information, which is shown to be an upper bound on the Kullback-Leibler sampling error. By solving this optimal control problem, we obtain sufficient conditions on noise schedules under which state-of-the-art $\\tilde{\\mathcal{O}} (d/n)$ sampling error is achievable, where $d$ is the data dimension and $n$ is the number of discretization steps. While existing theoretical work also prove that $\\tilde{\\mathcal{O}}(d/n)$ sampling error bounds are achievable, these results hold for specific noise schedules, which do not include the schedules used in practice. Under a further parametric assumption on the data distribution, we show that one can obtain closed-form expressions for the noise schedules. These noise schedules generalize standard empirical schedules such as exponential and sigmoid schedules by allowing additional parameters that can be tuned. Systematically tuning the parameters of these schedules yields new schedules that achieve superior FID scores on image generation benchmarks.",
+          "authors": [
+            "Seo Taek Kong",
+            "Weina Wang",
+            "R. Srikant"
+          ],
+          "published_date": "2026-05-21T02:32:48Z",
+          "url": "https://arxiv.org/abs/2605.21911v1"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "This paper develops an optimal control framework for noise schedule design in diffusion models, using Fisher information to derive principled schedules. It shows that standard heuristic schedules (VE-Exponential, VP-Sigmoid) are special cases of their proposed Affine-Coupled Schedules (ACS), and provides theoretical guarantees ($\\tilde{\\mathcal{O}}(d/n)$ sampling error) for a broad class of schedules. The framework introduces tunable parameters that allow systematic optimization of schedules across computational budgets.",
+        "what_remains_open": "The paper does not specifically address the cosine schedule (from Nichol & Dhariwal 2021) that the gap refers to. The cosine schedule is never mentioned or analyzed. While the paper provides a general framework that could theoretically justify or replace arbitrary schedule choices, it does not explain why a cosine-shaped function in particular works, nor does it show that the cosine schedule is a special case of their framework. The gap about the cosine schedule's arbitrary choice remains open — the paper addresses the broader problem of arbitrary schedule design but not this specific instance.",
+        "evidence_snippets": [
+          "We show that one can recast this design problem as an optimal control problem, whose state is the Fisher information of the diffusion process which evolves according to an ODE and the control input is the noise schedule.",
+          "This analysis shows that standard empirical heuristics, such as VE-Exponential and VP-Sigmoid, are special cases",
+          "Our results provide a theoretical explanation for the empirical success of these schedules."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2502.00180",
+          "title": "Spectral Analysis of Diffusion Models with Application to Schedule Design",
+          "abstract": "Diffusion models (DMs) have emerged as powerful tools for modeling complex data distributions and generating realistic new samples. Over the years, advanced architectures and sampling methods have been developed to make these models practically usable. However, certain synthesis process decisions still rely on heuristics without a solid theoretical foundation. In our work, we offer a novel analysis of the DM's inference process, introducing a comprehensive frequency response perspective. Specifically, by relying on Gaussianity assumption, we present the inference process as a closed-form spectral transfer function, capturing how the generated signal evolves in response to the initial noise. We demonstrate how the proposed analysis can be leveraged to design a noise schedule that aligns effectively with the characteristics of the data. The spectral perspective also provides insights into the underlying dynamics and sheds light on the relationship between spectral properties and noise schedule structure. Our results lead to scheduling curves that are dependent on the spectral content of the data, offering a theoretical justification for some of the heuristics taken by practitioners.",
+          "authors": [
+            "Roi Benita",
+            "Michael Elad",
+            "Joseph Keshet"
+          ],
+          "published_date": "2025-01-31T21:50:31Z",
+          "url": "https://arxiv.org/abs/2502.00180v3"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "This paper addresses the arbitrary choice of noise schedule functional form by developing a spectral analysis of diffusion models under a Gaussianity assumption. It derives closed-form transfer functions for the reverse process and formulates an optimization problem to find noise schedules that minimize the Wasserstein-2 or KL divergence between the generated and true distributions, based on the spectral content (eigenvalues) of the data. The paper shows that the optimized schedules resemble heuristic cosine and sigmoid schedules when parameters are tuned, providing a partial theoretical justification for why these heuristics work. It also demonstrates that the optimized schedules outperform heuristic ones in FID and Wasserstein-2 metrics on CIFAR-10 and MUSIC datasets.",
+        "what_remains_open": "The paper's analysis relies on a Gaussianity assumption for the data distribution, which is a significant simplification for real-world data like natural images. The optimization is performed numerically rather than yielding a closed-form theoretical derivation that explains exactly why the cosine-squared function (or any specific functional form) is optimal. The paper does not fully resolve the arbitrariness — it replaces heuristic choice with data-dependent numerical optimization, but does not prove that a particular functional family (e.g., cosine-squared) is theoretically optimal. The framework also assumes access to the true covariance matrix of the data, which must be estimated in practice. Extensions to non-Gaussian distributions (e.g., Gaussian mixture models) are left as future work.",
+        "evidence_snippets": [
+          "An interesting outcome from Figure [REF:subfig:Spectral_scheduler_comparison] is that the spectral recommendation provides a partial retrospective justification for existing noise schedule heuristics, as the parametric estimation resembles Cosine and Sigmoid functions, when their parameters are properly tuned.",
+          "Our results lead to scheduling curves that are dependent on the spectral content of the data, offering a theoretical justification for some of the heuristics taken by practitioners.",
+          "Limitations: While our approach demonstrates the benefits of a principled scheduler design and outperforms heuristic methods in FID across multiple datasets, a natural next step is to extend the framework to settings closer to real data distributions, such as Gaussian mixture models."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2407.03297",
+          "title": "Improved Noise Schedule for Diffusion Training",
+          "abstract": "Diffusion models have emerged as the de facto choice for generating high-quality visual signals across various domains. However, training a single model to predict noise across various levels poses significant challenges, necessitating numerous iterations and incurring significant computational costs. Various approaches, such as loss weighting strategy design and architectural refinements, have been introduced to expedite convergence and improve model performance. In this study, we propose a novel approach to design the noise schedule for enhancing the training of diffusion models. Our key insight is that the importance sampling of the logarithm of the Signal-to-Noise ratio ($\\log \\text{SNR}$), theoretically equivalent to a modified noise schedule, is particularly beneficial for training efficiency when increasing the sample frequency around $\\log \\text{SNR}=0$. This strategic sampling allows the model to focus on the critical transition point between signal dominance and noise dominance, potentially leading to more robust and accurate predictions.We empirically demonstrate the superiority of our noise schedule over the standard cosine schedule.Furthermore, we highlight the advantages of our noise schedule design on the ImageNet benchmark, showing that the designed schedule consistently benefits different prediction targets. Our findings contribute to the ongoing efforts to optimize diffusion models, potentially paving the way for more efficient and effective training paradigms in the field of generative AI.",
+          "authors": [
+            "Tiankai Hang",
+            "Shuyang Gu",
+            "Xin Geng",
+            "Baining Guo"
+          ],
+          "published_date": "2024-07-03T17:34:55Z",
+          "url": "https://arxiv.org/abs/2407.03297v2"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "This paper proposes a unified framework for designing noise schedules by reframing them as probability distributions over log-SNR ($p(\\lambda)$). It empirically tests multiple alternative schedules (Laplace, Cauchy, Cosine Shifted, Cosine Scaled) and shows they can outperform the standard cosine schedule when tuned to concentrate sampling around $\\lambda=0$ (mid-range noise). The paper demonstrates that the specific functional form matters less than the design principle of focusing computational resources on intermediate noise levels.",
+        "what_remains_open": "The paper does NOT provide a theoretical justification for why any particular functional form of the noise schedule is optimal. It still relies on empirical exploration and the heuristic that \"mid-range noise is important.\" The gap's core issue — that the cosine schedule was chosen arbitrarily without theoretical grounding — remains unresolved. The paper essentially confirms the gap's claim that many functions with similar shapes work well, but does not derive a principled, theoretically justified schedule from first principles. The choice among Laplace, Cauchy, or other distributions is still made empirically.",
+        "evidence_snippets": [
+          "While these foundational concepts have enabled significant progress in diffusion models, the choice of noise schedule remains somewhat ad hoc. This motivates us to develop a more systematic framework for analyzing and designing noise schedules by examining them from a probability perspective.",
+          "While these different schedules take various mathematical forms, they all achieve similar optimal performance when given equivalent training budgets. The specific mathematical formulation is less crucial than the underlying design philosophy: increasing the sampling probability of intermediate noise levels.",
+          "Our theoretical analysis demonstrates that this approach is equivalent to performing importance sampling on the noise. Empirical results show that our proposed Laplace noise schedule, which focuses computational resources on mid-range noise levels, yields superior performance compared to adjusting loss weights under constrained computational budgets."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2301.10972",
+          "title": "On the Importance of Noise Scheduling for Diffusion Models",
+          "abstract": "We empirically study the effect of noise scheduling strategies for denoising diffusion generative models. There are three findings: (1) the noise scheduling is crucial for the performance, and the optimal one depends on the task (e.g., image sizes), (2) when increasing the image size, the optimal noise scheduling shifts towards a noisier one (due to increased redundancy in pixels), and (3) simply scaling the input data by a factor of $b$ while keeping the noise schedule function fixed (equivalent to shifting the logSNR by $\\log b$) is a good strategy across image sizes. This simple recipe, when combined with recently proposed Recurrent Interface Network (RIN), yields state-of-the-art pixel-based diffusion models for high-resolution images on ImageNet, enabling single-stage, end-to-end generation of diverse and high-fidelity images at 1024$\\times$1024 resolution (without upsampling/cascades).",
+          "authors": [
+            "Ting Chen"
+          ],
+          "published_date": "2023-01-26T07:37:22Z",
+          "url": "https://arxiv.org/abs/2301.10972v4"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "This paper empirically studies noise scheduling strategies for diffusion models, comparing cosine, sigmoid, and linear schedule functions along with input scaling. It finds that the optimal noise schedule depends on image size and proposes a compound strategy (linear schedule + input scaling) that works well across resolutions. However, the paper does not address the theoretical justification for the functional form of the noise schedule.",
+        "what_remains_open": "The gap concerns the arbitrary choice of the cosine-squared function and the lack of theoretical justification for the noise schedule's functional form. This paper does not provide any theoretical derivation or justification for why a particular functional form (cosine, sigmoid, linear, or otherwise) is optimal. It remains entirely empirical — trying different functions and reporting which works best for different image sizes. The core question of why a specific functional form should be chosen (rather than any other with a similar shape) is not addressed. The paper's own conclusion states \"we empirically study noise scheduling strategies\" and \"it is important to select a proper noise scheduling scheme\" — confirming the approach is empirical, not theoretical.",
+        "evidence_snippets": [
+          "We empirically study the effect of noise scheduling strategies for denoising diffusion generative models.",
+          "We systematically study two different noise scheduling strategies for diffusion models.",
+          "In this work, we empirically study noise scheduling strategies for diffusion models and show their importance."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 5,
+      "skipped_ids": []
+    }
+  },
+  "ranking": null
+}

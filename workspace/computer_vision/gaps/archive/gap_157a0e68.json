@@ -1,0 +1,151 @@
+{
+  "gap_id": "gap_157a0e68",
+  "status": "validated",
+  "title": "Evaluation limited to small model sizes",
+  "description": "The paper's empirical evaluation is restricted to model sizes below 1.3B parameters, which is below the threshold of most strong open-source LLMs (e.g., Llama 7B) and other recurrent models such as RWKV and RetNet that have been evaluated at 7B+ scale.",
+  "type": "limitation",
+  "canonical_description": "evaluation limited to small model scales below 7B parameters",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2312.00752",
+      "section": "discussion",
+      "anchor": "Our empirical evaluation is limited to small model sizes",
+      "quote": "Our empirical evaluation is limited to small model sizes,",
+      "char_offset": [
+        1302,
+        1359
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T07:37:05Z",
+  "verdict": {
+    "gap_id": "gap_157a0e68",
+    "status": "solved",
+    "confidence": 0.95,
+    "reasoning": "Three papers directly solve the gap by evaluating recurrent/state-space models at 7B+ scale. Paper 1 (Overflow Prevention) evaluates Falcon3-Mamba-Inst-7B, Falcon-Mamba-Inst-7B, RecurrentGemma-IT-9B, and RWKV6-Finch-7B on long-context benchmarks. Paper 2 (Mechanistic Design) trains and evaluates hybrid architectures from 70M up to 7B parameters in a scaling-law study. Paper 3 (Quamba2) evaluates quantization on Mamba2-8B. All three provide concrete results at the 7B+ scale that the gap identified as missing. Only Paper 4 (Routing Mamba) remains at 1.3B active parameters, but it does not weaken the verdict given the strong and direct evidence from the other three papers. The gap is fully addressed.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2505.07793",
+          "title": "Overflow Prevention Enhances Long-Context Recurrent LLMs",
+          "abstract": "A recent trend in LLMs is developing recurrent sub-quadratic models that improve long-context processing efficiency. We investigate leading large long-context models, focusing on how their fixed-size recurrent memory affects their performance. Our experiments reveal that, even when these models are trained for extended contexts, their use of long contexts remains underutilized. Specifically, we demonstrate that a chunk-based inference procedure, which identifies and processes only the most relevant portion of the input can mitigate recurrent memory failures and be effective for many long-context tasks: On LongBench, our method improves the overall performance of Falcon3-Mamba-Inst-7B by 14%, Falcon-Mamba-Inst-7B by 28%, RecurrentGemma-IT-9B by 50%, and RWKV6-Finch-7B by 51%. Surprisingly, this simple approach also leads to state-of-the-art results in the challenging LongBench v2 benchmark, showing competitive performance with equivalent size Transformers. Furthermore, our findings raise questions about whether recurrent models genuinely exploit long-range dependencies, as our single-chunk strategy delivers stronger performance - even in tasks that presumably require cross-context relations.",
+          "authors": [
+            "Assaf Ben-Kish",
+            "Itamar Zimerman",
+            "M. Jehanzeb Mirza",
+            "Lior Wolf",
+            "James Glass",
+            "Leonid Karlinsky",
+            "Raja Giryes"
+          ],
+          "published_date": "2025-05-12T17:45:05Z",
+          "url": "https://arxiv.org/abs/2505.07793v2"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper evaluates its proposed overflow-prevention method (OPRM) on multiple recurrent LLMs at the 7B+ scale, including Falcon3-Mamba-Inst-7B, Falcon-Mamba-Inst-7B, RecurrentGemma-IT-9B, and RWKV6-Finch-7B. This directly addresses the gap of evaluations being limited to model sizes below 1.3B or 7B parameters. The paper demonstrates significant improvements on LongBench and LongBench v2 at these scales, showing the method works at the scale of strong open-source LLMs.",
+        "what_remains_open": "The gap is fully addressed. The paper evaluates models at 7B and 9B parameters (Falcon3-Mamba-Inst-7B, Falcon-Mamba-Inst-7B, RWKV6-Finch-7B, RecurrentGemma-IT-9B), which is exactly the scale the gap identified as missing. The paper also includes smaller models (1.4B, 130M) for ablation/extension experiments, but the primary results are at 7B+ scale.",
+        "evidence_snippets": [
+          "On LongBench, our method improves the overall performance of Falcon3-Mamba-Inst-7B by 14%, Falcon-Mamba-Inst-7B by 28%, RecurrentGemma-IT-9B by 50%, and RWKV6-Finch-7B by 51%.",
+          "Scaling these architectures has shown competitive performance with SOTA Transformers on standard short-context benchmarks, particularly at model sizes exceeding 7B parameters, marking a breakthrough in language modeling. Notable examples include Falcon-Mamba, Eagle 7B, xLSTM-7B, Hawk, and others.",
+          "In Table [REF:tab:long_bench_v2_vs_competition] we compare leading 7 billion parameter Attention-based LLMs...and recurrent LLMs augmented with \\methodname inference."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2403.17844",
+          "title": "Mechanistic Design and Scaling of Hybrid Architectures",
+          "abstract": "The development of deep learning architectures is a resource-demanding process, due to a vast design space, long prototyping times, and high compute costs associated with at-scale model training and evaluation. We set out to simplify this process by grounding it in an end-to-end mechanistic architecture design (MAD) pipeline, encompassing small-scale capability unit tests predictive of scaling laws. Through a suite of synthetic token manipulation tasks such as compression and recall, designed to probe capabilities, we identify and test new hybrid architectures constructed from a variety of computational primitives. We experimentally validate the resulting architectures via an extensive compute-optimal and a new state-optimal scaling law analysis, training over 500 language models between 70M to 7B parameters. Surprisingly, we find MAD synthetics to correlate with compute-optimal perplexity, enabling accurate evaluation of new architectures via isolated proxy tasks. The new architectures found via MAD, based on simple ideas such as hybridization and sparsity, outperform state-of-the-art Transformer, convolutional, and recurrent architectures (Transformer++, Hyena, Mamba) in scaling, both at compute-optimal budgets and in overtrained regimes. Overall, these results provide evidence that performance on curated synthetic tasks can be predictive of scaling laws, and that an optimal architecture should leverage specialized layers via a hybrid topology.",
+          "authors": [
+            "Michael Poli",
+            "Armin W Thomas",
+            "Eric Nguyen",
+            "Pragaash Ponnusamy",
+            "Björn Deiseroth",
+            "Kristian Kersting",
+            "Taiji Suzuki",
+            "Brian Hie",
+            "Stefano Ermon",
+            "Christopher Ré",
+            "Ce Zhang",
+            "Stefano Massaroli"
+          ],
+          "published_date": "2024-03-26T16:33:12Z",
+          "url": "https://arxiv.org/abs/2403.17844v2"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "The paper trains and evaluates language models from 70M to 7B parameters across over 500 models, directly addressing the claim that evaluation is limited to small model sizes below 1.3B. The scaling law analysis includes model sizes up to 7B parameters, which matches the threshold mentioned in the gap (Llama 7B). The paper explicitly lists 7e9 (7B) as one of its model sizes used for compute-optimal scaling analysis.",
+        "what_remains_open": "The paper fully addresses this gap. It evaluates models up to 7B parameters, which is the specific threshold mentioned in the gap description. No part of this gap remains open.",
+        "evidence_snippets": [
+          "training over $500$ language models between $70\\text{M}$ to $7\\text{B}$ parameters",
+          "We linearly interpolate learning rates from common settings at $150e6, 350e6, 1.3e9, 3e9$ and $7e9$ model sizes",
+          "training over $500$ language models between $70$ million and $7$ billion parameters with different architectures"
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2503.22879",
+          "title": "Quamba2: A Robust and Scalable Post-training Quantization Framework for Selective State Space Models",
+          "abstract": "State Space Models (SSMs) are emerging as a compelling alternative to Transformers because of their consistent memory usage and high performance. Despite this, scaling up SSMs on cloud services or limited-resource devices is challenging due to their storage requirements and computational power. To overcome this, quantizing SSMs with low bit-width data formats can reduce model size and benefit from hardware acceleration. As SSMs are prone to quantization-induced errors, recent efforts have focused on optimizing a particular model or bit-width for efficiency without sacrificing performance. However, distinct bit-width configurations are essential for different scenarios, like W4A8 for boosting large-batch decoding speed, and W4A16 for enhancing generation speed in short prompt applications for a single user. To this end, we present Quamba2, compatible with W8A8, W4A8, and W4A16 for both Mamba1 and Mamba2 backbones, addressing the growing demand for SSM deployment on various platforms. Based on the channel order preserving and activation persistence of SSMs, we propose an offline approach to quantize inputs of a linear recurrence in 8-bit by sorting and clustering for input $x$, combined with a per-state-group quantization for input-dependent parameters $B$ and $C$. To ensure compute-invariance in the SSM output, we rearrange weights offline according to the clustering sequence. The experiments show that Quamba2-8B outperforms two state-of-the-art SSM quantization methods and delivers 1.3$\\times$ and 3$\\times$ speed-ups in the pre-filling and generation stages, respectively, while offering 4$\\times$ memory reduction with only a $1.6\\%$ average accuracy drop. The evaluation on MMLU shows the generalizability and robustness of our framework. The code and quantized models will be released at: https://github.com/enyac-group/Quamba.",
+          "authors": [
+            "Hung-Yueh Chiang",
+            "Chi-Chih Chang",
+            "Natalia Frumkin",
+            "Kai-Chiang Wu",
+            "Mohamed S. Abdelfattah",
+            "Diana Marculescu"
+          ],
+          "published_date": "2025-03-28T21:10:39Z",
+          "url": "https://arxiv.org/abs/2503.22879v4"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "Quamba2 evaluates its quantization framework on Mamba2-8B, an 8-billion-parameter model, which is well above the 7B threshold mentioned in the gap. The paper presents extensive latency, memory, and accuracy results for this 8B-scale model across multiple bit-width configurations (W8A8, W4A8, W4A16) on both cloud (A5000) and edge (Orin Nano 8G) platforms, including evaluations on MMLU and six zero-shot tasks.",
+        "what_remains_open": "The paper fully addresses the gap by evaluating at 8B scale. No part of the gap remains open — the candidate paper does not suffer from the limitation of being restricted to sub-1.3B models.",
+        "evidence_snippets": [
+          "The experiments show that Quamba2-8B outperforms two state-of-the-art SSM quantization methods and delivers 1.3$\\times$ and 3$\\times$ speed-ups in the pre-filling and generation stages, respectively, while offering 4$\\times$ memory reduction with only a $1.6\\%$ average accuracy drop.",
+          "We test all methods on the A5000 for cloud applications and on the Orin Nano 8G for edge applications. Time-per-output-token (TPOT) and time-to-first-token (TTFT) are measured for a batch size of one, recorded in milliseconds (ms).",
+          "We evaluate W4A16 and W4A8 Quamba2-8B in the MMLU dataset [CITE:hendrycks2020measuring], a large multitasking dataset, covering 57 subject ranges at different difficulty levels."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2506.18145",
+          "title": "Routing Mamba: Scaling State Space Models with Mixture-of-Experts Projection",
+          "abstract": "Linear State Space Models (SSMs) offer remarkable performance gains in efficient sequence modeling, with constant inference-time computation and memory complexity. Recent advances, such as Mamba, further enhance SSMs with input-dependent gating and hardware-aware implementations, positioning them as strong alternatives to Transformers for long sequence modeling. However, efficiently scaling the expressive power of SSMs, particularly with Mixture of Experts (MoE), remains challenging, as naive integration attempts often falter or degrade performance. In this work, we introduce Routing Mamba (RoM), a novel approach that scales SSM parameters using sparse mixtures of linear projection experts. By sharing routing decisions between projection layers and lightweight sub-modules within Mamba across experts, RoM leverages synergies among linear projection experts for effective and efficient sparse scaling of Mamba layers. At a scale of 1.3B active parameters (10B total) and 16K training sequence length, RoM achieves language modeling performance equivalent to a dense Mamba model requiring over 2.3x more active parameters, and demonstrates consistent perplexity across context lengths. Experimental results further show RoM effectively scales hybrid language models, yielding a 23% FLOPS saving compared to dense Mamba scaling for similar performance.",
+          "authors": [
+            "Zheng Zhan",
+            "Liliang Ren",
+            "Shuohang Wang",
+            "Liyuan Liu",
+            "Yang Liu",
+            "Yeyun Gong",
+            "Yanzhi Wang",
+            "Yelong Shen"
+          ],
+          "published_date": "2025-06-22T19:26:55Z",
+          "url": "https://arxiv.org/abs/2506.18145v1"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "The paper proposes Routing Mamba (RoM), a method for scaling Mamba state space models using sparse mixtures of linear projection experts with a shared routing strategy. It evaluates models at scales from 115M up to 1.3B active parameters (10B total parameters with MoE sparsity) on language modeling perplexity and downstream reasoning tasks. The paper demonstrates that RoM achieves perplexity comparable to dense Mamba models requiring 2.3x more active parameters, and shows consistent length extrapolation.",
+        "what_remains_open": "The paper's largest active model has only 1.3B parameters (10B total with MoE sparsity), which remains far below the 7B+ scale of strong open-source LLMs like Llama 7B and other recurrent models such as RWKV and RetNet that have been evaluated at 7B+ scale. The paper does not demonstrate whether RoM's approach scales effectively to 7B+ active parameter models, leaving the question of scalability at larger, practically relevant model sizes completely open. The gap of evaluation being limited to small model sizes (below 7B) is not addressed by this paper, as it too evaluates only at small scales.",
+        "evidence_snippets": [
+          "We include four configurations with varying parameter sizes: 115M, 353M, 765M, and 1.3B.",
+          "At a scale of 1.3B active parameters (10B total) and 16K training sequence length, \\abbr achieves language modeling performance equivalent to a dense Mamba model requiring over 2.3$\\times$ more active parameters",
+          "across a scale from 115M up to 10B total parameters, \\abbr demonstrates superior scaling behavior compared to dense Mamba models"
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 4,
+      "skipped_ids": []
+    }
+  },
+  "ranking": null
+}

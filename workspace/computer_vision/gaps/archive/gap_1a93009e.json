@@ -1,0 +1,106 @@
+{
+  "gap_id": "gap_1a93009e",
+  "status": "validated",
+  "title": "Selective A parameter omitted without empirical verification",
+  "description": "The paper leaves the A parameter out of the selection mechanism, hypothesizing it would have similar performance to making dt selective, but this design choice is not empirically validated.",
+  "type": "assumption",
+  "canonical_description": "design choice to exclude state transition matrix from selection mechanism left empirically unverified",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2312.00752",
+      "section": "selective_state_space_models",
+      "anchor": "leave it out for simplicity",
+      "quote": "and leave it out for simplicity.",
+      "char_offset": [
+        17899,
+        17931
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T07:37:05Z",
+  "verdict": {
+    "gap_id": "gap_1a93009e",
+    "status": "solved",
+    "confidence": 0.85,
+    "reasoning": "TIDES (Paper 1) directly addresses the gap: it proposes and systematically validates a selective SSM where the state transition matrix A (its real part) is made input-dependent, and compares this against the design where Δ̃ is selective instead. Controlled ablations on EigenWorms (six variants with different selective components) and the Fading Flash diagnostic show that input-dependent A achieves better accuracy and out-of-distribution robustness than input-dependent Δ̃, directly answering the question of whether excluding A from selection is justified. The two other papers (Geometric SSM, Flash PD-SSM) do not address this specific empirical question. Confidence is very high, though slightly tempered by the fact that TIDES tests a specific A-selective formulation (diagonal Re(Λ)) rather than every possible way A could be made selective.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2605.09742",
+          "title": "TIDES: Implicit Time-Awareness in Selective State Space Models",
+          "abstract": "Selective state space models (SSMs), such as Mamba, achieve strong per-token expressivity by making the time discretization step $\\TildeΔ$ a learned function of the input. However, in doing so, $\\TildeΔ$ ceases to represent a physical sampling interval, limiting its irregular time series modeling capability. Continuous-time SSMs, such as S5, preserve the physical meaning of $\\TildeΔ$ and handle irregular timestamps natively ($\\TildeΔ\\equivΔ)$, but their dynamics remain linear time-invariant (LTI), limiting per-token expressivity. We propose \\textbf{TIDES}, a selective SSM variant that reconciles selective and continuous architectures by moving input-dependence off the step size and onto the diagonal state matrix. As a result, $\\TildeΔ$ retains its physical meaning, tied to the state discretization, allowing the model to handle irregular timestamps natively without sacrificing the per-token expressivity that makes selective SSMs effective. We show this on a novel \\emph{Fading Flash} experimental benchmark, a compact controlled diagnostic for sequence models that jointly tests input-dependence and extrapolation to out-of-distribution $Δ$ values, and isolates the distinct failure modes of current state-of-the-art architectures that TIDES avoids by construction. On large-scale benchmarks, TIDES sets the new state-of-the-art average rank on UEA time-series classification and the Physiome-ODE regression benchmark. Code available at: https://github.com/TaylanSoydan/TIDES.",
+          "authors": [
+            "Taylan Soydan",
+            "Miguel A. Bessa",
+            "Dirk Mohr",
+            "Rui Barreira"
+          ],
+          "published_date": "2026-05-10T20:34:06Z",
+          "url": "https://arxiv.org/abs/2605.09742v1"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "TIDES directly addresses the gap by proposing and empirically validating a selective SSM architecture where the state transition matrix A (specifically its real part, Re(Λ)) is made input-dependent, contrary to prior selective SSMs like Mamba that left A static and made Δ̃ selective instead. The paper provides systematic empirical evidence across multiple experiments: (1) the Fading Flash diagnostic shows that input-dependent Re(Λ) with physical Δ achieves both expressivity and extrapolation, while input-dependent Δ̃ fails to extrapolate; (2) a controlled random-drop ablation on EigenWorms tests six variants differing in which components are input-dependent, confirming that input-dependent Re(Λ) combined with input-dependent B,C achieves the best accuracy (0.739) and stays robust across out-of-distribution drop rates; (3) large-scale benchmarks (UEA classification, Physiome-ODE regression) show TIDES achieves state-of-the-art results. The paper explicitly argues for and validates the design choice of making A selective instead of Δ̃.",
+        "what_remains_open": "The paper fully addresses the gap. It empirically validates the design choice of making A (Re(Λ)) selective instead of Δ̃, showing it works better across multiple controlled experiments and large-scale benchmarks. The only limitation acknowledged is that TIDES is not evaluated on language modeling at scale, but this is outside the scope of the gap which concerns the empirical verification of the A-selection design choice itself.",
+        "evidence_snippets": [
+          "We propose TIDES, a selective SSM variant that reconciles selective and continuous architectures by moving input-dependence off the step size and onto the diagonal state matrix.",
+          "We argue for the following allocation: Δ̃ stays implicit and physical (Δ̃≡Δ)... Re(Λ) is input-dependent... Im(Λ) stays static... B and C are input-dependent.",
+          "Input-dependent Re(Λ) recovers expressivity and extrapolation: TIDES achieves the best mean accuracy (0.739) and stays flat across the full r_test range."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2505.17932",
+          "title": "Geometric SSM: LTI State Space Models for Selective Tasks",
+          "abstract": "A key claim in recent work on Selective State Space Models is that selectivity, the ability to focus on relevant information while filtering irrelevant inputs, requires breaking the Linear Time-Invariant (LTI) property through time-varying dynamics. We challenge this claim by demonstrating that LTI systems can achieve selectivity when designed using principles from geometric control. We introduce the Geometric SSM, in which different input patterns excite distinct invariant subspaces of the dynamics. Unlike Mamba's memoryless selection mechanism, our approach employs a dynamic residual generator that maintains temporal memory, enabling recognition of multi-token patterns without time-varying system matrices. The Geometric SSM achieves near-perfect performance on a novel extended induction head task where Mamba fails, while preserving efficient FFT-based training. Our results demonstrate that geometric control theory can inform the design of novel selective sequence models that combine theoretical rigor with practical efficiency.",
+          "authors": [
+            "Umberto Casti",
+            "Giacomo Baggio",
+            "Sandro Zampieri",
+            "Fabio Pasqualetti"
+          ],
+          "published_date": "2025-05-23T14:08:56Z",
+          "url": "https://arxiv.org/abs/2505.17932v2"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "This paper proposes the Geometric SSM, an LTI-based architecture that achieves selectivity through a dynamic residual generator and gating mechanism rather than through time-varying dynamics. It challenges the claim that selectivity requires time-varying systems, demonstrating that LTI systems can be selective when designed using geometric control principles. The paper does not investigate, test, or empirically validate Mamba's specific design choice of excluding the A parameter from the selection mechanism.",
+        "what_remains_open": "The gap concerns whether Mamba's design choice to leave the A matrix out of the selection mechanism (making only Δ, B, C input-dependent) is justified. This paper does not address that question at all — it does not test a version of Mamba where A is also made selective, nor does it empirically compare the effect of including vs. excluding A from selection. The gap remains completely open.",
+        "evidence_snippets": []
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2605.19150",
+          "title": "Flash PD-SSM: Memory-Optimized Structured Sparse State-Space Models",
+          "abstract": "State-space models (SSMs) face a fundamental trade-off between efficiency and expressivity that is mainly dictated by the structure of the model's transition matrix. Unstructured transition matrices enable maximal expressivity, as measured by their ability to model finite-state automaton (FSA) transitions, but come at a prohibitively high compute and memory cost. In contrast, most structured transition matrix forms are highly efficient both in runtime and memory consumption, but suffer from limited expressivity. Building on recent work on structured sparse SSMs, we propose Flash PD-SSM, a novel SSM that achieves comparable throughput to widely-used structured SSMs with significantly better expressivity guarantees. Flash PD-SSM maintains a trainable set of structured sparse matrices, a single one of which is discretely selected at each time-step, enabling FSA expressiveness at the level of unstructured matrices while maintaining the efficiency required for training models at scale. First, we validate Flash PD-SSM against a suite of alternative models on synthetic mechanistic and state-tracking tasks, finding that its theoretical expressivity is achieved in practice. Second, on multivariate time-series tasks involving sequences of length over 17,000, we find that Flash PD-SSM defines a new state-of-the-art (SoTA) accuracy among competing SSM methods. Finally, we demonstrate that Flash PD-SSM is an effective drop-in replacement for hybrid LLMs, yielding improvements both in natural language state-tracking and in common language modeling scenarios. The model exhibits increased throughput and decreased memory consumption compared to SSMs widely used in frontier language models.",
+          "authors": [
+            "Aleksandar Terzić",
+            "Francesco Carzaniga",
+            "Nicolas Menet",
+            "Yannick Biehl",
+            "Michael Hersche",
+            "Thomas Hofmann",
+            "Abbas Rahimi"
+          ],
+          "published_date": "2026-05-18T22:06:33Z",
+          "url": "https://arxiv.org/abs/2605.19150v1"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "Flash PD-SSM proposes a novel selection mechanism for structured sparse SSMs where the state transition matrix A is made input-dependent by selecting from a dictionary of pre-computed sparse matrices via argmax. This is a different architectural approach from the one criticized in the gap. The paper focuses on reducing the memory complexity of generating selective transition matrices from O(LN²) to O(LN) and demonstrates strong empirical results on state-tracking, time-series, and language modeling tasks. However, it does not address the specific question of whether excluding A from the selection mechanism (while making dt selective) is a sound design choice.",
+        "what_remains_open": "The gap concerns a design choice where the state transition matrix A is excluded from the selection mechanism (only dt is made selective), with the hypothesis that this would perform similarly. Flash PD-SSM does not empirically validate this claim. Instead, it proposes a model where A is explicitly made selective via a hard selection over a dictionary of matrices. The paper does not compare against a baseline where A is non-selective and only dt is selective, nor does it test whether the exclusion of A from selection is a reasonable design choice. The specific empirical verification requested by the gap remains unaddressed.",
+        "evidence_snippets": []
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 3,
+      "skipped_ids": []
+    }
+  },
+  "ranking": null
+}

@@ -45,6 +45,7 @@ from pydantic import BaseModel  # noqa: E402
 from dev.registry import _truthy  # noqa: E402
 from dev.eval_paper_pipeline import _fully_extracted_papers, list_workspaces  # noqa: E402
 from src.common.utils import storage  # noqa: E402
+from src.agents.ranking_agent.schemas import RankingConfig  # noqa: E402
 
 from app.backend import mappers  # noqa: E402
 from app.backend.runs import MANAGER  # noqa: E402
@@ -151,6 +152,41 @@ def api_topics():
     return {"topics": topics}
 
 
+class TopicCreateRequest(BaseModel):
+    topic: str
+
+
+@app.post("/api/topics")
+def api_create_topic(req: TopicCreateRequest):
+    """Bootstrap a new research category from a free-text topic via the category
+    agent: it looks the topic up on Wikipedia, takes a short description, and
+    writes ``workspace/<slug>/meta.json`` — the record every other endpoint
+    requires. Returns the created topic (same shape as ``/api/topics``), so the
+    frontend can switch to it immediately.
+
+    Runs synchronously (one Wikipedia lookup, ~1s); FastAPI serves it from the
+    threadpool, so the event loop is not blocked. Re-creating an existing topic
+    refreshes its name/description rather than erroring.
+    """
+    topic = (req.topic or "").strip()
+    if not topic:
+        raise HTTPException(400, "topic must not be empty")
+
+    # Imported here (not at module top) so an import-time hiccup in the agent
+    # can't take down the read endpoints the rest of the app depends on.
+    from src.agents.category_agent import run as run_category
+
+    try:
+        result = run_category(topic, stream=True, echo=False)
+    except Exception as e:  # noqa: BLE001 — surface the failure to the client
+        raise HTTPException(502, f"category agent failed: {type(e).__name__}: {e}")
+
+    slug = result["category_slug"]
+    meta = _require_meta(slug)
+    n_papers, n_gaps, n_ideas = _counts(slug)
+    return mappers.map_topic(meta, n_papers=n_papers, n_gaps=n_gaps, n_ideas=n_ideas)
+
+
 @app.get("/api/topics/{slug}")
 def api_topic(slug: str):
     """One topic with its papers and gaps inlined (the shape the sidebar wants)."""
@@ -162,7 +198,8 @@ def api_topic(slug: str):
     ideas = _read_ideas(slug)
     topic = mappers.map_topic(meta, n_papers=len(papers), n_gaps=len(gaps), n_ideas=len(ideas))
     return {"meta": topic, "papers": papers, "gaps": gaps,
-            "masterGaps": master_gaps, "allGaps": all_gaps, "ideas": ideas}
+            "masterGaps": master_gaps, "allGaps": all_gaps, "ideas": ideas,
+            "rankingConfig": mappers.map_ranking_config(RankingConfig())}
 
 
 @app.get("/api/topics/{slug}/papers")

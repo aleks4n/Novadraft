@@ -1,0 +1,161 @@
+{
+  "gap_id": "gap_5cba948a",
+  "status": "validated",
+  "title": "Further investigation of latent space properties",
+  "description": "The paper suggests that further investigations into the properties of the learnt latent space would be interesting.",
+  "type": "future_work",
+  "canonical_description": "properties of the learned latent space need further investigation",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1511.06434",
+      "section": "conclusion_and_future_work",
+      "anchor": "Further investigations into the properties of the learnt latent space",
+      "quote": "Further investigations into the properties of the learnt latent space would be interesting as well.",
+      "char_offset": [
+        632,
+        731
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T08:20:44Z",
+  "verdict": {
+    "gap_id": "gap_5cba948a",
+    "status": "partially_solved",
+    "confidence": 0.7,
+    "reasoning": "All five papers are rated direct_solution and each provides concrete methods for investigating latent space properties: Paper 1 (k* distribution for local neighborhood analysis), Paper 2 (interventional assays with geometric tools and Causal Completeness Score), Paper 3 (PCAAE with ordered/independent dimensions), Paper 4 (LRM-Functa for temporal structure in INR latent spaces), and Paper 5 (sparse autoencoders probing acoustic concepts in audio latent spaces). Collectively they cover local structure, geometry, disentanglement, temporal dynamics, and interpretability across multiple domains (vision, audio, medical). However, the gap is fundamentally open-ended — \"properties of the learned latent space need further investigation\" — and many important properties remain unaddressed: topological structure, information-theoretic properties (mutual information, entropy), causal representation learning, robustness to distribution shift, compositionality, theoretical guarantees on geometry, and domain-specific properties beyond those studied. No finite set of papers can fully close such a broad research-direction gap, so partially_solved best captures that substantial progress has been made while meaningful open questions remain.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2312.04024",
+          "title": "k* Distribution: Evaluating the Latent Space of Deep Neural Networks using Local Neighborhood Analysis",
+          "abstract": "Most examinations of neural networks' learned latent spaces typically employ dimensionality reduction techniques such as t-SNE or UMAP. These methods distort the local neighborhood in the visualization, making it hard to distinguish the structure of a subset of samples in the latent space. In response to this challenge, we introduce the {k*~distribution} and its corresponding visualization technique This method uses local neighborhood analysis to guarantee the preservation of the structure of sample distributions for individual classes within the subset of the learned latent space. This facilitates easy comparison of different k*~distributions, enabling analysis of how various classes are processed by the same neural network. Our study reveals three distinct distributions of samples within the learned latent space subset: a) Fractured, b) Overlapped, and c) Clustered, providing a more profound understanding of existing contemporary visualizations. Experiments show that the distribution of samples within the network's learned latent space significantly varies depending on the class. Furthermore, we illustrate that our analysis can be applied to explore the latent space of diverse neural network architectures, various layers within neural networks, transformations applied to input samples, and the distribution of training and testing data for neural networks. Thus, the k* distribution should aid in visualizing the structure inside neural networks and further foster their understanding. Project Website is available online at https://shashankkotyan.github.io/k-Distribution/.",
+          "authors": [
+            "Shashank Kotyan",
+            "Tatsuya Ueda",
+            "Danilo Vasconcellos Vargas"
+          ],
+          "published_date": "2023-12-07T03:42:48Z",
+          "url": "https://arxiv.org/abs/2312.04024v2"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper introduces the k* distribution, a local neighborhood analysis method for evaluating the distribution of samples in the learned latent space of neural networks. It identifies three distinct patterns of sample distribution (fractured, overlapped, clustered) based on the skewness of the k* distribution, and demonstrates the method across multiple architectures (ResNet, ResNeXt, EfficientNet, ViT), layers, training distributions, input transformations, and domains (image classification, NLP, speech). The method provides a dimensionality-independent way to analyze and compare latent space properties that complements existing dimensionality-reduction-based visualization techniques.",
+        "what_remains_open": "The gap is inherently open-ended (\"further investigation of latent space properties\"), so no single paper can fully close it. This paper provides a specific tool (k* distribution) for analyzing one aspect of latent space properties — the local neighborhood homogeneity and class distribution patterns. It does not address other latent space properties such as: geometric properties (curvature, manifold structure), topological properties, causal structure of representations, information-theoretic properties (mutual information, entropy), or how latent space properties relate to generalization bounds and out-of-distribution detection. The paper also acknowledges its own limitations: it inherits nearest-neighbor method limitations and sacrifices information about absolute distances between samples.",
+        "evidence_snippets": [
+          "We introduce the {k*~distribution} and its corresponding visualization technique This method uses local neighborhood analysis to guarantee the preservation of the structure of sample distributions for individual classes within the subset of the learned latent space.",
+          "Our study reveals three distinct distributions of samples within the learned latent space subset: a) Fractured, b) Overlapped, and c) Clustered, providing a more profound understanding of existing contemporary visualizations.",
+          "Thus, the k* distribution should aid in visualizing the structure inside neural networks and further foster their understanding."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2106.16091",
+          "title": "Exploring the Latent Space of Autoencoders with Interventional Assays",
+          "abstract": "Autoencoders exhibit impressive abilities to embed the data manifold into a low-dimensional latent space, making them a staple of representation learning methods. However, without explicit supervision, which is often unavailable, the representation is usually uninterpretable, making analysis and principled progress challenging. We propose a framework, called latent responses, which exploits the locally contractive behavior exhibited by variational autoencoders to explore the learned manifold. More specifically, we develop tools to probe the representation using interventions in the latent space to quantify the relationships between latent variables. We extend the notion of disentanglement to take the learned generative process into account and consequently avoid the limitations of existing metrics that may rely on spurious correlations. Our analyses underscore the importance of studying the causal structure of the representation to improve performance on downstream tasks such as generation, interpolation, and inference of the factors of variation.",
+          "authors": [
+            "Felix Leeb",
+            "Stefan Bauer",
+            "Michel Besserve",
+            "Bernhard Schölkopf"
+          ],
+          "published_date": "2021-06-30T14:31:08Z",
+          "url": "https://arxiv.org/abs/2106.16091v4"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper proposes a framework of \"interventional assays\" to systematically investigate the properties of learned latent spaces in autoencoders. It introduces geometric tools (latent excitation, divergence maps, mean curvature) to analyze the latent manifold structure, and develops a Causal Completeness Score (CCS) to quantify how well latent dimensions capture true generative factors. The methods are demonstrated on multiple datasets (3D-Shapes, MPI3D, MNIST, Fashion-MNIST) with both disentangled and entangled representations, providing concrete ways to probe and characterize latent space properties.",
+        "what_remains_open": "The paper directly addresses the gap by providing a methodology for investigating latent space properties. However, the gap is extremely broad (\"further investigation of latent space properties\"), and this paper represents one specific approach (interventional assays with geometric analysis). Other aspects of latent space properties — such as robustness to distribution shift, compositionality, causal structure learning from latent spaces, or theoretical guarantees about latent space geometry — remain open for further investigation beyond what this paper covers.",
+        "evidence_snippets": [
+          "From a more geometric perspective, we can think of the encoder outputs $\\mathcal{Z} = \\{\\zb_i \\given \\zb_i \\leftarrow \\enc(\\xb_i), \\xb_i \\in \\mathcal{X} \\}$ as defining a smooth surface in the latent space.",
+          "We define the \"completeness\" of a representation analogously to~[CITE:eastwood2018framework], that is to say: every true factor of variation is entirely embedded in a single latent dimension. The { causal completeness score} (CCS) follows naturally",
+          "While the resulting divergence and curvature maps do not demonstrate as intuitive structure as in the disentangled representations for 3D-Shapes or MPI-3D, we can nevertheless appreciate the learned manifold beyond qualitatively observing reconstructions."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2006.07827",
+          "title": "PCAAE: Principal Component Analysis Autoencoder for organising the latent space of generative networks",
+          "abstract": "Autoencoders and generative models produce some of the most spectacular deep learning results to date. However, understanding and controlling the latent space of these models presents a considerable challenge. Drawing inspiration from principal component analysis and autoencoder, we propose the Principal Component Analysis Autoencoder (PCAAE). This is a novel autoencoder whose latent space verifies two properties. Firstly, the dimensions are organised in decreasing importance with respect to the data at hand. Secondly, the components of the latent space are statistically independent. We achieve this by progressively increasing the latent space during training, and with a covariance loss applied to the latent codes. The resulting autoencoder produces a latent space which separates the intrinsic attributes of the data into different components of the latent space, in a completely unsupervised manner. We also describe an extension of our approach to the case of powerful, pre-trained GANs. We show results on both synthetic examples of shapes and on a state-of-the-art GAN. For example, we are able to separate the color shade scale of hair and skin, pose of faces and the gender in the CelebA, without accessing any labels. We compare the PCAAE with other state-of-the-art approaches, in particular with respect to the ability to disentangle attributes in the latent space. We hope that this approach will contribute to better understanding of the intrinsic latent spaces of powerful deep generative models.",
+          "authors": [
+            "Chi-Hieu Pham",
+            "Saïd Ladjal",
+            "Alasdair Newson"
+          ],
+          "published_date": "2020-06-14T07:40:45Z",
+          "url": "https://arxiv.org/abs/2006.07827v1"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper directly investigates properties of the learned latent space by proposing the PCAAE, a novel autoencoder whose latent space has two specific properties: (1) dimensions are organized in decreasing order of importance with respect to the data, and (2) components are statistically independent. The paper demonstrates these properties through experiments on synthetic data (ellipses) and by applying the PCAAE to organize the latent space of a pre-trained GAN (PGAN on CelebA), showing that the resulting latent space separates facial attributes (hair color, head pose, gender) into different components in an unsupervised manner. The paper also compares with other disentanglement methods (VAE, β-VAE, FactorVAE, β-TCVAE) using Pearson correlation coefficients to evaluate how well latent components correspond to data attributes.",
+        "what_remains_open": "The paper fully addresses the gap of investigating latent space properties by proposing and evaluating a method that gives latent spaces specific desirable properties (ordered importance and statistical independence). However, the paper itself acknowledges limitations that remain open: (1) the sequential training (one dimension at a time) may be restrictive; (2) the L2 reconstruction loss leads to blurry results when applied directly to complex image data like CelebA; (3) the PCAAE trained for a GAN's latent space is local to a specific region and not universally applicable across the entire GAN latent space; (4) the method does not address generative modeling of the latent space itself (though an extension PCAWAE is briefly mentioned). These limitations point to further investigation needed for more general, higher-quality, and globally applicable latent space organization methods.",
+        "evidence_snippets": [
+          "we propose the Principal Component Analysis Autoencoder (PCAAE). This is a novel autoencoder whose latent space verifies two properties. Firstly, the dimensions are organised in decreasing importance with respect to the data at hand. Secondly, the components of the latent space are statistically independent.",
+          "Our goal is to propose an autoencoder with the following two properties: i) the latent space components (axes) are ordered in terms of decreasing importance and ii) each component of a code is statistically independent from the other components.",
+          "The resulting autoencoder produces a latent space which separates the intrinsic attributes of the data into different components of the latent space, in a completely unsupervised manner."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2603.25951",
+          "title": "Low-Rank-Modulated Functa: Exploring the Latent Space of Implicit Neural Representations for Interpretable Ultrasound Video Analysis",
+          "abstract": "Implicit neural representations (INRs) have emerged as a powerful framework for continuous image representation learning. In Functa-based approaches, each image is encoded as a latent modulation vector that conditions a shared INR, enabling strong reconstruction performance. However, the structure and interpretability of the corresponding latent spaces remain largely unexplored. In this work, we investigate the latent space of Functa-based models for ultrasound videos and propose Low-Rank-Modulated Functa (LRM-Functa), a novel architecture that enforces a low-rank adaptation of modulation vectors in the time-resolved latent space. When applied to cardiac ultrasound, the resulting latent space exhibits clearly structured periodic trajectories, facilitating visualization and interpretability of temporal patterns. The latent space can be traversed to sample novel frames, revealing smooth transitions along the cardiac cycle, and enabling direct readout of end-diastolic (ED) and end-systolic (ES) frames without additional model training. We show that LRM-Functa outperforms prior methods in unsupervised ED and ES frame detection, while compressing each video frame to as low as rank k=2 without sacrificing competitive downstream performance on ejection fraction prediction. Evaluations on out-of-distribution frame selection in a cardiac point-of-care dataset, as well as on lung ultrasound for B-line classification, demonstrate the generalizability of our approach. Overall, LRM-Functa provides a compact, interpretable, and generalizable framework for ultrasound video analysis. The code is available at https://github.com/JuliaWolleb/LRM_Functa.",
+          "authors": [
+            "Julia Wolleb",
+            "Cristiana Baloescu",
+            "Alicia Durrer",
+            "Hemant D. Tagare",
+            "Xenophon Papademetris"
+          ],
+          "published_date": "2026-03-26T22:46:27Z",
+          "url": "https://arxiv.org/abs/2603.25951v1"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper directly investigates the latent space properties of Functa-based implicit neural representations for ultrasound video analysis. It proposes LRM-Functa, which enforces a low-rank structure on the latent modulation space, enabling visualization of periodic trajectories, interpretable temporal patterns, and direct readout of cardiac phases (ED/ES frames) without additional training. The paper systematically analyzes latent space structure through cosine similarity matrices, trajectory visualization, and principal motion direction projection, demonstrating that the latent space encodes meaningful temporal dynamics.",
+        "what_remains_open": "The paper fully addresses the gap for the specific domain of ultrasound video analysis (cardiac and lung) using Functa-based INRs. However, the gap as stated is very broad (\"further investigation of latent space properties\"), so one could argue that: (1) the investigation is limited to low-rank structured latent spaces in the Functa/VidFuncta framework, not other INR architectures; (2) the properties investigated are primarily temporal/periodic structure and interpretability for cardiac phase analysis, leaving other latent space properties (e.g., topological structure, interpolation behavior across different patients/pathologies, disentanglement of factors of variation beyond cardiac phase) unexplored; (3) the investigation is domain-specific (ultrasound) and may not generalize to other modalities or data types.",
+        "evidence_snippets": [
+          "In this work, we investigate the latent space of \\textit{Functa}-based models for ultrasound videos and propose \\textit{Low-Rank-Modulated Functa} (\\textit{LRM-Functa}), a novel architecture that enforces a low-rank adaptation of modulation vectors in the time-resolved latent space.",
+          "To explore the structure of this latent space, we visualize pairwise cosine similarities between all frame vectors $\\phi = \\{\\phi_t\\}_{t=1}^T$. The resulting $T \\times T$ matrices exhibit low-rank patterns with clear periodicity along the side diagonals",
+          "To the best of our knowledge, we are the first to analyze and structure the latent space of Functa-based frameworks."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2510.23802",
+          "title": "Learning Interpretable Features in Audio Latent Spaces via Sparse Autoencoders",
+          "abstract": "While sparse autoencoders (SAEs) successfully extract interpretable features from language models, applying them to audio generation faces unique challenges: audio's dense nature requires compression that obscures semantic meaning, and automatic feature characterization remains limited. We propose a framework for interpreting audio generative models by mapping their latent representations to human-interpretable acoustic concepts. We train SAEs on audio autoencoder latents, then learn linear mappings from SAE features to discretized acoustic properties (pitch, amplitude, and timbre). This enables both controllable manipulation and analysis of the AI music generation process, revealing how acoustic properties emerge during synthesis. We validate our approach on continuous (DiffRhythm-VAE) and discrete (EnCodec, WavTokenizer) audio latent spaces, and analyze DiffRhythm, a state-of-the-art text-to-music model, to demonstrate how pitch, timbre, and loudness evolve throughout generation. While our work is only done on audio modality, our framework can be extended to interpretable analysis of visual latent space generation models.",
+          "authors": [
+            "Nathan Paek",
+            "Yongyi Zang",
+            "Qihui Yang",
+            "Randal Leistikow"
+          ],
+          "published_date": "2025-10-27T19:35:39Z",
+          "url": "https://arxiv.org/abs/2510.23802v1"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper directly investigates properties of learned latent spaces in audio generative models. It trains sparse autoencoders on latent representations from multiple audio encoders (Stable Audio Open, DiffRhythm, EnCodec, WavTokenizer), then uses linear probes to map SAE features to interpretable acoustic concepts (pitch, amplitude, timbre). It further analyzes how these acoustic properties evolve during the diffusion generation process, revealing a coarse-to-fine hierarchy where pitch converges first, followed by timbre, then loudness. The paper also demonstrates controllable manipulation of audio via control vectors derived from the linear mappings.",
+        "what_remains_open": "The paper fully addresses the gap as stated (\"further investigation of latent space properties\" / \"properties of the learned latent space need further investigation\"). It investigates multiple properties (sparsity, linear decodability of acoustic concepts, generation dynamics) across multiple latent spaces. However, it focuses on three specific acoustic properties (pitch, amplitude, timbre) and acknowledges that richer properties like rhythm, harmony, and instrument identity remain for future work. It also focuses on audio generative models specifically, leaving investigation of latent space properties in other domains (image, video) as future work.",
+        "evidence_snippets": [
+          "We propose a novel framework for understanding audio generative models by analyzing their latent space representations through human-interpretable acoustic concepts.",
+          "We train SAEs on the latent representations of audio autoencoders to extract sparse features. Second, we learn linear mappings from these SAE features to human-interpretable acoustic concepts: pitch, amplitude, and timbre",
+          "We demonstrate how our learned mappings can help us understand the audio generation process by analyzing DiffRhythm... This reveals when different acoustic properties emerge during generation."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 5,
+      "skipped_ids": []
+    }
+  },
+  "ranking": {
+    "openness": 0.25,
+    "impact": 0.21219672324397482,
+    "feasibility": 0.7,
+    "feasibility_reasoning": "The gap is a sprawling, open-ended research direction (\"properties of the learned latent space\"), which prevents a 1.0 score — no single project can fully \"address\" it. However, making real progress is highly tractable: (1) multiple concrete methods already exist (k* distributions, interventional assays with geometric tools, PCAAE, LRM-Functa, sparse autoencoders) providing clear starting points to extend; (2) data is abundant (vision, audio, medical domains); (3) compute requirements are modest for most specific investigations; (4) many unaddressed sub-problems (topology, information-theoretic measures, compositionality, robustness) are well-defined and evaluable with existing metrics. The main feasibility constraint is the lack of crisp boundaries — a researcher must narrow scope, but doing so leads to a tractable project."
+  }
+}
