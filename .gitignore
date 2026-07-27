@@ -103,3 +103,5 @@ yarn-error.log*
 
 # interim arXiv full-text cache (validator deep-read)
 .cache/
+
+workspace/session*

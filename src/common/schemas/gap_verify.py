@@ -24,7 +24,9 @@ class GapCritiqueIssueLLM(BaseModel):
     """One issue as the critic LLM emits it for a single round."""
 
     id: str | None = None
-    gap_id: str
+    # Providers occasionally emit a null gap_id despite the prompt. Keep that
+    # one malformed item parseable; the critic discards it before persistence.
+    gap_id: str | None = None
     severity: Severity
     reason: str
 
