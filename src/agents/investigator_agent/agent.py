@@ -17,22 +17,56 @@ import re
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from pathlib import Path
-from typing import TypedDict
+from typing import Literal, TypedDict
 from urllib.parse import parse_qs, unquote, urlparse
 
 import requests
 from langgraph.graph import END, START, StateGraph
+from pydantic import BaseModel, Field
 from pdfminer.high_level import extract_text as extract_pdf_text
 
 from src.agents.paper_agent import run as run_paper_agent
 from src.common.utils import storage
 from src.common.utils.logging.runlog import GraphRunLog
+from src.llm.registry import chat_with_structured_output, get_llm
 
 INVESTIGATOR_WORKSPACE = "investigator"
 _USER_AGENT = "novadraft-investigator-agent/1.0"
 _REQUEST_TIMEOUT = 20
 _MAX_RESULT_COUNT = 5
 _MAX_PAGE_CHARS = 4000
+
+
+class InvestigatorDecision(BaseModel):
+	action: Literal["paper", "web", "url"] = Field(
+		description="Choose paper for paper/article/preprint/DOI/arXiv work, web for a general web search, or url for a direct page to scrape/download.",
+	)
+	query: str = Field(
+		default="",
+		description="The best search query or paper title to pass downstream. Leave empty only when action is url and the URL itself is enough.",
+	)
+	url: str = Field(
+		default="",
+		description="A direct URL when the user supplied one and wants that URL scraped/downloaded.",
+	)
+	save_requested: bool = Field(
+		default=False,
+		description="True when the user explicitly asked to download, save, scrape, crawl, or fetch the content.",
+	)
+	reason: str = Field(
+		default="",
+		description="Short explanation of why this action was chosen.",
+	)
+
+
+_DECISION_SYSTEM_PROMPT = (
+	"You route a single user instruction to the right research action. "
+	"Pick exactly one action: paper, web, or url. "
+	"Use paper when the text is about a paper, article, preprint, DOI, arXiv ID, or asks to search/download a paper. "
+	"Use web when the text asks to search the web generally, compare claims on the web, or learn about a topic without naming a direct URL. "
+	"Use url only when the user provides a concrete URL and wants that page scraped, downloaded, or inspected. "
+	"Set save_requested true only when the user asks to download, save, scrape, crawl, or fetch content. "
+	"Return the best downstream query or URL. Keep the query concise and literal.")
 
 
 class InvestigatorState(TypedDict, total=False):
@@ -129,18 +163,16 @@ def _extract_target(text: str, patterns: list[str]) -> str:
 	return clean
 
 
-def _classify_request(text: str) -> dict:
+def _heuristic_decide_request(text: str) -> dict:
 	clean = _normalize(text)
 	lower = clean.lower()
 	url = _first_url(clean)
 	save_requested = any(term in lower for term in ("download", "save", "scrape", "crawl", "fetch"))
 	paper_requested = any(term in lower for term in ("paper", "arxiv", "doi", "preprint", "manuscript"))
-	summary_requested = any(term in lower for term in ("summarize", "summary", "tl;dr", "tldr"))
 	web_requested = any(term in lower for term in ("search the web", "web search", "search online", "search internet", "look up online"))
 
 	if url and (save_requested or "scrape" in lower or "download" in lower):
-		return {"mode": "url", "url": url, "query": url, "save_requested": save_requested}
-
+		return {"mode": "url", "url": url, "query": url, "save_requested": save_requested, "decision_reason": "heuristic fallback"}
 	if paper_requested:
 		query = _extract_target(
 			clean,
@@ -150,19 +182,64 @@ def _classify_request(text: str) -> dict:
 				r"(?:paper|article|preprint)\s*[:\-]\s*(.+)$",
 			],
 		)
-		return {"mode": "paper", "query": query, "url": url, "save_requested": save_requested or summary_requested}
+		return {"mode": "paper", "query": query, "url": url or None, "save_requested": save_requested, "decision_reason": "heuristic fallback"}
+	query = _extract_target(
+		clean,
+		[
+			r"(?:search the web for|search web for|search online for|search for|look up|find)\s+(.+)$",
+			r"(?:web search|internet search)\s*[:\-]\s*(.+)$",
+		],
+	)
+	return {"mode": "web", "query": query, "url": url or None, "save_requested": save_requested, "decision_reason": "heuristic fallback"}
 
-	if web_requested or url:
-		query = _extract_target(
+
+def _decide_request(text: str) -> dict:
+	clean = _normalize(text)
+	try:
+		decision = chat_with_structured_output(
+			get_llm("reasoner", temperature=0),
+			_DECISION_SYSTEM_PROMPT,
 			clean,
-			[
-				r"(?:search the web for|search web for|search online for|search for|look up|find)\s+(.+)$",
-				r"(?:web search|internet search)\s*[:\-]\s*(.+)$",
-			],
+			InvestigatorDecision,
 		)
-		return {"mode": "web", "query": query, "url": url, "save_requested": save_requested}
+	except Exception:
+		return _heuristic_decide_request(clean)
 
-	return {"mode": "web", "query": clean, "url": url, "save_requested": save_requested}
+	url = _normalize(decision.url) or _first_url(clean) or ""
+	query = _normalize(decision.query)
+	action = _normalize(getattr(decision, "action", ""))
+	if action not in {"paper", "web", "url"}:
+		return _heuristic_decide_request(clean)
+	if action == "url":
+		if not url:
+			url = _first_url(clean) or ""
+		if not query:
+			query = url or clean
+	else:
+		if not query:
+			if action == "paper":
+				query = _extract_target(
+					clean,
+					[
+						r"(?:search|find|download|fetch|summarize|summarise|read|get)\s+(?:the\s+)?(?:paper|article|preprint)\s*[:\-]\s*(.+)$",
+						r"(?:paper|article|preprint)\s*(?:called|named|titled|about|on)\s+(.+)$",
+						r"(?:paper|article|preprint)\s*[:\-]\s*(.+)$",
+					],
+				)
+			else:
+				query = _extract_target(
+					clean,
+					[
+						r"(?:search the web for|search web for|search online for|search for|look up|find)\s+(.+)$",
+						r"(?:web search|internet search)\s*[:\-]\s*(.+)$",
+					],
+				)
+
+	if action == "url" and url:
+		return {"mode": "url", "url": url, "query": query, "save_requested": bool(decision.save_requested), "decision_reason": decision.reason}
+	if action == "paper":
+		return {"mode": "paper", "query": query, "url": url or None, "save_requested": bool(decision.save_requested), "decision_reason": decision.reason}
+	return {"mode": "web", "query": query, "url": url or None, "save_requested": bool(decision.save_requested), "decision_reason": decision.reason}
 
 
 def _route_after_interpret(state: InvestigatorState) -> str:
@@ -421,7 +498,7 @@ def _url_to_text(result: dict, url: str) -> str:
 
 
 def interpret(state: InvestigatorState) -> dict:
-	return _classify_request(state["text"])
+	return _decide_request(state["text"])
 
 
 def paper_node(state: InvestigatorState) -> dict:
