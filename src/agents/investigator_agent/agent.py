@@ -4,6 +4,7 @@ The agent accepts one text prompt and turns it into one of three best-effort
 actions:
 
 - paper: resolve/download a paper and run the existing paper pipeline
+- paper_search: find several papers on the web, then download each one
 - web: search the web and return the top results plus fetched excerpts
 - url: scrape a direct URL, downloading PDFs when possible
 
@@ -33,6 +34,7 @@ from src.llm.registry import chat, chat_with_structured_output, get_llm
 _USER_AGENT = "novadraft-investigator-agent/1.0"
 _REQUEST_TIMEOUT = 20
 _MAX_RESULT_COUNT = 5
+_MAX_PAPER_DOWNLOADS = 5
 _MAX_PAGE_CHARS = 4000
 
 _WEB_ANSWER_SYSTEM_PROMPT = (
@@ -44,8 +46,14 @@ _WEB_ANSWER_SYSTEM_PROMPT = (
 
 
 class InvestigatorDecision(BaseModel):
-	action: Literal["paper", "web", "url"] = Field(
-		description="Choose paper for paper/article/preprint/DOI/arXiv work, web for a general web search, or url for a direct page to scrape/download.",
+	action: Literal["paper", "paper_search", "web", "url"] = Field(
+		description="Choose paper for one known paper, paper_search to find and download several papers, web for a general web search, or url for a direct page to scrape/download.",
+	)
+	paper_count: int = Field(
+		default=1,
+		ge=1,
+		le=_MAX_PAPER_DOWNLOADS,
+		description="Number of papers to find and download when action is paper_search.",
 	)
 	should_fetch_pages: bool = Field(
 		default=False,
@@ -71,11 +79,12 @@ class InvestigatorDecision(BaseModel):
 
 _DECISION_SYSTEM_PROMPT = (
 	"You route a single user instruction to the right research action. "
-	"Pick exactly one action: paper, web, or url. "
+	"Pick exactly one action: paper, paper_search, web, or url. "
 	"Use paper when the text is about a paper, article, preprint, DOI, arXiv ID, or asks to search/download a paper. "
+	"Use paper_search when the user asks to find, search for, or download multiple papers (for example 'download 3 papers about transformers'). Set paper_count to the requested number, or 3 when they say 'some' or do not specify a number. "
 	"Use web when the text asks to search the web generally, compare claims on the web, or learn about a topic without naming a direct URL. "
 	"Use url only when the user provides a concrete URL and wants that page scraped, downloaded, or inspected. "
-	"Set should_fetch_pages true when the user wants the agent to inspect, summarize, or download the contents of search results, and false when a search-results-only answer is enough. "
+	"For every web query that asks for a factual answer, set should_fetch_pages to true. Set it to false only when the user explicitly asks for search results, links, or titles without an answer. "
 	"Set save_requested true only when the user asks to download, save, scrape, crawl, or fetch content. "
 	"Return the best downstream query or URL. Keep the query concise and literal.")
 
@@ -85,6 +94,7 @@ class InvestigatorState(TypedDict, total=False):
 	session_id: str
 	mode: str
 	query: str
+	paper_count: int
 	url: str
 	save_requested: bool
 	should_fetch_pages: bool
@@ -187,18 +197,58 @@ def _extract_target(text: str, patterns: list[str]) -> str:
 	return clean
 
 
+def _requested_paper_count(text: str) -> int | None:
+	"""Return a requested multi-paper count, using three for vague plurals."""
+	match = re.search(
+		r"\b(?:download|fetch|find|search(?:\s+for)?)\s+(?:(\d+)|one|two|three|four|five|some|several)\s+(?:papers?|articles?|preprints?)\b",
+		text,
+		flags=re.IGNORECASE,
+	)
+	if not match:
+		return None
+	if match.group(1):
+		return max(1, min(int(match.group(1)), _MAX_PAPER_DOWNLOADS))
+	words = match.group(0).lower()
+	for word, count in (("one", 1), ("two", 2), ("three", 3), ("four", 4), ("five", 5)):
+		if re.search(rf"\b{word}\b", words):
+			return count
+	return 3
+
+
+def _paper_search_topic(text: str) -> str:
+	"""Remove a multi-paper request prefix, preserving the research topic."""
+	topic = re.sub(
+		r"^(?:search(?:\s+for)?|find|download|fetch|get)\s+(?:(?:\d+|one|two|three|four|five|some|several)\s+)?(?:papers?|articles?|preprints?)\s*(?:(?:about|on|for)\s+)?",
+		"",
+		_normalize(text),
+		flags=re.IGNORECASE,
+	)
+	return _normalize(topic).strip(":- ") or _normalize(text)
+
+
 def _heuristic_decide_request(text: str) -> dict:
 	clean = _normalize(text)
 	lower = clean.lower()
 	url = _first_url(clean)
 	save_requested = any(term in lower for term in ("download", "save", "scrape", "crawl", "fetch"))
 	paper_requested = any(term in lower for term in ("paper", "arxiv", "doi", "preprint", "manuscript"))
+	paper_count = _requested_paper_count(clean)
 	web_requested = any(term in lower for term in ("search the web", "web search", "search online", "search internet", "look up online"))
 	should_fetch_pages = any(term in lower for term in ("summarize", "summary", "download", "scrape", "extract", "read", "inspect"))
 
 	if url and (save_requested or "scrape" in lower or "download" in lower):
 		return {"mode": "url", "url": url, "query": url, "save_requested": save_requested, "should_fetch_pages": False, "decision_reason": "heuristic fallback"}
 	if paper_requested:
+		if paper_count is not None:
+			return {
+				"mode": "paper_search",
+				"query": _paper_search_topic(clean),
+				"paper_count": paper_count,
+				"url": url or None,
+				"save_requested": True,
+				"should_fetch_pages": False,
+				"decision_reason": "heuristic fallback",
+			}
 		query = _extract_target(
 			clean,
 			[
@@ -207,7 +257,7 @@ def _heuristic_decide_request(text: str) -> dict:
 				r"(?:paper|article|preprint)\s*[:\-]\s*(.+)$",
 			],
 		)
-		return {"mode": "paper", "query": query, "url": url or None, "save_requested": save_requested, "should_fetch_pages": False, "decision_reason": "heuristic fallback"}
+		return {"mode": "paper", "query": query, "paper_count": 1, "url": url or None, "save_requested": save_requested, "should_fetch_pages": False, "decision_reason": "heuristic fallback"}
 	query = _extract_target(
 		clean,
 		[
@@ -215,7 +265,7 @@ def _heuristic_decide_request(text: str) -> dict:
 			r"(?:web search|internet search)\s*[:\-]\s*(.+)$",
 		],
 	)
-	return {"mode": "web", "query": query, "url": url or None, "save_requested": save_requested, "should_fetch_pages": should_fetch_pages, "decision_reason": "heuristic fallback"}
+	return {"mode": "web", "query": query, "paper_count": 1, "url": url or None, "save_requested": save_requested, "should_fetch_pages": should_fetch_pages, "decision_reason": "heuristic fallback"}
 
 
 def _decide_request(text: str) -> dict:
@@ -233,7 +283,7 @@ def _decide_request(text: str) -> dict:
 	url = _normalize(decision.url) or _first_url(clean) or ""
 	query = _normalize(decision.query)
 	action = _normalize(getattr(decision, "action", ""))
-	if action not in {"paper", "web", "url"}:
+	if action not in {"paper", "paper_search", "web", "url"}:
 		return _heuristic_decide_request(clean)
 	if action == "url":
 		if not url:
@@ -242,7 +292,9 @@ def _decide_request(text: str) -> dict:
 			query = url or clean
 	else:
 		if not query:
-			if action == "paper":
+			if action == "paper_search":
+				query = _paper_search_topic(clean)
+			elif action == "paper":
 				query = _extract_target(
 					clean,
 					[
@@ -261,12 +313,23 @@ def _decide_request(text: str) -> dict:
 				)
 
 	if action == "url" and url:
-		return {"mode": "url", "url": url, "query": query, "save_requested": bool(decision.save_requested), "should_fetch_pages": False, "decision_reason": decision.reason}
+		return {"mode": "url", "url": url, "query": query, "paper_count": 1, "save_requested": bool(decision.save_requested), "should_fetch_pages": False, "decision_reason": decision.reason}
+	if action == "paper_search":
+		return {
+			"mode": "paper_search",
+			"query": query,
+			"paper_count": max(1, min(int(decision.paper_count), _MAX_PAPER_DOWNLOADS)),
+			"url": url or None,
+			"save_requested": True,
+			"should_fetch_pages": False,
+			"decision_reason": decision.reason,
+		}
 	if action == "paper":
-		return {"mode": "paper", "query": query, "url": url or None, "save_requested": bool(decision.save_requested), "should_fetch_pages": False, "decision_reason": decision.reason}
+		return {"mode": "paper", "query": query, "paper_count": 1, "url": url or None, "save_requested": bool(decision.save_requested), "should_fetch_pages": False, "decision_reason": decision.reason}
 	return {
 		"mode": "web",
 		"query": query,
+		"paper_count": 1,
 		"url": url or None,
 		"save_requested": bool(decision.save_requested),
 		"should_fetch_pages": bool(decision.should_fetch_pages),
@@ -537,6 +600,24 @@ def _url_to_text(result: dict, url: str) -> str:
 	return "\n".join(lines)
 
 
+def _multi_paper_to_text(result: dict, query: str) -> str:
+	"""Render the search candidates and each individual paper-pipeline result."""
+	lines = ["Multi-paper research", f"Query: {query}"]
+	if result.get("error"):
+		return "\n".join(lines + ["", f"Error: {result['error']}"])
+
+	candidates = result.get("search_results") or []
+	lines.extend(["", f"Requested: {result.get('requested_count', 0)} papers", "", "Web candidates:"])
+	for idx, candidate in enumerate(candidates, start=1):
+		lines.append(f"{idx}. {candidate.get('title') or 'Untitled'}")
+		lines.append(f"   {candidate.get('url') or 'No URL'}")
+
+	for idx, item in enumerate(result.get("papers") or [], start=1):
+		lines.extend(["", f"Paper {idx}: {item.get('title') or item.get('url') or 'Untitled'}"])
+		lines.append(_paper_to_text(item.get("result") or {}, item.get("query") or query))
+	return "\n".join(lines)
+
+
 def interpret(state: InvestigatorState) -> dict:
 	return _decide_request(state["text"])
 
@@ -569,6 +650,45 @@ def paper_node(state: InvestigatorState) -> dict:
 	except Exception as exc:  # noqa: BLE001 - return a readable text error
 		result = {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
 	return {"research_result": result}
+
+
+def paper_search_node(state: InvestigatorState) -> dict:
+	"""Find paper landing pages before the bounded sequential download step."""
+	search_query = f"{state['query']} research paper"
+	try:
+		results = _search_web(search_query)
+	except Exception as exc:  # noqa: BLE001 - return a readable text error
+		return {"research_result": {"error": f"{type(exc).__name__}: {exc}"}}
+	return {
+		"research_result": {
+			"requested_count": state["paper_count"],
+			"search_results": [result.__dict__ for result in results],
+			"papers": [],
+		}
+	}
+
+
+def download_papers_node(state: InvestigatorState) -> dict:
+	"""Run the existing one-paper workflow once for each web candidate."""
+	result = state["research_result"]
+	if result.get("error"):
+		return {}
+
+	_ensure_workspace(state["session_id"])
+	papers = []
+	for candidate in (result.get("search_results") or [])[:state["paper_count"]]:
+		query = candidate.get("url") or candidate.get("title") or state["query"]
+		try:
+			paper_result = run_paper_agent(state["session_id"], query, stream=False)
+		except Exception as exc:  # noqa: BLE001 - one failed candidate must not stop the session
+			paper_result = {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
+		papers.append({
+			"title": candidate.get("title"),
+			"url": candidate.get("url"),
+			"query": query,
+			"result": paper_result,
+		})
+	return {"research_result": {**result, "papers": papers}}
 
 
 def web_node(state: InvestigatorState) -> dict:
@@ -615,6 +735,8 @@ def render(state: InvestigatorState) -> dict:
 	mode = state["mode"]
 	if mode == "paper":
 		output = _paper_to_text(state["research_result"], state["query"])
+	elif mode == "paper_search":
+		output = _multi_paper_to_text(state["research_result"], state["query"])
 	elif mode == "web":
 		output = _web_to_text(state["research_result"], state["query"])
 	else:
@@ -626,14 +748,18 @@ def build_investigator_graph():
 	g = StateGraph(InvestigatorState)
 	g.add_node("interpret", interpret)
 	g.add_node("paper", paper_node)
+	g.add_node("paper_search", paper_search_node)
+	g.add_node("download_papers", download_papers_node)
 	g.add_node("web", web_node)
 	g.add_node("url", url_node)
 	g.add_node("render", render)
 
 	g.add_edge(START, "interpret")
 	g.add_conditional_edges("interpret", _route_after_interpret,
-							{"paper": "paper", "web": "web", "url": "url"})
+							{"paper": "paper", "paper_search": "paper_search", "web": "web", "url": "url"})
 	g.add_edge("paper", "render")
+	g.add_edge("paper_search", "download_papers")
+	g.add_edge("download_papers", "render")
 	g.add_edge("web", "render")
 	g.add_edge("url", "render")
 	g.add_edge("render", END)

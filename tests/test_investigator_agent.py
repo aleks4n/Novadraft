@@ -88,6 +88,44 @@ def test_decide_request_falls_back_when_llm_fails(monkeypatch):
 	assert result["decision_reason"] == "heuristic fallback"
 
 
+def test_decide_request_routes_multi_paper_download_to_search_workflow(monkeypatch):
+	monkeypatch.setattr(agent, "chat_with_structured_output", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("offline")))
+
+	result = agent._decide_request("download 3 papers about transformers")
+
+	assert result["mode"] == "paper_search"
+	assert result["query"] == "transformers"
+	assert result["paper_count"] == 3
+
+
+def test_multi_paper_workflow_searches_then_downloads_each_candidate(monkeypatch):
+	candidates = [
+		agent.SearchResult(title="Paper one", url="https://arxiv.org/abs/1"),
+		agent.SearchResult(title="Paper two", url="https://arxiv.org/abs/2"),
+		agent.SearchResult(title="Paper three", url="https://arxiv.org/abs/3"),
+	]
+	downloads = []
+	monkeypatch.setattr(agent, "_search_web", lambda query: candidates)
+	monkeypatch.setattr(agent, "_ensure_workspace", lambda session_id: None)
+	monkeypatch.setattr(
+		agent,
+		"run_paper_agent",
+		lambda session_id, query, stream: downloads.append((session_id, query, stream)) or {"status": "ok", "paper_id": query},
+	)
+
+	state = {"session_id": "session-42", "query": "transformers", "paper_count": 3}
+	search_result = agent.paper_search_node(state)["research_result"]
+	download_result = agent.download_papers_node({**state, "research_result": search_result})["research_result"]
+
+	assert search_result["requested_count"] == 3
+	assert downloads == [
+		("session-42", "https://arxiv.org/abs/1", False),
+		("session-42", "https://arxiv.org/abs/2", False),
+		("session-42", "https://arxiv.org/abs/3", False),
+	]
+	assert len(download_result["papers"]) == 3
+
+
 def test_web_node_fetches_pages_only_when_llm_requests_it(monkeypatch):
 	search_results = [
 		agent.SearchResult(title="One", url="https://example.com/1", snippet="s1"),

@@ -141,7 +141,12 @@ def run_critic(sections: dict[str, str], inline_section_names: list[str],
     user_prompt = build_critic_prompt(sections, inline_section_names, candidates,
                                       open_issues=open_issues, open_hints=open_hints)
     raw = chat_with_structured_output(get_llm("reasoner"), CRITIC_SYSTEM_PROMPT, user_prompt, GapCritique).model_dump()
-    issues = merge_items(persisted_issues, raw.get("issues") or [], round_num,
+    raw_issues = raw.get("issues") or []
+    valid_issues = [issue for issue in raw_issues if issue.get("gap_id") in live_gap_ids]
+    if len(valid_issues) != len(raw_issues):
+        emit_trace({"type": "event", "name": "ignored malformed gap critique issues",
+                    "data": {"ignored_count": len(raw_issues) - len(valid_issues)}})
+    issues = merge_items(persisted_issues, valid_issues, round_num,
                          _ISSUE_FIELDS)
     hints = merge_items(persisted_hints, raw.get("missing_hints") or [], round_num,
                         _HINT_FIELDS)

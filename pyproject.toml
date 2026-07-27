@@ -12,6 +12,9 @@ dependencies = [
     "feedparser>=6.0",
     "requests>=2.31",
     "python-dotenv>=1.0",
+    "pdfminer.six",
+    "pysbd",
+    "marker-pdf>=2.0.0",
 ]
 
 [build-system]
