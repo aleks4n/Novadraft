@@ -28,18 +28,28 @@ from pdfminer.high_level import extract_text as extract_pdf_text
 from src.agents.paper_agent import run as run_paper_agent
 from src.common.utils import storage
 from src.common.utils.logging.runlog import GraphRunLog
-from src.llm.registry import chat_with_structured_output, get_llm
+from src.llm.registry import chat, chat_with_structured_output, get_llm
 
-INVESTIGATOR_WORKSPACE = "investigator"
 _USER_AGENT = "novadraft-investigator-agent/1.0"
 _REQUEST_TIMEOUT = 20
 _MAX_RESULT_COUNT = 5
 _MAX_PAGE_CHARS = 4000
 
+_WEB_ANSWER_SYSTEM_PROMPT = (
+	"Answer the user's query using only the supplied fetched web-page content. "
+	"Do not use outside knowledge or assume facts not supported by those pages. "
+	"If the pages do not contain enough information, say so plainly. "
+	"Give a concise, direct, however detailed answer."
+)
+
 
 class InvestigatorDecision(BaseModel):
 	action: Literal["paper", "web", "url"] = Field(
 		description="Choose paper for paper/article/preprint/DOI/arXiv work, web for a general web search, or url for a direct page to scrape/download.",
+	)
+	should_fetch_pages: bool = Field(
+		default=False,
+		description="For web searches, decide whether the agent should open and scrape result pages after the search.",
 	)
 	query: str = Field(
 		default="",
@@ -65,16 +75,19 @@ _DECISION_SYSTEM_PROMPT = (
 	"Use paper when the text is about a paper, article, preprint, DOI, arXiv ID, or asks to search/download a paper. "
 	"Use web when the text asks to search the web generally, compare claims on the web, or learn about a topic without naming a direct URL. "
 	"Use url only when the user provides a concrete URL and wants that page scraped, downloaded, or inspected. "
+	"Set should_fetch_pages true when the user wants the agent to inspect, summarize, or download the contents of search results, and false when a search-results-only answer is enough. "
 	"Set save_requested true only when the user asks to download, save, scrape, crawl, or fetch content. "
 	"Return the best downstream query or URL. Keep the query concise and literal.")
 
 
 class InvestigatorState(TypedDict, total=False):
 	text: str
+	session_id: str
 	mode: str
 	query: str
 	url: str
 	save_requested: bool
+	should_fetch_pages: bool
 	research_result: dict
 	result: str
 
@@ -123,16 +136,27 @@ class _HTMLTextExtractor(HTMLParser):
 		return re.sub(r"[ \t]+", " ", text).strip()
 
 
-def _ensure_workspace() -> Path:
-	category_dir = storage.category_dir(INVESTIGATOR_WORKSPACE)
+def _session_workspace(session_id: str) -> str:
+	"""Validate a session identifier before using it as a workspace directory."""
+	session_id = _normalize(session_id)
+	if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}", session_id):
+		raise ValueError(
+			"session_id must contain only letters, numbers, underscores, or hyphens "
+			"and must start with a letter or number."
+		)
+	return session_id
+
+
+def _ensure_workspace(session_id: str) -> Path:
+	category_dir = storage.category_dir(session_id)
 	meta_path = category_dir / "meta.json"
 	if not meta_path.exists():
 		category_dir.mkdir(parents=True, exist_ok=True)
 		now = storage.now_iso()
 		meta = {
-			"category_slug": INVESTIGATOR_WORKSPACE,
-			"name": "Investigator",
-			"description": "Workspace used by the investigator agent for ad hoc web and paper research.",
+			"category_slug": session_id,
+			"name": f"Investigator session {session_id}",
+			"description": "Workspace used by the investigator agent for one ad hoc research session.",
 			"source_url": None,
 			"created_at": now,
 			"updated_at": now,
@@ -170,9 +194,10 @@ def _heuristic_decide_request(text: str) -> dict:
 	save_requested = any(term in lower for term in ("download", "save", "scrape", "crawl", "fetch"))
 	paper_requested = any(term in lower for term in ("paper", "arxiv", "doi", "preprint", "manuscript"))
 	web_requested = any(term in lower for term in ("search the web", "web search", "search online", "search internet", "look up online"))
+	should_fetch_pages = any(term in lower for term in ("summarize", "summary", "download", "scrape", "extract", "read", "inspect"))
 
 	if url and (save_requested or "scrape" in lower or "download" in lower):
-		return {"mode": "url", "url": url, "query": url, "save_requested": save_requested, "decision_reason": "heuristic fallback"}
+		return {"mode": "url", "url": url, "query": url, "save_requested": save_requested, "should_fetch_pages": False, "decision_reason": "heuristic fallback"}
 	if paper_requested:
 		query = _extract_target(
 			clean,
@@ -182,7 +207,7 @@ def _heuristic_decide_request(text: str) -> dict:
 				r"(?:paper|article|preprint)\s*[:\-]\s*(.+)$",
 			],
 		)
-		return {"mode": "paper", "query": query, "url": url or None, "save_requested": save_requested, "decision_reason": "heuristic fallback"}
+		return {"mode": "paper", "query": query, "url": url or None, "save_requested": save_requested, "should_fetch_pages": False, "decision_reason": "heuristic fallback"}
 	query = _extract_target(
 		clean,
 		[
@@ -190,7 +215,7 @@ def _heuristic_decide_request(text: str) -> dict:
 			r"(?:web search|internet search)\s*[:\-]\s*(.+)$",
 		],
 	)
-	return {"mode": "web", "query": query, "url": url or None, "save_requested": save_requested, "decision_reason": "heuristic fallback"}
+	return {"mode": "web", "query": query, "url": url or None, "save_requested": save_requested, "should_fetch_pages": should_fetch_pages, "decision_reason": "heuristic fallback"}
 
 
 def _decide_request(text: str) -> dict:
@@ -236,10 +261,17 @@ def _decide_request(text: str) -> dict:
 				)
 
 	if action == "url" and url:
-		return {"mode": "url", "url": url, "query": query, "save_requested": bool(decision.save_requested), "decision_reason": decision.reason}
+		return {"mode": "url", "url": url, "query": query, "save_requested": bool(decision.save_requested), "should_fetch_pages": False, "decision_reason": decision.reason}
 	if action == "paper":
-		return {"mode": "paper", "query": query, "url": url or None, "save_requested": bool(decision.save_requested), "decision_reason": decision.reason}
-	return {"mode": "web", "query": query, "url": url or None, "save_requested": bool(decision.save_requested), "decision_reason": decision.reason}
+		return {"mode": "paper", "query": query, "url": url or None, "save_requested": bool(decision.save_requested), "should_fetch_pages": False, "decision_reason": decision.reason}
+	return {
+		"mode": "web",
+		"query": query,
+		"url": url or None,
+		"save_requested": bool(decision.save_requested),
+		"should_fetch_pages": bool(decision.should_fetch_pages),
+		"decision_reason": decision.reason,
+	}
 
 
 def _route_after_interpret(state: InvestigatorState) -> str:
@@ -316,14 +348,14 @@ def _search_web(query: str) -> list[SearchResult]:
 	return results
 
 
-def _download_path(name: str, suffix: str) -> Path:
-	downloads_dir = storage.workspace_root() / INVESTIGATOR_WORKSPACE / "downloads"
+def _download_path(session_id: str, name: str, suffix: str) -> Path:
+	downloads_dir = storage.workspace_root() / session_id / "downloads"
 	downloads_dir.mkdir(parents=True, exist_ok=True)
 	safe = re.sub(r"[^A-Za-z0-9]+", "-", name).strip("-").lower() or "download"
 	return downloads_dir / f"{safe}{suffix}"
 
 
-def _scrape_url(url: str, *, save_requested: bool = False) -> dict:
+def _scrape_url(url: str, *, session_id: str, save_requested: bool = False) -> dict:
 	response = requests.get(
 		url,
 		headers={"User-Agent": _USER_AGENT},
@@ -335,7 +367,7 @@ def _scrape_url(url: str, *, save_requested: bool = False) -> dict:
 	final_url = response.url
 
 	if "application/pdf" in content_type or final_url.lower().endswith(".pdf"):
-		save_path = _download_path(Path(urlparse(final_url).path).stem or "paper", ".pdf")
+		save_path = _download_path(session_id, Path(urlparse(final_url).path).stem or "paper", ".pdf")
 		save_path.write_bytes(response.content)
 		try:
 			extracted = extract_pdf_text(str(save_path))
@@ -354,7 +386,7 @@ def _scrape_url(url: str, *, save_requested: bool = False) -> dict:
 	excerpt = _extract_html_excerpt(html_text)[:_MAX_PAGE_CHARS]
 	saved_to = None
 	if save_requested:
-		save_path = _download_path(title, ".html")
+		save_path = _download_path(session_id, title, ".html")
 		save_path.write_text(html_text, encoding="utf-8")
 		saved_to = str(save_path)
 	return {
@@ -449,6 +481,10 @@ def _paper_to_text(result: dict, query: str) -> str:
 
 
 def _web_to_text(result: dict, query: str) -> str:
+	answer = result.get("answer")
+	if isinstance(answer, str) and answer.strip():
+		return answer.strip()
+
 	lines = ["Web research", f"Query: {query}"]
 
 	if result.get("error"):
@@ -484,6 +520,10 @@ def _web_to_text(result: dict, query: str) -> str:
 
 
 def _url_to_text(result: dict, url: str) -> str:
+	answer = result.get("answer")
+	if isinstance(answer, str) and answer.strip():
+		return answer.strip()
+
 	lines = ["URL scrape", f"URL: {url}", f"Kind: {result.get('kind', 'unknown')}" ]
 	if result.get("error"):
 		lines.extend(["", f"Error: {result['error']}"])
@@ -501,10 +541,31 @@ def interpret(state: InvestigatorState) -> dict:
 	return _decide_request(state["text"])
 
 
+def _answer_from_fetched_pages(query: str, pages: list[dict]) -> str | None:
+	"""Ask DeepSeek to answer *query* from successfully extracted page text."""
+	page_sections = []
+	for page in pages:
+		content = _normalize(str(page.get("text") or ""))
+		if not content:
+			continue
+		page_sections.append(
+			f"Source: {page.get('url') or 'unknown'}\n"
+			f"Title: {page.get('title') or 'untitled'}\n"
+			f"Content:\n{content}"
+		)
+
+	if not page_sections:
+		return None
+
+	user_prompt = f"Query:\n{query}\n\nFetched pages:\n\n" + "\n\n---\n\n".join(page_sections)
+	return chat(get_llm("cheap", temperature=0), _WEB_ANSWER_SYSTEM_PROMPT, user_prompt).strip()
+
+
 def paper_node(state: InvestigatorState) -> dict:
-	_ensure_workspace()
+	session_id = state["session_id"]
+	_ensure_workspace(session_id)
 	try:
-		result = run_paper_agent(INVESTIGATOR_WORKSPACE, state["query"], stream=False)
+		result = run_paper_agent(session_id, state["query"], stream=False)
 	except Exception as exc:  # noqa: BLE001 - return a readable text error
 		result = {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
 	return {"research_result": result}
@@ -512,28 +573,41 @@ def paper_node(state: InvestigatorState) -> dict:
 
 def web_node(state: InvestigatorState) -> dict:
 	query = state["query"]
+	session_id = state["session_id"]
 	try:
 		results = _search_web(query)
 	except Exception as exc:  # noqa: BLE001 - return a readable text error
 		return {"research_result": {"error": f"{type(exc).__name__}: {exc}"}}
 	result = {"search_results": [r.__dict__ for r in results], "pages": []}
 
-	lower = state["text"].lower()
-	should_fetch_pages = any(term in lower for term in ("summarize", "summary", "download", "scrape", "extract", "read"))
+	should_fetch_pages = bool(state.get("should_fetch_pages"))
 	if should_fetch_pages and results:
 		for item in results[:2]:
 			try:
-				result["pages"].append(_scrape_url(item.url, save_requested=state.get("save_requested", False)))
+				result["pages"].append(_scrape_url(item.url, session_id=session_id, save_requested=state.get("save_requested", False)))
 			except Exception as exc:  # noqa: BLE001 - keep partial progress
 				result["pages"].append({"url": item.url, "title": item.title, "error": f"{type(exc).__name__}: {exc}"})
+		try:
+			answer = _answer_from_fetched_pages(query, result["pages"])
+			if answer:
+				result["answer"] = answer
+		except Exception as exc:  # noqa: BLE001 - preserve fetched pages if the LLM is unavailable
+			result["answer_error"] = f"{type(exc).__name__}: {exc}"
 	return {"research_result": result}
 
 
 def url_node(state: InvestigatorState) -> dict:
 	try:
-		result = _scrape_url(state["url"], save_requested=state.get("save_requested", False))
+		result = _scrape_url(state["url"], session_id=state["session_id"], save_requested=state.get("save_requested", False))
 	except Exception as exc:  # noqa: BLE001 - return a readable text error
-		result = {"error": f"{type(exc).__name__}: {exc}"}
+		return {"research_result": {"error": f"{type(exc).__name__}: {exc}"}}
+
+	try:
+		answer = _answer_from_fetched_pages(state["query"], [result])
+		if answer:
+			result["answer"] = answer
+	except Exception as exc:  # noqa: BLE001 - preserve the fetched page if the LLM is unavailable
+		result["answer_error"] = f"{type(exc).__name__}: {exc}"
 	return {"research_result": result}
 
 
@@ -576,25 +650,27 @@ def _get_graph():
 	return _GRAPH
 
 
-def run(text: str, *, stream: bool = True, echo: bool | None = None) -> str:
+def run(text: str, *, session_id: str, stream: bool = True, echo: bool | None = None) -> str:
 	"""Route a free-text instruction to paper fetch/summarize or web scraping.
 
 	Returns plain text so callers can display it directly. The paper path uses
 	the existing paper agent; the generic path searches the web and fetches the
-	top hits when the prompt asks for more than just a search result list.
+	top hits when the prompt asks for more than just a search result list. Every
+	download is stored in ``workspace/<session_id>/``.
 	"""
 	text = _normalize(text)
 	if not text:
 		raise ValueError("Text must not be empty.")
+	session_id = _session_workspace(session_id)
 
 	graph = _get_graph()
-	inputs = {"text": text}
+	inputs = {"text": text, "session_id": session_id}
 	if not stream:
 		return graph.invoke(inputs)["result"]
 
 	if echo is None:
 		echo = True
-	runlog = GraphRunLog("investigator_agent", workspace=INVESTIGATOR_WORKSPACE, run_hint=text)
+	runlog = GraphRunLog("investigator_agent", workspace=session_id, run_hint=text)
 	runlog.run(graph, inputs, echo=echo)
 	if runlog.error:
 		raise RuntimeError(runlog.error)
@@ -604,5 +680,6 @@ def run(text: str, *, stream: bool = True, echo: bool | None = None) -> str:
 if __name__ == "__main__":
 	import sys
 
-	prompt = " ".join(sys.argv[1:]) or "search and download the paper: attention is all you need"
-	print(run(prompt, stream=False))
+	prompt = " ".join(sys.argv[2:]) or "what was the name of the 11th us president?"
+	session_id = sys.argv[1] if len(sys.argv) > 1 else "investigator-session"
+	print(run(prompt, session_id=session_id, stream=False))

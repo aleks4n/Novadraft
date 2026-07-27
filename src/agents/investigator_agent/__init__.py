@@ -20,5 +20,11 @@ MANIFEST = {
 			"required": True,
 			"placeholder": "search and download the paper: attention is all you need",
 		},
+		{
+			"name": "session_id",
+			"type": "text",
+			"required": True,
+			"placeholder": "research-session-123",
+		},
 	],
 }
