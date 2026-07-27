@@ -1,0 +1,25 @@
+{
+  "gap_id": "gap_d78b0b85",
+  "status": "unchecked",
+  "title": "Extension to non-text input and output modalities",
+  "description": "The Transformer is demonstrated only on text-based tasks (translation and parsing). The authors explicitly state their plan to extend the model to problems involving input and output modalities other than text, such as images, audio, and video.",
+  "type": "future_work",
+  "canonical_description": "extension of attention-based architecture to non-text modalities",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1706.03762",
+      "section": "conclusion",
+      "anchor": "input and output modalities other than text",
+      "quote": "We plan to extend the Transformer to problems involving input and output modalities other than text and to investigate local, restricted attention mechanisms to efficiently handle large inputs and outputs such as images, audio and video.",
+      "char_offset": [
+        672,
+        909
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-27T09:33:07Z",
+  "verdict": null,
+  "ranking": null
+}
