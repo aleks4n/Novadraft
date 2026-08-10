@@ -8,7 +8,10 @@ actions:
 - web: search the web and return the top results plus fetched excerpts
 - url: scrape a direct URL, downloading PDFs when possible
 
-The output is always plain text so callers can display it directly.
+The output is always plain text so callers can display it directly.  Routing
+and execution follow a bounded Reflexion loop: an actor selects a strategy, an
+evaluator checks the resulting artifact, and a reflection becomes memory for a
+revised attempt (and for later runs of the same request).
 """
 from __future__ import annotations
 
@@ -28,6 +31,7 @@ from pdfminer.high_level import extract_text as extract_pdf_text
 
 from src.agents.paper_agent import run as run_paper_agent
 from src.common.utils import storage
+from src.common.utils.logging import trace
 from src.common.utils.logging.runlog import GraphRunLog
 from src.llm.registry import chat, chat_with_structured_output, get_llm
 
@@ -36,6 +40,8 @@ _REQUEST_TIMEOUT = 20
 _MAX_RESULT_COUNT = 5
 _MAX_PAPER_DOWNLOADS = 5
 _MAX_PAGE_CHARS = 4000
+_DEFAULT_MAX_ATTEMPTS = 2
+_MAX_REFLECTIONS_PER_TASK = 5
 
 _WEB_ANSWER_SYSTEM_PROMPT = (
 	"Answer the user's query using only the supplied fetched web-page content. "
@@ -77,6 +83,14 @@ class InvestigatorDecision(BaseModel):
 	)
 
 
+class InvestigatorReflection(BaseModel):
+	"""A compact, reusable lesson produced after an unsuccessful attempt."""
+	lesson: str = Field(
+		default="",
+		description="One concrete instruction for the next attempt; do not restate the whole task.",
+	)
+
+
 _DECISION_SYSTEM_PROMPT = (
 	"You route a single user instruction to the right research action. "
 	"Pick exactly one action: paper, paper_search, web, or url. "
@@ -87,6 +101,12 @@ _DECISION_SYSTEM_PROMPT = (
 	"For every web query that asks for a factual answer, set should_fetch_pages to true. Set it to false only when the user explicitly asks for search results, links, or titles without an answer. "
 	"Set save_requested true only when the user asks to download, save, scrape, crawl, or fetch content. "
 	"Return the best downstream query or URL. Keep the query concise and literal.")
+
+_REFLECTION_SYSTEM_PROMPT = (
+	"You are the reflection component in a Reflexion research agent. "
+	"Given a user's request, the attempted route, and evaluator feedback, write one concise, "
+	"actionable lesson for the next attempt. Focus on changing the search target, route, or "
+	"retrieval strategy. Do not claim the task was completed and do not invent facts.")
 
 
 class InvestigatorState(TypedDict, total=False):
@@ -99,6 +119,10 @@ class InvestigatorState(TypedDict, total=False):
 	save_requested: bool
 	should_fetch_pages: bool
 	research_result: dict
+	attempt: int
+	max_attempts: int
+	reflections: list[str]
+	evaluation: dict
 	result: str
 
 
@@ -268,13 +292,20 @@ def _heuristic_decide_request(text: str) -> dict:
 	return {"mode": "web", "query": query, "paper_count": 1, "url": url or None, "save_requested": save_requested, "should_fetch_pages": should_fetch_pages, "decision_reason": "heuristic fallback"}
 
 
-def _decide_request(text: str) -> dict:
+def _decide_request(text: str, reflections: list[str] | None = None) -> dict:
 	clean = _normalize(text)
+	memory = [_normalize(item) for item in (reflections or []) if _normalize(item)]
+	actor_input = clean
+	if memory:
+		actor_input += "\n\nLessons from unsuccessful earlier attempts:\n" + "\n".join(
+			f"- {lesson}" for lesson in memory[-_MAX_REFLECTIONS_PER_TASK:]
+		)
+		actor_input += "\nUse these lessons to choose a revised strategy."
 	try:
 		decision = chat_with_structured_output(
 			get_llm("reasoner", temperature=0),
 			_DECISION_SYSTEM_PROMPT,
-			clean,
+			actor_input,
 			InvestigatorDecision,
 		)
 	except Exception:
@@ -618,8 +649,62 @@ def _multi_paper_to_text(result: dict, query: str) -> str:
 	return "\n".join(lines)
 
 
+def _reflection_memory_path(session_id: str) -> Path:
+	return storage.category_dir(session_id) / "investigator_reflections.json"
+
+
+def _task_key(text: str) -> str:
+	"""A stable, content-addressed key keeps lessons scoped to one request."""
+	import hashlib
+	return hashlib.sha256(_normalize(text).lower().encode("utf-8")).hexdigest()
+
+
+def _load_reflections(session_id: str, text: str) -> list[str]:
+	path = _reflection_memory_path(session_id)
+	if not path.exists():
+		return []
+	try:
+		records = json.loads(path.read_text(encoding="utf-8"))
+		lessons = records.get(_task_key(text), []) if isinstance(records, dict) else []
+		return [_normalize(item) for item in lessons if isinstance(item, str) and _normalize(item)][-_MAX_REFLECTIONS_PER_TASK:]
+	except (OSError, json.JSONDecodeError):
+		return []
+
+
+def _store_reflection(session_id: str, text: str, lesson: str) -> None:
+	lesson = _normalize(lesson)
+	if not lesson:
+		return
+	path = _reflection_memory_path(session_id)
+	try:
+		records = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+		if not isinstance(records, dict):
+			records = {}
+	except (OSError, json.JSONDecodeError):
+		records = {}
+	key = _task_key(text)
+	lessons = [item for item in records.get(key, []) if isinstance(item, str) and _normalize(item)]
+	if lesson not in lessons:
+		lessons.append(lesson)
+	records[key] = lessons[-_MAX_REFLECTIONS_PER_TASK:]
+	path.write_text(json.dumps(records, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def actor(state: InvestigatorState) -> dict:
+	"""Reflexion actor: route the request while conditioning on prior lessons."""
+	_ensure_workspace(state["session_id"])
+	attempt = int(state.get("attempt", 0)) + 1
+	reflections = list(state.get("reflections") or [])
+	if attempt == 1:
+		reflections = _load_reflections(state["session_id"], state["text"])
+	decision = _decide_request(state["text"], reflections)
+	trace.log_event("investigator_actor", attempt=attempt, reflections=len(reflections), mode=decision["mode"])
+	return {**decision, "attempt": attempt, "reflections": reflections}
+
+
 def interpret(state: InvestigatorState) -> dict:
-	return _decide_request(state["text"])
+	"""Backward-compatible name for the investigator's actor stage."""
+	return actor(state)
 
 
 def _answer_from_fetched_pages(query: str, pages: list[dict]) -> str | None:
@@ -731,6 +816,72 @@ def url_node(state: InvestigatorState) -> dict:
 	return {"research_result": result}
 
 
+def evaluate(state: InvestigatorState) -> dict:
+	"""Reflexion evaluator with observable completion criteria.
+
+	This deliberately evaluates delivery, not factual truth: the research nodes
+	already preserve their source material, while a deterministic evaluator keeps
+	retries safe and predictable when no LLM provider is configured.
+	"""
+	mode = state["mode"]
+	result = state.get("research_result") or {}
+	feedback = ""
+	if result.get("error"):
+		feedback = f"The {mode} route failed: {result['error']}"
+	elif mode == "paper" and result.get("status") != "ok":
+		feedback = result.get("message") or f"The paper workflow ended with status {result.get('status', 'unknown')}."
+	elif mode == "paper_search" and not result.get("papers"):
+		feedback = "No candidate paper completed; refine the paper title/topic or use a more specific source."
+	elif mode == "web" and not result.get("answer") and not result.get("search_results"):
+		feedback = "The web search returned no results; revise the search query."
+	elif mode == "url" and not result.get("text"):
+		feedback = "The supplied URL produced no readable content; try its canonical or downloadable form."
+
+	success = not feedback
+	evaluation = {"success": success, "feedback": feedback, "attempt": state.get("attempt", 1)}
+	trace.log_event("investigator_evaluator", **evaluation)
+	return {"evaluation": evaluation}
+
+
+def _fallback_reflection(state: InvestigatorState) -> str:
+	mode = state.get("mode", "research")
+	feedback = (state.get("evaluation") or {}).get("feedback") or "The result was unusable."
+	return f"After the {mode} route failed, use the evaluator feedback to make the next query or source more specific: {feedback}"
+
+
+def reflect(state: InvestigatorState) -> dict:
+	"""Convert evaluator feedback into a concise lesson and persist it as memory."""
+	feedback = (state.get("evaluation") or {}).get("feedback") or "The result was unusable."
+	try:
+		reflection = chat_with_structured_output(
+			get_llm("cheap", temperature=0),
+			_REFLECTION_SYSTEM_PROMPT,
+			f"User request:\n{state['text']}\n\nAttempted route: {state.get('mode')}\n\nEvaluator feedback:\n{feedback}",
+			InvestigatorReflection,
+		)
+		lesson = _normalize(reflection.lesson)
+	except Exception:
+		lesson = ""
+	if not lesson:
+		lesson = _fallback_reflection(state)
+
+	reflections = list(state.get("reflections") or [])
+	if lesson not in reflections:
+		reflections.append(lesson)
+	reflections = reflections[-_MAX_REFLECTIONS_PER_TASK:]
+	_store_reflection(state["session_id"], state["text"], lesson)
+	trace.log_event("investigator_reflection", attempt=state.get("attempt", 1), lesson=lesson)
+	return {"reflections": reflections}
+
+
+def _route_after_evaluate(state: InvestigatorState) -> str:
+	if (state.get("evaluation") or {}).get("success"):
+		return "render"
+	if int(state.get("attempt", 1)) >= int(state.get("max_attempts", _DEFAULT_MAX_ATTEMPTS)):
+		return "render"
+	return "reflect"
+
+
 def render(state: InvestigatorState) -> dict:
 	mode = state["mode"]
 	if mode == "paper":
@@ -746,22 +897,26 @@ def render(state: InvestigatorState) -> dict:
 
 def build_investigator_graph():
 	g = StateGraph(InvestigatorState)
-	g.add_node("interpret", interpret)
+	g.add_node("actor", actor)
 	g.add_node("paper", paper_node)
 	g.add_node("paper_search", paper_search_node)
 	g.add_node("download_papers", download_papers_node)
 	g.add_node("web", web_node)
 	g.add_node("url", url_node)
+	g.add_node("evaluate", evaluate)
+	g.add_node("reflect", reflect)
 	g.add_node("render", render)
 
-	g.add_edge(START, "interpret")
-	g.add_conditional_edges("interpret", _route_after_interpret,
+	g.add_edge(START, "actor")
+	g.add_conditional_edges("actor", _route_after_interpret,
 							{"paper": "paper", "paper_search": "paper_search", "web": "web", "url": "url"})
-	g.add_edge("paper", "render")
+	g.add_edge("paper", "evaluate")
 	g.add_edge("paper_search", "download_papers")
-	g.add_edge("download_papers", "render")
-	g.add_edge("web", "render")
-	g.add_edge("url", "render")
+	g.add_edge("download_papers", "evaluate")
+	g.add_edge("web", "evaluate")
+	g.add_edge("url", "evaluate")
+	g.add_conditional_edges("evaluate", _route_after_evaluate, {"render": "render", "reflect": "reflect"})
+	g.add_edge("reflect", "actor")
 	g.add_edge("render", END)
 	return g.compile()
 
@@ -776,7 +931,14 @@ def _get_graph():
 	return _GRAPH
 
 
-def run(text: str, *, session_id: str, stream: bool = True, echo: bool | None = None) -> str:
+def run(
+	text: str,
+	*,
+	session_id: str,
+	stream: bool = True,
+	echo: bool | None = None,
+	max_attempts: int = _DEFAULT_MAX_ATTEMPTS,
+) -> str:
 	"""Route a free-text instruction to paper fetch/summarize or web scraping.
 
 	Returns plain text so callers can display it directly. The paper path uses
@@ -790,7 +952,13 @@ def run(text: str, *, session_id: str, stream: bool = True, echo: bool | None = 
 	session_id = _session_workspace(session_id)
 
 	graph = _get_graph()
+	if max_attempts < 1:
+		raise ValueError("max_attempts must be at least 1.")
+	# Keep the historical graph input shape for the common/default call; the
+	# evaluator supplies its own default when this optional control is absent.
 	inputs = {"text": text, "session_id": session_id}
+	if max_attempts != _DEFAULT_MAX_ATTEMPTS:
+		inputs["max_attempts"] = max_attempts
 	if not stream:
 		return graph.invoke(inputs)["result"]
 

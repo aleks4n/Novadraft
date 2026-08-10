@@ -261,6 +261,58 @@ def test_run_uses_injected_graph(monkeypatch):
 	assert fake_graph.inputs == {"text": "search the web for transformers", "session_id": "session-123"}
 
 
+def test_actor_conditions_routing_on_saved_reflections(monkeypatch):
+	captured = {}
+	monkeypatch.setattr(agent, "_ensure_workspace", lambda session_id: None)
+	monkeypatch.setattr(agent, "_load_reflections", lambda session_id, text: ["Use the canonical paper URL."])
+	monkeypatch.setattr(
+		agent,
+		"_decide_request",
+		lambda text, reflections: captured.update(text=text, reflections=reflections) or {"mode": "web", "query": text},
+	)
+
+	result = agent.actor({"text": "find the paper", "session_id": "session-42"})
+
+	assert result["attempt"] == 1
+	assert result["reflections"] == ["Use the canonical paper URL."]
+	assert captured["reflections"] == ["Use the canonical paper URL."]
+
+
+def test_evaluator_routes_failed_attempt_to_reflection_then_stops_at_limit():
+	failed = agent.evaluate(
+		{"mode": "web", "attempt": 1, "max_attempts": 2, "research_result": {"error": "offline"}}
+	)
+	state = {"attempt": 1, "max_attempts": 2, **failed}
+
+	assert failed["evaluation"]["success"] is False
+	assert agent._route_after_evaluate(state) == "reflect"
+	assert agent._route_after_evaluate({**state, "attempt": 2}) == "render"
+
+
+def test_reflect_adds_and_persists_actionable_lesson(monkeypatch):
+	saved = []
+	monkeypatch.setattr(agent, "get_llm", lambda *args, **kwargs: object())
+	monkeypatch.setattr(
+		agent,
+		"chat_with_structured_output",
+		lambda *args, **kwargs: SimpleNamespace(lesson="Search for the official PDF instead of the failed landing page."),
+	)
+	monkeypatch.setattr(agent, "_store_reflection", lambda session_id, text, lesson: saved.append((session_id, text, lesson)))
+
+	result = agent.reflect(
+		{
+			"text": "download that paper",
+			"session_id": "session-42",
+			"mode": "paper",
+			"attempt": 1,
+			"evaluation": {"success": False, "feedback": "The paper workflow returned no source."},
+		}
+	)
+
+	assert result["reflections"] == ["Search for the official PDF instead of the failed landing page."]
+	assert saved == [("session-42", "download that paper", "Search for the official PDF instead of the failed landing page.")]
+
+
 def test_run_rejects_unsafe_session_id(monkeypatch):
 	monkeypatch.setattr(agent, "_get_graph", lambda: None)
 
