@@ -48,6 +48,7 @@ MODELS: dict[str, str] = {
 
 _RETRIES = 4
 _BACKOFF_BASE = 2.0  # 2s, 4s, 8s, 16s (+ jitter)
+_STRUCTURED_ATTEMPTS = 3  # re-asks when a thinking model answers in prose instead of calling the tool
 _TRANSIENT_STATUS = {429, 500, 502, 503, 504}
 _TRANSIENT_NAMES = {"APITimeoutError", "APIConnectionError"}  # carry no status_code
 
@@ -137,20 +138,30 @@ def chat_with_structured_output(llm, system: str, user: str, schema: type[T]) ->
         return result
 
     bound = llm.bind_tools([schema], tool_choice="auto")
-    resp = _invoke_with_retry(lambda: bound.invoke(messages))
-    if resp.tool_calls:
-        args = resp.tool_calls[0]["args"]
-        if set(args) == {"parameters"} and isinstance(args.get("parameters"), dict):
-            args = args["parameters"]
-    else:
+    args = None
+    for attempt in range(_STRUCTURED_ATTEMPTS):
+        resp = _invoke_with_retry(lambda: bound.invoke(messages))
+        if resp.tool_calls:
+            args = resp.tool_calls[0]["args"]
+            if set(args) == {"parameters"} and isinstance(args.get("parameters"), dict):
+                args = args["parameters"]
+            break
         # Thinking-mode models sometimes answer with the JSON inline (as prose)
-        # instead of emitting a tool call — recover by parsing it from the text
-        # before giving up.
+        # instead of emitting a tool call — recover by parsing it from the text.
         args = _json_from_text(resp.content)
-        if args is None:
-            raise ValueError(
-                f"{schema.__name__}: model returned no parseable structured output"
-            )
+        if args is not None:
+            break
+        # Neither: the model just answered in prose. Since `tool_choice` can't be
+        # forced on these models, the only lever is asking again — measured at
+        # roughly 1 call in 3 on deepseek-reasoner, so one attempt isn't enough.
+        if attempt < _STRUCTURED_ATTEMPTS - 1:
+            print(f"[llm] {schema.__name__}: no tool call in response — retrying "
+                  f"({attempt + 1}/{_STRUCTURED_ATTEMPTS - 1})", file=sys.stderr)
+    if args is None:
+        raise ValueError(
+            f"{schema.__name__}: model returned no parseable structured output "
+            f"in {_STRUCTURED_ATTEMPTS} attempts"
+        )
     result = schema.model_validate(args)
 
     _trace("chat_with_structured_output", system, user, schema=schema,
