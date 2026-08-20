@@ -142,6 +142,8 @@ def context_view(ctx: Context) -> str:
         ids = ", ".join(p.get("paper_id", "?") for p in rest)
         lines.append(f"- ({len(rest)} further paper(s) in context, not shown here: {ids}. "
                      f"Ask the investigator about one by id if it matters.)")
+    for finding in ctx.findings:
+        lines.append(f"- findings from an earlier step this turn:\n    {finding}")
     if ctx.missing_ids:
         lines.append(f"- (could not load: {', '.join(ctx.missing_ids)})")
     return "\n".join(lines) or "- (nothing selected)"

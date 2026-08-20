@@ -60,10 +60,6 @@ EVAL_DIR = Path(__file__).resolve().parent / "eval_runs"
 _CASE_ATTEMPTS = 3
 _BACKOFF = 4.0  # seconds, multiplied by the attempt number
 
-# Tools whose results carry ideas, so a `needs` pointing at them has something to pass on.
-# Mirrors what `agent._context_for` does at run time; update when a tool starts producing.
-_PRODUCES_IDEAS = {"creative_thinker"}
-
 
 # --- fixtures -----------------------------------------------------------------
 # `focus` is resolved at run time: "gap" -> a real gap id from the category,
@@ -79,8 +75,11 @@ CASES: list[dict] = [
      "expect": {"steps": 0}},
 
     # --- generation from a gap ---
+    # `steps: 1` is the assertion, not a detail: asking for ideas is not asking for
+    # refined ideas, so a plan that generates and then refines unasked is wrong here.
     {"name": "gap_generate", "focus": "gap", "message": "Give me 3 ideas for this gap",
-     "expect": {"tool": "creative_thinker", "thinking_mode": "generation", "width": 3}},
+     "expect": {"tool": "creative_thinker", "thinking_mode": "generation", "width": 3,
+                "steps": 1}},
     {"name": "gap_generate_constrained", "focus": "gap",
      "message": "Give me 3 ideas for this gap, nothing that needs retraining",
      "expect": {"tool": "creative_thinker", "thinking_mode": "generation"}},
@@ -92,6 +91,12 @@ CASES: list[dict] = [
     {"name": "gap_generate_then_refine", "focus": "gap",
      "message": "give me a few ideas for this gap, then sharpen whatever you come up with",
      "expect": {"tool": "creative_thinker", "chained": True}},
+
+    # Chaining the other way round: research first, then generate grounded in what came
+    # back. Exercises `needs` pointing at a tool that returns prose rather than ideas.
+    {"name": "research_then_generate", "focus": "gap",
+     "message": "what's already been tried for this gap? then give me ideas that avoid it",
+     "expect": {"tool": "investigator", "chained": True, "first_tool": "investigator"}},
 
     # --- refinement of an existing idea ---
     {"name": "idea_refine", "focus": "idea", "message": "make this idea sharper",
@@ -166,15 +171,13 @@ def check(plan: Plan, expect: dict, focus: FocusSelection) -> list[str]:
     if not plan.steps and not plan.answer.strip():
         fails.append("no steps and no answer — the user would get nothing")
 
-    # Always: `needs` must point backwards at a step that can actually supply ideas.
-    # A forward or self reference is skipped at run time, so it is a dead step.
+    # Always: `needs` must point backwards. A forward or self reference is skipped at run
+    # time, so it is a dead step. Which tool it points at is not checked — ideas and
+    # findings both flow, and whether a step produced either is only knowable after it ran.
     for i, step in enumerate(plan.steps, 1):
         for n in step.needs:
             if not 1 <= n < i:
                 fails.append(f"step {i}: needs step {n}, which is not an earlier step")
-            elif plan.steps[n - 1].tool not in _PRODUCES_IDEAS:
-                fails.append(f"step {i}: needs step {n} ({plan.steps[n - 1].tool}), "
-                             "which returns no ideas")
 
     # The mode has to match what is in context when the step runs: refinement needs an
     # idea, which comes either from the user's selection or from an earlier step.
@@ -209,6 +212,10 @@ def check(plan: Plan, expect: dict, focus: FocusSelection) -> list[str]:
             fails.append(f"expected width <= {expect['width_at_most']}, got {over}")
     if expect.get("chained") and not any(s.needs for s in plan.steps):
         fails.append("expected a step to consume an earlier one via needs, none did")
+    if "first_tool" in expect:
+        first = plan.steps[0].tool if plan.steps else "none"
+        if first != expect["first_tool"]:
+            fails.append(f"expected step 1 to be {expect['first_tool']!r}, got {first!r}")
     if "thinking_mode" in expect:
         modes = [s.args.get("thinking_mode") for s in plan.steps
                  if s.tool == "creative_thinker"]

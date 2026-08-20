@@ -68,13 +68,17 @@ Accepting a draft is **not in the graph** — `commit_selection()` is a plain fu
   instead of discovering it as a failed step. `depth` stays fixed: no user phrasing maps
   to it and it multiplies cost.
 - **Steps chain through the context, not through templated strings.** `ToolCall.needs`
-  lists earlier step numbers; `execute` builds that step's `Context` with `ideas` replaced
-  by what those steps produced. Deliberately not `$N` substitution into `args`: the ideas
-  a refinement step consumes belong in `context.ideas`, which the planner never writes
-  (`ThinkerArgs` excludes `context` — code owns scope, the planner owns intent). A step
-  whose `needs` produced nothing is skipped with a recorded reason rather than run on an
-  empty subject. `needs` declares *data flow only* — steps already ran in listed order and
-  still do; nothing is concurrent.
+  lists earlier step numbers; `execute` builds that step's `Context` from what they
+  returned. Deliberately not `$N` substitution into `args`: what a chained step consumes
+  belongs in the typed `Context`, which the planner never writes (`ThinkerArgs` excludes
+  it — code owns scope, the planner owns intent). A step whose `needs` produced nothing is
+  skipped with a recorded reason rather than run on an empty subject. `needs` declares
+  *data flow only* — steps run in listed order; nothing is concurrent.
+- **Ideas replace, findings accumulate.** A needed step's `ideas` become the subject the
+  later step works on; its `text` is appended to `Context.findings`. The planner names a
+  step, not a field — the routing follows from what the step returned. The split exists
+  because `Context.ideas` is what feeds `commit_selection`: prose put there would need a
+  fabricated `Idea` around it, one user click from the idea graph.
 - **Whoever saw the last decision-relevant thing writes the reply.** Tools ran → reflect
   answers, since it is the only step that saw the results. No tools → the planner answers
   in `Plan.answer` and the run skips execute and reflect entirely. Reflect is a

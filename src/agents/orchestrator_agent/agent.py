@@ -70,6 +70,7 @@ def _context_for(step: ToolCall, base: Context,
         return base, ""
 
     ideas: list[Idea] = []
+    findings: list[str] = []
     for n in step.needs:
         earlier = produced.get(n)
         if earlier is None:
@@ -77,11 +78,18 @@ def _context_for(step: ToolCall, base: Context,
         if not earlier.ok:
             return base, f"needs step {n}, which failed: {earlier.error}"
         ideas.extend(earlier.ideas)
+        if earlier.text:
+            findings.append(earlier.text)
 
-    if not ideas:
-        # e.g. it referenced an investigator step, which returns prose and no ideas.
-        return base, f"needs step(s) {step.needs}, which produced no ideas to work from"
-    return base.model_copy(update={"ideas": ideas}), ""
+    if not ideas and not findings:
+        return base, f"needs step(s) {step.needs}, which produced nothing to work from"
+
+    # Ideas replace the selection — the planner named those steps as the subject. Findings
+    # accumulate: research adds to what is known, it does not displace it.
+    update: dict = {"findings": base.findings + findings} if findings else {}
+    if ideas:
+        update["ideas"] = ideas
+    return base.model_copy(update=update), ""
 
 
 def execute(state: OrchestratorState) -> dict:

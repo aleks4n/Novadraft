@@ -25,6 +25,11 @@ class Context(BaseModel):
         default_factory=list,
         description="Paper records in scope — the session's fetches plus any the user named.",
     )
+    findings: list[str] = Field(
+        default_factory=list,
+        description="What an earlier step in this turn reported back — the investigator's "
+                    "prose, carried into a later step that declared it as a dependency.",
+    )
     missing_ids: list[str] = Field(
         default_factory=list, description="Focus ids that could not be loaded."
     )
