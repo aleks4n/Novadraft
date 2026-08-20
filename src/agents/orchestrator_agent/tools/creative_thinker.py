@@ -56,6 +56,13 @@ class ThinkerArgs(BaseModel):
         description="Personality presets, one per candidate in generation mode (e.g. "
                     "'a skeptic who questions the premise'). Diversity comes from these.",
     )
+    work_on: list[str] = Field(
+        default_factory=list,
+        description="Ids of the ideas already in your context that this call should work "
+                    "on — use it when several are in scope and the user meant one of them. "
+                    "Only ids listed in the context you were given. Leave empty to work on "
+                    "everything in scope.",
+    )
     width: int = Field(
         default=Guard().width,
         ge=1,
@@ -71,7 +78,27 @@ class ThinkerArgs(BaseModel):
 
 
 def run(args: ThinkerArgs, ctx: Context, _env: ToolEnv) -> ToolResult:
-    """Planner args + assembled context -> the subagent's typed call."""
+    """Planner args + assembled context -> the subagent's typed call.
+
+    `work_on` is applied here rather than passed on, so what the thinker receives in
+    `context.ideas` is exactly what it should work on. Its contract says refinement
+    deepens one existing idea in context; narrowing here is what makes that true when
+    several are in scope.
+
+    Ids are checked against what is actually in context. The planner picks from a list it
+    was shown, and naming something that is not there fails the step with a reason rather
+    than silently working whichever idea happens to come first.
+    """
+    if args.work_on:
+        wanted = set(args.work_on)
+        chosen = [idea for idea in ctx.ideas if idea.idea_id in wanted]
+        if not chosen:
+            return ToolResult(
+                tool=TOOL.name, ok=False,
+                error=f"work_on named {args.work_on}, none of which is in context",
+            )
+        ctx = ctx.model_copy(update={"ideas": chosen})
+
     call = CreativeThinkerCall(
         thinking_mode=args.thinking_mode,
         context=ctx,

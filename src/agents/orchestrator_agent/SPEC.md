@@ -82,6 +82,13 @@ Accepting a draft is **not in the graph** — `commit_selection()` is a plain fu
   it — code owns scope, the planner owns intent). A step whose `needs` produced nothing is
   skipped with a recorded reason rather than run on an empty subject. `needs` declares
   *data flow only* — steps run in listed order; nothing is concurrent.
+- **The planner names ideas by id; code checks they exist.** `ThinkerArgs.work_on` narrows
+  `Context.ideas` to what a call should work on, applied in the tool adapter so the thinker
+  receives exactly that — which is what makes its "refinement deepens one idea in context"
+  contract true when several are in scope. This is not the model asserting identity it
+  invented: it picks from ids rendered in its own context, and an id that is not there
+  fails the step with a reason. It also lets the planner write a criterion reflect can
+  actually check ("a refined candidate for idea_x returned").
 - **Ideas replace, findings accumulate.** A needed step's `ideas` become the subject the
   later step works on; its `text` is appended to `Context.findings`. The planner names a
   step, not a field — the routing follows from what the step returned. The split exists
@@ -188,12 +195,12 @@ current `GapRecord`** (no `evidence[].anchor`) and land in `missing_ids`.
 
 ## Open / deferred
 
-- **A follow-up cannot name *which* idea it means.** The previous turn's drafts all land in
-  `Context.ideas`, and refinement works the whole list — so "make the second one concrete"
-  refines whichever the thinker takes first. The designed path is the user clicking the
-  idea, which arrives as `focus.idea_ids`; chat-by-reference has no equivalent. A bounded
-  fix would be a `work_on` argument on `ThinkerArgs` naming ids the planner can see in its
-  context, validated at dispatch against what is actually there.
+- **A chained refinement is a pass over the batch, not one call per idea.** In
+  `generate -> refine(needs=[1])` the candidates do not exist when the plan is written, so
+  `work_on` cannot name them and the thinker takes whichever comes first. Fanning out —
+  one refinement call per idea received — would fix it at N× the cost, on candidates the
+  user has not looked at yet. Left as is deliberately: they can pick one and refine it
+  properly next turn, which sessions now make possible.
 - **The frontend does not carry `session_id`.** `run()` mints one when it is omitted, so
   until a client persists and resends it, every message is a fresh session of length one
   and none of the history mechanism can engage. `app/backend/main.py` also posts to a

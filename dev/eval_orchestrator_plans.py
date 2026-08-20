@@ -107,6 +107,13 @@ CASES: list[dict] = [
     {"name": "idea_critique", "focus": "idea", "message": "what's the weakest part of this?",
      "expect": {"tool": "creative_thinker", "thinking_mode": "refinement"}},
 
+    # Several ideas in scope, one of them meant. Without `work_on` the thinker takes
+    # whichever comes first, so the plan has to name the target rather than rely on order.
+    {"name": "idea_refine_one_of_many", "focus": "ideas",
+     "message": "make the second one more concrete",
+     "expect": {"tool": "creative_thinker", "thinking_mode": "refinement",
+                "work_on": 1}},
+
     # --- replanning after reflect found the round short. `previous` fakes that round.
     #     The rule under test: plan the REMAINDER, not the whole task again. Getting this
     #     wrong is how kept results turn into duplicate drafts in front of the user. ---
@@ -203,6 +210,15 @@ def check(plan: Plan, expect: dict, focus: FocusSelection) -> list[str]:
         widths = [s.args.get("width") for s in plan.steps if s.tool == "creative_thinker"]
         if expect["width"] not in widths:
             fails.append(f"expected width {expect['width']}, got {widths or 'none'}")
+    if "work_on" in expect:
+        # It must name exactly as many ideas as the user meant, and name them from what is
+        # actually in scope — an id from nowhere fails the step at dispatch.
+        named = [i for s in plan.steps for i in s.args.get("work_on", [])]
+        if len(named) != expect["work_on"]:
+            fails.append(f"expected work_on to name {expect['work_on']} idea(s), "
+                         f"got {named or 'none'}")
+        elif not set(named) <= set(focus.idea_ids):
+            fails.append(f"work_on named {named}, not all of which are in focus")
     if "width_at_most" in expect:
         # Replanning on top of kept results: anything beyond the shortfall is a duplicate
         # the user sees next to the originals.
@@ -239,9 +255,10 @@ def _a_gap(category: str) -> str | None:
     return None
 
 
-def _an_idea(category: str) -> str | None:
-    ids = storage.list_idea_ids(category)
-    return ids[0] if ids else None
+def _some_ideas(category: str) -> list[str]:
+    """Committed ideas to focus. Cases wanting one take the first; the `ideas` kind needs
+    at least two, so it can ask for one of several and be checked on which."""
+    return storage.list_idea_ids(category)
 
 
 def _previous_round(case: dict) -> dict:
@@ -277,7 +294,7 @@ def _previous_round(case: dict) -> dict:
 # --- run ----------------------------------------------------------------------
 
 
-def run_case(case: dict, category: str, gap_id: str | None, idea_id: str | None,
+def run_case(case: dict, category: str, gap_id: str | None, idea_ids: list[str],
              log_error) -> dict:
     """One fixture turn -> a result row.
 
@@ -294,7 +311,9 @@ def run_case(case: dict, category: str, gap_id: str | None, idea_id: str | None,
     if kind == "gap":
         focus = FocusSelection(gap_ids=[gap_id]) if gap_id else None
     elif kind == "idea":
-        focus = FocusSelection(idea_ids=[idea_id]) if idea_id else None
+        focus = FocusSelection(idea_ids=idea_ids[:1]) if idea_ids else None
+    elif kind == "ideas":
+        focus = FocusSelection(idea_ids=idea_ids) if len(idea_ids) > 1 else None
     else:
         focus = FocusSelection()
 
@@ -477,12 +496,13 @@ def main() -> None:
         cases = [c for c in CASES if c["name"] in wanted]
 
     try:
-        gap_id, idea_id = _a_gap(args.category), _an_idea(args.category)
+        gap_id, idea_ids = _a_gap(args.category), _some_ideas(args.category)
     except Exception as exc:  # noqa: BLE001 — an unreadable workspace shouldn't traceback
         print(f"could not read workspace '{args.category}': {type(exc).__name__}: {exc}")
         raise SystemExit(1)
     print(f"category {args.category} · gap {gap_id} · "
-          f"idea {idea_id or '(none — refinement cases will skip)'}")
+          f"idea {idea_ids[0] if idea_ids else '(none — refinement cases will skip)'}"
+          + (f" (+{len(idea_ids) - 1} more)" if len(idea_ids) > 1 else ""))
     print(f"{len(cases)} case(s), one LLM call each — expect ~5-15s per case\n", flush=True)
 
     # The report directory is created up front and rewritten after every case, so a
@@ -519,7 +539,7 @@ def main() -> None:
                 suffix = f" ({rep + 1}/{args.repeat})" if args.repeat > 1 else ""
                 print(f"  [{i}/{len(cases)}] {case['name']:<26} ...{suffix}",
                       end="\r", flush=True)
-                run = run_case(case, args.category, gap_id, idea_id, log_error)
+                run = run_case(case, args.category, gap_id, idea_ids, log_error)
                 if "skipped" in run:
                     runs = [run]
                     break

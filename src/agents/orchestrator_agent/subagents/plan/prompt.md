@@ -77,6 +77,11 @@ existing idea improved, pushed on, or questioned. Refinement deepens the ideas t
 in context. When the user has *selected* several and wants each one worked on separately,
 you know how many there are — plan one step per idea.
 
+When several ideas are in scope and the user meant one of them — "make the second one
+concrete", "the transfer idea is the weak one" — name its id in `work_on`. The ids are
+listed with the ideas in your context. Without it the thinker works whichever comes first,
+which is only right when the user genuinely meant all of them.
+
 **Asking for ideas is not asking for refined ideas.** "Give me 3 ideas for this gap" is
 one generation step, and it ends there. Only add a refinement step when the user says they
 want the results worked further — refined, deepened, sharpened, detailed, thought through,
