@@ -65,10 +65,10 @@ class Plan(BaseModel):
     """The planner's output — shown to the user before it runs.
 
     Empty `steps` is a real plan, not a failed one: the turn was conversational and
-    `answer` holds the reply. The planner writes it rather than reflect because on such
-    a turn there are no results to reflect on, and the planner is the only step that
-    sees the tool catalogue — so it is the only one that can answer "what can you do?"
-    from the actual tools rather than from a description of them.
+    `answer` holds the reply. The planner writes that reply rather than reflect, because
+    on such a turn there are no results to reflect on and the planner is the only step
+    that sees the tool catalogue — so it is the only one that can answer "what can you
+    do?" from the actual tools rather than from a description of them.
     """
 
     goal: str = Field(default="", description="The user's request restated in one line.")
@@ -93,10 +93,9 @@ Route = Literal["finish", "replan"]
 class ReflectJudgment(BaseModel):
     """Whether the plan's goal is met, and what to do next.
 
-    There is no `continue` route. It re-ran every step of the same plan and appended the
-    output, so one spurious loop offered the user the same drafts twice. Going back to the
-    planner with feedback covers the same case and costs the same one LLM call, while
-    saying *what* to do differently.
+    A shortfall goes back to the planner rather than re-running the same steps: it costs
+    the same single LLM call, and it says *what* to do differently instead of hoping the
+    same call returns something better.
 
     Defaults to `finish` so an offline run (empty mock output) terminates instead of
     looping to the iteration cap.

@@ -21,6 +21,10 @@ investigator can fetch the rest on purpose).
 
 Records that fail validation are named in `missing_ids` rather than raising — a stale id,
 or a file written by an earlier prototype, shouldn't kill a turn.
+
+This module decides what is *loaded*. `render.context_view` decides what the planner and
+reflect then see of it, which is deliberately less; the creative thinker gets the whole
+`Context` object.
 """
 
 from __future__ import annotations
@@ -37,9 +41,6 @@ from src.common.utils import storage
 from src.agents.orchestrator_agent import session
 from src.agents.orchestrator_agent.schemas import FocusSelection
 from src.agents.orchestrator_agent.state import OrchestratorState
-
-_SUMMARY_CHARS = 400  # per record: enough to reason about, not enough to think with
-
 
 # --- loading ------------------------------------------------------------------
 
@@ -88,28 +89,6 @@ def _session_papers(category: str, session_id: str) -> list[dict]:
         except (OSError, json.JSONDecodeError):
             continue
     return out
-
-
-# --- summary (shared by plan and reflect) -------------------------------------
-
-
-def summarise(ctx: Context) -> str:
-    """A compact view of the context, shared by plan and reflect.
-
-    Reflect needs it too: without it, it can't tell "the context was empty" from "the tool
-    returned nothing", and misreports which one happened.
-    """
-    lines = []
-    for gap in ctx.gaps:
-        lines.append(f"- gap {gap.gap_id}: {gap.title} — {gap.description[:_SUMMARY_CHARS]}")
-    for idea in ctx.ideas:
-        lines.append(f"- idea {idea.idea_id}: {idea.title} — {idea.description[:_SUMMARY_CHARS]}")
-    for paper in ctx.papers:
-        title = paper.get("title") or paper.get("paper_id", "")
-        lines.append(f"- paper {paper.get('paper_id', '')}: {title}")
-    if ctx.missing_ids:
-        lines.append(f"- (could not load: {', '.join(ctx.missing_ids)})")
-    return "\n".join(lines) or "- (nothing selected)"
 
 
 # --- the node -----------------------------------------------------------------

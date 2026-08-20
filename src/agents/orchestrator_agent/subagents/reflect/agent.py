@@ -16,8 +16,7 @@ from __future__ import annotations
 from src.common.schemas.context import Context
 from src.common.utils.prompts import load_prompt
 from src.llm.registry import chat_with_structured_output, get_llm
-from src.agents.orchestrator_agent.context import summarise
-from src.agents.orchestrator_agent.render import results_view
+from src.agents.orchestrator_agent.render import context_view, results_view
 from src.agents.orchestrator_agent.schemas import Plan, ReflectJudgment
 from src.agents.orchestrator_agent.state import OrchestratorState
 
@@ -34,7 +33,7 @@ def reflect(state: OrchestratorState) -> dict:
         f"**User asked:** {state.get('message', '')}\n\n"
         f"**Goal:** {plan.goal}\n\n"
         f"**Done criteria:**\n" + "\n".join(f"- {c}" for c in plan.done_criteria) + "\n\n"
-        f"**Context that was loaded:**\n{summarise(ctx)}\n\n"
+        f"**Context that was loaded:**\n{context_view(ctx)}\n\n"
         f"**Steps that ran, and what they returned:**\n"
         f"{results_view(plan.steps, results, state.get('carried', 0))}"
     )

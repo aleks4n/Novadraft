@@ -15,8 +15,7 @@ from __future__ import annotations
 from src.common.utils.prompts import load_prompt
 from src.llm.registry import chat_with_structured_output, get_llm
 from src.common.schemas.context import Context
-from src.agents.orchestrator_agent.context import summarise
-from src.agents.orchestrator_agent.render import results_view
+from src.agents.orchestrator_agent.render import context_view, results_view
 from src.agents.orchestrator_agent.schemas import Plan
 from src.agents.orchestrator_agent.state import OrchestratorState
 from src.agents.orchestrator_agent.tools.registry import catalog
@@ -34,7 +33,7 @@ def plan(state: OrchestratorState) -> dict:
 
     user_message = (
         f"**User message:**\n{state.get('message', '')}\n\n"
-        f"**Selected in the UI:**\n{summarise(ctx)}\n\n"
+        f"**Selected in the UI:**\n{context_view(ctx)}\n\n"
         f"**Tools:**\n{catalog()}"
     )
     # `results` is carried or cleared here, not in execute: reflect decides whether the

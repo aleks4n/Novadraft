@@ -42,12 +42,21 @@ Accepting a draft is **not in the graph** — `commit_selection()` is a plain fu
   catalogue and composes them itself. Safe because the two boundaries that matter are
   typed: the tool call schemas, and the commit gate. It stops being safe if the
   orchestrator gains a direct write path, or a tool takes free text where it took an enum.
-- **No LLM step sees raw `model_dump()` JSON.** `context.summarise` renders what was
-  loaded, `render.results_view` renders what came back — full content, nothing truncated,
-  with the candidate count stated outright and `thought_graph` plus bookkeeping fields
-  omitted by name. The version this replaced dumped JSON cut at 6000 chars, and a
-  five-idea result serialises to ~9500: reflect saw three of five, reported a shortfall
-  that did not exist, and looped. One chained run produced 10 drafts of 4 distinct ideas.
+- **`render.py` is the only module that decides what an LLM reads.** `context_view` for
+  what was loaded, `results_view` for what came back. No raw `model_dump()` JSON; never
+  cut at a character count (drop whole fields by name instead, so a step is never judging
+  a silently shortened view); state counts outright rather than leaving them to be
+  established by counting entries.
+- **The planner's context is deliberately smaller than the thinker's.** The planner and
+  reflect route and check structure; the creative thinker receives the whole `Context`
+  object and is the step that reasons over paper detail. Adding literature detail to
+  `context_view` measurably degrades plan accuracy — plans drift toward the investigator
+  and the prompt's own rules get buried — so a gap renders its evidence quote and verdict
+  status but not `verdict.reasoning` or `ranking`, and a paper renders its problem
+  statement and open threads, not the ~6k-char summary the UI shows as its "survey".
+  (There is no separate survey record; that view is built from `paper.json["summary"]`.)
+  Papers are capped at `_MAX_PAPERS`, announced in the text. Gaps and ideas are never
+  capped — the user chose those.
 - **Reflect routes `finish` or `replan`, never "run that again".** A shortfall goes back
   to the planner as `feedback` plus `keep_results`, so the next plan adds the remainder
   instead of repeating the round. Same cost — one LLM call — but it says what to change,
