@@ -149,6 +149,23 @@ def context_view(ctx: Context) -> str:
     return "\n".join(lines) or "- (nothing selected)"
 
 
+def history_view(history: list[dict]) -> str:
+    """Earlier turns of this session, oldest first.
+
+    One line each and nothing more. This is here so a follow-up resolves — "make the
+    second one concrete" needs to know a previous turn offered candidates — not so the
+    steps can reason over the transcript. The drafts themselves come back as objects in
+    `Context.ideas`, which is what makes them workable rather than merely mentionable.
+    """
+    if not history:
+        return "- (this is the first turn of the session)"
+    lines = []
+    for turn in history:
+        lines.append(f"- user: {turn.get('message', '')}")
+        lines.append(f"  you:  {turn.get('answer', '')}")
+    return "\n".join(lines)
+
+
 def _args_brief(step: ToolCall) -> str:
     """The step's arguments, with `instruction` pulled out onto its own line below."""
     bits = [f"{k}={v!r}" for k, v in step.args.items() if k != "instruction"]

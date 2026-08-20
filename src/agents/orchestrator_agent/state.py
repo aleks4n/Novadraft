@@ -40,6 +40,7 @@ class OrchestratorState(TypedDict, total=False):
 
     # --- after assemble_context (deterministic) ---
     context: Context
+    history: List[dict]  # earlier turns of this session: {message, answer}, oldest first
 
     # --- after plan (LLM) ---
     plan: Plan

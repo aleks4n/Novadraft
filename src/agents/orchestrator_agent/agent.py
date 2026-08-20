@@ -166,7 +166,8 @@ def finish(state: OrchestratorState) -> dict:
     planned_reply = "" if plan_.steps else plan_.answer
     answer = judgment.answer or planned_reply or _fallback_answer(state)
     session.write_result(
-        state["category_slug"], session_id, run_id, answer=answer, ideas=ideas
+        state["category_slug"], session_id, run_id,
+        message=state.get("message", ""), answer=answer, ideas=ideas,
     )
     # session_id / run_id are already in state; echoing them here puts them in this
     # node's update delta, which is what the app's run manager watches to learn where

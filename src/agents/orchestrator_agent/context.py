@@ -12,6 +12,8 @@ What goes in:
     its gap can't be meaningfully refined.
   - every paper the investigator fetched into this session, so the next turn sees what the
     last one found
+  - the drafts the previous turn offered, and the last few turns of the exchange, so a
+    follow-up can refer to what just happened
 
 Exactly one hop. Two would pull in most of the workspace and stop being focus.
 
@@ -41,6 +43,8 @@ from src.common.utils import storage
 from src.agents.orchestrator_agent import session
 from src.agents.orchestrator_agent.schemas import FocusSelection
 from src.agents.orchestrator_agent.state import OrchestratorState
+
+_HISTORY_TURNS = 3  # earlier turns fed back; more costs plan accuracy for little gain
 
 # --- loading ------------------------------------------------------------------
 
@@ -95,9 +99,12 @@ def _session_papers(category: str, session_id: str) -> list[dict]:
 
 
 def assemble_context(state: OrchestratorState) -> dict:
-    """LangGraph node: focus -> {"context": Context}."""
+    """LangGraph node: focus + session -> {"context": Context, "history": [...]}."""
     category = state["category_slug"]
+    session_id = state["session_id"]
     focus: FocusSelection = state.get("focus") or FocusSelection()
+    earlier = session.read_runs(category, session_id, limit=_HISTORY_TURNS,
+                               before=state.get("run_id", ""))
 
     gaps: dict[str, GapRecord] = {}
     ideas: dict[str, Idea] = {}
@@ -117,6 +124,18 @@ def assemble_context(state: OrchestratorState) -> dict:
             missing.append(idea_id)
         else:
             ideas[idea_id] = idea
+
+    # The drafts the previous turn offered. They exist only in the session file — nothing
+    # accepted them, so they cannot be loaded by id — and without this a follow-up like
+    # "make the second one concrete" has no second one to work on. Only the most recent
+    # run: older declined drafts would pile up, and accepted ones are loadable by id.
+    if earlier:
+        for raw in earlier[-1].get("ideas") or []:
+            try:
+                draft = Idea.model_validate(raw)
+            except (ValidationError, TypeError):
+                continue
+            ideas.setdefault(draft.idea_id, draft)
 
     # 2. one hop: a selected idea's parents (the gap it addresses, or its parent idea)
     for idea in list(ideas.values()):
@@ -140,7 +159,7 @@ def assemble_context(state: OrchestratorState) -> dict:
             if brief:
                 papers[evidence.paper_id] = brief
 
-    for fetched in _session_papers(category, state["session_id"]):
+    for fetched in _session_papers(category, session_id):
         papers.setdefault(fetched.get("paper_id", f"session_{len(papers)}"), fetched)
 
     return {
@@ -149,5 +168,7 @@ def assemble_context(state: OrchestratorState) -> dict:
             ideas=list(ideas.values()),
             papers=list(papers.values()),
             missing_ids=missing,
-        )
+        ),
+        "history": [{"message": r.get("message", ""), "answer": r.get("answer", "")}
+                    for r in earlier],
     }

@@ -15,7 +15,7 @@ from __future__ import annotations
 from src.common.utils.prompts import load_prompt
 from src.llm.registry import chat_with_structured_output, get_llm
 from src.common.schemas.context import Context
-from src.agents.orchestrator_agent.render import context_view, results_view
+from src.agents.orchestrator_agent.render import context_view, history_view, results_view
 from src.agents.orchestrator_agent.schemas import Plan
 from src.agents.orchestrator_agent.state import OrchestratorState
 from src.agents.orchestrator_agent.tools.registry import catalog
@@ -32,6 +32,7 @@ def plan(state: OrchestratorState) -> dict:
     previous = state.get("judgment")
 
     user_message = (
+        f"**Earlier in this conversation:**\n{history_view(state.get('history') or [])}\n\n"
         f"**User message:**\n{state.get('message', '')}\n\n"
         f"**Selected in the UI:**\n{context_view(ctx)}\n\n"
         f"**Tools:**\n{catalog()}"

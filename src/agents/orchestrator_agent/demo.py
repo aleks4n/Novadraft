@@ -81,6 +81,11 @@ def _first_valid_gap(category: str) -> str | None:
 def _show_context(update: dict) -> None:
     ctx = update["context"]
     _kv("loaded", f"{len(ctx.gaps)} gap(s) · {len(ctx.ideas)} idea(s) · {len(ctx.papers)} paper(s)")
+    history = update.get("history") or []
+    if history:
+        _kv("history", f"{len(history)} earlier turn(s) in this session")
+        for turn in history:
+            print(f"   \033[2m› {_wrap(turn['message'], '     ')}\033[0m")
     for gap in ctx.gaps:
         print(f"   \033[36m{gap.gap_id}\033[0m  {gap.title}")
     for idea in ctx.ideas:
@@ -167,6 +172,9 @@ def main() -> None:
     parser.add_argument("-m", "--message", help="what to ask; default depends on the focus")
     parser.add_argument("--chat", action="store_true",
                         help="focus nothing, so the planner has only the message to go on")
+    parser.add_argument("--session",
+                        help="continue this session — earlier turns and the drafts they "
+                             "offered come back as context (default: a fresh one)")
     parser.add_argument("--accept", action="store_true",
                         help="commit the offered drafts afterwards (the only thing that writes)")
     args = parser.parse_args()
@@ -192,7 +200,7 @@ def main() -> None:
 
     message = args.message or default_message
     run_id = f"run_{uuid.uuid4().hex[:8]}"
-    session_id = f"session_{uuid.uuid4().hex[:8]}"
+    session_id = args.session or f"session_{uuid.uuid4().hex[:8]}"
     inputs = {
         "session_id": session_id,
         "category_slug": category,
@@ -203,7 +211,7 @@ def main() -> None:
     }
 
     print(f"\033[1m{'═' * W}\033[0m")
-    print(f"\033[1m ORCHESTRATOR\033[0m  {category}  ·  {run_id}")
+    print(f"\033[1m ORCHESTRATOR\033[0m  {category}  ·  {session_id}  ·  {run_id}")
     _kv("message", message, indent=" ")
     _kv("focus", focus_label, indent=" ")
     print(f"\033[1m{'═' * W}\033[0m")
@@ -221,6 +229,8 @@ def main() -> None:
                 offered = update.get("ideas", [])
 
     print(f"\n\033[2mSession file: workspace/{category}/sessions/{session_id}/{run_id}.json\033[0m")
+    print(f"\033[2mContinue this conversation:  --session {session_id} --chat "
+          f"-m \"...\"\033[0m")
 
     if args.accept and offered:
         _rule("accept (what the user's click would do)")

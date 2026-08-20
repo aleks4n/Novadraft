@@ -42,6 +42,13 @@ Accepting a draft is **not in the graph** — `commit_selection()` is a plain fu
   catalogue and composes them itself. Safe because the two boundaries that matter are
   typed: the tool call schemas, and the commit gate. It stops being safe if the
   orchestrator gains a direct write path, or a tool takes free text where it took an enum.
+- **A session is a conversation; a run is one turn in it.** `sessions/<id>/<run_id>.json`
+  holds that turn's message, answer and drafts. `assemble_context` reads the last few back:
+  the previous run's drafts return as objects in `Context.ideas` — they were never
+  committed, so there is no id to load them by — and the last turns' text becomes
+  `history`. Drafts come back as objects rather than as transcript because a follow-up has
+  to be able to *work on* what was offered, not just mention it. Only the most recent run's
+  drafts return; older declined ones would accumulate, and accepted ones are loadable by id.
 - **`render.py` is the only module that decides what an LLM reads.** `context_view` for
   what was loaded, `results_view` for what came back. No raw `model_dump()` JSON; never
   cut at a character count (drop whole fields by name instead, so a step is never judging
@@ -181,10 +188,16 @@ current `GapRecord`** (no `evidence[].anchor`) and land in `missing_ids`.
 
 ## Open / deferred
 
-- **No conversation history.** `message` is one turn; `assemble_context` never reads prior
-  runs back in, so the drafts a run offered are invisible to the next turn. "Explain the
-  second one" is unanswerable by any step — the most likely follow-up in real use. Feeding
-  back the last turn or two (message, answer, drafts offered) is the fix.
+- **A follow-up cannot name *which* idea it means.** The previous turn's drafts all land in
+  `Context.ideas`, and refinement works the whole list — so "make the second one concrete"
+  refines whichever the thinker takes first. The designed path is the user clicking the
+  idea, which arrives as `focus.idea_ids`; chat-by-reference has no equivalent. A bounded
+  fix would be a `work_on` argument on `ThinkerArgs` naming ids the planner can see in its
+  context, validated at dispatch against what is actually there.
+- **The frontend does not carry `session_id`.** `run()` mints one when it is omitted, so
+  until a client persists and resends it, every message is a fresh session of length one
+  and none of the history mechanism can engage. `app/backend/main.py` also posts to a
+  nonexistent `idea_agent` with a button payload rather than a chat turn. Cross-team.
 - **Reflect cannot keep some results and drop others**, only the whole round
   (`keep_results`). Deliberate: per-idea selection would mean an LLM echoing `idea_id`s,
   and the user already picks which drafts survive at the commit gate. Revisit only if a
