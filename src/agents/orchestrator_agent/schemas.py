@@ -56,13 +56,26 @@ class ToolCall(BaseModel):
 
 
 class Plan(BaseModel):
-    """The planner's output — shown to the user before it runs."""
+    """The planner's output — shown to the user before it runs.
+
+    Empty `steps` is a real plan, not a failed one: the turn was conversational and
+    `answer` holds the reply. The planner writes it rather than reflect because on such
+    a turn there are no results to reflect on, and the planner is the only step that
+    sees the tool catalogue — so it is the only one that can answer "what can you do?"
+    from the actual tools rather than from a description of them.
+    """
 
     goal: str = Field(default="", description="The user's request restated in one line.")
     steps: list[ToolCall] = Field(default_factory=list)
     done_criteria: list[str] = Field(
         default_factory=list,
         description="Checkable conditions. Reflect has nothing to judge without these.",
+    )
+    answer: str = Field(
+        default="",
+        description="Your reply to the user, when the turn needs no tools. Fill this "
+                    "only when `steps` is empty; otherwise leave it blank and the "
+                    "reflection step writes the reply once the results are in.",
     )
 
 

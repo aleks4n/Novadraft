@@ -2,7 +2,8 @@
 
 A check rather than a judgment call, so it runs on the cheap model. It also drafts the
 message the user sees, since it is the step that knows both what was asked and what came
-back.
+back — but only on turns where tools actually ran. A turn that needed none is answered by
+the planner and routed straight to finish, because there would be nothing here to check.
 
 It gets the same context summary the planner got. Without it, a run where the tools
 returned nothing is indistinguishable from a run where nothing was selected, and it
@@ -20,7 +21,7 @@ from src.agents.orchestrator_agent.context import summarise
 from src.agents.orchestrator_agent.schemas import Plan, ReflectJudgment
 from src.agents.orchestrator_agent.state import OrchestratorState
 
-_SYSTEM = load_prompt(__file__)
+_SYSTEM = load_prompt(__file__, "../voice.md") + "\n" + load_prompt(__file__)
 _RESULTS_CHARS = 6000
 
 

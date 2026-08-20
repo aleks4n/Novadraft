@@ -4,8 +4,13 @@ idea nodes.
 One path through the graph:
 
     assemble_context -> plan -> execute -> reflect -> finish
-                          ^        |
-                          +--------+   (replan / continue)
+                         | ^        |                  ^
+                         | +--------+  (replan/cont.)  |
+                         +-- plan called no tools -----+
+
+A turn that needs no tools is answered by the planner itself and skips straight to
+finish: there is nothing to dispatch, and reflect checks results against done-criteria
+it would not have.
 
 A run always completes. It ends by *offering* draft ideas (written to the session's run
 result, returned to the chat); accepting them is `commit_selection()`, a plain function
@@ -66,11 +71,19 @@ def execute(state: OrchestratorState) -> dict:
 
 
 def _fallback_answer(state: OrchestratorState) -> str:
-    """Reflect leaves `answer` empty when it was routing rather than replying; if the loop
-    then ends on the iteration cap, the user would get nothing. Say what happened."""
+    """Last resort when neither LLM wrote a reply.
+
+    Reflect leaves `answer` empty when it was routing rather than replying, and if the
+    loop then ends on the iteration cap the user would get nothing. The planner can do
+    the same on a conversational turn by emitting no steps and no answer. Say what
+    happened rather than returning an empty message.
+    """
     failed = [r for r in state.get("results") or [] if not r.ok]
     if failed:
         return f"Something went wrong running the plan: {failed[0].error}"
+    if not (state.get("plan") or Plan()).steps:
+        return ("I didn't catch what you'd like to do. Pick a gap or an idea in the "
+                "panel, or tell me what you want to work on.")
     return ("The plan ran but produced nothing to show. Try rephrasing, or pick a gap "
             "or idea in the panel to work from.")
 
@@ -85,6 +98,7 @@ def finish(state: OrchestratorState) -> dict:
     produced an idea, but not which session or run it was called from.
     """
     judgment: ReflectJudgment = state.get("judgment") or ReflectJudgment()
+    plan_: Plan = state.get("plan") or Plan()
     session_id, run_id = state["session_id"], state["run_id"]
 
     ideas = []
@@ -93,7 +107,15 @@ def finish(state: OrchestratorState) -> dict:
             origin = idea.origin.model_copy(update={"session_id": session_id, "run_id": run_id})
             ideas.append(idea.model_copy(update={"origin": origin}))
 
-    answer = judgment.answer or _fallback_answer(state)
+    # Whoever saw the last decision-relevant thing speaks: reflect when tools ran (it is
+    # the only step that saw the results), the planner when none did (it is the only step
+    # that saw the tool catalogue).
+    #
+    # A planner answer written alongside steps is dropped rather than used as a fallback:
+    # it was composed before execution, so on a run that then failed it would tell the
+    # user what was about to happen as though it had.
+    planned_reply = "" if plan_.steps else plan_.answer
+    answer = judgment.answer or planned_reply or _fallback_answer(state)
     session.write_result(
         state["category_slug"], session_id, run_id, answer=answer, ideas=ideas
     )
@@ -101,6 +123,16 @@ def finish(state: OrchestratorState) -> dict:
     # node's update delta, which is what the app's run manager watches to learn where
     # the drafts were written (so the UI can offer them and later commit them).
     return {"ideas": ideas, "answer": answer, "session_id": session_id, "run_id": run_id}
+
+
+def _after_plan(state: OrchestratorState) -> str:
+    """Skip execute and reflect when the plan calls no tools.
+
+    A conversational turn is already answered by then (`Plan.answer`), there is nothing
+    to dispatch, and reflect — which checks results against done-criteria — would have
+    neither. Routing straight to finish costs one LLM call for such a turn instead of two.
+    """
+    return "execute" if (state.get("plan") or Plan()).steps else "finish"
 
 
 def _route(state: OrchestratorState) -> str:
@@ -122,7 +154,7 @@ def build_orchestrator_graph():
 
     g.add_edge(START, "assemble_context")
     g.add_edge("assemble_context", "plan")
-    g.add_edge("plan", "execute")
+    g.add_conditional_edges("plan", _after_plan, {"execute": "execute", "finish": "finish"})
     g.add_edge("execute", "reflect")
     g.add_conditional_edges(
         "reflect", _route, {"execute": "execute", "plan": "plan", "finish": "finish"}

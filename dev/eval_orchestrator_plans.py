@@ -128,6 +128,11 @@ def check(plan: Plan, expect: dict, focus: FocusSelection) -> list[str]:
     if not plan.goal.strip():
         fails.append("goal is empty")
 
+    # Always: a plan with no steps skips execute and reflect, so `answer` is the only
+    # thing the user will get. Empty here means an empty chat bubble.
+    if not plan.steps and not plan.answer.strip():
+        fails.append("no steps and no answer — the user would get nothing")
+
     # The mode has to match what was actually focused: refinement works on ONE
     # existing idea, so planning it with no idea in context cannot succeed.
     for i, step in enumerate(plan.steps, 1):

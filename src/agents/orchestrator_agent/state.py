@@ -1,11 +1,11 @@
 """The orchestrator graph's state — what flows between its nodes.
 
-A LangGraph TypedDict; `total=False` so each node returns only the keys it sets. One
-path, no branches at the entry:
+A LangGraph TypedDict; `total=False` so each node returns only the keys it sets.
 
     assemble_context -> plan -> execute -> reflect -> finish
-                          ^        |
-                          +--------+   (replan / continue)
+                         | ^        |                  ^
+                         | +--------+  (replan/cont.)  |
+                         +-- plan called no tools -----+
 
 Accepting an idea is *not* part of this graph — it needs no LLM, so it is a plain
 function call (`agent.commit_selection`).

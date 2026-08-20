@@ -94,6 +94,12 @@ def _show_context(update: dict) -> None:
 def _show_plan(update: dict) -> None:
     plan = update["plan"]
     _kv("goal", _wrap(plan.goal))
+    if not plan.steps:
+        # No tools: the planner answered directly and the run skips execute and reflect.
+        # Show the reply here, or the trace jumps to finish looking like nothing happened.
+        print("   \033[2mno tools needed — answering directly, skipping execute/reflect\033[0m")
+        _kv("answer", _wrap(plan.answer))
+        return
     print("   \033[2msteps\033[0m")
     for i, step in enumerate(plan.steps, 1):
         args = {k: v for k, v in step.args.items() if k != "instruction"}

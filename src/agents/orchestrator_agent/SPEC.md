@@ -12,16 +12,17 @@ produced.
 
 ```
 assemble_context -> plan -> execute -> reflect -> finish
-                      ^        |
-                      +--------+   (replan / continue)
+                     | ^        |                  ^
+                     | +--------+  (replan/cont.)  |
+                     +-- plan called no tools -----+
 ```
 
 | Node | Kind | Role |
 |---|---|---|
 | `assemble_context` | deterministic | Focus ids (what the user clicked) → gaps, ideas, and the session's fetched papers. Unresolvable ids go to `missing_ids`, never raise. |
-| `plan` | LLM (cheap) | Message + context summary + tool catalogue → `Plan` (goal, tool steps, `done_criteria`). Also clears `results`. |
+| `plan` | LLM (cheap) | Message + context summary + tool catalogue → `Plan` (goal, tool steps, `done_criteria`). Answers the user directly when no tool is needed. Also clears `results`. |
 | `execute` | deterministic | Dispatches each step through `tools/registry.py`. Decides nothing. A failing step is recorded, the rest continue. |
-| `reflect` | LLM (cheap) | Results vs `plan.done_criteria` → route and the user-facing answer. |
+| `reflect` | LLM (cheap) | Results vs `plan.done_criteria` → route and the user-facing answer. Only runs when tools ran. |
 | `finish` | deterministic | Stamps provenance, writes the run result (answer + drafts) to the session file. |
 
 Accepting a draft is **not in the graph** — `commit_selection()` is a plain function
@@ -41,6 +42,14 @@ Accepting a draft is **not in the graph** — `commit_selection()` is a plain fu
   catalogue and composes them itself. Safe because the two boundaries that matter are
   typed: the tool call schemas, and the commit gate. It stops being safe if the
   orchestrator gains a direct write path, or a tool takes free text where it took an enum.
+- **Whoever saw the last decision-relevant thing writes the reply.** Tools ran → reflect
+  answers, since it is the only step that saw the results. No tools → the planner answers
+  in `Plan.answer` and the run skips execute and reflect entirely. Reflect is a
+  *structural* checker: on a turn with no steps and no results it has nothing to check,
+  and it never sees `catalog()`, so it would answer "what can you do?" from a description
+  of the tools rather than the tools. Routing chat through it costs a second LLM call for
+  a worse-informed answer. The framing both writers share lives in `subagents/voice.md`,
+  loaded by each prompt, so their voice cannot drift apart.
 - **The tool descriptions in `tools/registry.py` are the specification.** `catalog()`
   renders them into the planner's prompt — changing a description changes what the
   orchestrator knows how to do. That file is the design surface, not a list of operations.
@@ -133,6 +142,15 @@ current `GapRecord`** (no `evidence[].anchor`) and land in `missing_ids`.
 
 ## Open / deferred
 
+- **No conversation history.** `message` is one turn; `assemble_context` never reads prior
+  runs back in, so the drafts a run offered are invisible to the next turn. "Explain the
+  second one" is unanswerable by any step — the most likely follow-up in real use. Feeding
+  back the last turn or two (message, answer, drafts offered) is the fix.
+- **Steps cannot chain.** The planner writes `generate → refine what was generated`, which
+  cannot execute: `execute` dispatches against the context assembled up front, so step 2
+  reads an empty `context.ideas`. Needs `ToolCall.needs: list[int]` plus `$N` reference
+  substitution, and a step whose input never materialised should be skipped, not run on
+  nothing. Reproduced by the `gap_generate` eval case.
 - **The investigator writes to the wrong place.** It treats `session_id` as a category —
   `workspace/<session_id>/`, with a `meta.json`, so every session appears in `/api/topics`
   as a research topic. Until reconciled, only its returned text is used and fetched papers

@@ -22,7 +22,10 @@ from src.agents.orchestrator_agent.schemas import Plan
 from src.agents.orchestrator_agent.state import OrchestratorState
 from src.agents.orchestrator_agent.tools.registry import catalog
 
-_SYSTEM = load_prompt(__file__)
+# `../voice.md` is what the planner and reflect share: what this product is, and how to
+# write to the user. Both can end up being the one who speaks, so the framing lives in one
+# file rather than drifting between two prompts.
+_SYSTEM = load_prompt(__file__, "../voice.md") + "\n" + load_prompt(__file__)
 
 
 def plan(state: OrchestratorState) -> dict:
