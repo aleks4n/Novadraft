@@ -179,11 +179,15 @@ def _after_plan(state: OrchestratorState) -> str:
 
 
 def _route(state: OrchestratorState) -> str:
-    """Reflect's verdict, with the iteration cap as a hard override."""
+    """Reflect's verdict, with the iteration cap as a hard override.
+
+    Only two destinations: back to the planner with feedback, or done. `execute` is
+    reachable only from `plan`, so every wave of tool calls has a plan that asked for it.
+    """
     if state.get("iteration", 0) >= _MAX_ITERATIONS:
         return "finish"
     judgment = state.get("judgment") or ReflectJudgment()
-    return {"continue": "execute", "replan": "plan"}.get(judgment.route, "finish")
+    return "plan" if judgment.route == "replan" else "finish"
 
 
 def build_orchestrator_graph():
@@ -199,9 +203,7 @@ def build_orchestrator_graph():
     g.add_edge("assemble_context", "plan")
     g.add_conditional_edges("plan", _after_plan, {"execute": "execute", "finish": "finish"})
     g.add_edge("execute", "reflect")
-    g.add_conditional_edges(
-        "reflect", _route, {"execute": "execute", "plan": "plan", "finish": "finish"}
-    )
+    g.add_conditional_edges("reflect", _route, {"plan": "plan", "finish": "finish"})
     g.add_edge("finish", END)
     return g.compile()
 

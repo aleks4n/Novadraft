@@ -41,6 +41,7 @@ class OrchestratorState(TypedDict, total=False):
 
     # --- after execute (deterministic dispatch) ---
     results: List[ToolResult]
+    carried: int  # how many of `results` predate this plan, so they aren't paired by index
 
     # --- after reflect (LLM) ---
     judgment: ReflectJudgment

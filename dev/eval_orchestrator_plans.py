@@ -45,7 +45,10 @@ print("loading the orchestrator (langgraph import — slow from cold) ...", flus
 from src.common.schemas.gap import GapRecord  # noqa: E402
 from src.common.utils import storage  # noqa: E402
 from src.agents.orchestrator_agent.context import assemble_context  # noqa: E402
-from src.agents.orchestrator_agent.schemas import FocusSelection, Plan  # noqa: E402
+from src.common.schemas.idea import Idea  # noqa: E402
+from src.agents.orchestrator_agent.schemas import (  # noqa: E402
+    FocusSelection, Plan, ReflectJudgment, ToolCall, ToolResult,
+)
 from src.agents.orchestrator_agent.subagents.plan.agent import plan as plan_node  # noqa: E402
 from src.agents.orchestrator_agent.tools.registry import TOOLS  # noqa: E402
 
@@ -98,6 +101,26 @@ CASES: list[dict] = [
      "expect": {"tool": "creative_thinker", "thinking_mode": "refinement"}},
     {"name": "idea_critique", "focus": "idea", "message": "what's the weakest part of this?",
      "expect": {"tool": "creative_thinker", "thinking_mode": "refinement"}},
+
+    # --- replanning after reflect found the round short. `previous` fakes that round.
+    #     The rule under test: plan the REMAINDER, not the whole task again. Getting this
+    #     wrong is how kept results turn into duplicate drafts in front of the user. ---
+    {"name": "replan_top_up", "focus": "gap",
+     "message": "give me 4 ideas for this gap",
+     "previous": {"ideas": 3, "asked": 4,
+                  "done_criteria": ["4 candidate ideas returned"],
+                  "feedback": "Three candidates came back and the criterion asked for "
+                              "four — plan one more, different from the three in hand."},
+     "expect": {"tool": "creative_thinker", "width_at_most": 1}},
+
+    {"name": "replan_discarded", "focus": "gap",
+     "message": "give me 4 ideas for this gap",
+     "previous": {"ideas": 3, "asked": 4, "keep_results": False,
+                  "done_criteria": ["4 candidate ideas returned"],
+                  "feedback": "The candidates all restated the gap instead of proposing a "
+                              "method. Discarded. Plan again with lenses that force a "
+                              "concrete mechanism."},
+     "expect": {"tool": "creative_thinker", "thinking_mode": "generation"}},
 
     # --- research questions ---
     {"name": "research_question", "focus": None,
@@ -177,6 +200,13 @@ def check(plan: Plan, expect: dict, focus: FocusSelection) -> list[str]:
         widths = [s.args.get("width") for s in plan.steps if s.tool == "creative_thinker"]
         if expect["width"] not in widths:
             fails.append(f"expected width {expect['width']}, got {widths or 'none'}")
+    if "width_at_most" in expect:
+        # Replanning on top of kept results: anything beyond the shortfall is a duplicate
+        # the user sees next to the originals.
+        over = [w for s in plan.steps
+                if (w := s.args.get("width", 0)) and w > expect["width_at_most"]]
+        if over:
+            fails.append(f"expected width <= {expect['width_at_most']}, got {over}")
     if expect.get("chained") and not any(s.needs for s in plan.steps):
         fails.append("expected a step to consume an earlier one via needs, none did")
     if "thinking_mode" in expect:
@@ -205,6 +235,36 @@ def _a_gap(category: str) -> str | None:
 def _an_idea(category: str) -> str | None:
     ids = storage.list_idea_ids(category)
     return ids[0] if ids else None
+
+
+def _previous_round(case: dict) -> dict:
+    """A synthetic earlier round, for cases that measure the replan path.
+
+    Replanning is a different prompt from a first plan — it carries reflect's feedback and
+    what is already in hand — and it is where "plan only the remainder" has to hold. That
+    rule is exactly the one that turns a kept round into duplicate drafts if it fails, so
+    it needs a fixture rather than being taken on trust.
+    """
+    spec = case.get("previous")
+    if not spec:
+        return {}
+    got = spec.get("ideas", 0)
+    ideas = [Idea(idea_id=f"idea_prev{n}", title=f"Prior candidate {n}",
+                  description="A candidate produced in the previous round.",
+                  method=["frame the problem", "build the variant", "measure against baseline"])
+             for n in range(1, got + 1)]
+    return {
+        "plan": Plan(
+            goal=spec.get("goal", "Produce candidate ideas for the selected gap."),
+            steps=[ToolCall(tool="creative_thinker",
+                            args={"thinking_mode": "generation", "width": spec.get("asked", 4)})],
+            done_criteria=spec.get("done_criteria", []),
+        ),
+        "results": [ToolResult(tool="creative_thinker", ideas=ideas)],
+        "judgment": ReflectJudgment(route="replan", feedback=spec["feedback"],
+                                    keep_results=spec.get("keep_results", True)),
+        "carried": 0,
+    }
 
 
 # --- run ----------------------------------------------------------------------
@@ -240,7 +300,7 @@ def run_case(case: dict, category: str, gap_id: str | None, idea_id: str | None,
         try:
             state = {"category_slug": category, "session_id": "session_eval",
                      "run_id": "run_eval", "message": case["message"], "focus": focus,
-                     "iteration": 0}
+                     "iteration": 0, **_previous_round(case)}
             state.update(assemble_context(state))  # inside the try: it reads the disk
             plan: Plan = plan_node(state)["plan"]
         except Exception as exc:  # noqa: BLE001 — infrastructure, not a verdict

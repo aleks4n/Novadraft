@@ -57,6 +57,19 @@ A chained step receives *all* the ideas the earlier step produced. That is one s
 one per idea: at plan time you cannot know how many candidates a generation step will
 return, so you cannot write a step for each.
 
+## When you are replanning
+
+Sometimes you are called a second time, because the reflection step found the previous
+round short. You are then given its feedback and, unless the round was discarded, exactly
+what is already in hand.
+
+Plan **only the remainder**. If three candidates came back and four were asked for, plan
+one more — not another four. The kept results are still on offer to the user, so anything
+you regenerate is a duplicate in front of them.
+
+If you are told the previous round was discarded, nothing is in hand: plan the whole task
+again, and differently from last time.
+
 ## How to think about the tools
 
 Prefer `generation` when the user wants new ideas, `refinement` when they want an

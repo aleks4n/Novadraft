@@ -12,9 +12,9 @@ produced.
 
 ```
 assemble_context -> plan -> execute -> reflect -> finish
-                     | ^        |                  ^
-                     | +--------+  (replan/cont.)  |
-                     +-- plan called no tools -----+
+                     | ^                  |         ^
+                     | +---- replan ------+         |
+                     +-- plan called no tools ------+
 ```
 
 | Node | Kind | Role |
@@ -22,7 +22,7 @@ assemble_context -> plan -> execute -> reflect -> finish
 | `assemble_context` | deterministic | Focus ids (what the user clicked) → gaps, ideas, and the session's fetched papers. Unresolvable ids go to `missing_ids`, never raise. |
 | `plan` | LLM (cheap) | Message + context summary + tool catalogue → `Plan` (goal, tool steps, `done_criteria`). Answers the user directly when no tool is needed. Also clears `results`. |
 | `execute` | deterministic | Dispatches each step through `tools/registry.py`. Decides nothing. A failing step is recorded, the rest continue. |
-| `reflect` | LLM (cheap) | Results vs `plan.done_criteria` → route and the user-facing answer. Only runs when tools ran. |
+| `reflect` | LLM (cheap) | Steps + their full output vs `plan.done_criteria` → `finish` or `replan` (with `feedback` and `keep_results`), plus the user-facing answer. Only runs when tools ran. |
 | `finish` | deterministic | Stamps provenance, writes the run result (answer + drafts) to the session file. |
 
 Accepting a draft is **not in the graph** — `commit_selection()` is a plain function
@@ -42,6 +42,16 @@ Accepting a draft is **not in the graph** — `commit_selection()` is a plain fu
   catalogue and composes them itself. Safe because the two boundaries that matter are
   typed: the tool call schemas, and the commit gate. It stops being safe if the
   orchestrator gains a direct write path, or a tool takes free text where it took an enum.
+- **No LLM step sees raw `model_dump()` JSON.** `context.summarise` renders what was
+  loaded, `render.results_view` renders what came back — full content, nothing truncated,
+  with the candidate count stated outright and `thought_graph` plus bookkeeping fields
+  omitted by name. The version this replaced dumped JSON cut at 6000 chars, and a
+  five-idea result serialises to ~9500: reflect saw three of five, reported a shortfall
+  that did not exist, and looped. One chained run produced 10 drafts of 4 distinct ideas.
+- **Reflect routes `finish` or `replan`, never "run that again".** A shortfall goes back
+  to the planner as `feedback` plus `keep_results`, so the next plan adds the remainder
+  instead of repeating the round. Same cost — one LLM call — but it says what to change,
+  and `execute` becomes reachable only from `plan`.
 - **The planner sets `width`, bounded; everything else in `guard` stays fixed.** A count
   the user states out loud ("give me 3 ideas") is only readable by the planner, and
   leaving it in `instruction` prose meant the thinker could ignore it. The `ge`/`le` bound
@@ -160,11 +170,10 @@ current `GapRecord`** (no `evidence[].anchor`) and land in `missing_ids`.
   runs back in, so the drafts a run offered are invisible to the next turn. "Explain the
   second one" is unanswerable by any step — the most likely follow-up in real use. Feeding
   back the last turn or two (message, answer, drafts offered) is the fix.
-- **`continue` re-runs the whole plan.** Reflect's `continue` route sends the same steps
-  back through `execute`, and `results` accumulates, so every step runs twice and both
-  waves are offered. Measured on a chained plan with the deterministic dummy: 10 drafts,
-  4 distinct. Options: re-run only the steps that failed or returned nothing, dedupe at
-  `finish`, or drop `continue` and keep `replan`/`finish`. Predates chaining.
+- **Reflect cannot keep some results and drop others**, only the whole round
+  (`keep_results`). Deliberate: per-idea selection would mean an LLM echoing `idea_id`s,
+  and the user already picks which drafts survive at the commit gate. Revisit only if a
+  single bad draft in an otherwise good round turns out to matter.
 - **The investigator writes to the wrong place.** It treats `session_id` as a category —
   `workspace/<session_id>/`, with a `meta.json`, so every session appears in `/api/topics`
   as a research topic. Until reconciled, only its returned text is used and fetched papers

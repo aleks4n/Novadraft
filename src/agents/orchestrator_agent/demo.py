@@ -124,10 +124,14 @@ def _show_execute(update: dict) -> None:
 
 def _show_reflect(update: dict) -> None:
     judgment = update["judgment"]
-    colour = {"finish": "32", "continue": "33", "replan": "31"}.get(judgment.route, "0")
-    _kv("route", f"\033[{colour}m{judgment.route}\033[0m   (iteration {update['iteration']})")
-    if judgment.reasoning:
-        _kv("because", _wrap(judgment.reasoning))
+    colour = {"finish": "32", "replan": "31"}.get(judgment.route, "0")
+    keep = "" if judgment.route == "finish" else (
+        "  \033[2m(keeping this round)\033[0m" if judgment.keep_results
+        else "  \033[31m(discarding this round)\033[0m")
+    _kv("route", f"\033[{colour}m{judgment.route}\033[0m{keep}   "
+                 f"(iteration {update['iteration']})")
+    if judgment.feedback:
+        _kv("because", _wrap(judgment.feedback))
 
 
 def _show_finish(update: dict) -> None:

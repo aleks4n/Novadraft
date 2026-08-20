@@ -87,18 +87,34 @@ class Plan(BaseModel):
 
 # --- reflect (LLM output) ----------------------------------------------------
 
-Route = Literal["continue", "replan", "finish"]
+Route = Literal["finish", "replan"]
 
 
 class ReflectJudgment(BaseModel):
     """Whether the plan's goal is met, and what to do next.
+
+    There is no `continue` route. It re-ran every step of the same plan and appended the
+    output, so one spurious loop offered the user the same drafts twice. Going back to the
+    planner with feedback covers the same case and costs the same one LLM call, while
+    saying *what* to do differently.
 
     Defaults to `finish` so an offline run (empty mock output) terminates instead of
     looping to the iteration cap.
     """
 
     route: Route = "finish"
-    reasoning: str = ""
+    keep_results: bool = Field(
+        default=True,
+        description="On `replan`: keep what the tools already returned and let the new "
+                    "plan add to it. False throws this round away and starts clean — for "
+                    "when the approach was wrong, not merely incomplete.",
+    )
+    feedback: str = Field(
+        default="",
+        description="On `replan`, what the planner must do differently — specific enough "
+                    "that it does not repeat the mistake. On `finish`, why the criteria "
+                    "are met.",
+    )
     answer: str = Field(default="", description="The message shown to the user.")
 
 
