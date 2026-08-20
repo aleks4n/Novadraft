@@ -33,6 +33,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.common.schemas.context import Context
+from src.common.schemas.idea import Idea
 from src.common.utils.logging.runlog import GraphRunLog
 from src.agents.orchestrator_agent import session
 from src.agents.orchestrator_agent.context import assemble_context
@@ -42,6 +43,8 @@ from src.agents.orchestrator_agent.schemas import (
     OrchestratorOutput,
     Plan,
     ReflectJudgment,
+    ToolCall,
+    ToolResult,
 )
 from src.agents.orchestrator_agent.state import OrchestratorState
 from src.agents.orchestrator_agent.subagents.plan.agent import plan
@@ -52,11 +55,44 @@ from src.agents.orchestrator_agent.tools.registry import ToolEnv, dispatch
 _MAX_ITERATIONS = 3  # reflect loops before finish is forced
 
 
+def _context_for(step: ToolCall, base: Context,
+                 produced: dict[int, ToolResult]) -> tuple[Context, str]:
+    """The context one step runs against, and a reason to skip it (empty string = run).
+
+    A step that declares `needs` works on what those steps produced, not on what the user
+    selected: the planner said "refine the output of step 1", so that output is the
+    subject and it replaces `ideas`. Gaps and papers stay — they are background either way.
+
+    Without this, a `generate -> refine` plan reads `context.ideas` from the up-front
+    assembly, finds it empty, and quietly refines nothing.
+    """
+    if not step.needs:
+        return base, ""
+
+    ideas: list[Idea] = []
+    for n in step.needs:
+        earlier = produced.get(n)
+        if earlier is None:
+            return base, f"needs step {n}, which is not an earlier step"
+        if not earlier.ok:
+            return base, f"needs step {n}, which failed: {earlier.error}"
+        ideas.extend(earlier.ideas)
+
+    if not ideas:
+        # e.g. it referenced an investigator step, which returns prose and no ideas.
+        return base, f"needs step(s) {step.needs}, which produced no ideas to work from"
+    return base.model_copy(update={"ideas": ideas}), ""
+
+
 def execute(state: OrchestratorState) -> dict:
     """LangGraph node: run the plan's steps. Deterministic — it decides nothing.
 
-    Steps run in order; a failing step is recorded and the rest continue, so reflect can
-    see a partial result and replan rather than the whole turn dying.
+    Steps run in order, each against the context `_context_for` builds for it. A failing
+    or skipped step is recorded and the rest continue, so reflect can see a partial result
+    and replan rather than the whole turn dying.
+
+    Order is the plan's own; `needs` declares data flow, not scheduling. Nothing here runs
+    concurrently, and with one or two steps per plan there is nothing to gain by it.
     """
     plan_: Plan = state.get("plan") or Plan()
     ctx: Context = state.get("context") or Context()
@@ -66,7 +102,14 @@ def execute(state: OrchestratorState) -> dict:
         run_id=state.get("run_id", ""),
     )
     results = list(state.get("results") or [])  # keep earlier waves on a `continue` loop
-    results.extend(dispatch(step, ctx, env) for step in plan_.steps)
+    produced: dict[int, ToolResult] = {}  # this pass only, by 1-based step number
+
+    for i, step in enumerate(plan_.steps, 1):
+        step_ctx, skip = _context_for(step, ctx, produced)
+        result = (ToolResult(tool=step.tool, ok=False, error=f"skipped — {skip}")
+                  if skip else dispatch(step, step_ctx, env))
+        produced[i] = result
+        results.append(result)
     return {"results": results}
 
 

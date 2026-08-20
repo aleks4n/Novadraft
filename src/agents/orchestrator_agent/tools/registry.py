@@ -56,6 +56,10 @@ def catalog() -> str:
             default = ("" if field.is_required()
                        else f" (default {field.get_default(call_default_factory=True)!r})")
             desc = f"\n          {field.description}" if field.description else ""
+            # Numeric bounds deliberately stay in the field's own description rather than
+            # being rendered here: `width: int [>= 1, <= 8]` measurably pushed the planner
+            # into answering in prose instead of emitting structured output (0/3 on
+            # chat_capabilities, 3/3 with the same bound written as "between 1 and 8").
             lines.append(f"      {name}: {_type_name(field.annotation)}{default}{desc}")
     return "\n".join(lines)
 

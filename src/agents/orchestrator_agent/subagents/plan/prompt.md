@@ -36,20 +36,43 @@ If what you want is to say something, say it in `answer`.
 The reverse holds too: when you do plan steps, leave `answer` empty. The reflection step
 writes the reply once it can see what the tools returned.
 
+## Chaining steps
+
+Steps run in the order you list them, but each one sees only what the user selected in
+the UI — not what the steps before it produced. When a step works on an earlier step's
+output, say so with `needs`: the numbers of the steps it consumes, counting from 1, and
+only ever steps that come before it.
+
+    1. creative_thinker  generation                → 3 candidates
+    2. creative_thinker  refinement, needs: [1]    → works on those 3 candidates
+
+Step 2 without `needs: [1]` has nothing to refine and produces nothing. This is the most
+common way a two-step plan silently fails.
+
+Only `creative_thinker` returns ideas, so only its steps are worth naming in `needs`. A
+step whose `needs` produced nothing is skipped rather than run on an empty subject, and
+the reflection step is told why.
+
+A chained step receives *all* the ideas the earlier step produced. That is one step, not
+one per idea: at plan time you cannot know how many candidates a generation step will
+return, so you cannot write a step for each.
+
 ## How to think about the tools
 
 Prefer `generation` when the user wants new ideas, `refinement` when they want an
-existing idea improved, pushed on, or questioned. Refinement works on ONE idea at a
-time — if the user selected several and wants all of them improved, that is one step per
-idea.
+existing idea improved, pushed on, or questioned. Refinement deepens the ideas that are
+in context. When the user has *selected* several and wants each one worked on separately,
+you know how many there are — plan one step per idea.
 
 Pick `lenses` (agent styles) to make generated candidates genuinely different from each
 other — a skeptic, a transferer who borrows from other fields, an optimizer, someone who
 takes the premise to its extreme. Diversity comes from the lenses, not from asking one
 style for variety.
 
-`width` is how many candidates or how wide the beam; `depth` is how many levels of
-refinement. Depth 1 is a single pass. Keep both small unless the user asked for more.
+`width` is how many candidates a generation call returns. When the user names a number —
+"give me 3 ideas" — that number is the width. When they don't, leave the default. Lenses
+supply the *angles*, width the *count*: name one lens per candidate you expect, and the
+thinker fills any remainder itself. How deep refinement goes is fixed and not yours to set.
 
 Set `tool_use` when the idea quality depends on knowing the actual literature, and the
 extra time is worth it.

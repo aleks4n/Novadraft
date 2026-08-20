@@ -53,6 +53,12 @@ class ToolCall(BaseModel):
     tool: str
     args: dict[str, Any] = Field(default_factory=dict)
     why: str = ""
+    needs: list[int] = Field(
+        default_factory=list,
+        description="1-based numbers of earlier steps whose output this step works on. "
+                    "Steps otherwise see only what the user selected, so a step that "
+                    "refines what an earlier step produced must say so here.",
+    )
 
 
 class Plan(BaseModel):

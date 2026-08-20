@@ -103,7 +103,8 @@ def _show_plan(update: dict) -> None:
     print("   \033[2msteps\033[0m")
     for i, step in enumerate(plan.steps, 1):
         args = {k: v for k, v in step.args.items() if k != "instruction"}
-        print(f"     {i}. \033[33m{step.tool}\033[0m  {args}")
+        needs = f"  \033[35mneeds {step.needs}\033[0m" if step.needs else ""
+        print(f"     {i}. \033[33m{step.tool}\033[0m{needs}  {args}")
         if step.why:
             print(f"        \033[2m{_wrap(step.why, '        ')}\033[0m")
         if step.args.get("instruction"):

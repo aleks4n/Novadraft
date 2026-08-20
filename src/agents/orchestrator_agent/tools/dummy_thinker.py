@@ -79,7 +79,15 @@ def _generate(call: CreativeThinkerCall) -> CreativeThinkerResult:
         )
 
     gap = gaps[0]
-    lenses = call.lenses or _DEFAULT_LENSES[: call.guard.width]
+    # `width` decides how many candidates come back; lenses only supply the angles. Top up
+    # from the defaults when the planner named fewer than it asked for, truncate when more.
+    lenses = list(call.lenses)
+    for default in _DEFAULT_LENSES:
+        if len(lenses) >= call.guard.width:
+            break
+        if default not in lenses:
+            lenses.append(default)
+    lenses = lenses[: call.guard.width]
     ideas: list[Idea] = []
 
     for lens in lenses:

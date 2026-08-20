@@ -29,9 +29,12 @@ class ThinkerArgs(BaseModel):
     """What the *planner* supplies — a deliberate subset of `CreativeThinkerCall`.
 
     `context` is absent because it is assembled deterministically from what the user
-    selected; the planner decides what to do, never what is in scope. `guard` is absent
-    because width and depth are fixed, so the planner cannot spend more compute than we
-    intend.
+    selected; the planner decides what to do, never what is in scope.
+
+    `guard` is not exposed whole: `width` is here because "give me 3 ideas" is a number
+    the user states out loud and the planner is the only step that reads it, but it is
+    bounded so a plan still cannot spend more than we intend. `depth` stays fixed — no
+    user phrasing maps to it, and it multiplies cost.
 
     `thinking_mode` is a Literal rather than a bare str: the two valid values then reach
     the planner through `catalog()` and are enforced at dispatch. As a plain string the
@@ -53,6 +56,14 @@ class ThinkerArgs(BaseModel):
         description="Personality presets, one per candidate in generation mode (e.g. "
                     "'a skeptic who questions the premise'). Diversity comes from these.",
     )
+    width: int = Field(
+        default=Guard().width,
+        ge=1,
+        le=8,
+        description="How many candidates a generation call returns, between 1 and 8. Set "
+                    "it to the number the user asked for; leave the default when they "
+                    "gave none. Ignored in refinement mode.",
+    )
     tool_use: bool = Field(
         default=False,
         description="Let the thinker research mid-thought: slower, better grounded.",
@@ -66,7 +77,7 @@ def run(args: ThinkerArgs, ctx: Context, _env: ToolEnv) -> ToolResult:
         context=ctx,
         instruction=args.instruction,
         lenses=args.lenses,
-        guard=Guard(),  # fixed for now — not the planner's to choose
+        guard=Guard(width=args.width),  # depth stays at its default
         tool_use=args.tool_use,
     )
     result: CreativeThinkerResult = think(call)

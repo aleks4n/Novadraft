@@ -42,6 +42,20 @@ Accepting a draft is **not in the graph** — `commit_selection()` is a plain fu
   catalogue and composes them itself. Safe because the two boundaries that matter are
   typed: the tool call schemas, and the commit gate. It stops being safe if the
   orchestrator gains a direct write path, or a tool takes free text where it took an enum.
+- **The planner sets `width`, bounded; everything else in `guard` stays fixed.** A count
+  the user states out loud ("give me 3 ideas") is only readable by the planner, and
+  leaving it in `instruction` prose meant the thinker could ignore it. The `ge`/`le` bound
+  keeps the budget intent and now renders into `catalog()`, so the planner sees the range
+  instead of discovering it as a failed step. `depth` stays fixed: no user phrasing maps
+  to it and it multiplies cost.
+- **Steps chain through the context, not through templated strings.** `ToolCall.needs`
+  lists earlier step numbers; `execute` builds that step's `Context` with `ideas` replaced
+  by what those steps produced. Deliberately not `$N` substitution into `args`: the ideas
+  a refinement step consumes belong in `context.ideas`, which the planner never writes
+  (`ThinkerArgs` excludes `context` — code owns scope, the planner owns intent). A step
+  whose `needs` produced nothing is skipped with a recorded reason rather than run on an
+  empty subject. `needs` declares *data flow only* — steps already ran in listed order and
+  still do; nothing is concurrent.
 - **Whoever saw the last decision-relevant thing writes the reply.** Tools ran → reflect
   answers, since it is the only step that saw the results. No tools → the planner answers
   in `Plan.answer` and the run skips execute and reflect entirely. Reflect is a
@@ -104,7 +118,7 @@ thinking_mode   generation (fan-out) | refinement (tree / chain of thoughts)
 context         Context: gaps + ideas + session papers
 instruction     the orchestrator's own words for this call
 lenses          personality presets, each prepended to the thinker's prompt
-guard           width/depth — FIXED for now, not exposed to the planner
+guard           width — set by the planner, bounded 1..8; depth FIXED
 tool_use        may the thinker call the investigator itself?
 ```
 
@@ -146,11 +160,11 @@ current `GapRecord`** (no `evidence[].anchor`) and land in `missing_ids`.
   runs back in, so the drafts a run offered are invisible to the next turn. "Explain the
   second one" is unanswerable by any step — the most likely follow-up in real use. Feeding
   back the last turn or two (message, answer, drafts offered) is the fix.
-- **Steps cannot chain.** The planner writes `generate → refine what was generated`, which
-  cannot execute: `execute` dispatches against the context assembled up front, so step 2
-  reads an empty `context.ideas`. Needs `ToolCall.needs: list[int]` plus `$N` reference
-  substitution, and a step whose input never materialised should be skipped, not run on
-  nothing. Reproduced by the `gap_generate` eval case.
+- **`continue` re-runs the whole plan.** Reflect's `continue` route sends the same steps
+  back through `execute`, and `results` accumulates, so every step runs twice and both
+  waves are offered. Measured on a chained plan with the deterministic dummy: 10 drafts,
+  4 distinct. Options: re-run only the steps that failed or returned nothing, dedupe at
+  `finish`, or drop `continue` and keep `replan`/`finish`. Predates chaining.
 - **The investigator writes to the wrong place.** It treats `session_id` as a category —
   `workspace/<session_id>/`, with a `meta.json`, so every session appears in `/api/topics`
   as a research topic. Until reconciled, only its returned text is used and fetched papers

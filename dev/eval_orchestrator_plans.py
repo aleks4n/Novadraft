@@ -57,6 +57,10 @@ EVAL_DIR = Path(__file__).resolve().parent / "eval_runs"
 _CASE_ATTEMPTS = 3
 _BACKOFF = 4.0  # seconds, multiplied by the attempt number
 
+# Tools whose results carry ideas, so a `needs` pointing at them has something to pass on.
+# Mirrors what `agent._context_for` does at run time; update when a tool starts producing.
+_PRODUCES_IDEAS = {"creative_thinker"}
+
 
 # --- fixtures -----------------------------------------------------------------
 # `focus` is resolved at run time: "gap" -> a real gap id from the category,
@@ -73,12 +77,18 @@ CASES: list[dict] = [
 
     # --- generation from a gap ---
     {"name": "gap_generate", "focus": "gap", "message": "Give me 3 ideas for this gap",
-     "expect": {"tool": "creative_thinker", "thinking_mode": "generation"}},
+     "expect": {"tool": "creative_thinker", "thinking_mode": "generation", "width": 3}},
     {"name": "gap_generate_constrained", "focus": "gap",
      "message": "Give me 3 ideas for this gap, nothing that needs retraining",
      "expect": {"tool": "creative_thinker", "thinking_mode": "generation"}},
     {"name": "gap_generate_implicit", "focus": "gap", "message": "what could we do here?",
      "expect": {"tool": "creative_thinker", "thinking_mode": "generation"}},
+
+    # --- a plan whose second step consumes the first. Without `needs`, step 2 runs
+    #     against the up-front context, finds no ideas, and produces nothing. ---
+    {"name": "gap_generate_then_refine", "focus": "gap",
+     "message": "give me a few ideas for this gap, then sharpen whatever you come up with",
+     "expect": {"tool": "creative_thinker", "chained": True}},
 
     # --- refinement of an existing idea ---
     {"name": "idea_refine", "focus": "idea", "message": "make this idea sharper",
@@ -133,14 +143,24 @@ def check(plan: Plan, expect: dict, focus: FocusSelection) -> list[str]:
     if not plan.steps and not plan.answer.strip():
         fails.append("no steps and no answer — the user would get nothing")
 
-    # The mode has to match what was actually focused: refinement works on ONE
-    # existing idea, so planning it with no idea in context cannot succeed.
+    # Always: `needs` must point backwards at a step that can actually supply ideas.
+    # A forward or self reference is skipped at run time, so it is a dead step.
+    for i, step in enumerate(plan.steps, 1):
+        for n in step.needs:
+            if not 1 <= n < i:
+                fails.append(f"step {i}: needs step {n}, which is not an earlier step")
+            elif plan.steps[n - 1].tool not in _PRODUCES_IDEAS:
+                fails.append(f"step {i}: needs step {n} ({plan.steps[n - 1].tool}), "
+                             "which returns no ideas")
+
+    # The mode has to match what is in context when the step runs: refinement needs an
+    # idea, which comes either from the user's selection or from an earlier step.
     for i, step in enumerate(plan.steps, 1):
         if step.tool != "creative_thinker":
             continue
         mode = step.args.get("thinking_mode")
-        if mode == "refinement" and not focus.idea_ids:
-            fails.append(f"step {i}: refinement planned with no idea in focus")
+        if mode == "refinement" and not focus.idea_ids and not step.needs:
+            fails.append(f"step {i}: refinement planned with no idea in focus and no needs")
         if mode == "generation" and not (focus.gap_ids or focus.idea_ids):
             fails.append(f"step {i}: generation planned with nothing in focus")
 
@@ -151,6 +171,14 @@ def check(plan: Plan, expect: dict, focus: FocusSelection) -> list[str]:
         used = [s.tool for s in plan.steps]
         if expect["tool"] not in used:
             fails.append(f"expected tool {expect['tool']!r}, got {used or 'none'}")
+    if "width" in expect:
+        # A count the user said out loud should reach the tool as a number, not just as
+        # prose inside `instruction` where the thinker may or may not honour it.
+        widths = [s.args.get("width") for s in plan.steps if s.tool == "creative_thinker"]
+        if expect["width"] not in widths:
+            fails.append(f"expected width {expect['width']}, got {widths or 'none'}")
+    if expect.get("chained") and not any(s.needs for s in plan.steps):
+        fails.append("expected a step to consume an earlier one via needs, none did")
     if "thinking_mode" in expect:
         modes = [s.args.get("thinking_mode") for s in plan.steps
                  if s.tool == "creative_thinker"]
