@@ -20,7 +20,7 @@ assemble_context -> plan -> execute -> reflect -> finish
 | Node | Kind | Role |
 |---|---|---|
 | `assemble_context` | deterministic | Focus ids (what the user clicked) → gaps, ideas, and the session's fetched papers. Unresolvable ids go to `missing_ids`, never raise. |
-| `plan` | LLM (cheap) | Message + context summary + tool catalogue → `Plan` (goal, tool steps, `done_criteria`). Answers the user directly when no tool is needed. Also clears `results`. |
+| `plan` | LLM (cheap) | Message + context view + tool catalogue → `Plan` (goal, tool steps, `done_criteria`). Answers the user directly when no tool is needed. On a replan, carries or clears `results` per reflect's `keep_results`. |
 | `execute` | deterministic | Dispatches each step through `tools/registry.py`. Decides nothing. A failing step is recorded, the rest continue. |
 | `reflect` | LLM (cheap) | Steps + their full output vs `plan.done_criteria` → `finish` or `replan` (with `feedback` and `keep_results`), plus the user-facing answer. Only runs when tools ran. |
 | `finish` | deterministic | Stamps provenance, writes the run result (answer + drafts) to the session file. |
@@ -64,9 +64,10 @@ Accepting a draft is **not in the graph** — `commit_selection()` is a plain fu
 - **The planner sets `width`, bounded; everything else in `guard` stays fixed.** A count
   the user states out loud ("give me 3 ideas") is only readable by the planner, and
   leaving it in `instruction` prose meant the thinker could ignore it. The `ge`/`le` bound
-  keeps the budget intent and now renders into `catalog()`, so the planner sees the range
-  instead of discovering it as a failed step. `depth` stays fixed: no user phrasing maps
-  to it and it multiplies cost.
+  keeps the budget intent; the range is stated in the field's *description* ("between 1
+  and 8") rather than rendered as notation, because `width: int [>= 1, <= 8]` in the
+  catalogue makes the planner answer in prose instead of emitting structured output at
+  all. `depth` stays fixed: no user phrasing maps to it and it multiplies cost.
 - **Steps chain through the context, not through templated strings.** `ToolCall.needs`
   lists earlier step numbers; `execute` builds that step's `Context` from what they
   returned. Deliberately not `$N` substitution into `args`: what a chained step consumes
@@ -101,9 +102,10 @@ Accepting a draft is **not in the graph** — `commit_selection()` is a plain fu
 - **Reflect sees the same context summary as the planner.** Without it, "nothing was
   selected" and "the tool returned nothing" are indistinguishable, and it reports the
   wrong one.
-- **`plan` clears `results`.** A new plan is a fresh attempt, so the previous attempt's
-  drafts must not be offered alongside it. On a `continue` route the graph goes straight
-  back to `execute`, where results accumulate — which is what that route means.
+- **`plan` decides what survives a replan, on reflect's instruction.** `keep_results=True`
+  carries the previous round forward and the new plan adds the remainder; `False` clears
+  it and the plan starts over. Whole rounds only — reflect cannot keep some drafts and drop
+  others, because that is the user's call at the commit gate.
 - **`plan` runs on `cheap` (deepseek-chat), not the reasoner.** Measured: the reasoner
   answers in prose instead of emitting the tool call often enough to fail outright ~1 in 3
   times *even with* the registry's re-ask, and is slower (9–11s vs 5–9s), while producing
@@ -203,5 +205,5 @@ current `GapRecord`** (no `evidence[].anchor`) and land in `missing_ids`.
 - **Refinement semantics.** The thinker updates an idea in place, so anything attached to
   the old text is silently invalidated. In-place plus thought-graph history, or a version
   chain — not yet decided.
-- **Per-session budget.** `_MAX_ITERATIONS` caps the reflect loop; nothing caps total LLM
+- **Per-session budget.** `MAX_ITERATIONS` caps the reflect loop; nothing caps total LLM
   calls or fetches across a session.

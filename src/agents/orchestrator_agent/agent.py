@@ -4,9 +4,9 @@ idea nodes.
 One path through the graph:
 
     assemble_context -> plan -> execute -> reflect -> finish
-                         | ^        |                  ^
-                         | +--------+  (replan/cont.)  |
-                         +-- plan called no tools -----+
+                         | ^                  |         ^
+                         | +---- replan ------+         |
+                         +-- plan called no tools ------+
 
 A turn that needs no tools is answered by the planner itself and skips straight to
 finish: there is nothing to dispatch, and reflect checks results against done-criteria
@@ -46,13 +46,11 @@ from src.agents.orchestrator_agent.schemas import (
     ToolCall,
     ToolResult,
 )
-from src.agents.orchestrator_agent.state import OrchestratorState
+from src.agents.orchestrator_agent.state import MAX_ITERATIONS, OrchestratorState
 from src.agents.orchestrator_agent.subagents.plan.agent import plan
 from src.agents.orchestrator_agent.subagents.reflect.agent import reflect
 from src.agents.orchestrator_agent.tools.commit import commit_selection  # noqa: F401 — public API
 from src.agents.orchestrator_agent.tools.registry import ToolEnv, dispatch
-
-_MAX_ITERATIONS = 3  # reflect loops before finish is forced
 
 
 def _context_for(step: ToolCall, base: Context,
@@ -109,7 +107,7 @@ def execute(state: OrchestratorState) -> dict:
         session_id=state.get("session_id", ""),
         run_id=state.get("run_id", ""),
     )
-    results = list(state.get("results") or [])  # keep earlier waves on a `continue` loop
+    results = list(state.get("results") or [])  # rounds reflect chose to keep
     produced: dict[int, ToolResult] = {}  # this pass only, by 1-based step number
 
     for i, step in enumerate(plan_.steps, 1):
@@ -192,7 +190,7 @@ def _route(state: OrchestratorState) -> str:
     Only two destinations: back to the planner with feedback, or done. `execute` is
     reachable only from `plan`, so every wave of tool calls has a plan that asked for it.
     """
-    if state.get("iteration", 0) >= _MAX_ITERATIONS:
+    if state.get("iteration", 0) >= MAX_ITERATIONS:
         return "finish"
     judgment = state.get("judgment") or ReflectJudgment()
     return "plan" if judgment.route == "replan" else "finish"

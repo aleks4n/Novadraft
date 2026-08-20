@@ -18,7 +18,7 @@ from src.common.utils.prompts import load_prompt
 from src.llm.registry import chat_with_structured_output, get_llm
 from src.agents.orchestrator_agent.render import context_view, results_view
 from src.agents.orchestrator_agent.schemas import Plan, ReflectJudgment
-from src.agents.orchestrator_agent.state import OrchestratorState
+from src.agents.orchestrator_agent.state import MAX_ITERATIONS, OrchestratorState
 
 _SYSTEM = load_prompt(__file__, "../voice.md") + "\n" + load_prompt(__file__)
 
@@ -29,8 +29,15 @@ def reflect(state: OrchestratorState) -> dict:
     ctx: Context = state.get("context") or Context()
     results = state.get("results") or []
 
+    # Which round this is, and how many there can be. `_route` enforces the cap over the
+    # judgment, so without this reflect can ask for another round it will not get and word
+    # its answer as though one were coming.
+    round_now = state.get("iteration", 0) + 1
     user_message = (
-        f"**User asked:** {state.get('message', '')}\n\n"
+        f"**Round {round_now} of {MAX_ITERATIONS}.**"
+        + (" This is the last round — whatever you decide, this answer is final.\n\n"
+           if round_now >= MAX_ITERATIONS else "\n\n")
+        + f"**User asked:** {state.get('message', '')}\n\n"
         f"**Goal:** {plan.goal}\n\n"
         f"**Done criteria:**\n" + "\n".join(f"- {c}" for c in plan.done_criteria) + "\n\n"
         f"**Context that was loaded:**\n{context_view(ctx)}\n\n"

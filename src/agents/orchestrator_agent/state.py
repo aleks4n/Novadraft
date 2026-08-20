@@ -25,6 +25,11 @@ from src.agents.orchestrator_agent.schemas import (
 )
 
 
+MAX_ITERATIONS = 3
+"""Reflect loops before `finish` is forced. Lives here rather than in `agent.py` because
+reflect is told which round it is on, and importing the graph module would be circular."""
+
+
 class OrchestratorState(TypedDict, total=False):
     # --- inputs, set at the boundary (run()) ---
     session_id: str
