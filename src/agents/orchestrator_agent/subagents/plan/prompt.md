@@ -259,6 +259,20 @@ Plan one more, different from the three in hand."**
 `width: 1`, not 4 — and a lens none of the three in hand used. Regenerating the whole set
 would put duplicates next to the originals in front of the user.
 
+**"what can you do?"**
+
+```json
+{
+  "goal": "Tell the user what this assistant can do for them.",
+  "steps": [],
+  "done_criteria": [],
+  "answer": "I work from the gaps you've found in the literature. Pick one and I'll draft candidate research ideas from a few different angles; pick an idea and I'll push it further, make it concrete, or go after its weakest assumption. I can also look up what's already been published on something, so the ideas don't repeat work that exists. What would you like to start with?"
+}
+```
+
+Prose, not a feature list — no bullets, no bold headings. It says what the user can do
+next, and nothing about how any of it works underneath.
+
 **"thanks, that's helpful"**
 
 ```json

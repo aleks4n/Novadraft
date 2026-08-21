@@ -4,11 +4,11 @@ For showing the orchestrator without a UI: it streams the graph and renders ever
 node's output as it arrives — the context that was loaded, the plan the LLM wrote,
 which tools ran, the reflection's verdict, and the drafts on offer.
 
-    # generate from a gap (picks a gap that parses if you don't name one)
-    python src/agents/orchestrator_agent/demo.py computer_vision
+    # generate from a gap — bare --gap picks one that parses
+    python src/agents/orchestrator_agent/demo.py computer_vision --gap
     python src/agents/orchestrator_agent/demo.py computer_vision --gap gap_04e60ada
 
-    # plain conversation — the planner should call no tools at all
+    # plain conversation — nothing selected, so the planner should call no tools at all
     python src/agents/orchestrator_agent/demo.py computer_vision -m "hi, what can you do?"
 
     # accept the drafts, so there is an idea to work on
@@ -17,6 +17,11 @@ which tools ran, the reflection's verdict, and the drafts on offer.
     # refine an existing idea
     python src/agents/orchestrator_agent/demo.py computer_vision --idea idea_1234abcd \\
         -m "make the evaluation plan concrete"
+
+    # two turns of one conversation: the second selects nothing, and works from what the
+    # first offered
+    python src/agents/orchestrator_agent/demo.py --session demo -m "give me 2 ideas for this gap"
+    python src/agents/orchestrator_agent/demo.py --session demo -m "make the second one more concrete"
 
 Nothing reaches the idea graph unless you pass --accept: a run ends by *offering*
 drafts, and accepting them is a separate call (`commit_selection`).
@@ -39,6 +44,7 @@ from src.agents.orchestrator_agent.agent import _get_graph, commit_selection
 from src.agents.orchestrator_agent.schemas import FocusSelection
 
 W = 78
+_ANY_GAP = object()  # bare `--gap`: focus a gap, any gap, rather than naming one
 
 
 def _rule(label: str) -> None:
@@ -167,11 +173,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("category", nargs="?", default="computer_vision")
-    parser.add_argument("--gap", help="focus this gap (default: the first one that parses)")
+    parser.add_argument("--gap", nargs="?", const=_ANY_GAP, default=None,
+                        help="focus a gap; bare --gap picks the first one that parses")
     parser.add_argument("--idea", help="focus this idea — use with a refinement message")
     parser.add_argument("-m", "--message", help="what to ask; default depends on the focus")
-    parser.add_argument("--chat", action="store_true",
-                        help="focus nothing, so the planner has only the message to go on")
     parser.add_argument("--session",
                         help="continue this session — earlier turns and the drafts they "
                              "offered come back as context (default: a fresh one)")
@@ -180,23 +185,29 @@ def main() -> None:
     args = parser.parse_args()
 
     category = args.category
+
+    # Nothing selected unless you say so. Naming no gap and no idea is a real state — it
+    # is what a chat turn looks like, and what a follow-up looks like once the session
+    # carries the subject — so it is the default rather than something to opt into.
     focus = FocusSelection()
     focus_label = "nothing"
+    default_message = "Hi, what can you do?"
 
     if args.idea:
         focus = FocusSelection(idea_ids=[args.idea])
         focus_label = f"idea {args.idea}"
         default_message = "Push this idea further — make it sharper."
-    elif args.chat:
-        default_message = "Hi, what can you do?"
-    else:
-        gap_id = args.gap or _first_valid_gap(category)
+    elif args.gap is not None:
+        gap_id = _first_valid_gap(category) if args.gap is _ANY_GAP else args.gap
         if gap_id is None:
             print(f"No gap in '{category}' parses against the current schema.")
             raise SystemExit(1)
         focus = FocusSelection(gap_ids=[gap_id])
         focus_label = f"gap {gap_id}"
         default_message = "Give me 3 ideas for this gap."
+    elif args.session:
+        focus_label = "nothing — continuing the session"
+        default_message = "Make the second one more concrete."
 
     message = args.message or default_message
     run_id = f"run_{uuid.uuid4().hex[:8]}"
@@ -229,8 +240,7 @@ def main() -> None:
                 offered = update.get("ideas", [])
 
     print(f"\n\033[2mSession file: workspace/{category}/sessions/{session_id}/{run_id}.json\033[0m")
-    print(f"\033[2mContinue this conversation:  --session {session_id} --chat "
-          f"-m \"...\"\033[0m")
+    print(f"\033[2mContinue this conversation:  --session {session_id} -m \"...\"\033[0m")
 
     if args.accept and offered:
         _rule("accept (what the user's click would do)")
