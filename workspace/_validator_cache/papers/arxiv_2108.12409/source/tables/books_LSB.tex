@@ -1,0 +1,18 @@
+\begin{table}[!htbp]
+\caption{\al   models extrapolating on the Toronto BookCorpus development set. $^*$For the results of the sinusoidal models, \lt = \li (so we do not test the extrapolation abilities of those models here).}
+\label{tab:books_lsb}
+\begin{center}
+\begin{tabular}{@{}rccc@{}}
+\toprule
+                               &  \multicolumn{3}{c}{Evaluation Length} \\  
+               Train Length               & 512 & 1024  & 3072 \\\cmidrule(r){1-1} \cmidrule(l){2-4}
+
+512 & 14.29 &13.64 &13.55  \\
+ 1024 & -&13.86 & 13.52 \\
+3072 & -& -& 13.15\\ \midrule \midrule
+Sinusoidal$^*$ &14.80 &14.73 & 14.46 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+

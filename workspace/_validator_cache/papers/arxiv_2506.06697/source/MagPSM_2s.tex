@@ -1,0 +1,114 @@
+\begin{table}[!t]
+    \centering
+    \scriptsize
+    \small
+    % \def\arraystretch{1.05}
+    % \def\arraystretch{0.55}
+    % \setlength{\tabcolsep}{3.3pt}
+    \def\arraystretch{0.91}
+    \setlength{\tabcolsep}{3.3pt}
+    \setlength{\abovetopsep}{0pt}
+    \setlength\belowbottomsep{0pt} 
+    \setlength\aboverulesep{0pt} 
+    \setlength\belowrulesep{0pt}
+    % \footnotesize	
+    % \caption{Average CSIG scores for each SNR level and the highest CSIG scores are highlighted in boldface.}
+    \caption{Performance evaluation results in terms of PESQ, ESTOI (in \%), CSIG, CBAK, and COVL. All the models are trained (PSM as the training objective) with 2s noisy-clean speech pairs and tested on noisy speech utterances with lengths of 2s, 5s, 10s, 15s, and 20s.}
+    \label{tab:magpsm2s}
+    % \vspace*{0.1in}
+    \begin{tabular}{@{}cl||ccccc@{}}
+         \toprule[1.25pt]
+         % \hline
+         % &  & \multicolumn{5}{c}{\textbf{Input SNR (dB)}}\\  
+         &  & \multicolumn{5}{c}{\textbf{Metrics}}\\  
+        % \cline{3-7}
+        Test Len. & Model & PESQ & ESTOI & CSIG & CBAK & COVL\\  
+        % \hline
+        % Objective & Network & -5 & 0 & 5 & 10 & 15 \\
+        % \hline
+        \hline
+        \hline
+        \multirow{10}{*}{2s}
+        & Noisy    & 1.88 & 53.94 & 2.36 & 1.87 & 1.74 \\
+        % \cline{2-7}
+        \cdashline{2-7}
+        & No-Pos       & 2.58 & 67.19 & 3.23 & 2.61 & 2.50  \\
+        & Sinusoidal   & 2.71 & 70.23 & 3.33 & 2.69 & 2.61  \\
+        & BERT-Pos     & 2.70 & 70.55 & 3.33 & 2.70 & 2.62  \\
+        & Gauss-Bias   & 2.60 & 67.49 & 3.24 & 2.62 & 2.52  \\
+        & T5-Bias      & \textbf{2.74} & 71.15 & 3.37 & 2.71 & \textbf{2.65}  \\
+        & TISA         & \textbf{2.74} & \textbf{71.33} & \textbf{3.38} & 2.71 & \textbf{2.65}  \\
+        & \textcolor{black}{DA-Bias}   & 2.73 & 70.94 & 3.37 & 2.71 & 2.65  \\
+        & \textcolor{black}{KERPLE}    & 2.71 & 70.34 & 3.34 & 2.69 & 2.62  \\
+        & LearnLin     & 2.72 & 70.81 & 3.36 & \textbf{2.72} & 2.64  \\
+        \hline
+        \hline
+        \multirow{10}{*}{5s}
+        & Noisy    & 1.88 & 54.26 & 2.33 & 1.86 & 1.71 \\
+        % \cline{2-7}
+        \cdashline{2-7}
+        & No-Pos       & 2.56 & 67.40 & 3.19 & 2.57 & 2.47  \\
+        & Sinusoidal   & 1.89 & 53.44 & 2.31 & 1.91 & 1.71  \\
+        % & BERT-Pos     & 2.60 & 68.26 & 3.24 & 2.59 & 2.52  \\
+        & BERT-Pos     & 2.06 & 59.48 & 2.61 & 2.10 & 1.92  \\
+        & Gauss-Bias   & 2.61 & 68.40 & 3.25 & 2.60 & 2.52  \\
+        & T5-Bias      & 2.74 & 71.29 & 3.39 & 2.70 & 2.66  \\
+        & TISA         & \textbf{2.76} & 71.80 & \textbf{3.41} & 2.69 & \textbf{2.68}  \\
+        & \textcolor{black}{DA-Bias}   & 2.74 & 71.86 & \textbf{3.41} & 2.71 & 2.67  \\
+        & \textcolor{black}{KERPLE}    & 2.74 & 71.38 & 3.37 & 2.67 & 2.64  \\
+        & LearnLin     & 2.75 & \textbf{71.88} & 3.40 & \textbf{2.71} & 2.67 \\
+        \hline
+        \hline
+        
+        \multirow{10}{*}{10s}
+        & Noisy    & 1.92 & 53.19 & 2.40 & 1.87 & 1.75 \\
+        % \cline{2-7}
+        \cdashline{2-7}
+        & No-Pos       & 2.52 & 65.35 & 3.19 & 2.53 & 2.45  \\
+        & Sinusoidal   & 1.94 & 53.23 & 2.37 & 1.92 & 1.76  \\
+        % & BERT-Pos     & 2.49 & 63.39 & 3.14 & 2.48 & 2.39  \\
+        & BERT-Pos     & 1.99 & 54.68 & 2.47 & 1.97 & 1.82  \\
+        & Gauss-Bias   & 2.61 & 66.90 & 3.27 & 2.61 & 2.54  \\
+        & T5-Bias      & 2.69 & 67.99 & 3.35 & 2.64 & 2.62  \\
+        & TISA         & 2.72 & 69.28 & 3.38 & 2.65 & 2.65  \\
+        & \textcolor{black}{DA-Bias}   & 2.73 & 69.54 & 3.41 & 2.68 & 2.67  \\
+        & \textcolor{black}{KERPLE}    & 2.74 & 69.95 & 3.39 & 2.67 & 2.65  \\
+        & LearnLin     & \textbf{2.75} & \textbf{70.40} & \textbf{3.42} & \textbf{2.72} & \textbf{2.69}  \\
+        \hline
+        \hline
+        
+        \multirow{10}{*}{15s}
+        & Noisy        & 1.90 & 52.68 & 2.32 & 1.83 & 1.71 \\
+        \cdashline{2-7}
+        & No-Pos       & 2.47 & 64.44 & 3.10 & 2.46 & 2.37  \\
+        & Sinusoidal   & 1.92 & 52.78 & 2.28 & 1.88 & 1.70  \\
+        % & BERT-Pos     & 2.42 & 60.92 & 3.02 & 2.38 & 2.29  \\
+        & BERT-Pos     & 1.96 & 52.49 & 2.40 & 1.89 & 1.76  \\
+        & Gauss-Bias   & 2.59 & 66.52 & 3.22 & 2.56 & 2.49  \\
+        & T5-Bias      & 2.60 & 66.62 & 3.24 & 2.54 & 2.51  \\
+        & TISA         & 2.65 & 68.18 & 3.27 & 2.56 & 2.55  \\
+        & \textcolor{black}{DA-Bias}   & 2.69 & 68.85 & 3.36 & 2.64 & 2.63  \\
+        & \textcolor{black}{KERPLE}    & 2.72 & 69.59 & 3.35 & 2.64 & 2.62  \\
+        & LearnLin     & \textbf{2.74} & \textbf{70.18} & \textbf{3.38} & \textbf{2.68} & \textbf{2.65}  \\
+        \hline
+        \hline
+        
+        \multirow{10}{*}{20s}
+        & Noisy        & 1.91 & 51.42 & 2.36 & 1.82 & 1.72    \\
+        % \cline{2-7}
+        \cdashline{2-7}
+        & No-Pos       & 2.49 & 62.73 & 3.13 & 2.47 & 2.40  \\
+        & Sinusoidal   & 1.91 & 51.37 & 2.33 & 1.86 & 1.72  \\
+        % & BERT-Pos     & 2.43 & 58.79 & 3.04 & 2.38 & 2.30  \\
+        & BERT-Pos     & 1.94 & 51.55 & 2.40 & 1.87 & 1.75  \\
+        & Gauss-Bias   & 2.62 & 65.50 & 3.27 & 2.59 & 2.53  \\
+        & T5-Bias      & 2.61 & 64.20 & 3.26 & 2.54 & 2.52  \\
+        & TISA         & 2.66 & 66.12 & 3.31 & 2.58 & 2.58  \\
+        & \textcolor{black}{DA-Bias}   & 2.71 & 67.27 & 3.39 & 2.64 & 2.64  \\
+        & \textcolor{black}{KERPLE}    & 2.74 & 68.36 & 3.39 & 2.65 & 2.65  \\
+        & LearnLin     & \textbf{2.78} & \textbf{68.85} & \textbf{3.43} & \textbf{2.70} & \textbf{2.69}  \\
+        % \hline
+        \toprule[1.25pt]
+    \end{tabular}
+    \vspace{-1.5em}
+\end{table}

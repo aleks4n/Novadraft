@@ -1,0 +1,5 @@
+{
+  "category_slug": "_validator_cache",
+  "category": "Validator prior-art cache",
+  "description": "Internal cache of papers fetched during validation; not a research topic."
+}

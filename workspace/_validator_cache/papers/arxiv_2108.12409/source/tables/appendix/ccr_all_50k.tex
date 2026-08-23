@@ -1,0 +1,42 @@
+\begin{table}[!htbp]
+
+
+
+\caption{Perplexity, train time and memory use of the sinusoidal and ALiBi models on the CC100+RoBERTa corpus when all models are trained with 50k updates.}
+\label{tab:ccr_all_50k}
+\begin{center}
+\centering
+\small
+\setlength{\tabcolsep}{2pt}
+
+
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+&  \multicolumn{3}{c}{Training}&  \multicolumn{3}{c}{Valid PPL $\downarrow$}\\ \cmidrule(l){2-4} \cmidrule(l){5-7} 
+&   { Memory $\downarrow$} & {Updates} &{ Hours $\downarrow$} &\li = 512  &\li = 1024  & \li = 2048   \\             
+\midrule
+Sinusoidal, $L_{train}$ = 512  &24.6 GB & 50.0k & 5.5k &9.71&37.05 &105.42   \\
+
+ALiBi, $L_{train}$ = 512        &24.6 GB& 50.0k& 5.5k & 9.79 &9.30&9.54   \\
+
+
+
+\midrule
+Sinusoidal, $L_{train}$ = 1024  &  26.2 GB &50.0k & 5.9k&-&9.15  &48.85\\
+ALiBi, $L_{train}$ = 1024        &  26.2 GB &50.0k & 5.9k &-&9.16&8.92  \\
+
+ 
+\midrule
+Sinusoidal, $L_{train}$ = 2048  & 29.3 GB &50.0k &6.7k  & -&-&8.83\\ 
+ALiBi, $L_{train}$ = 2048        & 29.4 GB&50.0k & 6.7k  & -&-&8.84  \\  
+\bottomrule
+\end{tabular}
+
+
+\end{center}
+\end{table}
+
+
+
+
+

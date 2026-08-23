@@ -1,0 +1,25 @@
+
+
+
+\begin{figure}
+\centering
+\begin{subfigure}{.28\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figures/wt103_Training-Speed.pdf}
+\end{subfigure}%
+\begin{subfigure}{.28\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figures/wt103_Inference-Speed.pdf}
+\end{subfigure}
+\begin{subfigure}{.28\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figures/wt103_Training-Memory-Usage.pdf}
+\end{subfigure}
+\begin{subfigure}[]{.14\textwidth}
+\centering
+\raisebox{3mm}{\includegraphics[width=\linewidth]{figures/legend.pdf}}
+\end{subfigure}
+\caption{A comparison of batched training, inference speed and memory use of the sinusoidal, rotary, T5 bias, and our ALiBi position methods. The speed differences between our method and the sinusoidal are within 1\% during training and 3\% for inference, which is insignificant on our hardware. ALiBi uses 100MB of extra memory when training on input lengths 1024 and 3072 in this setting. Memory usage is lower in all approaches when training on 3072 tokens (compared to 1024) since we break batches into multiple updates. See Table~\ref{tab:baselines_speed_mem} in the appendix for exact numbers. 
+}
+\label{fig:wt103_speed_mem}
+\end{figure}

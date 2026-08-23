@@ -1,0 +1,61 @@
+\appendix
+\section{Appendix}
+\label{sec:appendix}
+
+
+\subsection{Introduction}
+
+The training speed of transformer LMs gets slower as the input subsequence length $L$ increases. Figure~\ref{fig:wt103_train_speeds_all} visualizes this.
+\input{figure_wrappers/wt103_train_speeds_all}
+
+
+Table~\ref{tab:baselines_speed_mem} contains the runtimes and memory use statistics for models using the various position methods discussed in this work. 
+\input{tables/appendix/baselines_speed_mem}
+Tables~\ref{tab:appendix:wt103_extra_512}, \ref{tab:appendix:wt103_extra_1024}, and \ref{tab:appendix:wt103_extra_3072} show the perplexity and runtime of models using the sinusoidal, rotary T5 bias, and \al position methods when extrapolating to sequences longer than the ones they were trained on. The models used in these tables were trained on $L = 512, 1024$ and $3072$ tokens. 
+\input{tables/appendix/wt103_extra}
+
+
+\clearpage 
+\subsection{\al Results on WikiText-103}
+\input{figure_wrappers/wt103_train_speed_vs_ppl}
+
+Figure~\ref{fig:wt103_train_speed_vs_ppl} depicts a cross section of Figure~\ref{fig:wt103_extra_lsb_all}, showing our models with different train lengths and the sinusoidal baseline, all evaluated on \li = 3072 tokens. We observe that all our models with 512 $\leq$  \lt $<$ 3072 are faster to train than the sinusoidal model with \lt = 3072, 
+but they all achieve greater perplexity scores on the validation set. Our model with \lt = 3072 trains just as fast as the sinusoidal one but bests its score by more than one perplexity point; (the standard deviation for the the sinusoidal model with \lt = 3072 is 0.24). 
+
+
+Table~\ref{tab:LSB_wt103} shows the perplexity values obtained when 8 different \al models, trained on $L$ values between 64 and 3072, extrapolating to \li values longer than the ones they were trained on. In addition, we present results for the sinusoidal, rotary and T5 bias models, with \li = \lt. 
+\input{tables/LAB_wt103}
+
+
+Table~\ref{tab:wt103_test} compares \al to the sinusoidal, rotary and T5 bias baselines on the test set of WikiText-103, and Table~\ref{tab:wt103_test_sota} compares \al to the current state of the art models on that test set.  
+\input{tables/wt103_test}
+\input{tables/appendix/wt103_test_sota}
+
+\subsection{Results on the Toronto Book Corpus}
+\label{subsec:tbc}
+
+\input{04b-results-TBC}
+
+
+\input{tables/books_LSB}
+\input{tables/books_test}
+\input{tables/appendix/books_test_sota}
+\input{tables/ccr}
+
+
+
+\subsection{Results on the CC100+RoBERTa Corpus}
+Table~\ref{tab:ccr} compares our 1.3 billion parameter \al models when extrapolating to two times the number of tokens that they were trained on. We use the sinusoidal model as our baseline, and train it for the same amount of time as we train the \al model that we compare it to (and so since our \al models run faster in this setting, the sinusoidal models complete less updates). 
+
+Table~\ref{tab:ccr_all_50k} compares our 1.3 billion parameter \al models to the sinusoidal baselines, with and without extrapolation, with all models completing 50,000 updates. 
+\input{tables/appendix/ccr_all_50k}
+
+
+
+\input{05-analysis}
+
+
+\input{tables/sinusoidal_extrapolating_cw}
+\input{tables/t5_extrapolating_cw}
+\input{tables/LAB_extrapolating_cw}
+

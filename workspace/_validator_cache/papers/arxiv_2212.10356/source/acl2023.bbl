@@ -1,0 +1,206 @@
+\begin{thebibliography}{27}
+\expandafter\ifx\csname natexlab\endcsname\relax\def\natexlab#1{#1}\fi
+
+\bibitem[{Ainslie et~al.(2020)Ainslie, Ontanon, Alberti, Cvicek, Fisher, Pham,
+  Ravula, Sanghai, Wang, and Yang}]{etc}
+Joshua Ainslie, Santiago Ontanon, Chris Alberti, Vaclav Cvicek, Zachary Fisher,
+  Philip Pham, Anirudh Ravula, Sumit Sanghai, Qifan Wang, and Li~Yang. 2020.
+\newblock \href {https://doi.org/10.18653/v1/2020.emnlp-main.19} {{ETC}:
+  Encoding long and structured inputs in transformers}.
+\newblock In \emph{Proceedings of the 2020 Conference on Empirical Methods in
+  Natural Language Processing (EMNLP)}, pages 268--284, Online. Association for
+  Computational Linguistics.
+
+\bibitem[{Andonian et~al.(2021)Andonian, Anthony, Biderman, Black, Gali, Gao,
+  Hallahan, Levy-Kramer, Leahy, Nestler, Parker, Pieler, Purohit, Songz, Phil,
+  and Weinbach}]{gpt-neox-library}
+Alex Andonian, Quentin Anthony, Stella Biderman, Sid Black, Preetham Gali, Leo
+  Gao, Eric Hallahan, Josh Levy-Kramer, Connor Leahy, Lucas Nestler, Kip
+  Parker, Michael Pieler, Shivanshu Purohit, Tri Songz, Wang Phil, and Samuel
+  Weinbach. 2021.
+\newblock \href {https://doi.org/10.5281/zenodo.5879544} {{GPT-NeoX: Large
+  Scale Autoregressive Language Modeling in PyTorch}}.
+
+\bibitem[{Anil et~al.(2022)Anil, Wu, Andreassen, Lewkowycz, Misra, Ramasesh,
+  Slone, Gur-Ari, Dyer, and Neyshabur}]{anil2022exploring}
+Cem Anil, Yuhuai Wu, Anders~Johan Andreassen, Aitor Lewkowycz, Vedant Misra,
+  Vinay~Venkatesh Ramasesh, Ambrose Slone, Guy Gur-Ari, Ethan Dyer, and Behnam
+  Neyshabur. 2022.
+\newblock \href {https://openreview.net/forum?id=zSkYVeX7bC4} {Exploring length
+  generalization in large language models}.
+\newblock In \emph{Advances in Neural Information Processing Systems}.
+
+\bibitem[{Araujo et~al.(2019)Araujo, Norris, and Sim}]{araujo2019computing}
+Andre Araujo, Wade Norris, and Jack Sim. 2019.
+\newblock \href {https://doi.org/10.23915/distill.00021} {Computing receptive
+  fields of convolutional neural networks}.
+\newblock \emph{Distill}.
+\newblock Https://distill.pub/2019/computing-receptive-fields.
+
+\bibitem[{Ba et~al.(2016)Ba, Kiros, and Hinton}]{ba2016layernorm}
+Jimmy~Lei Ba, Jamie~Ryan Kiros, and Geoffrey~E Hinton. 2016.
+\newblock Layer normalization.
+\newblock \emph{arXiv preprint arXiv:1607.06450}.
+
+\bibitem[{Beltagy et~al.(2020)Beltagy, Peters, and
+  Cohan}]{beltagy2020longformer}
+Iz~Beltagy, Matthew~E. Peters, and Arman Cohan. 2020.
+\newblock \href {http://arxiv.org/abs/2004.05150} {Longformer: The
+  long-document transformer}.
+
+\bibitem[{Chang et~al.(2017)Chang, Zhang, Han, Yu, Guo, Tan, Cui, Witbrock,
+  Hasegawa-Johnson, and Huang}]{dilated_rnn}
+Shiyu Chang, Yang Zhang, Wei Han, Mo~Yu, Xiaoxiao Guo, Wei Tan, Xiaodong Cui,
+  Michael Witbrock, Mark~A Hasegawa-Johnson, and Thomas~S Huang. 2017.
+\newblock \href
+  {https://proceedings.neurips.cc/paper/2017/file/32bb90e8976aab5298d5da10fe66f21d-Paper.pdf}
+  {Dilated recurrent neural networks}.
+\newblock In \emph{Advances in Neural Information Processing Systems},
+  volume~30. Curran Associates, Inc.
+
+\bibitem[{Chi et~al.(2022)Chi, Fan, Ramadge, and Rudnicky}]{chi2022kerple}
+Ta-Chung Chi, Ting-Han Fan, Peter~J Ramadge, and Alexander~I Rudnicky. 2022.
+\newblock Kerple: Kernelized relative positional embedding for length
+  extrapolation.
+\newblock \emph{arXiv preprint arXiv:2205.09921}.
+
+\bibitem[{Dai et~al.(2017)Dai, Qi, Xiong, Li, Zhang, Hu, and Wei}]{deformable}
+Jifeng Dai, Haozhi Qi, Yuwen Xiong, Yi~Li, Guodong Zhang, Han Hu, and Yichen
+  Wei. 2017.
+\newblock \href {https://doi.org/10.1109/ICCV.2017.89} {Deformable
+  convolutional networks}.
+\newblock In \emph{2017 IEEE International Conference on Computer Vision
+  (ICCV)}, pages 764--773.
+
+\bibitem[{Dosovitskiy et~al.(2021)Dosovitskiy, Beyer, Kolesnikov, Weissenborn,
+  Zhai, Unterthiner, Dehghani, Minderer, Heigold, Gelly, Uszkoreit, and
+  Houlsby}]{dosovitskiy2021an}
+Alexey Dosovitskiy, Lucas Beyer, Alexander Kolesnikov, Dirk Weissenborn,
+  Xiaohua Zhai, Thomas Unterthiner, Mostafa Dehghani, Matthias Minderer, Georg
+  Heigold, Sylvain Gelly, Jakob Uszkoreit, and Neil Houlsby. 2021.
+\newblock \href {https://openreview.net/forum?id=YicbFdNTTy} {An image is worth
+  16x16 words: Transformers for image recognition at scale}.
+\newblock In \emph{International Conference on Learning Representations}.
+
+\bibitem[{Gao et~al.(2020)Gao, Biderman, Black, Golding, Hoppe, Foster, Phang,
+  He, Thite, Nabeshima, Presser, and Leahy}]{pile}
+Leo Gao, Stella Biderman, Sid Black, Laurence Golding, Travis Hoppe, Charles
+  Foster, Jason Phang, Horace He, Anish Thite, Noa Nabeshima, Shawn Presser,
+  and Connor Leahy. 2020.
+\newblock The {P}ile: An 800gb dataset of diverse text for language modeling.
+\newblock \emph{arXiv preprint arXiv:2101.00027}.
+
+\bibitem[{Gupta and Berant(2020)}]{gmat}
+Ankit Gupta and Jonathan Berant. 2020.
+\newblock \href {http://arxiv.org/abs/2006.03274} {{GMAT:} global memory
+  augmentation for transformers}.
+\newblock \emph{CoRR}, abs/2006.03274.
+
+\bibitem[{Luo et~al.(2016)Luo, Li, Urtasun, and Zemel}]{receptive}
+Wenjie Luo, Yujia Li, Raquel Urtasun, and Richard Zemel. 2016.
+\newblock Understanding the effective receptive field in deep convolutional
+  neural networks.
+\newblock In \emph{Proceedings of the 30th International Conference on Neural
+  Information Processing Systems}, NIPS'16, page 4905–4913, Red Hook, NY,
+  USA. Curran Associates Inc.
+
+\bibitem[{Mikolov et~al.(2010)Mikolov, Karafi{\'a}t, Burget, Cernock{\`y}, and
+  Khudanpur}]{MikolovKBCK10}
+Tomas Mikolov, Martin Karafi{\'a}t, Lukas Burget, Jan Cernock{\`y}, and Sanjeev
+  Khudanpur. 2010.
+\newblock Recurrent neural network based language model.
+\newblock In \emph{Interspeech}, volume~2, pages 1045--1048. Makuhari.
+
+\bibitem[{Mikolov and Zweig(2012)}]{6424228}
+Tomas Mikolov and Geoffrey Zweig. 2012.
+\newblock \href {https://doi.org/10.1109/SLT.2012.6424228} {Context dependent
+  recurrent neural network language model}.
+\newblock In \emph{2012 IEEE Spoken Language Technology Workshop (SLT)}, pages
+  234--239.
+
+\bibitem[{Oord et~al.(2016)Oord, Dieleman, Zen, Simonyan, Vinyals, Graves,
+  Kalchbrenner, Senior, and Kavukcuoglu}]{oord2016wavenet}
+Aaron van~den Oord, Sander Dieleman, Heiga Zen, Karen Simonyan, Oriol Vinyals,
+  Alex Graves, Nal Kalchbrenner, Andrew Senior, and Koray Kavukcuoglu. 2016.
+\newblock \href {http://arxiv.org/abs/1609.03499} {Wavenet: A generative model
+  for raw audio}.
+\newblock Cite arxiv:1609.03499.
+
+\bibitem[{Press(2022)}]{usecase}
+Ofir Press. 2022.
+\newblock \href
+  {https://ofir.io/The-Use-Case-for-Relative-Position-Embeddings/} {The use
+  case for relative position embeddings}.
+
+\bibitem[{Press et~al.(2022)Press, Smith, and Lewis}]{press2022train}
+Ofir Press, Noah Smith, and Mike Lewis. 2022.
+\newblock \href {https://openreview.net/forum?id=R8sQPpGCv0} {Train short, test
+  long: Attention with linear biases enables input length extrapolation}.
+\newblock In \emph{International Conference on Learning Representations}.
+
+\bibitem[{Raffel et~al.(2020)Raffel, Shazeer, Roberts, Lee, Narang, Matena,
+  Zhou, Li, and Liu}]{raffel2019exploring}
+Colin Raffel, Noam Shazeer, Adam Roberts, Katherine Lee, Sharan Narang, Michael
+  Matena, Yanqi Zhou, Wei Li, and Peter~J. Liu. 2020.
+\newblock Exploring the limits of transfer learning with a unified text-to-text
+  transformer.
+\newblock \emph{Journal of Machine Learning Research}, 21(140):1--67.
+
+\bibitem[{Raghu et~al.(2021)Raghu, Unterthiner, Kornblith, Zhang, and
+  Dosovitskiy}]{raghu2021do}
+Maithra Raghu, Thomas Unterthiner, Simon Kornblith, Chiyuan Zhang, and Alexey
+  Dosovitskiy. 2021.
+\newblock \href {https://openreview.net/forum?id=R-616EWWKF5} {Do vision
+  transformers see like convolutional neural networks?}
+\newblock In \emph{Advances in Neural Information Processing Systems}.
+
+\bibitem[{Scao et~al.(2022)Scao, Fan, Akiki, Pavlick, Ili{\'c}, Hesslow,
+  Castagn{\'e}, Luccioni, Yvon, Gall{\'e} et~al.}]{scao2022bloom}
+Teven~Le Scao, Angela Fan, Christopher Akiki, Ellie Pavlick, Suzana Ili{\'c},
+  Daniel Hesslow, Roman Castagn{\'e}, Alexandra~Sasha Luccioni, Fran{\c{c}}ois
+  Yvon, Matthias Gall{\'e}, et~al. 2022.
+\newblock Bloom: A 176b-parameter open-access multilingual language model.
+\newblock \emph{arXiv preprint arXiv:2211.05100}.
+
+\bibitem[{Su et~al.(2021)Su, Lu, Pan, Wen, and Liu}]{su2021roformer}
+Jianlin Su, Yu~Lu, Shengfeng Pan, Bo~Wen, and Yunfeng Liu. 2021.
+\newblock Roformer: Enhanced transformer with rotary position embedding.
+\newblock \emph{arXiv preprint arXiv:2104.09864}.
+
+\bibitem[{Vaswani et~al.(2017)Vaswani, Shazeer, Parmar, Uszkoreit, Jones,
+  Gomez, Kaiser, and Polosukhin}]{vaswani2017attention}
+Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones,
+  Aidan~N Gomez, {\L}ukasz Kaiser, and Illia Polosukhin. 2017.
+\newblock Attention is all you need.
+\newblock \emph{Advances in neural information processing systems}, 30.
+
+\bibitem[{Yan et~al.(2019)Yan, Deng, Li, and Qiu}]{yan2019tener}
+Hang Yan, Bocao Deng, Xiaonan Li, and Xipeng Qiu. 2019.
+\newblock Tener: adapting transformer encoder for named entity recognition.
+\newblock \emph{arXiv preprint arXiv:1911.04474}.
+
+\bibitem[{Yu and Koltun(2016)}]{dilated_conv}
+Fisher Yu and Vladlen Koltun. 2016.
+\newblock \href {http://arxiv.org/abs/1511.07122} {Multi-scale context
+  aggregation by dilated convolutions}.
+\newblock In \emph{4th International Conference on Learning Representations,
+  {ICLR} 2016, San Juan, Puerto Rico, May 2-4, 2016, Conference Track
+  Proceedings}.
+
+\bibitem[{Zaheer et~al.(2020)Zaheer, Guruganesh, Dubey, Ainslie, Alberti,
+  Ontañón, Pham, Ravula, Wang, Yang, and Ahmed}]{bigbird}
+Manzil Zaheer, Guru Guruganesh, Avinava Dubey, Joshua Ainslie, Chris Alberti,
+  Santiago Ontañón, Philip Pham, Anirudh Ravula, Qifan Wang, Li~Yang, and Amr
+  Ahmed. 2020.
+\newblock \href {https://arxiv.org/abs/2007.14062} {Big bird: Transformers for
+  longer sequences.}
+\newblock \emph{CoRR}, abs/2007.14062.
+
+\bibitem[{Zaremba et~al.(2014)Zaremba, Sutskever, and
+  Vinyals}]{zaremba2014recurrent}
+Wojciech Zaremba, Ilya Sutskever, and Oriol Vinyals. 2014.
+\newblock \href {http://arxiv.org/abs/1409.2329} {Recurrent neural network
+  regularization}.
+\newblock Cite arxiv:1409.2329.
+
+\end{thebibliography}

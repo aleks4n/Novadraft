@@ -1,0 +1,9 @@
+
+\begin{figure}
+\begin{center}
+\includegraphics[width=.48\textwidth]{figures/fig1.pdf} %
+\end{center}
+\caption{When computing attention scores for each head, our linearly biased attention method, ALiBi,  adds a constant bias (right) to each attention score ($\mathbf{q}_i \cdot \mathbf{k}_j$, left). As in the unmodified attention sublayer, the softmax function is then applied to these scores, and the rest of the computation is unmodified. \textbf{$\textbf{m}$ is a head-specific scalar} that is set and not learned throughout training. We show that our method for setting $m$ values generalizes to multiple text domains, models and training compute budgets. %
+When using ALiBi, we do \emph{not} add positional embeddings at the bottom of the network.  }
+\label{fig:1}
+\end{figure}

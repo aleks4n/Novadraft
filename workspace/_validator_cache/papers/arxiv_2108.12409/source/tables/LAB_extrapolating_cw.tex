@@ -1,0 +1,17 @@
+\begin{table}[t]
+\caption{Perplexities of the \textbf{ALiBi} models evaluated with sliding window evaluation with stride $S=1$ on the WikiText-103 validation dataset.}
+\label{tab:lab_extrapolating_cw}
+\begin{center}
+\begin{tabular}{@{}rccccc@{}}
+\toprule
+                               &  \multicolumn{5}{c}{Evaluation Length ($S=1$)} \\  
+               Train Length               & 512 & 1024 & 1536 & 2048 & 3072 \\\cmidrule(r){1-1} \cmidrule(l){2-6}
+
+512& 17.98 & 17.92 & 18.2 & 18.28 & 18.3 \\
+ 1024 &-& 17.46 & 17.47 & 17.62 & 17.92  \\
+3072 & -&- & -& -& 16.96\\ \bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+

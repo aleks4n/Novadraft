@@ -14,8 +14,8 @@ from pathlib import Path
 
 from ....utils import storage
 from ....utils.logging.trace import log_event
-from ..errors import PaperAlreadyExistsError
-from ..http_util import download_to
+from ..errors import PaperAlreadyExistsError, PaperFetchError
+from ..http_util import get_bytes
 from ..pdf_metadata import extract_pdf_identifiers, extract_pdf_metadata
 from .arxiv import fetch_arxiv
 from .arxiv_lookup import arxiv_id_for_doi, arxiv_id_for_title
@@ -53,8 +53,17 @@ def fetch_pdf_url(url: str, destination: str, classified_type: str, query: str) 
         tmp_pdf = Path(tmpdir) / "probe.pdf"
 
         try:
-            download_to(url, tmp_pdf)
+            body, content_type = get_bytes(url)
+            if not body.startswith(b"%PDF-"):
+                raised_type = content_type.split(";", 1)[0].strip() or "unknown"
+                raise PaperFetchError(query, [(
+                    "pdf_url",
+                    f"response is not a PDF (content-type: {raised_type})",
+                )])
+            tmp_pdf.write_bytes(body)
         except Exception as e:
+            if isinstance(e, PaperFetchError):
+                raise
             paper_id = storage.title_paper_id(url)
             record = storage.new_paper_record(paper_id, classified_type, query)
             record["warnings"].append(f"pdf_download_failed: {e!r}")

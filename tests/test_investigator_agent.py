@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from src.agents.investigator_agent import agent
+from src.llm import registry
 
 
 def test_decide_request_routes_paper_query(monkeypatch):
@@ -98,6 +99,23 @@ def test_decide_request_routes_multi_paper_download_to_search_workflow(monkeypat
 	assert result["paper_count"] == 3
 
 
+def test_multi_paper_search_deduplicates_mirrors_before_download():
+	results = [
+		agent.SearchResult("[1706.03762] Attention Is All You Need", "https://arxiv.org/abs/1706.03762"),
+		agent.SearchResult("Attention is All You Need - Google Research", "https://research.google/pubs/attention-is-all-you-need/"),
+		agent.SearchResult("arXiv:1706.03762v7", "https://arxiv.org/pdf/1706.03762"),
+		agent.SearchResult("Attention Is All You Need - Wikipedia", "https://en.wikipedia.org/wiki/Attention_Is_All_You_Need"),
+		agent.SearchResult("A Different Transformer Paper", "https://example.com/different"),
+	]
+
+	unique = agent._deduplicate_search_results(results)
+
+	assert [item.url for item in unique] == [
+		"https://arxiv.org/abs/1706.03762",
+		"https://example.com/different",
+	]
+
+
 def test_multi_paper_workflow_searches_then_downloads_each_candidate(monkeypatch):
 	candidates = [
 		agent.SearchResult(title="Paper one", url="https://arxiv.org/abs/1"),
@@ -105,7 +123,8 @@ def test_multi_paper_workflow_searches_then_downloads_each_candidate(monkeypatch
 		agent.SearchResult(title="Paper three", url="https://arxiv.org/abs/3"),
 	]
 	downloads = []
-	monkeypatch.setattr(agent, "_search_web", lambda query: candidates)
+	monkeypatch.setattr(agent, "ENABLE_FAST_MULTI_PAPER_DOWNLOAD", False)
+	monkeypatch.setattr(agent, "_search_web", lambda query, max_results=None: candidates)
 	monkeypatch.setattr(agent, "_ensure_workspace", lambda session_id: None)
 	monkeypatch.setattr(
 		agent,
@@ -124,6 +143,123 @@ def test_multi_paper_workflow_searches_then_downloads_each_candidate(monkeypatch
 		("session-42", "https://arxiv.org/abs/3", False),
 	]
 	assert len(download_result["papers"]) == 3
+	assert len(download_result["evidence"]) == 3
+	assert len(download_result["attempted_papers"]) == 3
+
+
+def test_paper_search_falls_back_to_arxiv_when_web_returns_empty(monkeypatch):
+	monkeypatch.setattr(agent, "_search_web", lambda query, max_results=None: [])
+	monkeypatch.setattr(
+		agent,
+		"_search_arxiv",
+		lambda query, max_results=None: [
+			agent.SearchResult(title="A", url="https://arxiv.org/abs/1"),
+			agent.SearchResult(title="B", url="https://arxiv.org/abs/2"),
+		],
+	)
+
+	result = agent.paper_search_node({"query": "transformers", "paper_count": 2})["research_result"]
+
+	assert result["requested_count"] == 2
+	assert [item["url"] for item in result["search_results"]] == [
+		"https://arxiv.org/abs/1",
+		"https://arxiv.org/abs/2",
+	]
+
+
+def test_multi_paper_workflow_uses_later_candidates_after_fetch_failures(monkeypatch):
+	candidates = [
+		agent.SearchResult("Blocked one", "https://arxiv.org/abs/blocked1"),
+		agent.SearchResult("Good one", "https://arxiv.org/abs/good1"),
+		agent.SearchResult("Blocked two", "https://arxiv.org/abs/blocked2"),
+		agent.SearchResult("Good two", "https://arxiv.org/abs/good2"),
+	]
+	monkeypatch.setattr(agent, "ENABLE_FAST_MULTI_PAPER_DOWNLOAD", True)
+	monkeypatch.setattr(agent, "_ensure_workspace", lambda session_id: None)
+	runs = []
+	monkeypatch.setattr(
+		agent,
+		"run_paper_agent",
+		lambda session_id, query, stream: (
+			runs.append((session_id, query, stream))
+			or ({"status": "error", "error": "403"} if "blocked" in query else {
+				"status": "ok",
+				"paper_id": query,
+				"fetch": {"paper": {"paper_id": query, "metadata": {"title": query}}},
+				"summary": {"summary": "ok"},
+				"gaps": {"gaps": []},
+			})
+		),
+	)
+	state = {
+		"session_id": "session-42", "query": "transformers", "paper_count": 2,
+		"research_result": {"search_results": [item.__dict__ for item in candidates]},
+	}
+
+	result = agent.download_papers_node(state)["research_result"]
+
+	assert [item["title"] for item in result["papers"]] == ["Blocked one", "Good one"]
+	assert len(result["attempted_papers"]) == 2
+	assert runs == [
+		("session-42", "https://arxiv.org/abs/blocked1", False),
+		("session-42", "https://arxiv.org/abs/good1", False),
+	]
+
+
+def test_multi_paper_workflow_stops_after_requested_successes(monkeypatch):
+	candidates = [
+		agent.SearchResult(f"Paper {index}", f"https://arxiv.org/abs/{index}")
+		for index in range(5)
+	]
+	runs = []
+	monkeypatch.setattr(agent, "ENABLE_FAST_MULTI_PAPER_DOWNLOAD", True)
+	monkeypatch.setattr(agent, "_ensure_workspace", lambda session_id: None)
+	monkeypatch.setattr(
+		agent,
+		"run_paper_agent",
+		lambda session_id, query, stream: runs.append((session_id, query, stream)) or {
+			"status": "ok",
+			"paper_id": query,
+			"fetch": {"paper": {"paper_id": query, "metadata": {"title": query}}},
+			"summary": {"summary": "ok"},
+			"gaps": {"gaps": []},
+		},
+	)
+
+	result = agent.download_papers_node({
+		"session_id": "session-42", "query": "transformers", "paper_count": 3,
+		"research_result": {"search_results": [item.__dict__ for item in candidates]},
+	})["research_result"]
+
+	assert len(runs) == 3
+	assert len(result["papers"]) == 3
+
+
+def test_multi_paper_workflow_does_not_expand_attempt_pool_on_failures(monkeypatch):
+	candidates = [
+		agent.SearchResult(f"Paper {index}", f"https://arxiv.org/abs/{index}")
+		for index in range(6)
+	]
+	runs = []
+	monkeypatch.setattr(agent, "ENABLE_FAST_MULTI_PAPER_DOWNLOAD", True)
+	monkeypatch.setattr(agent, "_ensure_workspace", lambda session_id: None)
+	monkeypatch.setattr(
+		agent,
+		"run_paper_agent",
+		lambda session_id, query, stream: runs.append((session_id, query, stream)) or {
+			"status": "error",
+			"error": "blocked",
+		},
+	)
+
+	result = agent.download_papers_node({
+		"session_id": "session-42", "query": "transformers", "paper_count": 3,
+		"research_result": {"search_results": [item.__dict__ for item in candidates]},
+	})["research_result"]
+
+	assert len(runs) == 3
+	assert len(result["attempted_papers"]) == 3
+	assert len(result["papers"]) == 3
 
 
 def test_web_node_fetches_pages_only_when_llm_requests_it(monkeypatch):
@@ -133,7 +269,7 @@ def test_web_node_fetches_pages_only_when_llm_requests_it(monkeypatch):
 	]
 	fetched = []
 
-	monkeypatch.setattr(agent, "_search_web", lambda query: search_results)
+	monkeypatch.setattr(agent, "_search_web", lambda query, max_results=None: search_results)
 	monkeypatch.setattr(
 		agent,
 		"_scrape_url",
@@ -193,7 +329,8 @@ def test_paper_node_uses_session_workspace(monkeypatch):
 
 	assert created == ["session-42"]
 	assert called == [("session-42", "Attention Is All You Need", False)]
-	assert result == {"research_result": {"status": "ok"}}
+	assert result["research_result"]["status"] == "ok"
+	assert result["research_result"]["evidence"] == []
 
 
 def test_renderers_format_text_output():
@@ -278,7 +415,34 @@ def test_actor_conditions_routing_on_saved_reflections(monkeypatch):
 	assert captured["reflections"] == ["Use the canonical paper URL."]
 
 
-def test_evaluator_routes_failed_attempt_to_reflection_then_stops_at_limit():
+def test_evaluate_uses_llm_when_available(monkeypatch):
+	captured = {}
+
+	monkeypatch.setattr(agent, "ENABLE_DETERMINISTIC_FETCH_FALLBACK", False)
+	monkeypatch.setattr(agent, "get_llm", lambda *args, **kwargs: object())
+	monkeypatch.setattr(
+		agent,
+		"chat_with_structured_output",
+		lambda *args, **kwargs: captured.update(prompt=kwargs.get("prompt") or args[2]) or SimpleNamespace(success=False, feedback="The page was too sparse.", reason="missing evidence"),
+	)
+
+	evaluation = agent.evaluate(
+		{
+			"mode": "web",
+			"attempt": 1,
+			"text": "find a summary of the paper",
+			"query": "summary of the paper",
+			"research_result": {"search_results": [], "pages": []},
+		}
+	)
+
+	assert evaluation["evaluation"]["success"] is False
+	assert evaluation["evaluation"]["feedback"] == "The page was too sparse."
+	assert "summary of the paper" in captured["prompt"]
+
+
+def test_evaluator_routes_failed_attempt_to_reflection_then_stops_at_limit(monkeypatch):
+	monkeypatch.setattr(agent, "ENABLE_DETERMINISTIC_FETCH_FALLBACK", False)
 	failed = agent.evaluate(
 		{"mode": "web", "attempt": 1, "max_attempts": 2, "research_result": {"error": "offline"}}
 	)
@@ -287,6 +451,18 @@ def test_evaluator_routes_failed_attempt_to_reflection_then_stops_at_limit():
 	assert failed["evaluation"]["success"] is False
 	assert agent._route_after_evaluate(state) == "reflect"
 	assert agent._route_after_evaluate({**state, "attempt": 2}) == "render"
+
+
+def test_evaluator_gives_up_on_fetch_failure_when_enabled(monkeypatch):
+	monkeypatch.setattr(agent, "ENABLE_DETERMINISTIC_FETCH_FALLBACK", True)
+
+	result = agent.evaluate(
+		{"mode": "paper", "attempt": 1, "research_result": {"status": "error", "error": "offline"}}
+	)
+
+	assert result["evaluation"]["success"] is True
+	assert result["evaluation"]["reason"] == "deterministic fetch fallback"
+	assert agent._route_after_evaluate({"attempt": 1, **result}) == "render"
 
 
 def test_reflect_adds_and_persists_actionable_lesson(monkeypatch):
@@ -318,3 +494,38 @@ def test_run_rejects_unsafe_session_id(monkeypatch):
 
 	with pytest.raises(ValueError, match="session_id"):
 		agent.run("search the web", session_id="../outside", stream=False)
+
+
+def test_structured_output_normalizes_provider_envelopes():
+	assert registry._normalize_structured_args(
+		{"critique": '{"status": "pass"}'}, agent.InvestigatorEvaluation
+	) == {"status": "pass"}
+	assert registry._normalize_structured_args(
+		{"info": {"success": True}}, agent.InvestigatorEvaluation
+	) == {"success": True}
+
+
+def test_web_node_attaches_evidence_and_citation_claims(monkeypatch):
+	monkeypatch.setattr(
+		agent, "_search_web",
+		lambda query: [agent.SearchResult("Source", "https://example.com", "snippet")],
+	)
+	monkeypatch.setattr(
+		agent, "_scrape_url",
+		lambda url, session_id, save_requested=False: {
+			"kind": "html", "url": url, "title": "Source", "text": "Evidence text",
+		},
+	)
+	monkeypatch.setattr(agent, "_answer_from_fetched_pages", lambda query, pages: "Answer")
+	monkeypatch.setattr(
+		agent, "_claims_from_answer",
+		lambda answer, evidence: [{"text": answer, "source_ids": ["page-1"], "confidence": "high", "verified": True}],
+	)
+
+	result = agent.web_node({
+		"query": "question", "session_id": "session-1", "should_fetch_pages": True,
+	})["research_result"]
+
+	assert [item["source_id"] for item in result["evidence"]] == ["web-1", "page-1"]
+	assert result["claims"][0]["source_ids"] == ["page-1"]
+	assert "Citations:" in agent._web_to_text(result, "question")

@@ -175,7 +175,19 @@ def _do_candidate(chosen, destination, input_type, query):
 
 def _do_pdf(url, destination, input_type, query):
     paper_id = storage.title_paper_id(url)
-    _guard_existing(destination, paper_id, query, input_type)
+    record = storage.read_paper_json(destination, paper_id)
+    if record is not None:
+        resolved_via = (record.get("source") or {}).get("resolved_via")
+        pdf_rel = (record.get("source") or {}).get("files", {}).get("pdf")
+        pdf_path = storage.paper_dir(destination, paper_id) / pdf_rel if pdf_rel else None
+        is_invalid_direct_pdf = (
+            resolved_via == "direct_pdf"
+            and pdf_path is not None
+            and pdf_path.exists()
+            and not pdf_path.read_bytes()[:5] == b"%PDF-"
+        )
+        if not is_invalid_direct_pdf:
+            _guard_existing(destination, paper_id, query, input_type)
     rec = fetch_pdf_url(url, destination, input_type, query)
     return rec
 

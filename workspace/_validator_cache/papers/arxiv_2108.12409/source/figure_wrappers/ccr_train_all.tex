@@ -1,0 +1,15 @@
+
+\begin{figure}
+\centering
+\begin{subfigure}{.45\textwidth} %
+  \centering
+  \includegraphics[width=\linewidth]{figures/ccr-train-512.pdf}
+ 
+\end{subfigure}%
+\begin{subfigure}{.45\textwidth} %
+  \centering
+ \includegraphics[width=\linewidth]{figures/ccr-train-1k.pdf}
+\end{subfigure}
+\caption{ On the left (right), a 1.3B-parameter ALiBi model trained on 512 (1024) and evaluated on 1024 (2048) tokens during training, compared to the sinusoidal baseline trained on 1024 (2048) tokens. The \al models obtain strong results even though they use 6\%-11\% less memory since they train on shorter sequences. Appendix Table \ref{tab:ccr} shows memory use and end-of-training perplexities.}
+\label{fig:ccr_train_all}
+\end{figure}

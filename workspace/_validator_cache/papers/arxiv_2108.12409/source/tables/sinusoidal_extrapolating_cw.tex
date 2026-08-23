@@ -1,0 +1,17 @@
+\begin{table}[t]
+\caption{Perplexities of the \textbf{sinusoidal} models evaluated with sliding window evaluation with stride $S=1$ on the WikiText-103 validation dataset.}
+\label{tab:sin_extrapolating_cw}
+\begin{center}
+\begin{tabular}{@{}rccccc@{}}
+\toprule
+                               &  \multicolumn{5}{c}{Evaluation Length ($S=1$)} \\  
+               Train Length               & 512 & 1024 & 1536 & 2048 & 3072 \\\cmidrule(r){1-1} \cmidrule(l){2-6}
+
+512& 18.35& 204.42& 264.74& 306.19& 360.12\\
+ 1024 &-& 18.05& 206.55& 302.6& 393.71\\
+3072 & -&- & -& -& 18.03 \\ \bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+

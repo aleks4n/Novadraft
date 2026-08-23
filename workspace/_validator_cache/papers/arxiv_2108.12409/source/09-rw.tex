@@ -1,0 +1,18 @@
+
+\section{Related Work}
+In parallel with our work,~\citet{wennberg2021case} introduce a relative position method that, like our method, adds a bias to attention scores that is a function of the distance between the key and query elements. 
+Unlike our \al method, which uses a  non-learned linear function, their method uses a radial-basis function, with multiple trainable parameters (in our experiments, this led to a slight decrease in runtime). 
+In addition, they present experiments on text classification, not on language modeling.  They do not explore extrapolation.
+The Distance Aware Transformer~\citep{da-transformer} multiplies attention scores by a bias that is a function of the distance between the key and query. This function uses a different, learned parameter in every head. They show results only on text classification. In our experiments (not presented), multiplying attention scores by the bias (instead of adding, as in \al) degraded performance. 
+
+Transformer-XL~\citep{transformer-xl}  presented a language model that uses a cache and can attend to more tokens during inference than it was trained on (by increasing the length of the cache). However, this work presents results only where output length is limited to the $L$ (the training length), and their relative position method is very slow~\citep{shortformer}. 
+The Longformer~\citep{longformer} adapts models trained on shorter sequences to document-level tasks. However, to achieve this they had to partially train their models on longer sequences. Our \al method enables extrapolation without any additional training on longer sequences. 
+
+To our knowledge, extrapolation has not been previously explored in transformer language modeling, but it has been investigated previously and concurrently with transformers on other tasks, such as %
+machine translation~\citep{rosendahl2019:pos_enc, neishi-yoshinaga-2019-relation, newman2020extrapolation, Kiyono2021SHAPESA}, sequence-to-sequence models trained on an artificial dataset~\citep{Hupkes2020}, pretrained sequence-to-sequence models tested on arithmetic tasks~\citep[Appendix C]{Nogueira2021InvestigatingTL}, models trained with reinforcement learning~\citep{lampinen2021towards}, image, speech recognition, and machine translation models~\citep{likhomanenko2021cape}, and protein structure prediction~\citep[Appendix 1.5]{Jumper2021HighlyAP}. 
+
+
+
+
+
+

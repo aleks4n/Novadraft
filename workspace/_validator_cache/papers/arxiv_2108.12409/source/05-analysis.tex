@@ -1,0 +1,74 @@
+\section{Analysis}
+\label{sec:analysis}
+
+
+
+
+In this section we investigate why \al works so effectively.  
+We find that ALiBi's decrease in perplexity when given longer sequences is largely explained by its improved avoidance of the early token curse.  We hypothesize that future work building on \al might achieve further gains by more efficiently  exploiting longer histories.
+
+
+\subsection{Defining sliding window evaluation and the early token curse}
+
+
+\input{figure_wrappers/bigcat}
+
+\paragraph{Sliding Window Inference}
+As mentioned in Section~\ref{sec:act2}, nonoverlapping inference is commonly used to evaluate sequences longer than $L$ (the number of tokens in each training subsequence). 
+An alternative is to use a sliding window during evaluation~\citep{baevski}. 
+
+A stride $S$ is picked between 1 and $L-1$, and the window is advanced by $S$ tokens after each forward pass.\footnote{Nonoverlapping inference can be viewed as sliding window inference with stride $L$.} This means that $L-S$ tokens from the previous subsequence are re-encoded, and only $S$ new tokens are output. The advantage is that all outputs in each subsequence after the first have at least $L-S$ previous tokens to condition on. However, since tokens must be re-encoded multiple times, this approach is much slower than the nonoverlapping one. 
+When $S=1$, we output one token every inference pass, each using the maximal context window that the model can handle; however, this is the slowest approach. 
+Figure~\ref{fig:bigcat} is a visualization of the nonoverlapping and sliding window evaluation approaches. 
+
+We use sliding window inference as a tool to analyze our models, but we note that it is normally prohibitively slow in practice~\citep{shortformer}. 
+
+\paragraph{Early Token Curse}
+Splitting an evaluation set into subsequences means that predictions occuring early in each subsequence cannot access many previous context tokens (appearing at the end of the previous subsequence). 
+The result, referred to as the \emph{early token curse}~\citep{shortformer}, increases (i.e., degrades) perplexity scores. %
+A workaround is to evaluate the model using a sliding window, giving each prediction more context. This solution is slow since it requires many more forward passes of the model. 
+
+
+\subsection{Extrapolation reduces the early token curse}
+
+
+
+
+
+We presented results showing that our ALiBi method (and, to a lesser extent, the T5 bias) allows LMs to extrapolate during inference. Two reasons could explain why these methods enable LMs to achieve better perplexity given longer input subsequences:
+\begin{enumerate}
+  \item Performance improves because the models can use longer contexts to make more accurate predictions. For example, the average article length in the WikiText-103 corpus is about 3600 tokens; therefore, if a model trained on $L=512$ tokens extrapolates to \li = 3072 tokens during inference and achieves better results, that might be because it can spot patterns occurring across more than 512 tokens.
+  \item Performance improves because longer input sequences mean the early token curse is reduced. %
+  For example, during nonoverlapping evaluation on sequences of length \li $=$ 1000, 10\% of predictions have 100 tokens of context or less. If we rerun nonoverlapping evaluation on that model with \li $=$ 2000 tokens, now only 5\% of predictions have 100 tokens of context or less. So, by simply being able to handle longer sequences, a model can substantially reduce the early token curse and improve performance.\footnote{100 tokens is an arbitrary small number used here to represent a short history context, i.e., one in which making predictions for the next output token would be harder.}
+\end{enumerate}
+
+To better understand what might be occurring, we re-evaluate the development set of WikiText-103 with our models and the sinusoidal baseline with $L = 512, 1024, 3072$. However, this time we use sliding window evaluation with a stride of $S=1$, meaning that we move the sliding window just one token after every inference pass, giving each prediction the maximum number of context tokens that the model can use. 
+
+\input{figure_wrappers/wt103_extra_lsb_cw}
+
+The results are shown in Figure~\ref{fig:wt103_extra_lsb_cw} and in the corresponding Tables~\ref{tab:sin_extrapolating_cw} (sinusoidal) and \ref{tab:lab_extrapolating_cw} (ALiBi). 
+
+Unsurprisingly, for the sinusoidal model, as in \S\ref{sec:act2}, increasing \li causes an explosion in perplexity even when using sliding window evaluation.
+Our ALiBi models cannot improve perplexity when looking at longer sequences in this setting, but they keep perplexity flat when \li increases.
+
+This leads us to believe that our perplexity improvement when increasing \li and using nonoverlapping evaluation is caused by explanation 2, not explanation 1. Because sliding window evaluation provides long context windows for \emph{every} prediction made, it curtails the early token curse. In this setting, \al's performance remains flat when \li increases, leading us to hypothesize that the gains seen while increasing \li in \S\ref{sec:results} were the result of larger \li values mitigating the early token curse. 
+
+Our \al results mirror what occurs in the model using the T5 bias: when using sliding window evaluation, perplexity remains relatively flat when evaluating longer sequences (see Table~\ref{tab:t5_extrapolating_cw}). 
+
+
+
+
+
+Our analysis reveals that when $\li > \lt$, \al might not be using contexts longer than the ones it was trained on. This highlights a research direction that could be pursued in future work.
+
+These findings do not lessen the value of \al.  When \li = \lt, \al achieves either superior or similar results to the sinusoidal method and other alternatives even though it is simpler and requires no learned parameters.
+When evaluating $\li > \lt$ tokens, even if \al does not attend to more than \lt tokens, it yields better results than the other alternatives that can be used in this case, i.e., standard nonoverlapping inference (which is cheap, but does not perform as well) and the more accurate sliding window approach (which is very slow). 
+
+
+
+
+
+
+
+
+

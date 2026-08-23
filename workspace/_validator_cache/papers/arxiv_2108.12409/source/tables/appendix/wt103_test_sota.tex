@@ -1,0 +1,52 @@
+
+
+
+\begin{table}[!htbp]
+
+
+\caption{Valid and test perplexity scores on WikiText-103 for two of our ALiBi  models and models that use the sinusoidal, rotary and T5 bias methods with sliding window evaluation (\S\ref{sec:analysis} and S=512 following~\citep{baevski,khandelwal20generalization, shortformer}). The sinusoidal model presents our results from training and inference with the model of Baevski \& Auli. }
+
+
+\label{tab:wt103_test_sota}
+\begin{center}
+\centering
+
+
+\begin{tabular}{@{}lccc@{}} \toprule
+
+{Model}  &{Param. $\downarrow$}& Valid $\downarrow$ & Test $\downarrow$ \\   \midrule
+Adaptive Inputs~\citep{baevski} &\textbf{247M}   &17.97 &18.70\\
+{Transformer-XL~\citep{transformer-xl}} &{257M }& - & 18.3\\
+{Shortformer~\citep{shortformer}}&\textbf{247M}& 17.47&18.15  \\
+{Sandwich Transformer~\citep{sandwich}}&\textbf{247M}&- &17.96 \\
+Staged Training~\citep{shortformer}&\textbf{247M}&- &17.56 \\ 
+{Compressive Transformer~\citep{Rae2020Compressive}}&329M         &-&17.1\\
+Routing Transformer~\citep{roy2020efficient}& - &  - & 15.8\\
+{kNN-LM~\citep{khandelwal20generalization}     }&\textbf{247M}&  15.81  & \textbf{15.79}\\ \midrule
+
+Sinusoidal, $L$ = 3072 &\textbf{247M}  & 17.95&18.67 \\      
+Rotary, $L$ = 3072     &\textbf{247M} & 17.98&18.72\\  
+T5 Bias, $L$ = 3072    &\textbf{247M} &17.37& 18.12\\    
+
+\midrule
+ &&& \\
+\addlinespace[-0.75em]
+
+\multirow{2}{*}[3pt]{\rotatebox[origin=c]{90}{ALiBi}}
+$L$ = 512, $L_{valid}$ = 3072 &\textbf{247M}&18.30&19.01\\
+
+~~~~$L$ = 3072, $L_{valid}$ = 3072 &\textbf{247M}&16.97&17.66 \\
+
+\addlinespace[-0.75em]
+ &&& \\
+\bottomrule
+
+
+\end{tabular}
+
+
+
+
+\end{center}
+\end{table}
+

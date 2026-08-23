@@ -17,11 +17,14 @@ from __future__ import annotations
 
 import html as html_module
 import json
+import os
 import re
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Literal, TypedDict
+from xml.etree import ElementTree as ET
 from urllib.parse import parse_qs, unquote, urlparse
 
 import requests
@@ -30,24 +33,39 @@ from pydantic import BaseModel, Field
 from pdfminer.high_level import extract_text as extract_pdf_text
 
 from src.agents.paper_agent import run as run_paper_agent
+from src.common.tools.paper_fetch import fetch as fetch_paper
 from src.common.utils import storage
 from src.common.utils.logging import trace
 from src.common.utils.logging.runlog import GraphRunLog
+from src.common.schemas.evidence import CitedAnswer, CitationClaim, Evidence
 from src.llm.registry import chat, chat_with_structured_output, get_llm
 
 _USER_AGENT = "novadraft-investigator-agent/1.0"
 _REQUEST_TIMEOUT = 20
 _MAX_RESULT_COUNT = 5
+_MAX_PAPER_SEARCH_CANDIDATES = 15
 _MAX_PAPER_DOWNLOADS = 5
 _MAX_PAGE_CHARS = 4000
 _DEFAULT_MAX_ATTEMPTS = 2
 _MAX_REFLECTIONS_PER_TASK = 5
+_MAX_PARALLEL_PAPER_DOWNLOADS = 3
+# Stop retrying retrieval failures and render the deterministic partial result.
+ENABLE_DETERMINISTIC_FETCH_FALLBACK = True
+# Multi-paper requests normally need downloaded sources, not full analysis.
+ENABLE_FAST_MULTI_PAPER_DOWNLOAD = True
 
 _WEB_ANSWER_SYSTEM_PROMPT = (
 	"Answer the user's query using only the supplied fetched web-page content. "
 	"Do not use outside knowledge or assume facts not supported by those pages. "
 	"If the pages do not contain enough information, say so plainly. "
 	"Give a concise, direct, however detailed answer."
+)
+
+_CITED_ANSWER_SYSTEM_PROMPT = (
+	"Answer the user's question using only the supplied evidence. Return one concise "
+	"answer and claims that support it. Every claim must cite one or more exact source_id "
+	"values from the evidence. Do not invent sources or facts. Mark claims verified only "
+	"when the evidence directly supports them."
 )
 
 
@@ -91,6 +109,22 @@ class InvestigatorReflection(BaseModel):
 	)
 
 
+class InvestigatorEvaluation(BaseModel):
+	"""A compact evaluation of whether the latest attempt produced a usable result."""
+	success: bool = Field(
+		default=False,
+		description="True when the latest attempt produced a usable result for the user's request.",
+	)
+	feedback: str = Field(
+		default="",
+		description="A concise explanation of why the attempt succeeded or failed; useful for the next reflection step.",
+	)
+	reason: str = Field(
+		default="",
+		description="Short justification for the success flag.",
+	)
+
+
 _DECISION_SYSTEM_PROMPT = (
 	"You route a single user instruction to the right research action. "
 	"Pick exactly one action: paper, paper_search, web, or url. "
@@ -108,6 +142,15 @@ _REFLECTION_SYSTEM_PROMPT = (
 	"actionable lesson for the next attempt. Focus on changing the search target, route, or "
 	"retrieval strategy. Do not claim the task was completed and do not invent facts.")
 
+_EVALUATION_SYSTEM_PROMPT = (
+	"You are the evaluator in a Reflexion research agent. "
+	"Judge whether the latest attempt produced a usable result for the user request. "
+	"Evaluate delivery and usefulness of the artifact, not factual truth. "
+	"Return success=true when the attempt produced readable, relevant content such as a paper result, paper candidates, a web answer, or a scraped URL. "
+	"Return success=false when the attempt errored, produced no usable artifact, or left a major gap. "
+	"Return concise feedback that would help the next reflection step."
+)
+
 
 class InvestigatorState(TypedDict, total=False):
 	text: str
@@ -119,6 +162,8 @@ class InvestigatorState(TypedDict, total=False):
 	save_requested: bool
 	should_fetch_pages: bool
 	research_result: dict
+	evidence: list[dict]
+	claims: list[dict]
 	attempt: int
 	max_attempts: int
 	reflections: list[str]
@@ -132,6 +177,100 @@ class SearchResult:
 	url: str
 	snippet: str = ""
 
+
+def _search_result_keys(result: SearchResult) -> set[str]:
+	"""Return identity aliases across paper mirrors and URL variants."""
+	value = f"{result.title} {result.url}"
+	keys: set[str] = set()
+	arxiv = re.search(r"arxiv\.org/(?:abs|pdf)/([0-9]{4}\.[0-9]{4,5})(?:v\d+)?", value, re.IGNORECASE)
+	if arxiv:
+		keys.add(f"arxiv:{arxiv.group(1)}")
+	doi = re.search(r"10\.\d{4,9}/[-._;()/:A-Z0-9]+", value, re.IGNORECASE)
+	if doi:
+		keys.add(f"doi:{doi.group(0).rstrip(').,;').lower()}")
+	title = re.sub(r"^\s*\[[^]]+\]\s*", "", result.title)
+	title = re.sub(r"^\s*arxiv:\s*\d{4}\.\d{4,5}(?:v\d+)?\s*", "", title, flags=re.IGNORECASE)
+	title = re.sub(
+		r"\s*(?:[-|:]\s*)?(?:arxiv(?:\.org)?|google research|wikipedia)\s*$",
+		"", title, flags=re.IGNORECASE,
+	)
+	title = re.sub(r"[^a-z0-9]+", " ", title.lower()).strip()
+	if title:
+		keys.add(f"title:{title}")
+	if not keys:
+		keys.add(f"url:{result.url.rstrip('/').lower()}")
+	return keys
+
+
+def _is_arxiv_url(url: str) -> bool:
+	host = (urlparse(url).hostname or "").lower()
+	return host == "arxiv.org" or host.endswith(".arxiv.org")
+
+
+def _deduplicate_search_results(results: list[SearchResult]) -> list[SearchResult]:
+	seen: set[str] = set()
+	unique: list[SearchResult] = []
+	for result in results:
+		keys = _search_result_keys(result)
+		if keys & seen:
+			continue
+		seen.update(keys)
+		unique.append(result)
+	return unique
+
+
+def _evidence_id(source_type: str, index: int) -> str:
+	return f"{source_type}-{index}"
+
+
+def _web_evidence(results: list[dict], pages: list[dict]) -> list[dict]:
+	evidence: list[dict] = []
+	for index, item in enumerate(results, start=1):
+		evidence.append(Evidence(
+			source_id=_evidence_id("web", index), title=item.get("title") or "Untitled source",
+			url=item.get("url"), source_type="web", snippet=item.get("snippet") or "",
+			text=item.get("snippet") or "", credibility=0.25,
+		).model_dump())
+	for index, item in enumerate(pages, start=1):
+		evidence.append(Evidence(
+			source_id=_evidence_id("page", index), title=item.get("title") or "Untitled page",
+			url=item.get("url"), source_type="pdf" if item.get("kind") == "pdf" else "web",
+			text=item.get("text") or "", fetched=not bool(item.get("error")),
+			credibility=0.75 if not item.get("error") else 0.0, error=item.get("error"),
+		).model_dump())
+	return evidence
+
+
+def _claims_from_answer(answer: str | None, evidence: list[dict]) -> list[dict]:
+	if not answer or not evidence:
+		return []
+	try:
+		cited = chat_with_structured_output(
+			get_llm("cheap", temperature=0), _CITED_ANSWER_SYSTEM_PROMPT,
+			json.dumps({"answer": answer, "evidence": evidence}, ensure_ascii=False), CitedAnswer,
+		)
+		valid_ids = {item["source_id"] for item in evidence}
+		return [claim.model_dump() for claim in cited.claims
+				if set(claim.source_ids).issubset(valid_ids)]
+	except Exception:  # best-effort citation tracking must not lose the answer
+		return []
+
+def _paper_evidence(result: dict, index: int = 1) -> list[dict]:
+	paper = result.get("fetch", {}).get("paper") or {}
+	metadata = paper.get("metadata") or {}
+	source = paper.get("source") or {}
+	if not metadata and not source and not result.get("summary") and not result.get("paper_id"):
+		return []
+	text = result.get("summary") or result.get("message") or ""
+	if not isinstance(text, str):
+		text = json.dumps(text, ensure_ascii=False, default=str)
+	return [Evidence(
+		source_id=_evidence_id("paper", index),
+		title=metadata.get("title") or "Paper source",
+		url=source.get("source_url"), source_type="paper", text=text,
+		fetched=result.get("status") == "ok", credibility=0.9 if result.get("status") == "ok" else 0.0,
+		error=result.get("error"),
+	).model_dump()]
 
 class _HTMLTextExtractor(HTMLParser):
 	def __init__(self) -> None:
@@ -406,7 +545,7 @@ def _extract_html_excerpt(html_text: str) -> str:
 	return _strip_html(html_text)
 
 
-def _search_web(query: str) -> list[SearchResult]:
+def _search_web(query: str, max_results: int = _MAX_RESULT_COUNT) -> list[SearchResult]:
 	response = requests.get(
 		"https://duckduckgo.com/html/",
 		params={"q": query},
@@ -437,7 +576,45 @@ def _search_web(query: str) -> list[SearchResult]:
 			snippet = re.sub(r"\s+", " ", _strip_html(html_module.unescape(snippet))).strip()
 		if title and href:
 			results.append(SearchResult(title=title, url=href, snippet=snippet))
-		if len(results) >= _MAX_RESULT_COUNT:
+		if len(results) >= max_results:
+			break
+	return results
+
+
+def _search_arxiv(query: str, max_results: int = _MAX_RESULT_COUNT) -> list[SearchResult]:
+	"""Search arXiv directly as a reliable fallback for paper discovery."""
+	response = requests.get(
+		"https://export.arxiv.org/api/query",
+		params={
+			"search_query": f"all:{query}",
+			"start": 0,
+			"max_results": max_results,
+			"sortBy": "relevance",
+			"sortOrder": "descending",
+		},
+		headers={"User-Agent": _USER_AGENT},
+		timeout=_REQUEST_TIMEOUT,
+	)
+	response.raise_for_status()
+
+	root = ET.fromstring(response.text)
+	ns = {"atom": "http://www.w3.org/2005/Atom"}
+	results: list[SearchResult] = []
+	for entry in root.findall("atom:entry", ns):
+		title = re.sub(r"\s+", " ", (entry.findtext("atom:title", "", ns) or "")).strip()
+		snippet = re.sub(r"\s+", " ", (entry.findtext("atom:summary", "", ns) or "")).strip()
+		url = ""
+		for link in entry.findall("atom:link", ns):
+			href = (link.attrib.get("href") or "").strip()
+			rel = (link.attrib.get("rel") or "").strip().lower()
+			if href and ("/abs/" in href or rel == "alternate"):
+				url = href
+				break
+		if not url:
+			url = (entry.findtext("atom:id", "", ns) or "").strip()
+		if title and url:
+			results.append(SearchResult(title=title, url=url, snippet=snippet))
+		if len(results) >= max_results:
 			break
 	return results
 
@@ -567,9 +744,14 @@ def _paper_to_text(result: dict, query: str) -> str:
 		lines.extend(["", "Extract:"])
 		lines.append(json.dumps(extract, indent=2, ensure_ascii=False, default=str))
 
-	if gaps:
-		lines.extend(["", "Gaps:"])
-		lines.append(json.dumps(gaps, indent=2, ensure_ascii=False, default=str))
+	lines.extend(["", "Gaps:"])
+	if "gaps" in result:
+		if gaps:
+			lines.append(json.dumps(gaps, indent=2, ensure_ascii=False, default=str))
+		else:
+			lines.append("No gaps were returned.")
+	else:
+		lines.append("Gap extraction did not run for this paper result.")
 
 	return "\n".join(lines)
 
@@ -577,7 +759,14 @@ def _paper_to_text(result: dict, query: str) -> str:
 def _web_to_text(result: dict, query: str) -> str:
 	answer = result.get("answer")
 	if isinstance(answer, str) and answer.strip():
-		return answer.strip()
+		claims = result.get("claims") or []
+		if not claims:
+			return answer.strip()
+		lines = [answer.strip(), "", "Citations:"]
+		for claim in claims:
+			ids = ", ".join(claim.get("source_ids") or []) or "unreferenced"
+			lines.append(f"- [{ids}] {claim.get('text') or ''}")
+		return "\n".join(lines)
 
 	lines = ["Web research", f"Query: {query}"]
 
@@ -616,7 +805,14 @@ def _web_to_text(result: dict, query: str) -> str:
 def _url_to_text(result: dict, url: str) -> str:
 	answer = result.get("answer")
 	if isinstance(answer, str) and answer.strip():
-		return answer.strip()
+		claims = result.get("claims") or []
+		if not claims:
+			return answer.strip()
+		lines = [answer.strip(), "", "Citations:"]
+		for claim in claims:
+			ids = ", ".join(claim.get("source_ids") or []) or "unreferenced"
+			lines.append(f"- [{ids}] {claim.get('text') or ''}")
+		return "\n".join(lines)
 
 	lines = ["URL scrape", f"URL: {url}", f"Kind: {result.get('kind', 'unknown')}" ]
 	if result.get("error"):
@@ -734,16 +930,28 @@ def paper_node(state: InvestigatorState) -> dict:
 		result = run_paper_agent(session_id, state["query"], stream=False)
 	except Exception as exc:  # noqa: BLE001 - return a readable text error
 		result = {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
-	return {"research_result": result}
+	return {"research_result": {**result, "evidence": _paper_evidence(result)}}
 
 
 def paper_search_node(state: InvestigatorState) -> dict:
 	"""Find paper landing pages before the bounded sequential download step."""
-	search_query = f"{state['query']} research paper"
+	search_query = f"{state['query']} research paper site:arxiv.org"
+	web_error: str | None = None
 	try:
-		results = _search_web(search_query)
+		results = _search_web(search_query, max_results=max(_MAX_RESULT_COUNT, state["paper_count"] * 3))
 	except Exception as exc:  # noqa: BLE001 - return a readable text error
-		return {"research_result": {"error": f"{type(exc).__name__}: {exc}"}}
+		results = []
+		web_error = f"{type(exc).__name__}: {exc}"
+
+	if not results:
+		try:
+			results = _search_arxiv(state["query"], max_results=max(_MAX_RESULT_COUNT, state["paper_count"] * 3))
+		except Exception as exc:  # noqa: BLE001 - preserve web failure details when both fail
+			arxiv_error = f"{type(exc).__name__}: {exc}"
+			if web_error is not None:
+				return {"research_result": {"error": f"web_search_failed: {web_error}; arxiv_search_failed: {arxiv_error}"}}
+			return {"research_result": {"error": f"arxiv_search_failed: {arxiv_error}"}}
+	results = _deduplicate_search_results([result for result in results if _is_arxiv_url(result.url)])
 	return {
 		"research_result": {
 			"requested_count": state["paper_count"],
@@ -754,26 +962,56 @@ def paper_search_node(state: InvestigatorState) -> dict:
 
 
 def download_papers_node(state: InvestigatorState) -> dict:
-	"""Run the existing one-paper workflow once for each web candidate."""
+	"""Fetch independent papers concurrently, preserving search order."""
 	result = state["research_result"]
 	if result.get("error"):
 		return {}
 
 	_ensure_workspace(state["session_id"])
-	papers = []
-	for candidate in (result.get("search_results") or [])[:state["paper_count"]]:
+	requested_count = max(1, min(int(state.get("paper_count", 1)), _MAX_PAPER_DOWNLOADS))
+	# Respect the user's requested count strictly: investigate only the top-N
+	# candidates instead of expanding the attempt pool.
+	candidates = [
+		candidate for candidate in (result.get("search_results") or [])
+		if _is_arxiv_url(candidate.get("url") or "")
+	][:requested_count]
+
+	def download_one(candidate: dict) -> dict:
 		query = candidate.get("url") or candidate.get("title") or state["query"]
 		try:
-			paper_result = run_paper_agent(state["session_id"], query, stream=False)
+			if ENABLE_FAST_MULTI_PAPER_DOWNLOAD:
+				# Fast mode runs the full paper pipeline directly for each selected
+				# candidate, avoiding an extra prefetch that can create duplicate
+				# records before analysis starts.
+				paper_result = run_paper_agent(state["session_id"], query, stream=False)
+			else:
+				fetch_result = fetch_paper(state["session_id"], query)
+				if fetch_result.get("status") == "ok":
+					paper_result = run_paper_agent(state["session_id"], query, stream=False)
+				else:
+					paper_result = fetch_result
 		except Exception as exc:  # noqa: BLE001 - one failed candidate must not stop the session
 			paper_result = {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
-		papers.append({
+		return {
 			"title": candidate.get("title"),
 			"url": candidate.get("url"),
 			"query": query,
 			"result": paper_result,
-		})
-	return {"research_result": {**result, "papers": papers}}
+		}
+
+	papers: list[dict] = []
+	for candidate_index in range(0, len(candidates), _MAX_PARALLEL_PAPER_DOWNLOADS):
+		batch = candidates[candidate_index:candidate_index + _MAX_PARALLEL_PAPER_DOWNLOADS]
+		if not batch:
+			continue
+		with ThreadPoolExecutor(max_workers=len(batch)) as executor:
+			batch_results = list(executor.map(download_one, batch))
+		papers.extend(batch_results)
+	selected = papers[:requested_count]
+	evidence = list(result.get("evidence") or [])
+	for index, item in enumerate(selected, start=1):
+		evidence.extend(_paper_evidence(item.get("result") or {}, index))
+	return {"research_result": {**result, "papers": selected, "attempted_papers": papers, "evidence": evidence}}
 
 
 def web_node(state: InvestigatorState) -> dict:
@@ -798,6 +1036,9 @@ def web_node(state: InvestigatorState) -> dict:
 				result["answer"] = answer
 		except Exception as exc:  # noqa: BLE001 - preserve fetched pages if the LLM is unavailable
 			result["answer_error"] = f"{type(exc).__name__}: {exc}"
+	result["evidence"] = _web_evidence(result["search_results"], result["pages"])
+	if result.get("answer"):
+		result["claims"] = _claims_from_answer(result["answer"], result["evidence"])
 	return {"research_result": result}
 
 
@@ -813,18 +1054,13 @@ def url_node(state: InvestigatorState) -> dict:
 			result["answer"] = answer
 	except Exception as exc:  # noqa: BLE001 - preserve the fetched page if the LLM is unavailable
 		result["answer_error"] = f"{type(exc).__name__}: {exc}"
+	result["evidence"] = _web_evidence([], [result])
+	if result.get("answer"):
+		result["claims"] = _claims_from_answer(result["answer"], result["evidence"])
 	return {"research_result": result}
 
 
-def evaluate(state: InvestigatorState) -> dict:
-	"""Reflexion evaluator with observable completion criteria.
-
-	This deliberately evaluates delivery, not factual truth: the research nodes
-	already preserve their source material, while a deterministic evaluator keeps
-	retries safe and predictable when no LLM provider is configured.
-	"""
-	mode = state["mode"]
-	result = state.get("research_result") or {}
+def _deterministic_evaluate(mode: str, result: dict) -> tuple[bool, str]:
 	feedback = ""
 	if result.get("error"):
 		feedback = f"The {mode} route failed: {result['error']}"
@@ -836,9 +1072,79 @@ def evaluate(state: InvestigatorState) -> dict:
 		feedback = "The web search returned no results; revise the search query."
 	elif mode == "url" and not result.get("text"):
 		feedback = "The supplied URL produced no readable content; try its canonical or downloadable form."
+	return not feedback, feedback
 
-	success = not feedback
-	evaluation = {"success": success, "feedback": feedback, "attempt": state.get("attempt", 1)}
+
+def _fetch_failed(mode: str, result: dict) -> bool:
+	"""Identify retrieval failures that cannot be improved by Reflexion."""
+	if result.get("error"):
+		return True
+	if mode == "paper":
+		return result.get("status") in {"error", "needs_source"}
+	if mode == "paper_search":
+		if not result.get("papers"):
+			return True
+		return all((item.get("result") or {}).get("status") in {"error", "needs_source"}
+				   for item in result.get("papers") or [])
+	if mode == "web":
+		if not result.get("search_results"):
+			return True
+		pages = result.get("pages") or []
+		return bool(pages) and all(page.get("error") for page in pages)
+	return mode == "url" and not result.get("text")
+
+
+def evaluate(state: InvestigatorState) -> dict:
+	"""Reflexion evaluator with an LLM judgment and a deterministic fallback.
+
+	The evaluation step now uses an LLM when available to judge whether the
+	latest artifact is usable, while still falling back to the deterministic
+	rule-based checks used previously when the model call fails.
+	"""
+	
+	mode = state["mode"]
+	result = state.get("research_result") or {}
+	user_request = _normalize(state.get("text") or "")
+	query = _normalize(state.get("query") or "")
+	if ENABLE_DETERMINISTIC_FETCH_FALLBACK and _fetch_failed(mode, result):
+		evaluation = {
+			"success": True,
+			"feedback": "Fetch failed; continuing with the deterministic partial result instead of retrying.",
+			"reason": "deterministic fetch fallback",
+			"attempt": state.get("attempt", 1),
+		}
+		trace.log_event("investigator_evaluator", **evaluation)
+		return {"evaluation": evaluation}
+	payload = {
+		"mode": mode,
+		"user_request": user_request,
+		"query": query,
+		"result": result,
+	}
+
+	try:
+		judgment = chat_with_structured_output(
+			get_llm("reasoner", temperature=0),
+			_EVALUATION_SYSTEM_PROMPT,
+			json.dumps(payload, ensure_ascii=False, default=str),
+			InvestigatorEvaluation,
+		)
+		success = bool(getattr(judgment, "success", False))
+		feedback = _normalize(getattr(judgment, "feedback", ""))
+		reason = _normalize(getattr(judgment, "reason", ""))
+	except Exception:
+		success, feedback = _deterministic_evaluate(mode, result)
+		reason = ""
+
+	if not feedback and not success:
+		feedback = "The latest attempt did not produce a usable result."
+
+	evaluation = {
+		"success": success,
+		"feedback": feedback,
+		"reason": reason,
+		"attempt": state.get("attempt", 1),
+	}
 	trace.log_event("investigator_evaluator", **evaluation)
 	return {"evaluation": evaluation}
 
@@ -869,6 +1175,7 @@ def reflect(state: InvestigatorState) -> dict:
 	if lesson not in reflections:
 		reflections.append(lesson)
 	reflections = reflections[-_MAX_REFLECTIONS_PER_TASK:]
+	print(f"Investigator reflection: {lesson}")
 	_store_reflection(state["session_id"], state["text"], lesson)
 	trace.log_event("investigator_reflection", attempt=state.get("attempt", 1), lesson=lesson)
 	return {"reflections": reflections}
@@ -976,4 +1283,5 @@ if __name__ == "__main__":
 
 	prompt = " ".join(sys.argv[2:]) or "what was the name of the 11th us president?"
 	session_id = sys.argv[1] if len(sys.argv) > 1 else "investigator-session"
-	print(run(prompt, session_id=session_id, stream=False))
+	max_attempts = int(os.getenv("NOVADRAFT_MAX_ATTEMPTS", str(_DEFAULT_MAX_ATTEMPTS)))
+	print(run(prompt, session_id=session_id, stream=False, max_attempts=max_attempts))

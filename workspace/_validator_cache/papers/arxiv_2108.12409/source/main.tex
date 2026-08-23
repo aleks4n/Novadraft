@@ -1,0 +1,65 @@
+\pdfoutput=1
+\documentclass{article} %
+\usepackage{iclr2022_conference,times}
+
+\input{math_commands.tex}
+
+\usepackage{hyperref}
+\usepackage{url}
+
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{subcaption}
+\usepackage{multirow}
+\usepackage{xcolor}
+
+
+
+
+
+\title{Train Short, Test Long: Attention with Linear Biases Enables Input Length Extrapolation }
+
+
+\author{Ofir Press$^{1,2}$  \quad Noah A. Smith$^{1,3}$ \quad Mike Lewis$^2$ \\
+\\ $^1$Paul G. Allen School of Computer Science \& Engineering, University of Washington
+\\ $^2$Facebook AI Research
+\\ $^3$Allen Institute for AI
+\\ \texttt{ofirp@cs.washington.edu}}
+
+
+
+
+
+
+\newcommand{\nascomment}[1]{{}}
+
+
+\usepackage{xspace}
+\newcommand{\li}{\ensuremath{L_{\textit{valid}}}\xspace}
+\newcommand{\lt}{\ensuremath{L}\xspace}
+\newcommand{\al}{ALiBi\xspace}
+
+
+\iclrfinalcopy 
+
+\begin{document}
+
+
+\maketitle
+
+\input{00-abs}
+\input{01-introduction}
+\input{02-act2}
+\input{03-ourmethod}
+\input{04-results}
+\input{09-rw}
+\input{10-conclusion}
+
+\clearpage
+\bibliography{iclr2022_conference}
+\bibliographystyle{iclr2022_conference}
+
+\clearpage
+\input{11-appendix}
+
+\end{document}

@@ -1,0 +1,37 @@
+\begin{table}[h]
+
+\caption{ The speed (during training and evaluation, in words per second) and memory usage (during training) of the rotary, T5 bias, and ALiBi models compared to the sinusoidal baseline  on WikiText-103. Training and inference are batched, and speeds are shown for one V100 GPU. }
+\label{tab:baselines_speed_mem}
+\begin{center}
+\begin{tabular}{@{}lrccc@{}}
+\toprule
+\multirow{2}{*}[0pt]{Position Method}& \multirow{2}{*}[0pt]{Train Length}&  \multicolumn{2}{c}{Speed ($\uparrow$)} & \multirow{2}{*}[0pt]{Memory ($\downarrow$)} \\
+                &  & Train  & Eval. &   \\\midrule
+                
+
+
+
+
+
+
+
+
+& 512           &28.5k &82.1k  & 15.3 GB  \\
+Sinusoidal&1024 &26.0k &77.8k  & 19.2 GB  \\
+& 3072          &15.3k &42.4k  & 15.1 GB \\\midrule
+&512            &20.0k &43.4k  & 17.8 GB  \\
+Rotary & 1024   &17.7k &39.4k  & 22.8 GB  \\
+& 3072          &11.5k &29.5k  & 17.8 GB  \\\midrule
+& 512           &14.4k &21.8k  & 16.9 GB  \\
+T5 Bias& 1024   &13.0k &20.2k  & 20.9 GB  \\
+& 3072          & 4.3k & 4.9k  & 15.9 GB  \\\midrule
+& 512           &28.3k &85.8k  & 15.3 GB \\
+ALiBi & 1024    &25.8k &76.4k  & 19.3 GB \\
+& 3072          &15.5k &42.2k  & 15.2 GB \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+

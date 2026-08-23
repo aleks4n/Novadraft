@@ -19,6 +19,7 @@ work without network access.
 from __future__ import annotations
 
 import os
+import json
 import random
 import sys
 import time
@@ -140,8 +141,7 @@ def chat_with_structured_output(llm, system: str, user: str, schema: type[T]) ->
     resp = _invoke_with_retry(lambda: bound.invoke(messages))
     if resp.tool_calls:
         args = resp.tool_calls[0]["args"]
-        if set(args) == {"parameters"} and isinstance(args.get("parameters"), dict):
-            args = args["parameters"]
+        args = _normalize_structured_args(args, schema)
     else:
         # Thinking-mode models sometimes answer with the JSON inline (as prose)
         # instead of emitting a tool call — recover by parsing it from the text
@@ -151,11 +151,32 @@ def chat_with_structured_output(llm, system: str, user: str, schema: type[T]) ->
             raise ValueError(
                 f"{schema.__name__}: model returned no parseable structured output"
             )
-    result = schema.model_validate(args)
+    result = schema.model_validate(_normalize_structured_args(args, schema))
 
     _trace("chat_with_structured_output", system, user, schema=schema,
            output=result.model_dump(), t0=t0)
     return result
+
+
+def _normalize_structured_args(args, schema: type[BaseModel]):
+    """Unwrap provider-specific envelopes around structured tool arguments."""
+    if not isinstance(args, dict):
+        return args
+
+    fields = set(schema.model_fields)
+    for wrapper in ("parameters", "critique", "info", "data", "result", "output"):
+        value = args.get(wrapper)
+        if wrapper not in fields and len(args) == 1 and value is not None:
+            if isinstance(value, dict):
+                return value
+            if isinstance(value, str):
+                try:
+                    parsed = json.loads(value)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(parsed, dict):
+                    return parsed
+    return args
 
 
 def _json_from_text(content) -> dict | None:
