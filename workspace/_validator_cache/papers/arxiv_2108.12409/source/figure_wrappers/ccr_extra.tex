@@ -1,0 +1,15 @@
+
+\begin{figure}[h]
+\centering
+\begin{subfigure}{.45\textwidth}  %
+  \centering
+  \includegraphics[width=\linewidth]{figures/ccr_extra_512.pdf}
+\end{subfigure}%
+\begin{subfigure}{.45\textwidth} %
+  \centering
+  \includegraphics[width=\linewidth]{figures/ccr_extra_1024.pdf}
+\end{subfigure}
+\caption{The ALiBi and sinusoidal models (with both $L$ = 512 and 1024) trained for 50k updates (1 epoch) on the CC100+RoBERTa corpus, extrapolating on the validation set. %
+\al achieves the best results at around $2L$ but maintains strong performance even up to 10000 tokens in these experiments.}
+\label{fig:ccr_extra}
+\end{figure}

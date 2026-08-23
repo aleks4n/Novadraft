@@ -1,0 +1,25 @@
+{
+  "gap_id": "gap_be9d4285",
+  "status": "unchecked",
+  "title": "Extra per-iteration overhead from computing targets in representation space",
+  "description": "I-JEPA introduces extra overhead (about 7% slower per iteration) by computing targets in representation space rather than using raw pixels directly. This is partially offset by faster convergence but remains a computational cost.",
+  "type": "caveat",
+  "canonical_description": "extra overhead from computing prediction targets in representation space",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2301.08243",
+      "section": "scalability",
+      "anchor": "extra overhead by computing targets in representation space",
+      "quote": "Compared to reconstruction-based methods, such as MAE, which directly use pixels as targets, \\putalg introduces extra overhead by computing targets in representation space (about 7\\% slower time per iteration).",
+      "char_offset": [
+        331,
+        541
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-07T08:10:41Z",
+  "verdict": null,
+  "ranking": null
+}

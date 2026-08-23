@@ -1,0 +1,174 @@
+{
+  "gap_id": "gap_4801d2e5",
+  "status": "validated",
+  "title": "Extend Transformer to non-text modalities",
+  "description": "The authors plan to extend the Transformer to problems involving input and output modalities other than text, such as images, audio, and video.",
+  "type": "future_work",
+  "canonical_description": "need to extend attention-based models to non-text modalities (images, audio, video)",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1706.03762",
+      "section": "conclusion",
+      "anchor": "extend the Transformer to problems involving input and output modalities other than text",
+      "quote": "We plan to extend the Transformer to problems involving input and output modalities other than text and to investigate local, restricted attention mechanisms to efficiently handle large inputs and outputs such as images, audio and video.",
+      "char_offset": [
+        672,
+        909
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T07:35:12Z",
+  "verdict": {
+    "gap_id": "gap_4801d2e5",
+    "status": "partially_solved",
+    "confidence": 0.7,
+    "reasoning": "The gap is extremely broad — extending Transformers to handle non-text modalities (images, audio, video) in a general way. The papers show meaningful but narrow progress: Paper 4 (AUREXA-SE) is the strongest, using Swin Transformer V2 for video and Squeezeformer for audio with cross-attention fusion for speech enhancement — a concrete instantiation of attention-based models on both audio and video. Paper 1 applies a Transformer to music-specific modalities (score images, audio, MIDI) via domain-adapted tokenization, but doesn't generalize to natural images or video. Paper 2 uses a video Transformer but only for mouth-region processing in AV-ASR. Paper 3 transfers attention weights between existing modality-specific Transformers but doesn't extend the architecture itself. Paper 5 is not addressed. Together these papers demonstrate that Transformers *can* be applied to images, audio, and video in specific narrow domains, but no paper proposes a general-purpose architecture or method for extending attention-based models to arbitrary non-text modalities — the core of the gap remains open.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2505.12863",
+          "title": "Unified Cross-modal Translation of Score Images, Symbolic Music, and Performance Audio",
+          "abstract": "Music exists in various modalities, such as score images, symbolic scores, MIDI, and audio. Translations between each modality are established as core tasks of music information retrieval, such as automatic music transcription (audio-to-MIDI) and optical music recognition (score image to symbolic score). However, most past work on multimodal translation trains specialized models on individual translation tasks. In this paper, we propose a unified approach, where we train a general-purpose model on many translation tasks simultaneously. Two key factors make this unified approach viable: a new large-scale dataset and the tokenization of each modality. Firstly, we propose a new dataset that consists of more than 1,300 hours of paired audio-score image data collected from YouTube videos, which is an order of magnitude larger than any existing music modal translation datasets. Secondly, our unified tokenization framework discretizes score images, audio, MIDI, and MusicXML into a sequence of tokens, enabling a single encoder-decoder Transformer to tackle multiple cross-modal translation as one coherent sequence-to-sequence task. Experimental results confirm that our unified multitask model improves upon single-task baselines in several key areas, notably reducing the symbol error rate for optical music recognition from 24.58% to a state-of-the-art 13.67%, while similarly substantial improvements are observed across the other translation tasks. Notably, our approach achieves the first successful score-image-conditioned audio generation, marking a significant breakthrough in cross-modal music generation.",
+          "authors": [
+            "Jongmin Jung",
+            "Dongmin Kim",
+            "Sihun Lee",
+            "Seola Cho",
+            "Hyungjoon Soh",
+            "Irmak Bukey",
+            "Chris Donahue",
+            "Dasaem Jeong"
+          ],
+          "published_date": "2025-05-19T08:46:45Z",
+          "url": "https://arxiv.org/abs/2505.12863v1"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper extends a Transformer encoder-decoder to handle multiple non-text modalities — score images, audio, MIDI, and symbolic notation (MusicXML) — by discretizing each modality into token sequences via learned codecs (RQVAE for images, DAC for audio) and linearized formats (LMX, MIDI-like tokens). It demonstrates that a single Transformer can jointly learn cross-modal translation tasks (image-to-audio, image-to-notation, MIDI-to-audio, and their reverse directions) within the music domain, achieving state-of-the-art OMR results and the first successful score-image-conditioned audio generation.",
+        "what_remains_open": "The paper only addresses music-specific modalities (score images, piano audio, MIDI, MusicXML) and does not extend Transformers to general-purpose non-text modalities such as natural images, general audio/speech, or video. Video is entirely absent. The tokenization and model architecture are domain-adapted (e.g., vertical flattening for sheet music, piano-focused audio codec retraining), so the approach is not shown to generalize to arbitrary images, audio, or video outside the music domain. The broader gap of extending attention-based models to general non-text modalities remains open.",
+        "evidence_snippets": [
+          "our unified tokenization framework discretizes score images, audio, MIDI, and MusicXML into a sequence of tokens, enabling a single encoder–decoder Transformer to tackle multiple cross-modal translation as one coherent sequence-to-sequence task",
+          "We propose the first unified multimodal music translation method that covers the four most representative modalities of Western music—score images, symbolic scores, performance MIDI, and audio—in a single model.",
+          "Following the previous research in unifying image-language-speech modal translation~[CITE:kim2024tmt], we formulate music modal translation as a seq2seq task using vector-quantized discrete tokens of image and audio."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2201.10439",
+          "title": "Transformer-Based Video Front-Ends for Audio-Visual Speech Recognition for Single and Multi-Person Video",
+          "abstract": "Audio-visual automatic speech recognition (AV-ASR) extends speech recognition by introducing the video modality as an additional source of information. In this work, the information contained in the motion of the speaker's mouth is used to augment the audio features. The video modality is traditionally processed with a 3D convolutional neural network (e.g. 3D version of VGG). Recently, image transformer networks arXiv:2010.11929 demonstrated the ability to extract rich visual features for image classification tasks. Here, we propose to replace the 3D convolution with a video transformer to extract visual features. We train our baselines and the proposed model on a large scale corpus of YouTube videos. The performance of our approach is evaluated on a labeled subset of YouTube videos as well as on the LRS3-TED public corpus. Our best video-only model obtains 31.4% WER on YTDEV18 and 17.0% on LRS3-TED, a 10% and 15% relative improvements over our convolutional baseline. We achieve the state of the art performance of the audio-visual recognition on the LRS3-TED after fine-tuning our model (1.6% WER). In addition, in a series of experiments on multi-person AV-ASR, we obtained an average relative reduction of 2% over our convolutional video frontend.",
+          "authors": [
+            "Dmitriy Serdyuk",
+            "Otavio Braga",
+            "Olivier Siohan"
+          ],
+          "published_date": "2022-01-25T16:35:54Z",
+          "url": "https://arxiv.org/abs/2201.10439v3"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "This paper proposes replacing the traditional 3D convolutional video front-end in audio-visual speech recognition (AV-ASR) with a video transformer (ViT) architecture. The video transformer processes 3D tubelets (spatio-temporal patches) from mouth-region video crops through a standard transformer encoder, demonstrating that attention-based models can effectively extract visual features for speech recognition tasks. The approach is evaluated on lip reading and AV-ASR, achieving state-of-the-art results on LRS3-TED.",
+        "what_remains_open": "The paper only addresses extending Transformers to video in the narrow context of mouth-region processing for speech recognition. It does not address extending Transformers to other non-text modalities such as images (general image understanding beyond classification), audio as a standalone modality (audio features are still standard log-Mel filterbanks, not transformer-processed), or video understanding for general tasks (action recognition, scene understanding, etc.). The broader gap of adapting the Transformer architecture to handle the unique structural properties of images (2D spatial structure), audio (time-frequency representations), and video (spatio-temporal structure) in a general-purpose way remains largely open.",
+        "evidence_snippets": [
+          "Inspired by the success of vision transformers, we propose to use a transformer-based architecture for the video front-end of the AV-ASR system.",
+          "We design a video transformer front-end which takes a sliding 3D window of the video. This window is split into 3D patches of the size 32x32x8 pixels. Then following~[CITE:Dosovitskiy2020-nh] [CITE:Arnab2021-mq], we apply an affine transform to the patches followed by a transformer encoder.",
+          "We test the feasibility of the transformer-based video front-end for the AV-ASR and lip reading."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2312.14378",
+          "title": "Multimodal Attention Merging for Improved Speech Recognition and Audio Event Classification",
+          "abstract": "Training large foundation models using self-supervised objectives on unlabeled data, followed by fine-tuning on downstream tasks, has emerged as a standard procedure. Unfortunately, the efficacy of this approach is often constrained by both limited fine-tuning compute and scarcity in labeled downstream data. We introduce Multimodal Attention Merging (MAM), an attempt that facilitates direct knowledge transfer from attention matrices of models rooted in high resource modalities, text and images, to those in resource-constrained domains, speech and audio, employing a zero-shot paradigm. MAM reduces the relative Word Error Rate (WER) of an Automatic Speech Recognition (ASR) model by up to 6.70%, and relative classification error of an Audio Event Classification (AEC) model by 10.63%. In cases where some data/compute is available, we present Learnable-MAM, a data-driven approach to merging attention matrices, resulting in a further 2.90% relative reduction in WER for ASR and 18.42% relative reduction in AEC compared to fine-tuning.",
+          "authors": [
+            "Anirudh S. Sundar",
+            "Chao-Han Huck Yang",
+            "David M. Chan",
+            "Shalini Ghosh",
+            "Venkatesh Ravichandran",
+            "Phani Sankar Nidadavolu"
+          ],
+          "published_date": "2023-12-22T02:08:40Z",
+          "url": "https://arxiv.org/abs/2312.14378v2"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper proposes Multimodal Attention Merging (MAM), a method to transfer knowledge from attention matrices of Transformers trained on high-resource modalities (text via BERT, images via ViT) to Transformers in low-resource modalities (speech via HuBERT, audio via BEATs). It demonstrates that interpolating attention weights from text/image models into speech/audio models improves ASR and audio event classification performance, both in zero-shot and fine-tuning settings. This addresses cross-modal knowledge transfer, which is related to extending Transformers to non-text modalities.",
+        "what_remains_open": "The paper does not actually extend the Transformer architecture to handle non-text modalities. It assumes pre-existing Transformer models for speech (HuBERT), audio (BEATs), and images (ViT) already exist and are well-established. The core gap — designing attention mechanisms that can natively process images, audio, or video inputs (e.g., adapting self-attention for 2D spatial structure, temporal audio patterns, or spatiotemporal video) — is not addressed. The paper focuses on knowledge transfer between already-existing modality-specific Transformers via weight merging, rather than proposing a unified architecture or novel attention mechanism that inherently handles multiple modalities.",
+        "evidence_snippets": [
+          "MAM seeks to determine if the Transformer attention mechanism generalizes across modalities. It does so by exploring the transferability of parameter-space sequence representations of Transformers pre-trained on high-resource modalities (text or vision) to those trained on relatively low-resource modalities (speech or audio).",
+          "We apply attention merging to two tasks: Automatic Speech Recognition (ASR) and Audio Event Classification (AEC).",
+          "MAM with attention interpolation uses a convex combination of the source and target models. Using an interpolation factor λ ∈ [0,1], we merge Query, Key, and Value matrices (W_Q, W_K, W_V) across all layers L in the attention computation."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2510.05295",
+          "title": "AUREXA-SE: Audio-Visual Unified Representation Exchange Architecture with Cross-Attention and Squeezeformer for Speech Enhancement",
+          "abstract": "In this paper, we propose AUREXA-SE (Audio-Visual Unified Representation Exchange Architecture with Cross-Attention and Squeezeformer for Speech Enhancement), a progressive bimodal framework tailored for audio-visual speech enhancement (AVSE). AUREXA-SE jointly leverages raw audio waveforms and visual cues by employing a U-Net-based 1D convolutional encoder for audio and a Swin Transformer V2 for efficient and expressive visual feature extraction. Central to the architecture is a novel bidirectional cross-attention mechanism, which facilitates deep contextual fusion between modalities, enabling rich and complementary representation learning. To capture temporal dependencies within the fused embeddings, a stack of lightweight Squeezeformer blocks combining convolutional and attention modules is introduced. The enhanced embeddings are then decoded via a U-Net-style decoder for direct waveform reconstruction, ensuring perceptually consistent and intelligible speech output. Experimental evaluations demonstrate the effectiveness of AUREXA-SE, achieving significant performance improvements over noisy baselines, with STOI of 0.516, PESQ of 1.323, and SI-SDR of -4.322 dB. The source code of AUREXA-SE is available at https://github.com/mtanveer1/AVSEC-4-Challenge-2025.",
+          "authors": [
+            "M. Sajid",
+            "Deepanshu Gupta",
+            "Yash Modi",
+            "Sanskriti Jain",
+            "Harshith Jai Surya Ganji",
+            "A. Rahaman",
+            "Harshvardhan Choudhary",
+            "Nasir Saleem",
+            "Amir Hussain",
+            "M. Tanveer"
+          ],
+          "published_date": "2025-10-06T19:05:35Z",
+          "url": "https://arxiv.org/abs/2510.05295v1"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper proposes AUREXA-SE, an audio-visual speech enhancement framework that directly extends Transformer-based attention mechanisms to non-text modalities. It uses a Swin Transformer V2 for visual feature extraction from video frames, a bidirectional cross-attention mechanism for fusing audio and visual modalities, and Squeezeformer (a Transformer variant) for temporal modeling of the fused representations. The entire architecture is built around attention-based models applied to raw audio waveforms and video frames, demonstrating a concrete instantiation of extending Transformers beyond text to images and audio.",
+        "what_remains_open": "The paper fully addresses the gap within its specific scope (audio-visual speech enhancement). However, the gap as stated is very broad (\"extend Transformer to non-text modalities such as images, audio, and video\"). This paper only covers a specific combination (audio + video for speech enhancement) and does not address other non-text modalities (e.g., 3D point clouds, tactile signals, medical imaging, sensor data) nor does it propose a general-purpose architecture for arbitrary non-text modalities. It also does not explore extending Transformers to non-text output modalities (e.g., generating images or video directly).",
+        "evidence_snippets": [
+          "AUREXA-SE jointly leverages raw audio waveforms and visual cues by employing a U-Net–based 1D convolutional encoder for audio and a Swin Transformer V2 for efficient and expressive visual feature extraction.",
+          "Central to the architecture is a novel bidirectional cross-attention mechanism, which facilitates deep contextual fusion between modalities, enabling rich and complementary representation learning.",
+          "To capture temporal dependencies within the fused embeddings, a stack of lightweight Squeezeformer blocks combining convolutional and attention modules is introduced."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2407.03563",
+          "title": "Learning Video Temporal Dynamics with Cross-Modal Attention for Robust Audio-Visual Speech Recognition",
+          "abstract": "Audio-visual speech recognition (AVSR) aims to transcribe human speech using both audio and video modalities. In practical environments with noise-corrupted audio, the role of video information becomes crucial. However, prior works have primarily focused on enhancing audio features in AVSR, overlooking the importance of video features. In this study, we strengthen the video features by learning three temporal dynamics in video data: context order, playback direction, and the speed of video frames. Cross-modal attention modules are introduced to enrich video features with audio information so that speech variability can be taken into account when training on the video temporal dynamics. Based on our approach, we achieve the state-of-the-art performance on the LRS2 and LRS3 AVSR benchmarks for the noise-dominant settings. Our approach excels in scenarios especially for babble and speech noise, indicating the ability to distinguish the speech signal that should be recognized from lip movements in the video modality. We support the validity of our methodology by offering the ablation experiments for the temporal dynamics losses and the cross-modal attention architecture design.",
+          "authors": [
+            "Sungnyun Kim",
+            "Kangwook Jang",
+            "Sangmin Bae",
+            "Hoirin Kim",
+            "Se-Young Yun"
+          ],
+          "published_date": "2024-07-04T01:25:20Z",
+          "url": "https://arxiv.org/abs/2407.03563v3"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "This paper proposes learning temporal dynamics (context order, playback direction, speed) of video features with cross-modal attention for Audio-Visual Speech Recognition (AVSR). It uses an existing Transformer-based backbone (AV-HuBERT-Large) and adds cross-modal attention modules between audio and video streams to improve noise robustness. The work is a specific application of Transformer-based models to the AVSR task, not a general method for extending Transformers to non-text modalities.",
+        "what_remains_open": "The paper does not address the general problem of extending Transformer architectures to handle non-text modalities (images, audio, video) as inputs or outputs. It uses an existing Transformer-based model (AV-HuBERT) that already handles audio and video, and focuses narrowly on the AVSR task. The broader challenge of designing attention mechanisms that can natively process images, audio waveforms, or video frames — beyond the specific case of lip-reading for speech recognition — remains unaddressed. The paper also does not address output modalities other than text (transcription remains text-based).",
+        "evidence_snippets": [
+          "Audio-visual speech recognition (AVSR) aims to transcribe human speech using both audio and video modalities.",
+          "We adopt AV-HuBERT-Large model [CITE:shi2022robust] as our backbone, which consists of 24 and 9 Transformer blocks as the AVSR encoder and decoder, respectively.",
+          "Our method focuses on predicting three key objectives: (1) the context order between two random video and audio frames, (2) the playback direction of video frames, and (3) the playback speed of video frames."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 5,
+      "skipped_ids": []
+    }
+  },
+  "ranking": {
+    "openness": 0.25,
+    "impact": 0.2212437900615097,
+    "feasibility": 0.72,
+    "feasibility_reasoning": "Data availability is high — massive labeled datasets exist for images (ImageNet, LAION), audio (AudioSet, LibriSpeech), and video (Kinetics, YouTube). Methodological maturity is strong: Transformers have already been successfully adapted to each major modality individually (ViT for images, AST for audio, TimeSformer/VideoMAE for video), providing proven building blocks and pretrained models. Compute is moderate — fine-tuning existing models or testing fusion strategies is feasible on modest hardware (single GPU), though training large multimodal models from scratch would be expensive. The main difficulty is the gap's extreme breadth: a truly general-purpose architecture for arbitrary non-text modalities remains open, but focused progress on a specific modality or on cross-modal fusion strategies is clearly tractable. Evaluatability is straightforward via established benchmarks (classification, retrieval, captioning) for each modality."
+  }
+}

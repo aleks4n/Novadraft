@@ -1,0 +1,50 @@
+
+
+\definecolor{mg}{gray}{0.5}
+
+
+\begin{table}[t]
+
+
+\caption{Test perplexity and runtime on WikiText-103 for two of our ALiBi models and models that use the sinusoidal, rotary and T5 bias methods. }
+\label{tab:wt103_test}
+\begin{center}
+\centering
+
+
+\begin{tabular}{@{}lccccc@{}} \toprule
+\multirow{2}{*}[-2pt]{Model}  &\multirow{2}{*}[-2pt]{Param. $\downarrow$}&Train&\multicolumn{3}{c}{Inference  } \\  \cmidrule(lr){3-3} \cmidrule(lr){4-6}
+
+ & &Speed$\uparrow$ & Speed $\uparrow$& Valid $\downarrow$ & Test $\downarrow$ \\ \midrule
+
+
+Sinusoidal, $L$ = 3072 &\textbf{247M}  & 15.3k &\textbf{13.6k}&18.67&19.38 \\      
+Rotary, $L$ = 3072     &\textbf{247M} &\textbf{11.5k} &12.2k &18.57 & 19.28 \\  
+T5 Bias, $L$ = 3072    &\textbf{247M} &4.3k &7.3k&18.01&18.73 \\    
+
+\midrule
+ &&&&& \\
+\addlinespace[-0.75em]
+
+\multirow{2}{*}[3pt]{\rotatebox[origin=c]{90}{ALiBi}} $L$ = 512, $L_{valid}$ = 3072 &\textbf{247M}&28.3k&\textbf{13.6k}&18.40& 19.08\\
+
+~~~~$L$ = 3072, $L_{valid}$ = 3072 &\textbf{247M}&15.5k&\textbf{13.6k}&\textbf{17.60}&\textbf{18.30} \\
+
+\addlinespace[-0.75em]
+ &&&&& \\
+\bottomrule
+
+
+\end{tabular}
+
+
+
+
+\end{center}
+\end{table}
+
+
+
+
+
+

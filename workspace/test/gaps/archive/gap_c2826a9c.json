@@ -1,0 +1,24 @@
+{
+  "gap_id": "gap_c2826a9c",
+  "status": "duplicate",
+  "title": "Vanishing and exploding gradients in recurrent networks",
+  "description": "Training recurrent neural networks is problematic because backpropagated gradients either grow or shrink at each time step, causing them to explode or vanish over many time steps, making it difficult to learn long-term dependencies.",
+  "type": "limitation",
+  "canonical_description": "recurrent neural networks difficult to train due to vanishing or exploding gradients hindering long-term dependency learning",
+  "evidence": [
+    {
+      "paper_id": "doi_10_1038_nature14539",
+      "section": "recurrent_neural_networks",
+      "anchor": "backpropagated gradients either grow or shrink at each time step",
+      "quote": "RNNs are very powerful dynamic systems, but training them has proved to be problematic because the backpropagated gradients either grow or shrink at each time step, so over many time steps they typically explode or vanish<sup>77,78</sup>.",
+      "char_offset": [
+        673,
+        911
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-06-26T23:32:37Z",
+  "duplicate_of": "gap_6b9a9c06"
+}

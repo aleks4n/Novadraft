@@ -1,0 +1,33 @@
+{
+  "category_slug": "transformers",
+  "name": "Transformers",
+  "description": "Research on transformer architectures: self-attention, scaling, efficiency variants, and applications across language, vision, and multimodal tasks.",
+  "seminal_papers": [
+    {
+      "title": "Attention Is All You Need",
+      "authors": "Vaswani et al.",
+      "year": 2017,
+      "why": "Introduced the transformer architecture and self-attention, replacing recurrence and convolution as the backbone of modern sequence models."
+    },
+    {
+      "title": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
+      "authors": "Devlin et al.",
+      "year": 2019,
+      "why": "Showed that bidirectional masked-language-model pre-training yields transferable representations, setting the pre-train/fine-tune paradigm for NLP."
+    },
+    {
+      "title": "Language Models are Few-Shot Learners",
+      "authors": "Brown et al.",
+      "year": 2020,
+      "why": "Demonstrated that scaling autoregressive transformers (GPT-3) unlocks in-context few-shot learning without task-specific fine-tuning."
+    },
+    {
+      "title": "An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale",
+      "authors": "Dosovitskiy et al.",
+      "year": 2021,
+      "why": "Brought the transformer to vision (ViT), showing pure attention can match or beat CNNs given enough data."
+    }
+  ],
+  "created_at": "2026-06-07T00:00:00Z",
+  "updated_at": "2026-06-07T00:00:00Z"
+}

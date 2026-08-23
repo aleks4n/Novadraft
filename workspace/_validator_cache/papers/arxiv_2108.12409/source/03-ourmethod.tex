@@ -1,0 +1,49 @@
+
+
+\section{Attention with Linear Biases (ALiBi)}
+\label{sec:ourmethod}
+
+\input{figure_wrappers/fig1}
+
+
+
+
+In the transformer model of \citet{vaswani}, position embeddings are added to the word embeddings at the bottom of the network. %
+For an input subsequence of length $L$, the attention sublayer %
+computes the attention scores for the $i$th
+query $\mathbf{q}_i \in \mathbb{R}^{1\times d}$, ($1 \leq i \leq L$) in each head, given the first $i$ keys $\mathbf{K} \in \mathbb{R}^{i\times d}$, where $d$ is the head dimension:%
+\begin{equation*}
+\text{softmax}(\mathbf{q}_i \mathbf{K}^\top)
+\end{equation*}
+These attention scores are then multiplied by the values to return the output of the attention sublayer.\footnote{For simplicity we omit the key, query, value and final output projections, dropout, and the scaling factor.}
+
+When using ALiBi, we do not add position embeddings at any point in the network. %
+The only modification we apply is after the query-key dot product, where we add a static, non-learned bias:\footnote{The ALiBi bias is not multiplied by the $\sqrt{d_k}$ scaling factor from Equation 1 of~\citet{vaswani}.}
+\begin{equation*}
+\text{softmax}(\mathbf{q}_i \mathbf{K}^\top + m \cdot [-(i-1), ..., -2, -1, 0]), 
+\end{equation*}
+where scalar $m$ is a head-specific slope fixed before training.
+Figure~\ref{fig:1} offers a visualization. 
+
+For our models with 8 heads, the slopes that we used are the geometric sequence: %
+${\frac{1}{2^1}, \frac{1}{2^2}, ..., \frac{1}{2^8}}$. 
+For models that require 16 heads, we interpolate those 8 slopes by geometrically averaging every consecutive pair, resulting in the geometric sequence that starts at $\frac{1}{\sqrt{2}}$ and has the ratio of $\frac{1}{\sqrt{2}}$: ${\frac{1}{2^{0.5}}, \frac{1}{2^1}, \frac{1}{2^{1.5}}, ..., \frac{1}{2^{8}}}$. In general, for $n$ heads, our set of slopes is the geometric sequence that starts at %
+$2^{\frac{-8}{n}}$
+and uses that same value as its ratio.  
+
+
+In \S\ref{sec:results}, we observe that this set of slopes works on a wide variety of text domains and model sizes. Therefore, we do not believe that it is necessary to tune these slope values every time a new model is trained on a new dataset. This makes our method similar to the sinusoidal approach, where the hyperparameters (the start and end of the geometric progression of wavelengths) were set once by~\citet{vaswani} and then reused in different models of different sizes on different datasets.  
+
+
+\al has an inductive bias towards recency; it penalizes attention scores between distant query-key pairs, with the penalty increasing as the distance between a key and a query grows. The different heads increase their penalties at different rates, depending on the slope magnitude. 
+
+We initially experimented with making the slopes trainable, but this did not yield strong extrapolation results.\footnote{In our experiments, trainable slopes also slowed down the training speed by 3\%.} %
+A brief manual exploration of around ten slope sets led us to discover the set of slopes that we finally picked. Our main insight from this exploration is that the slope sets that work best are those with slopes in the $(0,1)$ range, with the slopes' density increasing as we get closer to $0$. 
+We also found our method to be robust to slope choice. Even randomly sampling from the exponential distribution worked well in some cases (although that method had high variance). %
+
+Since ALiBi is a relative position method, we add position information at every layer to the keys and queries but not to the values, as is done in the T5 bias and rotary methods. We hypothesize that these properties might be beneficial for extrapolation. %
+
+\paragraph{Implementation.}
+ALiBi is easy to implement, with all changes accomplished in a few lines of code. We implement it by modifying the mask matrix by adding the linear biases to it (in practice, when training a transformer LM, query $\mathbf{q}_i$ attends only to keys $1$ to $i$; this is implemented by adding a mask matrix to the query-key dot product before the softmax operation is applied). This means that there is no runtime penalty when using our method since we add no operations to the network.%
+
+Compared to the sinusoidal model trained on the same input lengths, AliBi incurs a memory increase (up to 100MB in some of our experiments): in the unmodified transformer, the mask is of size $L\times L$; when using ALiBi, the mask is a slightly larger $n \times L\times L$ (where $n$ is the number of heads) since the linear biases added for each head uses a different slope. But, as we show, ALiBi enables training on much smaller sequences while still achieving (and occasionally surpassing) results obtained using sinusoidal embeddings on longer sequences, which saves multiple gigabytes of memory. 

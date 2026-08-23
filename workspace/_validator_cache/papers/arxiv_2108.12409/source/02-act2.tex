@@ -1,0 +1,99 @@
+\section{Current Approaches Do Not Extrapolate Efficiently }
+\label{sec:act2}
+
+ 
+
+We show for the first time that the sinusoidal position method, which technically should be able to extrapolate, in practice has very limited extrapolation capabilities. Though the rotary position method improves over the sinusoidal one, it still does not achieve satisfying results.  Holding everything else constant, we are the first to observe that the T5 bias method leads to better extrapolation than either of these, and so we conclude that extrapolation ability depends heavily on the position embedding.  Unfortunately, the T5 bias is computationally costly (Figure~\ref{fig:wt103_speed_mem}).
+
+
+\subsection{Background and Experimental Setup}
+
+A transformer LM receives a list of tokens 
+and outputs a probability distribution representing its prediction for the next token.  We call the input list the \textit{current input subsequence} since the inputs to language models are typically subsequences from (much longer) training or evaluation sequences.  During both training and perplexity evaluation (i.e., scoring a fixed sequence), many predictions can be calculated at once; this is done using a ``causal mask'' that ensures each position's prediction is influenced only by tokens to its left.  Let $L$ be the length of each input subsequence during training; it includes $L$ predictions, which on average have access to $\frac{L+1}{2}$ tokens of (left) context.  %
+To explore a model's extrapolation abilities, we are interested in cases where sequences of length $L_{\textit{valid}} > L$ are considered at evaluation time. %
+When $L$ differs between inference and training, we use \lt to refer to the length of subsequences during training and \li  to refer to their length at validation. 
+
+
+
+\paragraph{Nonoverlapping Inference}
+To train on or evaluate a sequence longer than $L$ tokens, it is typical to segment the sequence into $L$-length subsequences and train on or evaluate them independently.  Unless otherwise stated, we use nonoverlapping inference to report perplexity scores. %
+
+
+
+
+\paragraph{Extrapolation During Inference} 
+Formally, the functions that define a transformer layer are agnostic to input length;\footnote{These include the embedding lookup, feedforward sublayer, and softmax layer, which act independently on vector inputs, as well as the attention sublayers, whose parameters do not depend on input length (and which must handle variable-length inputs, e.g., due to causal masking).  %
+} they map from some arbitrary, unfixed number of input vectors to the same number of output vectors.  When transformers are applied to data that is inherently sequential, like text, %
+positional information is injected into the inputs in various ways. 
+
+
+
+
+\citet{vaswani}
+discussed two options for embedding positions into vectors to be added to word %
+embeddings:  learning embeddings for specific positions and unlearned sinusoidal embeddings.  They observed similar performance between these two but preferred the sinusoidal approach, which they argued might extrapolate to longer input sequences during inference.  %
+We find that this model cannot extrapolate to more than a few dozen tokens beyond $L$.\footnote{The learned positional embedding approach does not have a way to encode positions greater than $L$; it therefore has no ability to extrapolate.}
+
+
+
+
+
+
+\paragraph{Experiment Setup}
+We first test the extrapolation abilities of various position methods on the WikiText-103 corpus~\citep{pointer} using the transformer language model of~\cite{baevski}. 
+We use this model because of its prominent role in recent  language modeling developments~\citep{khandelwal20generalization, shortformer}. The training set is about 103 million tokens from  English Wikipedia (half a gigabyte).  The  model has $16$ transformer layers of dimension $1024$, with $8$ heads, and a feedforward inner dimension of $4096$. This model ties the word embedding and softmax matrices~\citep{tying, inan2017}. %
+In our experiments, other than varying the position method and training subsequence length, we modify no other hyperparameters, including the random seed and number of training epochs (205). 
+
+
+
+\input{figure_wrappers/wt103_speed_mem}
+
+
+
+\subsection{Measuring Extrapolation}
+\paragraph{Sinusoidal Position Embeddings}
+Sinusoidal position embeddings (\citealp{vaswani}; \S 3.5) are constant, non-learned vectors that are added to token embeddings on input to the first layer of the transformer. They are frequently used in transformer language modeling~\citep{baevski,lewis2021base} and machine translation~\citep{vaswani,ott2018scaling} models. 
+We first consider the unmodified model of~\cite{baevski}, which uses sinusoidal position embeddings, and train it on $L=512$ tokens; we then run inference with it on the validation set on $L+k$ tokens, with $k$ ranging from 0 to 15,000.
+Figure~\ref{fig:wt103_extra} (left) and the corresponding Table~\ref{tab:appendix:wt103_extra_512} (in the appendix) show that while the model improves  perplexity up to $k=20$, performance stops improving and stays steady from $k=20$ to $k=50$ and then begins degrading. 
+Similar results are obtained for a model trained with $L=1024$ tokens (Figure~\ref{fig:wt103_extra} (right) and Table~\ref{tab:appendix:wt103_extra_1024} in the appendix). That model improves for up to $\li = \lt + 50$ tokens, after which performance declines. 
+
+\paragraph{Rotary Position Embeddings}
+The rotary method was introduced by~\cite{roformer} and has recently been popularized by the open source GPT-3~\citep{gpt3} implementation GPT-J~\citep{gpt-j}. Instead of adding sinusoidal embeddings at the bottom of the transformer, they multiply the keys and queries of every attention layer by sinusoidal embeddings. 
+
+Unlike the sinusoidal or learned positional embedding approach, the rotary method injects position information into the model at every layer, not just at the initial one.  In addition, it adds no position information to the values of the self-attention sublayer. The output of a self-attention sublayer is a linearly transformed, weighted sum of the input value vectors; therefore, by not inserting position information into the values, the outputs of each transformer-layer contain no explicit position information. 
+We suspect that this segregation of position information may be beneficial for extrapolation, and we draw inspiration from it in the design of our method (\S\ref{sec:ourmethod}).
+
+We apply the rotary position embedding method to our Baevski \& Auli baseline.\footnote{Our rotary method implementation is based on the code in \url{https://github.com/JunnYu/RoFormer_pytorch}, which is linked to from the official repository of~\cite{roformer}: (\url{https://github.com/ZhuiyiTechnology/roformer}). After we finished running our experiments with the rotary method, we were informed that the runtime of the code linked above could be optimized, making it only 2\% slower than the sinusoidal approach. This optimization would not change extrapolation performance.}
+The perplexity results (Figure~\ref{fig:wt103_extra} and Appendix Tables~\ref{tab:appendix:wt103_extra_512} and~\ref{tab:appendix:wt103_extra_1024}) are better than the sinusoidal approach: the model with $L=512$ ($L=1024$) improves perplexity with up to $k=200$ ($k=100$) more tokens than it saw during training, but this comes at the cost of slower training and inference (Figure~\ref{fig:wt103_speed_mem}). %
+
+\paragraph{T5 Bias}
+Though most models use trained or sinusoidal position embeddings, the T5 model of~\cite{t5} uses a relative position method~\citep{shaw,Huang2019MusicTG} that adds no  position information to word embeddings (as in the previous method). Instead, it  %
+modifies the way attention values are computed. We refer to this as the ``T5 bias'' method.\footnote{This method is similar to the one used in~\citet[Equation 7]{parikh-etal-2016-decomposable}.} To compute attention values in the unmodified transformer, we compute the dot product of every query with every relevant key %
+and then softmax these attention values. In this method, we compute the attention values as before, %
+but then we add a learned, shared bias to each query-key score that is dependent on just the distance between the query and key. Therefore, all query-key scores where the query and key distance are zero (i.e., the query and key represent the same token) get a specific learned bias, all scores where the query and key are one word away get a different learned bias, and so on, up to a certain point, from where multiple different distances share the same learned bias (which might be beneficial for extrapolation). %
+As in the rotary method, the T5 bias injects position information into the model at every layer and integrates no explicit position information into the %
+self-attention value vectors. 
+
+\cite{t5} propose that the T5 bias may allow extrapolation, but they did not report experiments testing this.  Here, we show that the T5 bias does allow language models to extrapolate.
+We do this by again modifying the Baevski \& Auli model, this time to insert the T5 bias into it.\footnote{Our T5 bias implementation is based on the one used in HuggingFace Transformers~\citep{huggingface}, which in turn is based on the official Mesh Tensorflow T5 code. }
+
+As Figure~\ref{fig:wt103_extra} shows, the T5 bias improves perplexity with longer sequences than the ones it was trained on, i.e.,  $k=600$ ($k=800$) extra tokens for a model trained on $L=512$ ($L=1024$) input tokens.  Unfortunately, this impressive performance comes at a cost: training is at least twice as slow as with the sinusoidal model. Therefore, this model's extrapolation ability provides no efficiency advantage. For example, to do inference on 1024 tokens, we could either train the sinusoidal model with \lt = 1024 or train the T5 bias model on \lt = 512 tokens and extrapolate to 1024 for inference. However, the \lt = 1024 sinusoidal model runs at 28.5k words per second (WPS), while the \lt = 512 T5 bias model runs at 14.4k WPS (Appendix Table~\ref{tab:baselines_speed_mem}), so there is no speedup when training on shorter sequences with this method.\footnote{ \citet{narang2021transformer} benchmarked the T5 bias as being just 8.7\% slower than the sinusoidal approach; thus,   while always incurring a runtime penalty, this method's runtime could be faster depending on the choice of hardware and software frameworks used. Narang et al. used the Tensorflow T5 library running on TPUs, while we used the PyTorch Fairseq library running on GPUs. }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

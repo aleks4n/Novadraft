@@ -1,0 +1,83 @@
+{
+  "gap_id": "gap_59db3383",
+  "status": "validated",
+  "title": "Unknown accuracy of EM distance estimate due to finite critic capacity",
+  "description": "The authors note that in practice the critic does not have infinite capacity, making it hard to know how close the WGAN loss estimate is to the true EM distance.",
+  "type": "caveat",
+  "canonical_description": "limited critic capacity makes it uncertain how accurately the estimated loss approximates the true Wasserstein distance",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1701.07875",
+      "section": "empirical_results",
+      "anchor": "the critic doesn't have infinite capacity makes it hard to know just how close to the EM distance",
+      "quote": "in practice the fact that the critic doesn't have\ninfinite capacity makes it hard to know just how\nclose to the EM distance our estimate really is.",
+      "char_offset": [
+        3860,
+        4007
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T08:20:46Z",
+  "verdict": {
+    "gap_id": "gap_59db3383",
+    "status": "solved",
+    "confidence": 0.85,
+    "reasoning": "Paper 1 (\"Wasserstein GANs Work Because They Fail\") directly and squarely addresses the gap: it investigates whether the WGAN loss approximates the true Wasserstein distance under finite critic capacity. It provides both theoretical analysis and extensive empirical evidence showing the estimate is off by an order of magnitude, and explicitly identifies \"not learning the optimal discriminator exactly\" (i.e., limited critic capacity) as a primary error source. This resolves the gap's core uncertainty—the answer is that the approximation is poor and the accuracy is low. Paper 2 is irrelevant (a LaTeX template, not a research paper). Confidence is high because Paper 1's evidence is strong, direct, and well-targeted to the gap's specific question, though a fully general formal bound as a function of architecture is not provided (which goes beyond the original gap's scope).",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2103.01678",
+          "title": "Wasserstein GANs Work Because They Fail (to Approximate the Wasserstein Distance)",
+          "abstract": "Wasserstein GANs are based on the idea of minimising the Wasserstein distance between a real and a generated distribution. We provide an in-depth mathematical analysis of differences between the theoretical setup and the reality of training Wasserstein GANs. In this work, we gather both theoretical and empirical evidence that the WGAN loss is not a meaningful approximation of the Wasserstein distance. Moreover, we argue that the Wasserstein distance is not even a desirable loss function for deep generative models, and conclude that the success of Wasserstein GANs can in truth be attributed to a failure to approximate the Wasserstein distance.",
+          "authors": [
+            "Jan Stanczuk",
+            "Christian Etmann",
+            "Lisa Maria Kreusser",
+            "Carola-Bibiane Schönlieb"
+          ],
+          "published_date": "2021-03-02T12:30:25Z",
+          "url": "https://arxiv.org/abs/2103.01678v4"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper directly investigates whether the WGAN loss function approximates the true Wasserstein (Earth Mover's) distance under finite critic capacity. It provides both theoretical analysis and extensive empirical evidence showing that the WGAN-GP loss is not a meaningful approximation of the Wasserstein distance. The authors design experiments where the critic is trained for many iterations on static distributions (an easier task than actual WGAN training) and find that the normalized Wasserstein estimate is off by an order of magnitude from the true value. They also show that even in low-dimensional settings where sample complexity is not an issue, the approximation fails. The paper explicitly identifies \"not learning the optimal discriminator exactly\" (i.e., finite critic capacity) as a primary source of error.",
+        "what_remains_open": "The paper fully addresses the gap's core question — it shows that the accuracy is poor and provides empirical quantification of the discrepancy. However, it does not provide a general, formal bound or calibration method that would allow practitioners to determine the accuracy of the EM distance estimate as a function of specific critic architecture or capacity. The analysis is empirical and case-specific rather than providing a general theoretical characterization of the relationship between critic capacity and estimation accuracy.",
+        "evidence_snippets": [
+          "We conclude that loss_G(theta) approx W^\\ast(p^\\ast, p^\\theta) is not achieved in WGAN-GP, so the loss of WGAN-GP is not an accurate approximation of Wasserstein distance.",
+          "We find that normalised Wasserstein estimate is very far from the actual $W_1(p^\\ast,p^\\theta)$. Since $W_1(p^\\ast,p^\\theta)=41.21$, the normalised Wasserstein estimate $W^D_1(p^\\ast,p^\\theta)/\\hat{L}(D_\\alpha)$ is one order of magnitude smaller than $W_1(p^\\ast,p^\\theta)$.",
+          "From the above discussion, we can conclude that there are two sources of error in the  approximation of the Wasserstein distance:\n\\begin{enumerate}\n    \\item Not learning the optimal discriminator exactly.\n    \\item Estimation of the expectations based on finite samples.\n\\end{enumerate}"
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2103.10060",
+          "title": "Approximating Probability Distributions by using Wasserstein Generative Adversarial Networks",
+          "abstract": "Studied here are Wasserstein generative adversarial networks (WGANs) with GroupSort neural networks as their discriminators. It is shown that the error bound of the approximation for the target distribution depends on the width and depth (capacity) of the generators and discriminators and the number of samples in training. A quantified generalization bound is established for the Wasserstein distance between the generated and target distributions. According to the theoretical results, WGANs have a higher requirement for the capacity of discriminators than that of generators, which is consistent with some existing results. More importantly, the results with overly deep and wide (high-capacity) generators may be worse than those with low-capacity generators if discriminators are insufficiently strong. Numerical results obtained using Swiss roll and MNIST datasets confirm the theoretical results.",
+          "authors": [
+            "Yihang Gao",
+            "Michael K. Ng",
+            "Mingjie Zhou"
+          ],
+          "published_date": "2021-03-18T07:40:13Z",
+          "url": "https://arxiv.org/abs/2103.10060v4"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "The provided LaTeX source is not a research paper on Wasserstein GANs or probability distribution approximation. It is the SIAM LaTeX documentation template (siamonline220329.cls documentation), which describes how to format papers for SIAM journals. It contains no technical content related to WGANs, critic capacity, or EM distance estimation.",
+        "what_remains_open": "The entire gap remains completely open: the paper does not address the unknown accuracy of the EM distance estimate due to finite critic capacity in any way.",
+        "evidence_snippets": []
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 2,
+      "skipped_ids": []
+    }
+  },
+  "ranking": null
+}

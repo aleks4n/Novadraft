@@ -1,0 +1,19 @@
+\begin{table}[t]
+\caption{Perplexities of the \textbf{T5 bias} models evaluated with sliding window evaluation with stride $S=1$ on the WikiText-103 validation dataset. }
+\label{tab:t5_extrapolating_cw}
+\begin{center}
+
+\begin{tabular}{@{}rccccc@{}}
+\toprule
+                               &  \multicolumn{5}{c}{Evaluation Length ($S=1$)} \\  
+               Train Length               & 512 & 1024 & 1536 & 2048 & 3072 \\\cmidrule(r){1-1} \cmidrule(l){2-6}
+
+512&  17.92 & 18.51 & 20.36 & 22.62 & 30.77 \\
+ 1024 &-& 17.65 & 17.87 & 18.51 & 20.66  \\
+3072 & -&- & -& -&  17.41\\ \bottomrule
+\end{tabular}
+
+\end{center}
+\end{table}
+
+

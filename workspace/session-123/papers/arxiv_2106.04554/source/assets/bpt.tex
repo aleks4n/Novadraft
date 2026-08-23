@@ -1,0 +1,137 @@
+\documentclass{standalone}
+\usepackage[tt=false, type1=true]{libertine}
+\usepackage[varqu]{zi4}
+\usepackage[libertine]{newtxmath}
+\usepackage{color}
+\usepackage{tikz}
+\usetikzlibrary{positioning,chains,fit,shapes,calc}
+\usepackage[edges]{forest}
+\definecolor{hidden-blue}{RGB}{222,235,247}
+% \definecolor{hidden-blue}{RGB}{189,215,238}
+% \definecolor{border-blue}{RGB}{157,195,220}
+\definecolor{border-blue}{RGB}{137,174,207}
+\definecolor{hidden-orange}{RGB}{251,229,214}
+% \definecolor{border-orange}{RGB}{244,177,131}
+\definecolor{border-orange}{RGB}{234,170,120}
+\begin{document}
+\forestset{
+ default preamble={
+ for tree={minimum height=2em,minimum width=3em,fill=hidden-blue,rectangle,rounded corners,draw=border-blue,very thick,text=border-blue,l sep=2.3em,edge=dotted}
+ }
+}
+\tikzstyle{leaf}=[minimum height=2em,minimum width=2em,
+    circle
+]
+\tikzstyle{high}=[
+fill=hidden-orange,draw=border-orange,very thick,rectangle,rounded corners,text=border-orange
+]
+\begin{forest}
+[1-16
+    [1-8
+        [1-4
+            [1{,}2
+                [1,high,leaf][2,high,leaf]
+            ]
+            [3{,}4
+                [3,high,leaf][4,high,leaf]
+            ]
+        ]
+        [5-8
+            [5{,}6,high
+                [5,leaf][6,leaf]
+            ]
+            [7{,}8,high
+                [7,leaf][8,leaf]
+            ]
+        ]
+    ]
+    [9-16
+        [9-12,high
+            [9{,}10
+                [9,leaf][10,leaf]
+            ]
+            [11{,}12
+                [11,leaf][12,leaf]
+            ]
+        ]
+        [13-16,high
+            [13{,}14
+                [13,leaf][14,leaf]
+            ]
+            [15{,}16
+                [15,leaf][16,leaf]
+            ]
+        ]
+    ]
+]
+\end{forest}
+
+% \definecolor{left_color}{RGB}{255,255,255}
+% \definecolor{right_color}{RGB}{255,255,255}
+
+% \begin{tikzpicture}[thick,
+%   every node/.style={draw,circle},
+%   fsnode/.style={},
+%   ssnode/.style={},
+%   csnode/.style={},
+%   dsnode/.style={},
+%   -,shorten >= 0pt,shorten <= 0pt
+% ]
+
+% % the vertices of U
+% \begin{scope}[start chain=going right,node distance=5mm]
+% \foreach \i in {1,2,...,16}
+%   \node[fsnode,on chain] (a\i){};
+% \end{scope}
+
+% % the vertices of V
+% \begin{scope}[xshift=0.5cm,yshift=1cm,start chain=going right,node distance=13.5mm]
+% \foreach \i in {1,2,...,8}
+%   \node[ssnode,on chain] (b\i)  {};
+% \end{scope}
+
+% \begin{scope}[xshift=1.5cm,yshift=2cm,start chain=going right,node distance=30mm]
+% \foreach \i in {1,2,...,4}
+%   \node[csnode,on chain] (c\i)  {};
+% \end{scope}
+
+% \begin{scope}[xshift=3.5cm,yshift=3cm,start chain=going right,node distance=60mm]
+% \foreach \i in {1,2}
+%   \node[dsnode,on chain] (d\i)  {};
+% \end{scope}
+
+
+% \draw (a1) -- (b1);
+% \draw (a2) -- (b1);
+% \draw (a3) -- (b2);
+% \draw (a4) -- (b2);
+% \draw (a5) -- (b3);
+% \draw (a6) -- (b3);
+% \draw (a7) -- (b4);
+% \draw (a8) -- (b4);
+% \draw (a9) -- (b5);
+% \draw (a10) -- (b5);
+% \draw (a11) -- (b6);
+% \draw (a12) -- (b6);
+% \draw (a13) -- (b7);
+% \draw (a14) -- (b7);
+% \draw (a15) -- (b8);
+% \draw (a16) -- (b8);
+
+% \draw (b1) -- (c1);
+% \draw (b2) -- (c1);
+% \draw (b3) -- (c2);
+% \draw (b4) -- (c2);
+% \draw (b5) -- (c3);
+% \draw (b6) -- (c3);
+% \draw (b7) -- (c4);
+% \draw (b8) -- (c4);
+
+% \draw (c1) -- (d1);
+% \draw (c2) -- (d1);
+% \draw (c3) -- (d2);
+% \draw (c4) -- (d2);
+
+% \end{tikzpicture}
+
+\end{document}

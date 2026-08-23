@@ -1,0 +1,1000 @@
+
+%% bare_jrnl.tex
+%% V1.4b
+%% 2015/08/26
+%% by Michael Shell
+%% see http://www.michaelshell.org/
+%% for current contact information.
+%%
+%% This is a skeleton file demonstrating the use of IEEEtran.cls
+%% (requires IEEEtran.cls version 1.8b or later) with an IEEE
+%% journal paper.
+%%
+%% Support sites:
+%% http://www.michaelshell.org/tex/ieeetran/
+%% http://www.ctan.org/pkg/ieeetran
+%% and
+%% http://www.ieee.org/
+
+%%*************************************************************************
+%% Legal Notice:
+%% This code is offered as-is without any warranty either expressed or
+%% implied; without even the implied warranty of MERCHANTABILITY or
+%% FITNESS FOR A PARTICULAR PURPOSE!
+%% User assumes all risk.
+%% In no event shall the IEEE or any contributor to this code be liable for
+%% any damages or losses, including, but not limited to, incidental,
+%% consequential, or any other damages, resulting from the use or misuse
+%% of any information contained here.
+%%
+%% All comments are the opinions of their respective authors and are not
+%% necessarily endorsed by the IEEE.
+%%
+%% This work is distributed under the LaTeX Project Public License (LPPL)
+%% ( http://www.latex-project.org/ ) version 1.3, and may be freely used,
+%% distributed and modified. A copy of the LPPL, version 1.3, is included
+%% in the base LaTeX documentation of all distributions of LaTeX released
+%% 2003/12/01 or later.
+%% Retain all contribution notices and credits.
+%% ** Modified files should be clearly indicated as such, including  **
+%% ** renaming them and changing author support contact information. **
+%%*************************************************************************
+
+
+% *** Authors should verify (and, if needed, correct) their LaTeX system  ***
+% *** with the testflow diagnostic prior to trusting their LaTeX platform ***
+% *** with production work. The IEEE's font choices and paper sizes can   ***
+% *** trigger bugs that do not appear when using other class files.       ***                          ***
+% The testflow support page is at:
+% http://www.michaelshell.org/tex/testflow/
+
+
+
+\documentclass[journal]{IEEEtran}
+%
+% If IEEEtran.cls has not been installed into the LaTeX system files,
+% manually specify the path to it like:
+% \documentclass[journal]{../sty/IEEEtran}
+
+
+
+
+
+% Some very useful LaTeX packages include:
+% (uncomment the ones you want to load)
+
+
+% *** MISC UTILITY PACKAGES ***
+%
+%\usepackage{ifpdf}
+% Heiko Oberdiek's ifpdf.sty is very useful if you need conditional
+% compilation based on whether the output is pdf or dvi.
+% usage:
+% \ifpdf
+%   % pdf code
+% \else
+%   % dvi code
+% \fi
+% The latest version of ifpdf.sty can be obtained from:
+% http://www.ctan.org/pkg/ifpdf
+% Also, note that IEEEtran.cls V1.7 and later provides a builtin
+% \ifCLASSINFOpdf conditional that works the same way.
+% When switching from latex to pdflatex and vice-versa, the compiler may
+% have to be run twice to clear warning/error messages.
+
+
+
+
+
+
+% *** CITATION PACKAGES ***
+%
+\usepackage{cite}
+\usepackage{url,hyperref,booktabs}
+% cite.sty was written by Donald Arseneau
+% V1.6 and later of IEEEtran pre-defines the format of the cite.sty package
+% \cite{} output to follow that of the IEEE. Loading the cite package will
+% result in citation numbers being automatically sorted and properly
+% "compressed/ranged". e.g., [1], [9], [2], [7], [5], [6] without using
+% cite.sty will become [1], [2], [5]--[7], [9] using cite.sty. cite.sty's
+% \cite will automatically add leading space, if needed. Use cite.sty's
+% noadjust option (cite.sty V3.8 and later) if you want to turn this off
+% such as if a citation ever needs to be enclosed in parenthesis.
+% cite.sty is already installed on most LaTeX systems. Be sure and use
+% version 5.0 (2009-03-20) and later if using hyperref.sty.
+% The latest version can be obtained at:
+% http://www.ctan.org/pkg/cite
+% The documentation is contained in the cite.sty file itself.
+
+
+
+
+
+
+% *** GRAPHICS RELATED PACKAGES ***
+%
+\ifCLASSINFOpdf
+  \usepackage[pdftex]{graphicx}
+  % declare the path(s) where your graphic files are
+  % \graphicspath{{../pdf/}{../jpeg/}}
+  % and their extensions so you won't have to specify these with
+  % every instance of \includegraphics
+  \DeclareGraphicsExtensions{.pdf,.jpeg,.png}
+  \usepackage{epstopdf}
+  \usepackage{subfigure}
+\else
+  % or other class option (dvipsone, dvipdf, if not using dvips). graphicx
+  % will default to the driver specified in the system graphics.cfg if no
+  % driver is specified.
+  \usepackage[dvips]{graphicx}
+  % declare the path(s) where your graphic files are
+  % \graphicspath{{../eps/}}
+  % and their extensions so you won't have to specify these with
+  % every instance of \includegraphics
+  % \DeclareGraphicsExtensions{.eps}
+\fi
+% graphicx was written by David Carlisle and Sebastian Rahtz. It is
+% required if you want graphics, photos, etc. graphicx.sty is already
+% installed on most LaTeX systems. The latest version and documentation
+% can be obtained at:
+% http://www.ctan.org/pkg/graphicx
+% Another good source of documentation is "Using Imported Graphics in
+% LaTeX2e" by Keith Reckdahl which can be found at:
+% http://www.ctan.org/pkg/epslatex
+%
+% latex, and pdflatex in dvi mode, support graphics in encapsulated
+% postscript (.eps) format. pdflatex in pdf mode supports graphics
+% in .pdf, .jpeg, .png and .mps (metapost) formats. Users should ensure
+% that all non-photo figures use a vector format (.eps, .pdf, .mps) and
+% not a bitmapped formats (.jpeg, .png). The IEEE frowns on bitmapped formats
+% which can result in "jaggedy"/blurry rendering of lines and letters as
+% well as large increases in file sizes.
+%
+% You can find documentation about the pdfTeX application at:
+% http://www.tug.org/applications/pdftex
+
+
+
+
+
+% *** MATH PACKAGES ***
+%
+\usepackage{amsmath}
+\usepackage{amssymb}
+% A popular package from the American Mathematical Society that provides
+% many useful and powerful commands for dealing with mathematics.
+%
+% Note that the amsmath package sets \interdisplaylinepenalty to 10000
+% thus preventing page breaks from occurring within multiline equations. Use:
+%\interdisplaylinepenalty=2500
+% after loading amsmath to restore such page breaks as IEEEtran.cls normally
+% does. amsmath.sty is already installed on most LaTeX systems. The latest
+% version and documentation can be obtained at:
+% http://www.ctan.org/pkg/amsmath
+
+\usepackage{multirow}
+% \usepackage{textcase}
+% \usepackage[tablename=TABLE]{caption}
+\usepackage[switch]{lineno}
+% *** SPECIALIZED LIST PACKAGES ***
+%
+%\usepackage{algorithmic}
+% algorithmic.sty was written by Peter Williams and Rogerio Brito.
+% This package provides an algorithmic environment fo describing algorithms.
+% You can use the algorithmic environment in-text or within a figure
+% environment to provide for a floating algorithm. Do NOT use the algorithm
+% floating environment provided by algorithm.sty (by the same authors) or
+% algorithm2e.sty (by Christophe Fiorio) as the IEEE does not use dedicated
+% algorithm float types and packages that provide these will not provide
+% correct IEEE style captions. The latest version and documentation of
+% algorithmic.sty can be obtained at:
+% http://www.ctan.org/pkg/algorithms
+% Also of interest may be the (relatively newer and more customizable)
+% algorithmicx.sty package by Szasz Janos:
+% http://www.ctan.org/pkg/algorithmicx
+
+
+
+
+% *** ALIGNMENT PACKAGES ***
+%
+\usepackage{array}
+% Frank Mittelbach's and David Carlisle's array.sty patches and improves
+% the standard LaTeX2e array and tabular environments to provide better
+% appearance and additional user controls. As the default LaTeX2e table
+% generation code is lacking to the point of almost being broken with
+% respect to the quality of the end results, all users are strongly
+% advised to use an enhanced (at the very least that provided by array.sty)
+% set of table tools. array.sty is already installed on most systems. The
+% latest version and documentation can be obtained at:
+% http://www.ctan.org/pkg/array
+
+
+% IEEEtran contains the IEEEeqnarray family of commands that can be used to
+% generate multiline equations as well as matrices, tables, etc., of high
+% quality.
+
+
+
+
+% *** SUBFIGURE PACKAGES ***
+% \ifCLASSOPTIONcompsoc
+%  \usepackage[caption=false,font=normalsize,labelfont=sf,textfont=sf]{subfig}
+% \else
+%  \usepackage[caption=false,font=footnotesize]{subfig}
+% \fi
+% subfig.sty, written by Steven Douglas Cochran, is the modern replacement
+% for subfigure.sty, the latter of which is no longer maintained and is
+% incompatible with some LaTeX packages including fixltx2e. However,
+% subfig.sty requires and automatically loads Axel Sommerfeldt's caption.sty
+% which will override IEEEtran.cls' handling of captions and this will result
+% in non-IEEE style figure/table captions. To prevent this problem, be sure
+% and invoke subfig.sty's "caption=false" package option (available since
+% subfig.sty version 1.3, 2005/06/28) as this is will preserve IEEEtran.cls
+% handling of captions.
+% Note that the Computer Society format requires a larger sans serif font
+% than the serif footnote size font used in traditional IEEE formatting
+% and thus the need to invoke different subfig.sty package options depending
+% on whether compsoc mode has been enabled.
+%
+% The latest version and documentation of subfig.sty can be obtained at:
+% http://www.ctan.org/pkg/subfig
+
+
+
+
+% *** FLOAT PACKAGES ***
+%
+%\usepackage{fixltx2e}
+% fixltx2e, the successor to the earlier fix2col.sty, was written by
+% Frank Mittelbach and David Carlisle. This package corrects a few problems
+% in the LaTeX2e kernel, the most notable of which is that in current
+% LaTeX2e releases, the ordering of single and double column floats is not
+% guaranteed to be preserved. Thus, an unpatched LaTeX2e can allow a
+% single column figure to be placed prior to an earlier double column
+% figure.
+% Be aware that LaTeX2e kernels dated 2015 and later have fixltx2e.sty's
+% corrections already built into the system in which case a warning will
+% be issued if an attempt is made to load fixltx2e.sty as it is no longer
+% needed.
+% The latest version and documentation can be found at:
+% http://www.ctan.org/pkg/fixltx2e
+
+
+\usepackage{stfloats}
+% stfloats.sty was written by Sigitas Tolusis. This package gives LaTeX2e
+% the ability to do double column floats at the bottom of the page as well
+% as the top. (e.g., "\begin{figure*}[!b]" is not normally possible in
+% LaTeX2e). It also provides a command:
+%\fnbelowfloat
+% to enable the placement of footnotes below bottom floats (the standard
+% LaTeX2e kernel puts them above bottom floats). This is an invasive package
+% which rewrites many portions of the LaTeX2e float routines. It may not work
+% with other packages that modify the LaTeX2e float routines. The latest
+% version and documentation can be obtained at:
+% http://www.ctan.org/pkg/stfloats
+% Do not use the stfloats baselinefloat ability as the IEEE does not allow
+% \baselineskip to stretch. Authors submitting work to the IEEE should note
+% that the IEEE rarely uses double column equations and that authors should try
+% to avoid such use. Do not be tempted to use the cuted.sty or midfloat.sty
+% packages (also by Sigitas Tolusis) as the IEEE does not format its papers in
+% such ways.
+% Do not attempt to use stfloats with fixltx2e as they are incompatible.
+% Instead, use Morten Hogholm'a dblfloatfix which combines the features
+% of both fixltx2e and stfloats:
+%
+% \usepackage{dblfloatfix}
+% The latest version can be found at:
+% http://www.ctan.org/pkg/dblfloatfix
+
+
+
+
+%\ifCLASSOPTIONcaptionsoff
+%  \usepackage[nomarkers]{endfloat}
+% \let\MYoriglatexcaption\caption
+% \renewcommand{\caption}[2][\relax]{\MYoriglatexcaption[#2]{#2}}
+%\fi
+% endfloat.sty was written by James Darrell McCauley, Jeff Goldberg and
+% Axel Sommerfeldt. This package may be useful when used in conjunction with
+% IEEEtran.cls'  captionsoff option. Some IEEE journals/societies require that
+% submissions have lists of figures/tables at the end of the paper and that
+% figures/tables without any captions are placed on a page by themselves at
+% the end of the document. If needed, the draftcls IEEEtran class option or
+% \CLASSINPUTbaselinestretch interface can be used to increase the line
+% spacing as well. Be sure and use the nomarkers option of endfloat to
+% prevent endfloat from "marking" where the figures would have been placed
+% in the text. The two hack lines of code above are a slight modification of
+% that suggested by in the endfloat docs (section 8.4.1) to ensure that
+% the full captions always appear in the list of figures/tables - even if
+% the user used the short optional argument of \caption[]{}.
+% IEEE papers do not typically make use of \caption[]'s optional argument,
+% so this should not be an issue. A similar trick can be used to disable
+% captions of packages such as subfig.sty that lack options to turn off
+% the subcaptions:
+% For subfig.sty:
+% \let\MYorigsubfloat\subfloat
+% \renewcommand{\subfloat}[2][\relax]{\MYorigsubfloat[]{#2}}
+% However, the above trick will not work if both optional arguments of
+% the \subfloat command are used. Furthermore, there needs to be a
+% description of each subfigure *somewhere* and endfloat does not add
+% subfigure captions to its list of figures. Thus, the best approach is to
+% avoid the use of subfigure captions (many IEEE journals avoid them anyway)
+% and instead reference/explain all the subfigures within the main caption.
+% The latest version of endfloat.sty and its documentation can obtained at:
+% http://www.ctan.org/pkg/endfloat
+%
+% The IEEEtran \ifCLASSOPTIONcaptionsoff conditional can also be used
+% later in the document, say, to conditionally put the References on a
+% page by themselves.
+
+
+
+
+% *** PDF, URL AND HYPERLINK PACKAGES ***
+%
+%\usepackage{url}
+% url.sty was written by Donald Arseneau. It provides better support for
+% handling and breaking URLs. url.sty is already installed on most LaTeX
+% systems. The latest version and documentation can be obtained at:
+% http://www.ctan.org/pkg/url
+% Basically, \url{my_url_here}.
+
+
+
+
+% *** Do not adjust lengths that control margins, column widths, etc. ***
+% *** Do not use packages that alter fonts (such as pslatex).         ***
+% There should be no need to do such things with IEEEtran.cls V1.6 and later.
+% (Unless specifically asked to do so by the journal or conference you plan
+% to submit to, of course. )
+\usepackage[symbol]{footmisc}
+\def\correspondingauthor{\footnote{Corresponding author.}}
+
+
+% correct bad hyphenation here
+\hyphenation{op-tical net-works semi-conduc-tor}
+
+\makeatletter
+\def\endthebibliography{%
+  \def\@noitemerr{\@latex@warning{Empty `thebibliography' environment}}%
+  \endlist
+}
+\makeatother
+
+\begin{document}
+% \linenumbers
+%
+% paper title
+% Titles are generally capitalized except for words such as a, an, and, as,
+% at, but, by, for, in, nor, of, on, or, the, to and up, which are usually
+% not capitalized unless they are the first or last word of the title.
+% Linebreaks \\ can be used within to get better formatting as desired.
+% Do not put math or special symbols in the title.
+\title{DeepMMSE: A Deep Learning Approach to MMSE-based Noise Power Spectral Density Estimation}
+%
+%
+% author names and IEEE memberships
+% note positions of commas and nonbreaking spaces ( ~ ) LaTeX will not break
+% a structure at a ~ so this keeps an author's name from being broken across
+% two lines.
+% use \thanks{} to gain access to the first footnote area
+% a separate \thanks must be used for each paragraph as LaTeX2e's \thanks
+% was not built to handle multiple paragraphs
+%
+% \author[add1]{Qiquan Zhang}
+% \ead{zhangqiquan\_hit@163.com}
+% \author[add2]{Aaron Nicolson\corref{cor1}}
+% \ead{aaron.nicolson@griffithuni.edu.au}
+% \author[add1]{Mingjiang Wang\corref{cor1}}
+% \ead{mjwang@hit.edu.cn}
+% \author[add2]{Kuldip K. Paliwal}
+% \ead{k.paliwal@griffith.edu.au}
+% \author[add3]{Chenxu Wang}
+% \ead{wangchenxu@hit.edu.cn}
+
+% \cortext[cor1]{Corresponding author}
+% \address[add1]{School of Electronic and Information Engineering, Harbin Institute of Technology, Shenzhen 518055, China}
+% \address[add2]{Signal Processing Laboratory, Griffith University, Brisbane, Queensland, 4160, Australia}
+% \address[add3]{School of Information and Electrical Engineering, Harbin Institute of Technology, Weihai 264209, China}
+
+\author{Qiquan~Zhang,~%~\IEEEmembership{Member,~IEEE,}
+        Aaron Nicolson\footnote{corresponding author.},~
+        Mingjiang~Wang,~%~\IEEEmembership{Fellow,~OSA,}
+        Kuldip K. Paliwal,~
+        and Chenxu Wang
+        %~\IEEEmembership{Life~Fellow,~IEEE}% <-this % stops a space
+\thanks{Manuscript received date; revised date. This work was supported by the Basic Research Discipline Layout Project of Shenzhen under Grant JCYJ20170412151226061 and Grant JCYJ20170808110410773.}% <-this % stops a space
+\thanks{The authors are with the School of Electronic and Information Engineering, Harbin Institute of Technology, Shenzhen 518055, China (email: zhangqiquan\_hit@163.com; mjwang@hit.edu.cn; luyun@stu.hit.edu.cn; muidrees169@gmail.com; zhanglu\_wind@163.com).}}% <-this % stops a space
+% \thanks{Manuscript received April 19, 2005; revised August 26, 2015.}}
+% \cortext[cor1]{Corresponding author}
+
+% note the % following the last \IEEEmembership and also \thanks -
+% these prevent an unwanted space from occurring between the last author name
+% and the end of the author line. i.e., if you had this:
+%
+% \author{....lastname \thanks{...} \thanks{...} }
+%                     ^------------^------------^----Do not want these spaces!
+%
+% a space would be appended to the last name and could cause every name on that
+% line to be shifted left slightly. This is one of those "LaTeX things". For
+% instance, "\textbf{A} \textbf{B}" will typeset as "A B" not "AB". To get
+% "AB" then you have to do: "\textbf{A}\textbf{B}"
+% \thanks is no different in this regard, so shield the last } of each \thanks
+% that ends a line with a % and do not let a space in before the next \thanks.
+% Spaces after \IEEEmembership other than the last one are OK (and needed) as
+% you are supposed to have spaces between the names. For what it is worth,
+% this is a minor point as most people would not even notice if the said evil
+% space somehow managed to creep in.
+
+
+
+% The paper headers
+\markboth{Journal of \LaTeX\ Class Files,~Vol.~14, No.~8, August~2015}%
+{Shell \MakeLowercase{\textit{et al.}}: Bare Demo of IEEEtran.cls for IEEE Journals}
+% The only time the second header will appear is for the odd numbered pages
+% after the title page when using the twoside option.
+%
+% *** Note that you probably will NOT want to include the author's ***
+% *** name in the headers of peer review papers.                   ***
+% You can use \ifCLASSOPTIONpeerreview for conditional compilation here if
+% you desire.
+
+
+
+
+% If you want to put a publisher's ID mark on the page you can do it like
+% this:
+%\IEEEpubid{0000--0000/00\$00.00~\copyright~2015 IEEE}
+% Remember, if you use this you must call \IEEEpubidadjcol in the second
+% column for its text to clear the IEEEpubid mark.
+
+
+
+% use for special paper notices
+%\IEEEspecialpapernotice{(Invited Paper)}
+
+
+
+
+% make the title area
+\maketitle
+
+% As a general rule, do not put math, special symbols or citations
+% in the abstract or keywords.
+\begin{abstract}
+An accurate noise power spectral density (PSD) tracker is an indispensable component of a single-channel speech enhancement system. Bayesian-motivated minimum mean-square error (MMSE) noise PSD estimators have been the most prominent in recent time. However, they lack the ability to track highly non-stationary noise sources due to current methods of \textit{a priori} signal-to-noise (SNR) estimation. This is caused by the underlying assumption that the noise signal changes at a slower rate than the speech signal. As a result, MMSE noise PSD trackers exhibit a large tracking delay and produce noise PSD estimates that require bias compensation. Motivated by this, we propose an MMSE noise PSD tracker that employs a deep residual network (ResNet) \textit{a priori} SNR estimator. The proposed noise PSD tracker, called DeepMMSE makes no assumptions about the characteristics of the noise or the speech, exhibits no tracking delay, and produces an accurate estimate that requires no bias correction. Our extensive experimental investigation shows that the proposed DeepMMSE method outperforms state-of-the-art noise PSD trackers and demonstrates the ability to track abrupt changes in the noise level. Furthermore, when employed in a speech enhancement framework, the proposed DeepMMSE method is able to outperform state-of-the-art noise PSD trackers, as well as multiple deep learning approaches to speech enhancement.
+\newline
+\textit{Availability}:DeepMMSE is available at: \url{https://github.com/anicolson/DeepXi}.
+\end{abstract}
+
+% Note that keywords are not normally used for peerreview papers.
+\begin{IEEEkeywords}
+Noise PSD tracking, Minimum mean-square error (MMSE), DeepMMSE, Speech enhancement, Noise estimation, Deep Xi.
+\end{IEEEkeywords}
+
+
+
+
+
+
+% For peer review papers, you can put extra information on the cover
+% page as needed:
+% \ifCLASSOPTIONpeerreview
+% \begin{center} \bfseries EDICS Category: 3-BBND \end{center}
+% \fi
+%
+% For peerreview papers, this IEEEtran command inserts a page break and
+% creates the second title. It will be ignored for other modes.
+\IEEEpeerreviewmaketitle
+
+
+
+\section{Introduction}
+% The very first letter is a 2 line initial drop letter followed
+% by the rest of the first word in caps.
+%
+% form to use if the first word consists of a single letter:
+% \IEEEPARstart{A}{demo} file is ....
+%
+% form to use if you need the single drop letter followed by
+% normal text (unknown if ever used by the IEEE):
+% \IEEEPARstart{A}{}demo file is ....
+%
+% Some journals put the first two words in caps:
+% \IEEEPARstart{T}{his demo} file is ....
+%
+% Here we have the typical use of a "T" for an initial drop letter
+% and "HIS" in caps to complete the first word.
+\IEEEPARstart{O}{ver} the past decade, there has been a growing focus on speech processing applications, such as digital hearing aids, automatic speech recognition, speaker verification, and mobile communications. In real-world environments, speech may be degraded by non-stationary or coloured background disturbances, with examples including train, car, factory, and street noise. Background disturbances can severely affect the performance of a speech processing system. However, their robustness can be increased by first enhancing the noisy speech. A speech enhancement algorithm aims to suppress the noise and improve the overall perceived quality and intelligibility of the noisy speech. These algorithms can be broadly divided into two categories: single-channel \cite{Y.Ephraim1984,J.S.Erkelens2007,hendriks2013dft,dionelis2018phase} and multi-channel \cite{benesty2008microphone,brandstein2013microphone,Wang2018,S.Docol2015}. In this paper, we focus on single-channel speech enhancement algorithms. 
+
+Most single-channel speech enhancement algorithms require an estimate of the noise power spectral density (PSD). Over- or under-estimation of the noise PSD can lead to speech distortion or a large amount of residual noise in the enhanced speech. An early method for noise PSD estimation exploits a voice activity detector (VAD) to update the noise PSD estimate during speech absence \cite{J.Chang2006,zhang2013deep,T.Hughes2013,G.Gelly2018}. Such methods are effective under fairly stationary noise conditions, but often fail to track non-stationary noise sources during speech activity. Moreover, it remains a particularly difficult task to achieve an accurate VAD in low signal-to-noise ratio (SNR) conditions. 
+
+A more advanced noise tracking method is minimum statistics (MS) \cite{R.Martin1994,R.Martin2001}. The MS method was motivated by the observation that the power of the noisy speech in each frequency bin often decays to the power level of the noise, even during speech presence. Thus, the MS method tracks the minimum value of the smoothed noisy speech power for each frequency bin within a finite time window. The found minimum is multiplied by a bias correction factor to give the final noise PSD estimate \cite{R.Martin2001}. The length of the time window is a crucial parameter for the performance of the MS method. If the length is too small, the MS method may track the noisy speech PSD instead, leading to over-estimation. However, if the length is too large, a significant tracking delay may occur, especially for a fast increase in the noise level.
+
+Another group of noise PSD tracking methods are time-recursive averaging algorithms, improving the minima controlled recursive averaging (MCRA) method \cite{I.Cohen2002}, the improved MCRA method (IMCRA) \cite{I.Cohen2003}, and MCRA-2 \cite{S.Rangachari2006}. These methods update the noise PSD estimate by recursively averaging the previously estimated noise PSD and the current noisy periodogram using a smoothing parameter, where the smoothing parameter is adjusted by the speech presence probability (SPP). The main distinction between the three algorithms is the method of SPP estimation. For MCRA and MCRA-2, the SPP estimate is found by taking the ratio between the smoothed noisy speech spectrum and its local minimum, and then thresholding against a certain value. MCRA and MRCA-2 use the MS method \cite{R.Martin2001} and the continuous spectral minimum tracking technique \cite{G.Doblinger1995} to search for the minimum, respectively. Moreover, fixed and frequency-dependent thresholds are employed in MCRA and MCRA-2, respectively. In IMCRA, the SPP estimate is computed from both an \textit{a priori} speech absence probability (SAP) estimate and an \textit{a priori} SNR estimate. The calculation of the \textit{a priori} SAP involves two iterations of smoothing and minimum tracking. As these methods rely on minimum tracking, they also have difficulties tracking rapidly increasing noise levels.
+
+Another class of noise PSD trackers approaches the problem from the perspective of Bayesian statistics. Several minimum mean-square error (MMSE)-based Bayesian noise PSD estimators exist in the literature \cite{R.Yu2009, R.C.Hendriks2010, gerkmann2012improved, Timo.Gerkmann2012, zhang2019novel}, and are described in Section \ref{sec:review}. These noise trackers are based on an MMSE estimate of the noise periodogram, which is computed using the \textit{a priori} and \textit{a posteriori} SNR. Their noise tracking performance is predominantly affected by the accuracy of the \textit{a priori} SNR estimate. Each MMSE noise PSD tracker uses a different method to estimate the \textit{a priori} SNR, with many based on temporal cepstral smoothing (TCS) \cite{gerkmann2012improved}, the decision-directed (DD) approach, or the maximum-likelihood (ML) method \cite{1164453}. However, the TCS, DD, and ML methods all assume that the noise changes at a slower rate than the speech signal. As a consequence, a delay is introduced during rapid changes of the instantaneous SNR. Therefore, current MMSE-based noise PSD trackers are capable of tracking moderately non-stationary noise sources, but are unable to track highly non-stationary noise sources. In summary, the performance of current MMSE-based noise PSD estimators is limited by the method of \textit{a priori} SNR estimation.
+
+Recently, a deep learning approach to \textit{a priori} SNR estimation, called Deep Xi \cite{xi_2018}, was used to significantly increase the performance of MMSE approaches to speech enhancement \cite{1164453,Loizou:2013:SET:2484638}. Unlike its predecessors, it does not make any assumptions about the characteristics of the speech or noise, does not exhibit any tracking delay, and does not rely on bias compensation. The Deep Xi framework utilises a residual long short-term memory (ResLSTM) recurrent neural network (RNN) to estimate the \textit{a priori} SNR directly from the noisy speech magnitude spectrum of a given time-frame (Deep Xi-ResLSTM). Deep Xi-ResLSTM was shown to be more accurate than previous \textit{a priori} SNR estimators \cite{1164453, 1325979, 1415074, 4518755}.
+
+Here, we propose an MMSE-based noise PSD estimator that employs the Deep Xi framework for \textit{a priori} SNR estimation. This is motivated by the following observations: 1) the bottleneck of current MMSE-based noise PSD estimators is the method of \textit{a priori} SNR estimation, 2) Deep Xi-ResLSTM is significantly more accurate than previous \textit{a priori} SNR estimatoin methods, and 3) the Deep Xi framework exhibits no tracking delay, does not make assumptions about the characteristics of the noise or the speech, and does not require bias compensation. We also improve the Deep Xi framework by replacing the ResLSTM network with a residual network (ResNet) that employs causal dilated convolutional units (Deep Xi-ResNet). It outperforms the ResLSTM network, while using $5\textrm{x}$ fewer parameters and avoiding the complexity of training a recurrent architecture. 
+
+The remainder of this paper will be structured as follows: Section \ref{sec: sig} gives a detailed explanation of the used signal model and notation; a brief overview and analysis of the state-of-the-art MMSE-based noise PSD trackers is given in Section \ref{sec:review}; in Section \ref{sec:a}, the proposed MMSE noise PSD tacker is described; the experimental setup is described in Section \ref{sec: exp}; the results and discussion are presented in Section \ref{sec: rd}; in Section \ref{sec: cfc}, we provide the conclusions and future considerations.
+
+% /* demo file is intended to serve as a ``starter file''
+% for IEEE journal papers produced under \LaTeX\ using
+% IEEEtran.cls version 1.8b and later.
+% You must have at least 2 lines in the paragraph with the drop letter
+% (should never be an issue)
+% I wish you the best of success./*
+
+% \hfill mds
+
+% \hfill August 26, 2015
+
+% \subsection{Subsection Heading Here}
+% Subsection text here.
+
+% needed in second column of first page if using \IEEEpubid
+%\IEEEpubidadjcol
+
+% \subsubsection{Subsubsection Heading Here}
+% Subsubsection text here.
+
+
+% An example of a floating figure using the graphicx package.
+% Note that \label must occur AFTER (or within) \caption.
+% For figures, \caption should occur after the \includegraphics.
+% Note that IEEEtran v1.7 and later has special internal code that
+% is designed to preserve the operation of \label within \caption
+% even when the captionsoff option is in effect. However, because
+% of issues like this, it may be the safest practice to put all your
+% \label just after \caption rather than within \caption{}.
+%
+% Reminder: the "draftcls" or "draftclsnofoot", not "draft", class
+% option should be used if it is desired that the figures are to be
+% displayed while in draft mode.
+%
+%\begin{figure}[!t]
+%\centering
+%\includegraphics[width=2.5in]{myfigure}
+% where an .eps filename suffix will be assumed under latex,
+% and a .pdf suffix will be assumed for pdflatex; or what has been declared
+% via \DeclareGraphicsExtensions.
+%\caption{Simulation results for the network.}
+%\label{fig_sim}
+%\end{figure}
+
+% Note that the IEEE typically puts floats only at the top, even when this
+% results in a large percentage of a column being occupied by floats.
+
+
+% An example of a double column floating figure using two subfigures.
+% (The subfig.sty package must be loaded for this to work.)
+% The subfigure \label commands are set within each subfloat command,
+% and the \label for the overall figure must come after \caption.
+% \hfil is used as a separator to get equal spacing.
+% Watch out that the combined width of all the subfigures on a
+% line do not exceed the text width or a line break will occur.
+%
+%\begin{figure*}[!t]
+%\centering
+%\subfloat[Case I]{\includegraphics[width=2.5in]{box}%
+%\label{fig_first_case}}
+%\hfil
+%\subfloat[Case II]{\includegraphics[width=2.5in]{box}%
+%\label{fig_second_case}}
+%\caption{Simulation results for the network.}
+%\label{fig_sim}
+%\end{figure*}
+%
+% Note that often IEEE papers with subfigures do not employ subfigure
+% captions (using the optional argument to \subfloat[]), but instead will
+% reference/describe all of them (a), (b), etc., within the main caption.
+% Be aware that for subfig.sty to generate the (a), (b), etc., subfigure
+% labels, the optional argument to \subfloat must be present. If a
+% subcaption is not desired, just leave its contents blank,
+% e.g., \subfloat[].
+
+
+% An example of a floating table. Note that, for IEEE style tables, the
+% \caption command should come BEFORE the table and, given that table
+% captions serve much like titles, are usually capitalized except for words
+% such as a, an, and, as, at, but, by, for, in, nor, of, on, or, the, to
+% and up, which are usually not capitalized unless they are the first or
+% last word of the caption. Table text will default to \footnotesize as
+% the IEEE normally uses this smaller font for tables.
+% The \label must come after \caption as always.
+%
+%\begin{table}[!t]
+%% increase table row spacing, adjust to taste
+%\renewcommand{\arraystretch}{1.3}
+% if using array.sty, it might be a good idea to tweak the value of
+% \extrarowheight as needed to properly center the text within the cells
+%\caption{An Example of a Table}
+%\label{table_example}
+%\centering
+%% Some packages, such as MDW tools, offer better commands for making tables
+%% than the plain LaTeX2e tabular which is used here.
+%\begin{tabular}{|c||c|}
+%\hline
+%One & Two\\
+%\hline
+%Three & Four\\
+%\hline
+%\end{tabular}
+%\end{table}
+
+
+% Note that the IEEE does not put floats in the very first column
+% - or typically anywhere on the first page for that matter. Also,
+% in-text middle ("here") positioning is typically not used, but it
+% is allowed and encouraged for Computer Society conferences (but
+% not Computer Society journals). Most IEEE journals/conferences use
+% top floats exclusively.
+% Note that, LaTeX2e, unlike IEEE journals/conferences, places
+% footnotes above bottom floats. This can be corrected via the
+% \fnbelowfloat command of the stfloats package.
+
+\section{Signal Model And Notation} \label{sec: sig}
+
+In the time-domain, the noisy speech signal, $y[n]$, is given by
+\begin{equation} \label{equ:b}
+y[n] = s[n] + d[n],
+\end{equation}
+where $s[n]$ and $d[n]$ denote the clean speech and uncorrelated additive noise, respectively, and $n$ denotes the discrete-time index. The noisy speech $y[n]$ is then analysed frame-wise using the short-time Fourier transform (STFT):
+\begin{equation}
+Y_{l}[k] = S_{l}[k] + D_{l}[k],
+\end{equation}
+where $Y_{l}[k]$, $S_{l}[k]$, and $D_{l}[k]$ denote the complex-valued STFT coefficients of the noisy speech, the clean speech and the noise, respectively, for time-frame index $l$ and discrete-frequency index $k$. We apply the standard assumption that $S_{l}[k]$ and $D_{l}[k]$ are statistically independent across time and frequency, and follow conditional zero-mean Gaussian distributions with spectral variances $E\{|S_{l}(k)|^{2}\} = \lambda_{s}[l,k]$, and $E\{|D_{l}(k)|^{2}\} = \lambda_{d}[l,k]$, where $E\{\cdot\}$ represents the statistical expectation operator. For convenience, $l$ and $k$ are omitted from the notation unless otherwise indicated. The polar form is used to express $Y$, $S$, and $D$: $Y = Re^{j\phi}$, $S = Ae^{j\varphi}$, and $D = Ne^{j\theta}$, where $R$, $A$, and $N$ are the noisy speech, clean speech, and noise magnitude spectrums, respectively, and $\phi$, $\varphi$, and $\theta$ are the noisy speech, clean speech, and noise phase spectrums, respectively. The \textit{a priori} SNR and the \textit{a posteriori} SNR are defined as
+\begin{equation} \label{equ:c}
+\xi = \frac{\lambda_{s}}{\lambda_{d}},
+\end{equation}
+and
+\begin{equation}
+\gamma = \frac{R^{2}}{\lambda_{d}},
+\end{equation}
+respectively. Here, an estimated quantity of a variable is denoted by a hat symbol in order to differentiate from the true value, e.g., $\widehat{N^2}$ is an estimate of the instantaneous noise spectral power $N^2$.
+
+
+\section{Overview of MMSE-based noise PSD estimators} \label{sec:review}
+
+The MMSE-based noise PSD estimators reported in \cite{R.Yu2009, R.C.Hendriks2010, gerkmann2012improved, Timo.Gerkmann2012, zhang2019novel} are briefly summarised in this section. They are all based on an MMSE estimate of the noise periodogram, which is defined as the conditional expectation: $E\{ N^2|Y, \lambda_{s}, \lambda_{d} \}$. Using Bayes' rule, this can be written as
+\begin{equation}
+\begin{aligned} \label{equ:d}
+\widehat{N^{2}} &=E\left\{N^{2} | Y, \lambda_{s}, \lambda_{d}\right\}, \\ &=\frac{\int_{0}^{+\infty} \int_{0}^{2 \pi} n^{2} f\left(Y | n, \theta, \lambda_{s}\right) f\left(n, \theta | \lambda_{d}\right) d \theta d n}{\int_{0}^{+\infty} \int_{0}^{2 \pi} f\left(Y | n, \theta, \lambda_{s}\right) f\left(n, \theta | \lambda_{d}\right) d \theta d n}. 
+\end{aligned}
+\end{equation} 
+Under the assumption that the STFT coefficients of clean speech and noise follow complex-Gaussian distributions, $f\left(Y | n, \theta, \lambda_{s}\right)$ and $f\left(n,\theta |\lambda_{d}\right)$ can be written as 
+\begin{equation} \label{equ:e}
+f\left(Y | n, \theta, \lambda_{s}\right)=\frac{1}{\pi \lambda_{s}} \exp \left\{-\frac{\left|Y-n e^{j \theta}\right|^{2}}{\lambda_{s}}\right\},
+\end{equation}
+and
+\begin{equation} \label{equ:f}
+f\left(n, \theta | \lambda_{d}\right)=\frac{n}{\pi \lambda_{d}} \exp \left\{-\frac{n^{2}}{\lambda_{d}}\right\}.
+\end{equation}
+Inserting Equations \ref{equ:e} and \ref{equ:f} into Equation \ref{equ:d}, and using the integral relationship of the zeroth order modified Bessel function of the first kind, $I_{0}(\cdot)$ \cite[Eq. 8.406.3, 8.411.1]{I.S.Gradshteyn2007}, we obtain
+\begin{equation} \label{equ:g}
+\begin{aligned} \widehat{N^{2}} &=E\left\{N^{2} | Y, \lambda_{s}, \lambda_{d}\right\}, \\ &=\frac{\int_{0}^{+\infty} n^{3} \exp \left(-n^{2} / \lambda\right) I_{0}\left(2 n Y / \lambda_{d}\right) d n}{\int_{0}^{+\infty} n \exp \left(-n^{2} / \lambda\right) I_{0}\left(2 n Y / \lambda_{d}\right) d n}, \end{aligned}
+\end{equation}
+ where $\lambda$ satisfies the relation $\lambda=\lambda_{s} \lambda_{d}/\left(\lambda_{s}+\lambda_{d}\right)$. Using \cite[Eq. 6.631.1, 8.406.3, 9.212.1]{I.S.Gradshteyn2007}, the solution of Equation \ref{equ:g} is obtained as 
+
+\begin{equation} \label{equ:a}
+\widehat{N^{2}} =\left[\frac{1}{(1+\xi)^{2}}+\frac{\xi}{(1+\xi) \gamma}\right] R^{2}.
+\end{equation}
+A temporal recursive smoothing operation is then applied to $\widehat{N^{2}}$ in order to obtain the final noise PSD estimate:
+\begin{equation} \label{equ:smoothing}
+\widehat{\lambda_{d}}[l,k]=\alpha_{d}\widehat{\lambda_{d}}[l-1,k]+(1-\alpha_{d})\widehat{N^{2}}[l,k].
+\end{equation}
+From Equation \ref{equ:a}, it is obvious that the MMSE-based Bayesian noise PSD estimator depends on the \textit{a priori} and \textit{a posteriori} SNR. As shown in \cite{R.Yu2009, R.C.Hendriks2010, gerkmann2012improved, Timo.Gerkmann2012, zhang2019novel}, the noise PSD tracking performance is predominately affected by the accuracy of the \textit{a priori} SNR estimate, $\hat{\xi}$. 
+
+In \cite{R.Yu2009}, the decision-directed (DD) approach \cite{Y.Ephraim1984} was employed to estimate the \textit{a priori} SNR and a heuristic bias correction method was proposed to compensate the bias introduced by the DD estimator. In \cite{R.C.Hendriks2010}, a limited maximum likelihood (ML) estimator \cite{Y.Ephraim1984} was used to estimate the \textit{a priori} SNR. A more sophisticated bias compensation term was also derived to correct the bias introduced by the ML estimate. Temporal cepstrum smoothing (TCS) was used in \cite{gerkmann2012improved} to obtain a more accurate estimate of the \textit{a priori} SNR, where a bias correction factor was also derived. In \cite{Timo.Gerkmann2012}, the limited ML estimator was interpreted as a hard-decision, VAD-like estimator \cite{R.C.Hendriks2010}. This was subsequently refined by using a soft-decision speech presence probability (SPP), which required no bias compensation term. The SPP was calculated using a fixed optimal \textit{a priori} SNR. In \cite{zhang2019novel}, an MMSE speech spectral power estimator that incorporates speech presence uncertainty (SPU) and a bias correction factor was proposed to improve the DD approach, producing an improved tracking capability (ImMMSE).
+
+
+\section{Proposed DeepMMSE method} \label{sec:a}
+
+When estimating the \textit{a priori} SNR for Equation \ref{equ:a}, the previously described methods assume that the noise changes at a slower rate than the speech. Therefore, they are only able to track moderately non-stationary noise sources, and lack the ability to track highly non-stationary noise sources. Motivated by this, we propose a novel MMSE-based noise PSD estimator that employs the Deep Xi framework for \textit{a priori} SNR estimation. The Deep Xi framework does not exploit any underlying assumptions about the speech or noise, and produces an \textit{a priori} SNR estimate with negligible bias. The proposed noise PSD tracker includes the following four stages:
+\begin{enumerate}
+  \item The \textit{a priori} SNR estimate, $\hat{\xi}$, of the noisy speech magnitude spectrum, $R$, is first found using Deep Xi-ResNet. Deep Xi-ResNet is described in Section \ref{secn}.
+  
+  \item The \textit{a posteriori} SNR estimate is then found using the \textit{a priori} SNR estimate: $\hat{\gamma}=\hat{\xi}+1$.
+  
+  \item Using $\hat{\xi}$ and $\hat{\gamma}$, the noise periodogram estimate, $\widehat{N^{2}}$, is found using Equation \ref{equ:a}.
+  
+  \item The final noise PSD estimate, $\widehat{\lambda_{d}}$, is found by applying a first-order temporal recursive smoothing operation to $\widehat{N^{2}}$, with a smoothing factor of $\alpha_{d}$, as in Equation \ref{equ:smoothing}.
+\end{enumerate}
+Due to the combination of Deep Xi-ResNet and the MMSE noise periodogram estimator, we refer to the proposed method as DeepMMSE henceforth.
+
+
+\subsection{Deep Xi-ResNet} \label{secn}
+
+In \cite{xi_2018}, a ResLSTM network was used to estimate the mapped \textit{a priori} SNR for each spectral component of the $l^{th}$ time-frame, $\hat{\bar{\pmb{\xi}}}_l$. The mapped \textit{a priori} SNR is described in Subsection \ref{sec:b}. The input to the ResLSTM network was the corresponding noisy speech magnitude spectrum for the $l^{th}$ frame, $\textbf{R}_l$. Here, we replace the ResLSTM network with a ResNet that incorporates one-dimensional dilated causal convolutional units \cite{DBLP:journals/corr/abs-1803-01271}. The advantages that the ResNet offers over the ResLSTM network include a reduction in training time and a reduction in the number of required parameters.  
+
+\begin{figure} [ht]
+  \begin{center}
+    \includegraphics[scale=0.7]{fig/resnet_a_priori_snr_estimator.pdf}
+    \caption{Deep Xi-ResNet. It consists of a fully-connected first layer, $\textbf{FC}$, followed by $B$ residual blocks, and then a fully-connected output layer, $\textbf{O}$ that employs sigmoidal units.}
+    \label{fig:a} 
+  \end{center}
+\end{figure}
+
+Deep Xi-ResNet, as shown in Figure \ref{fig:a}, consists of $B$ bottleneck residual blocks, where $b=1,2,\ldots,B$ is the block index. As in \cite{DBLP:journals/corr/KalchbrennerESO16}, each block contains three causal dilated convolutional units, where each convolutional unit is pre-activated by layer normalisation \cite{ba2016layer} followed by the ReLU activation function \cite{Nair:2010:RLU:3104322.3104425}. The first and third convolutional units in a block have a kernel size of $1$, whilst the second convolutional unit has a kernel size of $k$. The second convolutional unit employs a dilation rate of $d$, providing a contextual field over previous time steps. As in \cite{DBLP:journals/corr/abs-1809-07454}, the dilation rate $d$ is cycled as the block index $b$ increases: $d=2^{(b-1 \bmod(\log_2(D)+1)}$, where $\bmod$ is the modulo operation, and $D$ is the maximum dilation rate. An example of how the dilation rate is cycled is shown in Figure \ref{fig:b}, with $D=4$, and $B=6$. It can be seen that the dilation rate is reset after block three. This also demonstrates the contextual field gained by the use of causal dilated convolutional units.
+
+\begin{figure} [ht]
+  \begin{center}
+    \includegraphics[scale=1.5]{fig/dilation_example.pdf}
+    \caption{Example of the contextual field of Deep Xi-ResNet, with $D=4$, $B=6$, and $k=3$.}
+    \label{fig:b} 
+  \end{center}
+\end{figure}
+
+
+As in \cite{DBLP:journals/corr/KalchbrennerESO16}, $k$ is set to $3$, and $D$ is set to $16$. The first and the second convolutional units have an output size of $d_f$, whilst the third convolutional unit has an output size of $d_{model}$. $\textbf{FC}$ is a fully-connected layer with an output size of $d_{model}$, where layer normalisation applied to the output of $\textbf{FC}$, followed by the ReLU activation function. The output layer, $\textbf{O}$, is a fully-connected layer with sigmoidal units. The following hyperparameters were chosen for the network, as a compromise between training time and performance: $d_{model}=256$, $d_f=64$, and $B=40$.  The ResNet expends fewer parameters than the ResLSTM network, at approximately $2$ million parameters as opposed to $10$ million parameters. The training time for the ResNet is also significantly less than that of the ResLSTM network, at approximately 40 minutes per epoch as opposed to 10 hours per epoch. Details about the training strategy for Deep Xi-ResNet are given in Subsection \ref{secd}.
+
+\subsection{Mapped \textit{A Priori} SNR Training Target} \label{sec:b}
+
+The training target for the ResNet is the mapped \textit{a priori} SNR, as described in \cite{xi_2018}. The mapped \textit{a priori} SNR is a mapped version of the oracle (or instantaneous) \textit{a priori} SNR. For the oracle case, the clean speech and noise of the noisy speech in Equation \ref{equ:b} are known completely. This means that $\lambda_s[l,k]$ and $\lambda_d[l,k]$ in Equation \ref{equ:c} can be replaced with the squared magnitude of the clean speech and noise spectral components, respectively.
+
+In \cite{xi_2018}, the oracle \textit{a priori} SNR (in dB), $\xi_{\rm dB}[l,k]=10\log_{10}(\xi_l[k])$, was mapped to the interval $[0, 1]$ in order to improve the rate of convergence of the used stochastic gradient descent algorithm. The cumulative distribution function (CDF) of $\xi_{\rm dB}[l,k]$ was used as the map. It can be seen from Figure 2 (top) in \cite{xi_2018} that the distribution of $\xi_{\rm dB}$ for a given frequency component follows a normal distribution. It was thus assumed that $\xi_{\rm dB}[l,k]$ is distributed normally with mean $\mu_k$ and variance $\sigma^2_k$: $\xi_{\rm dB}[l,k]\sim\mathcal{N}(\mu_k,\sigma^2_k)$. The map is given by 
+\begin{equation} \label{equa}
+\bar{\xi}_l[k] = \frac{1}{2}\Bigg[1 + \textrm{erf}\Bigg( \frac{\xi_{\rm dB}[l,k] - \mu_k}{\sigma_k\sqrt{2}} \Bigg) \Bigg],
+\end{equation}
+where $\bar{\xi}_l(k)$ is the mapped \textit{a priori} SNR. Following \cite{xi_2018}, the statistics of $\xi_{\rm dB}[l,k]$ for each noisy speech spectral component are found over a sample of the training set.\footnote{The sample mean and variance of $\xi_{\rm dB}[l,k]$ for each noisy speech spectral component were found over $1\,250$ noisy speech signals created from the clean speech and noise training sets (Section \ref{sec:c}). 250 randomly selected (without replacement) clean speech recordings were mixed with random sections of randomly selected (without replacement) noise recordings. Each of these were mixed at five different SNR levels: -5 to 15 dB, in 5 dB increments.} During inference, $\hat{\xi}_l[k]$ is found from $\hat{\xi}_{\text{dB}}[l,k]$ as follows:
+\begin{equation}
+\hat{\xi}_l[k] = 10^{(\hat{\xi}_{\text{dB}}[l,k]/10)},
+\end{equation}
+where the \textit{a priori} SNR estimate in dB is computed from the mapped \textit{a priori} SNR estimate as follows:
+\begin{equation}
+\hat{\xi}_{\rm dB}[l,k] = \sigma_k\sqrt{2}\textrm{erf}^{-1}\big(2\hat{\bar{\xi}}_l[k] - 1\big) + \mu_k.
+\end{equation}
+
+\section{Experimental Settings} \label{sec: exp}
+
+\subsection{Signal Processing} \label{secb}
+A square-root-Hann window function is used for spectral analysis and synthesis \cite{237532, Huang:2001:SLP:560905, 4682553}, with a frame-length of 32 ms ($512$ time-domain samples) and a frame-shift of 16 ms ($256$ time-domain samples). The noise PSD was estimated from the 257-point single-sided noisy speech PSD, which included both the DC frequency component and the Nyquist frequency component. For the proposed DeepMMSE method, the \textit{a posteriori} SNR for Equation \ref{equ:a} is estimated from the \textit{a priori} SNR estimate: $\hat{\gamma}(l,k)=\hat{\xi}(l,k)+1$.
+
+\subsection{Training Set} \label{sec:c}
+Here, we describe the clean speech and noise recordings used to train Deep Xi-ResNet. The clean speech recordings from the following speech corpora are included in the training set: the \textit{train-clean-100} set from the Librispeech corpus \cite{7178964} ($28\,539$ utterances), the CSTR VCTK corpus \cite{veaux2017cstr} ($42\,015$ utterances), and the $si^*$ and $sx^*$ training sets from the TIMIT corpus \cite{garofolo1993darpa} ($3\,696$ utterances). This gives a total of $74\,250$ clean speech recordings. $5\%$ of the clean speech recordings are randomly selected and used as the validation set. Thus, $70\,537$ clean speech recordings are used in the training set, and $3\,713$ clean speech recordings are used in the validation set. The noise recordings from the following noise datasets are included in the training set: the QUT-NOISE dataset \cite{Dean2010}, the Nonspeech dataset \cite{Nonspeech}, the Environmental Background Noise dataset \cite{7472068, 7590807}, the noise set from the MUSAN corpus \cite{DBLP:journals/corr/SnyderCP15}, multiple \href{https://freesound.org/}{FreeSound} packs,\footnote{Freesound packs that were used: 147, 199, 247, 379, 622, 643, $1\,133$, $1\,563$, $1\,840$, $2\,432$, $4\,366$, $4\,439$, $15\,046$, $15\,598$, $21\,558$.} and coloured noise recordings (with an $\alpha$ value ranging from -2 to 2 in increments of 0.25). This gives a total of $2\,382$ noise recordings. All clean speech and noise recordings are single-channel, with a sampling frequency of 16 kHz (recordings with a sampling frequency higher than 16 kHz are down-sampled to 16 kHz). A description of how the noisy speech is created from the clean speech and noise recordings is given in Subsection \ref{secd}.
+
+\subsection{Training Strategy} \label{secd}
+The following strategy was employed to train the ResNet: 
+\begin{itemize}
+  \setlength\itemsep{0.5pt}
+  \item Cross-entropy as the loss function.
+  \item The \textit{Adam} algorithm \cite{DBLP:journals/corr/KingmaB14} with default hyper-parameters is used for gradient descent optimisation.
+  \item Gradients are clipped between $[-1,1]$.
+    \item The selection order for the clean speech recordings is randomised for each epoch.
+  \item A total of 175 epochs is used to train the ResNet, where the number of training examples in an epoch is equal to the number of clean speech files in the training set ($70\,537$). 
+  \item A mini-batch size of $10$ noisy speech signals.
+  \item The noisy speech signals are created as follows: each clean speech recording selected for the mini-batch is mixed with a random section of a randomly selected noise recording at a randomly selected SNR level (-10 to 20 dB, in 1 dB increments).
+
+\end{itemize}
+
+\subsection{Test Set}
+
+Recordings of eight different noise sources were included in the test set. The first is a computer-generated noise source, specifically modulated white Gaussian noise. It is created by modulating Gaussian noise as follows:
+\begin{equation}
+f(n)=1 + \sin \left(2 \pi n \frac{f_{mod }}{f_{s}}\right),
+\end{equation}
+where $f_{mod}$ and $f_{s}$ denote the modulation and sampling frequency, respectively, and $n$ is the time-domain sample index. In this study, we set the modulation frequency to $f_{mod} = 0.5$ Hz. Five of the eight recordings were of real-world non-stationary noise sources, including \textit{passing train}, \textit{passing car}, and \textit{traffic} from mutliple FreeSound packs, \textit{street music} (recording no. $26\,270$) from the Urban Sound dataset \cite{Salamon:UrbanSound:ACMMM:14}, and \textit{voice babble} from the RSG-10 noise dataset \cite{steeneken1988description}. Two of the eight recordings were of real-world coloured noise sources, including \textit{factory} and \textit{F16} from the RSG-10 noise dataset \cite{steeneken1988description}. 30 clean speech recordings were randomly selected\footnote{For the noise recordings used in Table \ref{tab:a}, only 10 clean speech recordings were randomly selected.} (without replacement) from the TSP speech corpus \cite{kabal2002tsp} for each noise recording.\footnote{Only adult speakers were included from the TSP speech corpus.} To create the noisy speech, a random section of the noise recording was mixed with the clean speech at the following SNR levels: -5 to 15 dB, in 5 dB increments. 150 noisy speech files were available in the test set for each noise source. The noisy speech signals were single channel, with a sampling frequency of 16 kHz.
+
+\subsection{Evaluation Measures} \label{sec:d}
+\textbf{\textit{A priori} SNR estimation accuracy}: The frame-wise spectral distortion (SD) \cite{150426} is used to evaluate the accuracy of an \textit{a priori} SNR estimator, with lower levels indicating a better accuracy. The SD is defined as the root-mean-square difference between the \textit{a priori} SNR estimate in dB, $\hat{\xi}_{\rm dB}[n,k]$, and the oracle case in dB, $\xi_{\rm dB}[n,k]$, for the $n^{th}$ frame:\footnote{$\xi_{dB}[n,k]$ and $\hat{\xi}_{dB}[n,k]$ values that were less than -40 dB, or greater than 60 dB were clipped to -40 dB and 60 dB, respectively.}
+\begin{equation}
+D^{2}_{l}=\frac{1}{K/2+1}\sum_{k=0}^{K-1}\big[\xi_{\rm dB}[l,k]-\hat{\xi}_{\rm dB}[l,k] \big]^2,
+\end{equation}
+where $K$ indicates the number of frequency-bins. Average SD levels were found over all frames for the test condition.
+
+\textbf{Noise PSD estimation accuracy}: The spectral estimation accuracy of the noise PSD trackers is evaluated directly using the symmetric mean log-spectral distortion (LogErr) between the reference noise PSD, $\lambda_{d}(l, k)$, and the estimated noise PSD, $\hat{\lambda}_{d}(l, k)$, as follows
+
+\begin{equation}
+\textrm{LogErr}=\frac{1}{L K}\sum_{l=0}^{L-1} \sum_{k=0}^{K-1} \left|10 \log _{10}\left[\frac{\lambda_{d}[l, k]}{\widehat{\lambda}_{d}[l, k]}\right]\right|,
+\end{equation}
+where $L$ denotes the number of time-frames and $K$ indicates the number of frequency-bins. As in previous works, the reference noise PSD, $\lambda_{d}(l, k)$, is obtained from the noise periodogram using a first-order recursive operation with a constant smoothing factor $\alpha_{s} = 0.8$ \cite{R.C.Hendriks2010, gerkmann2012improved, Timo.Gerkmann2012, zhang2019novel}. This smoothing factor is also used by each of the MMSE-based noise PSD trackers (MMSE, SPP, ImMMSE, and DeepMMSE) to compute the final noise PSD estimate, $\widehat{\lambda_{d}}[l, k]$. 
+
+\input{./tables/sd.tex}
+
+\textbf{Speech enhancement performance}: The noise PSD estimators are incorporated into the following speech enhancement framework:
+
+\begin{enumerate}
+  \item First, the noise PSD estimate, $\widehat{\lambda_{d}}$, is computed from the noisy speech magnitude spectrum, $R$, using the noise PSD tracker. A constant smoothing factor of $\alpha_{d} = 0.8$ is used for all noise PSD trackers, except for the proposed DeepMMSE method which used $\alpha_{d} = 0$, as no smoothing is required for its noise PSD estimate.
+  
+  \item Next, the \textit{a posteriori} SNR estimate, $\hat{\gamma}=Y^2 / \widehat{\lambda_{d}}$, is used to find the \textit{a priori} SNR estimate. As in \cite{R.Martin2001,S.Rangachari2006,R.C.Hendriks2010,Timo.Gerkmann2012,zhang2019novel}, the DD approach is used to estimate the \textit{a priori} SNR for the MS, MCRA-2, MMSE, SPP, and ImMMSE methods.\footnote{A smoothing factor of 0.98 was used for the MS, MCRA-2, MMSE, SPP methods, as in \cite{R.Martin2001,S.Rangachari2006,R.C.Hendriks2010,Timo.Gerkmann2012}. A smoothing factor of 0.94 was used for the ImMMSE method, as in \cite{zhang2019novel}.} The smallest allowable value was set to $\xi_{min}=-15~{\rm dB}$ for the DD approach, as in \cite{Loizou:2013:SET:2484638}. For the proposed DeepMMSE method, the ML estimate of the \textit{a priori} SNR estimate is sufficient: $\hat{\xi}=\max \big( \hat{\gamma}-1,0 \big)$. 
+  
+  \item $\hat{\gamma}$ and $\hat{\xi}$ are then used by the MMSE clean speech spectrum estimator with generalised Gamma priors from \cite{J.S.Erkelens2007} to enhance the noisy speech magnitude spectrum. The MMSE clean speech spectrum estimator assumes that the speech DFT coefficients follow a generalized-Gamma distribution with parameters $\gamma = 1$ and $\nu = 0.6$.
+
+\end{enumerate}
+The objective quality and intelligibility of the resultant enhanced speech is then evaluated. The perceptual evaluation of speech quality (PESQ) is used as a metric to evaluate the objective speech quality \cite{recommendation2001perceptual}. Disturbance processing and cognitive modelling are primarily used to determine the PESQ score. The PESQ score ranges from -0.5 to 4.5, with a higher PESQ score implying better speech quality. The short-time objective intelligibility (STOI) measure \cite{5495701, 5713237} is used to evaluate the objective speech intelligibility. It is based on the correlation coefficient between the temporal envelops of the clean speech and enhanced speech in short-time regions. The STOI score ranges from 0 to 1, with a higher STOI score indicating better speech intelligibility.
+
+
+\section{Results and Discussions} \label{sec: rd}
+
+\subsection{\textit{A priori} SNR estimation accuracy}  
+
+Before evaluating the tracking performance of the proposed DeepMMSE method, we determine if Deep Xi-ResNet is a more accurate \textit{a priori} SNR estimator than Deep Xi-ResLSTM. DeepXi-ResNet is also compared to previous \textit{a priori} SNR estimators, like the DD approach \cite{1164453}, the two-step noise reduction (TSNR) technique \cite{1325979}, harmonic regeneration noise reduction (HRNR) \cite{1415074}, and selective cepstro-temporal smoothing (SCTS) \cite{4518755}. As seen in Table \ref{tab:a}, Deep Xi-ResNet attains the lowest SD level for each tested condition. Deep Xi-ReNet is able to outperform Deep Xi-ResLSTM in terms of \textit{a priori} SNR estimation accuracy, while consuming fewer parameters and requiring less time to train. This indicates that the accuracy of Deep Xi-ReNet will be beneficial to the performance of the proposed DeepMMSE method.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.45\textwidth]{fig/tracking_mod.pdf}
+\caption{(a) Speech corrupted by modulated Gaussian noise at an SNR level of 0 dB. (b)-(c) Noise PSD tracking performance of the noise PSD trackers, including the proposed DeepMMSE method. The noise PSDs are averaged over all frequency bins.}
+\label{fig:c}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.45\textwidth]{fig/tracking_train.pdf}
+\caption{(a) Speech corrupted by passing train noise at an SNR level of 0 dB. (b)-(c) Noise PSD tracking performance of the noise PSD trackers, including the proposed DeepMMSE method. The noise PSDs are averaged over all frequency bins.}
+\label{fig:d}
+\end{figure}
+
+\subsection{Noise PSD tracking evaluation} 
+
+An important feature of any noise PSD estimator is the ability to track non-stationary noise sources. In this subsection, the noise PSD tracking performance of the proposed DeepMMSE method is evaluated against five state-of-the-art noise PSD trackers, including the MS \cite{R.Martin2001}, MCRA-2 \cite{S.Rangachari2006}, MMSE \cite{R.C.Hendriks2010}, SPP \cite{Timo.Gerkmann2012}, and ImMMSE \cite{zhang2019novel} methods. Three clean speech recordings from the test set are concatenated and corrupted with non-stationary modulated Gaussian noise at an SNR level of 0 dB, as shown Figure \ref{fig:c} (a). Figures \ref{fig:c} (b) and (c) show the averaged noise PSD estimates produced by the MS, MCRA-2, MMSE, SPP, ImMMSE, and DeepMMSE methods. The reference noise PSD is also included in Figures \ref{fig:c} (b) and (c). It is obvious that the MS, MCRA-2, and MMSE methods poorly track the modulated Gaussian noise PSD. The SPP method yields an improvement in tracking performance over the MS, MCRA-2, and MMSE methods, but still produces a noise PSD estimate with large bias. The ImMMSE method outperforms the SPP method, demonstrating the ability to track regions of moderately-changing noise levels. The proposed DeepMMSE method produces a noise PSD estimate with negligible bias, and is able to track the abrupt changes in the noise level, e.g., in the time-spans from 3--4, and 5--6 seconds, as highlighted in Figure \ref{fig:c} (c).
+
+\input{./tables/logerr.tex}
+
+Another example is shown in Figure \ref{fig:d} (a), where the clean speech signal used for Figure \ref{fig:c} (a) is corrupted with passing train noise at an SNR level of 0 dB. It is observed again that the proposed DeepMMSE method exhibits an excellent tracking performance, even for rapidly changing noise levels. As shown in Figure \ref{fig:d} (b), the MS, MCRA-2, and MMSE methods again show very large tracking delays. The SPP and ImMMSE methods are able to track the noise PSD during slow changes of the noise level, but again are not able to handle abrupt increases in the noise level, e.g., in the time-span from 1.5--2 seconds, as highlighted in Figure \ref{fig:d} (c). It can also be seen that the proposed Deep MMSE method produces a noise PSD estimate with the least bias.
+
+
+\subsection{Noise PSD estimation accuracy}
+Here, we evaluate the noise PSD estimation accuracy of the proposed DeepMMSE method. The LogErr results for each of the noise PSD estimators are given in Table \ref{table1}. It can be seen that both the MS and MCRA-2 methods exhibit poor noise PSD estimation accuracy for all tested conditions. The MMSE method demonstrates a reasonable noise PSD estimation accuracy, except for noise sources that include rapidly changing noise levels (modulated Gaussian, passing train, and passing car in Table \ref{table1}). The SPP method is not as severely affected by rapidly changing noise levels, and exhibits an improvement in noise PSD estimation accuracy over the MMSE method. The ImMMSE algorithm demonstrates a high noise PSD estimation accuracy, especially at lower SNR levels. However, the proposed DeepMMSE method achieves the highest noise PSD estimation accuracy for each tested condition.
+
+\input{./tables/pesq.tex}
+\input{./tables/stoi.tex}
+
+
+\begin{figure*}[!b]
+\centering
+\includegraphics[width=0.9\textwidth]{fig/spectrogram.pdf}
+\caption{The spectrograms of (a) the clean speech, (b) the noisy speech (clean speech mixed with traffic noise at an SNR level of 5 dB), and the enhanced speech produced by each of the noise PSD trackers: (c) MS, (d) MCRA-2, (e) MMSE, (f) SPP, (g) ImMMSE, (h) LSTM-IRM, (i) Xu2017, and (j) DeepMMSE (proposed).}
+\label{fig:e}
+\end{figure*}
+
+\subsection{Speech enhancement performance} 
+Here, the speech enhancement performance of the proposed DeepMMSE method is evaluated within the framework described in Subsection \ref{sec:d}. The objective quality (PESQ) and intelligibility (STOI) scores of the enhanced speech produced by each of the noise PSD trackers are used for evaluation. Table \ref{table2} presents the PESQ scores attained by each of the noise PSD estimators. It can be seen that the proposed DeepMMSE method achieves the highest objective quality scores for each tested condition. The STOI scores obtained by each of the noise PSD estimators are presented in Table \ref{table3}. It can be seen that the proposed DeepMMSE method produces the most objectively intelligible enhanced speech for all tested condition. 
+
+The proposed DeepMMSE method is able to outperform the other noise PSD trackers at all tested SNR levels, and for both real-world non-stationary (e.g. voice babble) and coloured noise sources (e.g. factory), as well as for computer-generated non-stationary noise (e.g. modulated Gaussian). In addition, the proposed DeepMMSE method is also compared to two recent deep learning approaches to speech enhancement: LSTM-IRM, and Xu2017. LSTM-IRM is an LSTM network that estimates the ideal ratio mask (IRM) \cite{chen2017long}, and Xu2017 is a multi-layer perceptron (MLP) clean speech spectrum estimator that incorporates multi-objective learning and ideal binary mask (IBM) post-processing \cite{DBLP:journals/corr/XuDHDL17}. It can be seen in Tables \ref{table2} and \ref{table3} that the proposed DeepMMSE method is able to produce enhanced speech with higher quality and intelligibility scores than LSTM-IRM and Xu2017 for all tested conditions (except for traffic noise at 15 dB.)
+
+\subsection{Evaluation of enhanced speech spectrograms}
+
+In this section, the enhanced speech spectrograms produced by each of the noise PSD trackers are evaluated. A clean speech recording from the test set (Figure \ref{fig:e} (a)) is mixed with traffic noise at an SNR level of 5 dB, producing the noisy speech (Figure \ref{fig:e} (b)). The noisy speech is then enhanced by each of the five state-of-the-art noise PSD trackers (Figures \ref{fig:e} (c)-(g)), LSTM-IRM (Figure \ref{fig:e} (h)), Xu2017 (Figures \ref{fig:e} (i)), and the proposed DeepMMSE method (Figure \ref{fig:e} (j)). It can be seen that the proposed DeepMMSE method achieves the best noise suppression, while preserving the formant information of the speech (Figure \ref{fig:e} (j)). The MS method demonstrates the worst noise suppression performance (Figure \ref{fig:e} (c)). Although the MCRA-2 method demonstrates improved noise suppression over the MS method, the speech is distorted due to an overestimation of the noise level (Figure \ref{fig:e} (d)). Both the ImMMSE method (Figure \ref{fig:e} (g)) and the SPP method (Figure \ref{fig:e} (f)) demonstrate a similar noise suppression performance, with both outperforming the MMSE method (Figure \ref{fig:e} (e)). It can be seen in Figures \ref{fig:e} (h) and (i) that LSTM-IRM and Xu2017 both under suppress multiple spectral components.
+
+\section{Conclusion} \label{sec: cfc} 
+
+A critical component of any speech enhancement systems is the estimation of the noise PSD. The performance of an MMSE-based noise PSD tracking method heavily depends on the accuracy of the used \textit{a priori} SNR estimator. Motivated by this, we investigate how an MMSE-based noise PSD tracker can benefit from a deep learning approach to \textit{a priori} SNR estimation. The proposed noise PSD tracking method, called DeepMMSE, is evaluated using a variety of real-world non-stationary and coloured noise sources at multiple SNR levels. Our results show that the proposed DeepMMSE method is able to significantly outperform other noise PSD trackers in terms of spectral tracking accuracy. As the proposed method does not exploit any assumptions about the characteristics of the speech or noise, it is able to track sudden changes in the noise level. Furthermore, the proposed DeepMMSE method is able to yield higher speech enhancement objective quality and intelligibility scores than other noise PSD tracking methods, as well as two deep learning approaches to speech enhancement. 
+
+Recently, perceptually guided training has been exploited to increase speech enhancement performance \cite{koizumi2017dnn,zhao2018perceptually}. This may be investigated in future work to obtain a further improvement in performance. In this work, the \textit{a posteriori} SNR estimate is calculated from the \textit{a priori} SNR estimate. Further improvements in performance may be obtained by using a deep learning approach to estimate the \textit{a posteriori} SNR directly. Moreover, the focus of this paper is on modifying only the magnitude of the STFT components. Researchers have found that phase provides additional information which can help distinguish noise outliers from speech \cite{gerkmann2015phase}. Incorporating this into the proposed estimator may improve its performance.  
+
+
+% if have a single appendix:
+%\appendix[Proof of the Zonklar Equations]
+% or
+%\appendix  % for no appendix heading
+% do not use \section anymore after \appendix, only \section*
+% is possibly needed
+
+% use appendices with more than one appendix
+% then use \section to start each appendix
+% you must declare a \section before using any
+% \subsection or using \label (\appendices by itself
+% starts a section numbered zero.)
+%
+
+
+% \appendices
+% \section{Proof of the First Zonklar Equation}
+% Appendix one text goes here.
+
+% you can choose not to have a title for an appendix
+% if you want by leaving the argument blank
+% \section{}
+% Appendix two text goes here.
+
+
+% use section* for acknowledgment
+\section*{Acknowledgement}
+The authors thank the Circuit and Systems (signal processing) Group at Delft University of Technology for providing an implementation of the MMSE speech spectrum estimator with generalised Gamma priors.
+
+% The authors would like to thank...
+
+
+% Can use something like this to put references on a page
+% by themselves when using endfloat and the captionsoff option.
+\ifCLASSOPTIONcaptionsoff
+  \newpage
+\fi
+
+
+
+% trigger a \newpage just before the given reference
+% number - used to balance the columns on the last page
+% adjust value as needed - may need to be readjusted if
+% the document is modified later
+%\IEEEtriggeratref{8}
+% The "triggered" command can be changed if desired:
+%\IEEEtriggercmd{\enlargethispage{-5in}}
+
+% references section
+
+% can use a bibliography generated by BibTeX as a .bbl file
+% BibTeX documentation can be easily obtained at:
+% http://mirror.ctan.org/biblio/bibtex/contrib/doc/
+% The IEEEtran BibTeX style support page is at:
+% http://www.michaelshell.org/tex/ieeetran/bibtex/
+\bibliographystyle{IEEEtran}
+% argument is your BibTeX string definitions and bibliography database(s)
+% \bibliography{IEEEabrv,../bib/paper}
+\bibliography{IEEEabrv,./myreference}
+%
+% <OR> manually copy in the resultant .bbl file
+% set second argument of \begin to the number of references
+% (used to reserve space for the reference number labels box)
+% \begin{thebibliography}{99}
+% \end{thebibliography}
+
+% biography section
+%
+% If you have an EPS/PDF photo (graphicx package needed) extra braces are
+% needed around the contents of the optional argument to biography to prevent
+% the LaTeX parser from getting confused when it sees the complicated
+% \includegraphics command within an optional argument. (You could create
+% your own custom macro containing the \includegraphics command to make things
+% simpler here.)
+%\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{mshell}}]{Michael Shell}
+% or if you just want to reserve a space for a photo:
+
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{QiquanZhang}}]{Qiquan Zhang}
+was born in Yunnan Province, China in 1993. He received the B.S. degree in electronic science \& technology from Harbin Institute of Technology Weihai Campus, Shandong Province, China, in 2015. He is currently working towards the Ph.D. degree in Electrical Science \& Technology at Shenzhen key laboratory of internet of things terminal technology, Harbin Institute of Technology at Shenzhen, Shenzhen City. His research interests are digital speech and audio signal processing, speech enhancement algorithms, and microphone array signal processing.
+\end{IEEEbiography}
+
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{wang}}]{Mingjiang Wang}
+was born in Heilongjiang Province, China in 1968. He received the B.S. and M.S. degrees in semiconductor physics \& devices from Harbin Institute of Technology, Heilongjiang Province, China, in 1990 and 1993 respectively. In July 1998, he received the Ph.D. in electronic engineering from Fudan University, Shanghai City, China. From 1993 to 1995, he had worked as an Associate Professor at Southeast University, Jiangsu Province, China. He worked as a senior engineer at Huawei Technologies Co. Ltd from 1998 to 2000. Since September 2009, He is working as the professor at Harbin Institute of technology Shenzhen campus, in electronic and information engineering department. He is the director of Shenzhen key laboratory of internet of things terminal technology. His research interests involves the low-power loss chip design, speech signal processing, speech coding, and speech enhancement. His current research interests focus on the audio/image deep learning algorithm with application to the AI processing chip design.
+\end{IEEEbiography}
+
+% \begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{LuYun}}]{Yun Lu}
+% received the B.S. degree in Microelectronics from Xiangtan University, Hunan Province, China, in 2009 and the M.S. degree in Optical Engineering from Sun Yat-Sen University, Guangdong Province, China, in 2011. He is currently working towards the Ph.D. degree in Electrical Science \& Technology at Shenzhen key laboratory of internet of things terminal technology, Harbin Institute of Technology at Shenzhen, Shenzhen City. From 08/2011 to 10/2014, he was with Shenzhen Institutes of Advanced Technology, Chinese Academy of Sciences, working on the design of mixed-signal front-end circuits for biomedical applications. His current research interests are in information processing of acoustic signals at the interface of engineering and neuroscience, innovative methods for brain-machine interface and neural prosthesis.
+% \end{IEEEbiography}
+
+% \begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{MuhammadIdrees}}]{Muhammad Idrees}
+% received his B.S. Electrical Engineering from COMSATS Institute of Information Technology Wah, Pakistan, in 2013 and Masters in Telecommunication Engineering from University of Engineering and Technology (UET) Taxila, Pakistan, in 2015. He worked as Full-Time research scholar with MAP (Microwaves, Antennas and Propagation) research group at UET Taxila from 2013-2015, where he was mainly engaged in research on Frequency Selective Surfaces, Band Filtering and MIMO Antenna Arrays. In 2015, he joined National Radio and Telecommunication Corporation (NRTC) Pakistan and worked in RF \& Microwave section as Antenna Design Engineer. He is currently working towards his Ph.D. degree in Electronic Science and Technology at Shenzhen Key Laboratory of Internet of Things Terminal Technology, Harbin Institute of Technology Shenzhen, Shenzhen China. His research interests include Deep Learning, Audio Signal processing, Speaker Recognition and Speech Enhancement.
+% \end{IEEEbiography}
+
+% \begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{zhang}}]{Lu Zhang}
+% was born in Shandong Province, China in 1993. He received the B.S. degree in electronic science \& technology from Harbin Institute of Technology Weihai Campus, Shandong Province, China, in 2016. He is currently working towards the Ph.D. degree in Electrical Science \& Technology at Shenzhen key laboratory of internet of things terminal technology, Harbin Institute of Technology at Shenzhen, Shenzhen City. His research interests include digital speech and audio signal processing, speech enhancement, and microphone array signal processing.
+% \end{IEEEbiography}
+% if you will not have a photo at all:
+% \begin{IEEEbiographynophoto}{John Doe}
+% Biography text here.
+% \end{IEEEbiographynophoto}
+
+% \begin{IEEEbiographynophoto}{John Doe}
+% Biography text here.
+% \end{IEEEbiographynophoto}
+
+% insert where needed to balance the two columns on the last page with
+% biographies
+%\newpage
+
+% \begin{IEEEbiographynophoto}{Jane Doe}
+% Biography text here.
+% \end{IEEEbiographynophoto}
+
+% You can push biographies down or up by placing
+% a \vfill before or after them. The appropriate
+% use of \vfill depends on what kind of text is
+% on the last page and whether or not the columns
+% are being equalized.
+
+%\vfill
+
+% Can be used to pull up biographies so that the bottom of the last one
+% is flush with the other column.
+%\enlargethispage{-5in}
+
+
+
+% that's all folks
+\end{document}
+
+

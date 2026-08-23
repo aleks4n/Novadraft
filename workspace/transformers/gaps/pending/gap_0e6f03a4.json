@@ -1,0 +1,20 @@
+{
+  "gap_id": "gap_0e6f03a4",
+  "status": "unchecked",
+  "title": "No theoretical explanation for grokking mechanism",
+  "description": "The paper conjectures that grokking may be driven by SGD noise pushing optimization toward flatter minima, but explicitly defers testing this hypothesis to future work. The underlying theoretical mechanism remains unexplained.",
+  "type": "future_work",
+  "canonical_description": "whether flatness-based measures of minima predict delayed generalization in neural network training",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2201.02177",
+      "section": "appendix",
+      "quote": "We conjectured that the grokking phenomena we report in this work may be due to the noise from SGD driving the optimization to flatter/simpler solutions that generalize better and hope to investigate in future work whether any of these measures are predictive of grokking.",
+      "char_offset": [
+        7669,
+        7941
+      ]
+    }
+  ],
+  "extracted_at": "2026-06-22T13:37:48Z"
+}

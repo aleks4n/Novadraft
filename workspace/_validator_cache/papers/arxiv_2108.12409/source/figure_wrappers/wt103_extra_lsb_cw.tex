@@ -1,0 +1,9 @@
+\begin{figure}[h]
+\begin{center}
+\includegraphics[width=.75\textwidth]{figures/wt103-extra-lsb-sin-cw.pdf}
+
+\end{center}
+\caption{ALiBi models evaluated on different input lengths on WikiText-103 with sliding window evaluation (with stride $S=1$). Unlike results shown in Figure~\ref{fig:wt103_extra_lsb_all}, where performance improves in each of our models as we increase the validation sequence length, here performance stays relatively flat as we increase \li. This might mean that \al increases performance when \li $>$ \lt not because it uses longer contexts, but because  %
+fewer tokens suffer from the early token curse. Note that as in \S\ref{sec:act2}, the perplexity of the sinusoidal model explodes when \li $>$ \lt even when using sliding window evaluation.}
+\label{fig:wt103_extra_lsb_cw}
+\end{figure}

@@ -1,0 +1,80 @@
+{
+  "gap_id": "gap_808c55f7",
+  "status": "validated",
+  "title": "All models overfit on CIFAR-10",
+  "description": "On CIFAR-10, all trained models exhibited overfitting, reaching an optimal FID and then degrading.",
+  "type": "threat_to_validity",
+  "canonical_description": "Generative model overfits on small-scale benchmark datasets",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2102.09672",
+      "section": "overfitting_on_cifar_10",
+      "anchor": "On CIFAR-10, we noticed that all models overfit",
+      "quote": "On CIFAR-10, we noticed that all models overfit, but tended to reach similar optimal FID at some point during training.",
+      "char_offset": [
+        358,
+        477
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    },
+    {
+      "paper_id": "arxiv_2102.09672",
+      "section": "early_stopping_for_fid",
+      "anchor": "observed overfitting on class-conditional ImageNet",
+      "quote": "Like on CIFAR-10, we surprisingly observed overfitting on class-conditional ImageNet $64 \\times 64$, despite it being a much larger and more diverse dataset.",
+      "char_offset": [
+        89,
+        246
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T07:37:20Z",
+  "verdict": {
+    "gap_id": "gap_808c55f7",
+    "status": "partially_solved",
+    "confidence": 0.75,
+    "reasoning": "The single deep-read paper (Understanding diffusion models requires rethinking (again) generalization) directly engages with the gap: it empirically confirms that diffusion models on CIFAR-10 transition from generalization to memorization (overfitting) after a certain training duration, tracks FID degradation, and characterizes how dataset size, batch size, and learning rate affect the onset. This is a partial solution because it explains and documents the phenomenon rather than solving it — no architectural changes, regularization, or training procedure is offered that would allow a CIFAR-10 model to continue improving past the optimal FID point. The paper itself argues that the practical answer is early stopping and scaling dataset size, which acknowledges the gap remains open as a design problem. With only one paper and no proposed mitigation, the gap is partially addressed (explained but not resolved).",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2605.06077",
+          "title": "Understanding diffusion models requires rethinking (again) generalization",
+          "abstract": "This position paper argues that understanding generalization in diffusion models requires fundamentally new theoretical frameworks that go beyond both classical statistical learning theory and the benign overfitting paradigm developed for supervised learning. In diffusion models, unlike in supervised learning, memorization of training data and generalization to novel samples are incompatible: a model that has fully memorized its training set generates copies rather than novel data. Several theoretical explanations for why practical diffusion models nevertheless generalize have been proposed, based on capacity limitations, implicit regularization from optimization, or architectural inductive biases, but their interactions remain unclear. We argue that the field should pivot from explaining why the diffusion models do not memorize to investigating what the model actually learns during pre-memorization phase. To highlight our stance, we conduct empirical study of diffusion models trained on CIFAR-10, and we distill the findings into concrete open questions that we believe are key to improve understanding of generalization in diffusion models.",
+          "authors": [
+            "Pierre Marion",
+            "Yu-Han Wu"
+          ],
+          "published_date": "2026-05-07T12:00:10Z",
+          "url": "https://arxiv.org/abs/2605.06077v1"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "This position paper conducts an empirical study of diffusion models trained on CIFAR-10, systematically tracking memorization onset, FID, and distributional distances across dataset size, model size, batch size, and learning rate. It confirms the gap's premise that models transition from generalization to memorization (overfitting) after a certain training duration, and documents a double-descent phenomenon in FID. It shows that memorization onset scales linearly with dataset size, and that optimization hyperparameters (batch size, learning rate) affect peak fidelity before memorization takes hold.",
+        "what_remains_open": "The paper does not propose a method to prevent or mitigate overfitting on CIFAR-10. Instead, it argues that the overfitting/memorization question is \"largely resolved\" by early stopping and linear scaling of memorization time with dataset size. The gap's specific problem — that all models on CIFAR-10 eventually overfit and FID degrades — remains unsolved; the paper merely documents and explains why this happens. It does not offer architectural modifications, regularization techniques, or training procedures that would allow a model trained on CIFAR-10 to avoid the FID degradation and continue improving beyond the optimal point.",
+        "evidence_snippets": [
+          "when a diffusion model is trained long enough on a sufficiently small dataset, it transitions from generating novel samples to reproducing training examples",
+          "the memorization transition is observable and systematic. By carefully calibrating the dataset size, we can reliably observe the transition from a novelty phase to a memorization phase.",
+          "This largely resolves the question of why practical diffusion models do not memorize. The community should shift its focus from explaining the absence of memorization to understanding what the model learns during the pre-memorization phase and how fidelity emerges."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 1,
+      "skipped_ids": []
+    }
+  },
+  "ranking": {
+    "openness": 0.22499999999999998,
+    "impact": 0.30405899842290823,
+    "feasibility": 0.72,
+    "feasibility_reasoning": "The gap is tractable: (1) CIFAR-10 is widely available — no data collection needed. (2) Compute requirements are modest — 32×32 images and a small training set mean experiments run on a single GPU. (3) Methodological maturity is high — the phenomenon is already characterized (the deep-read paper empirically confirms and measures it), and the path forward is testing known regularization/architectural mitigations (data augmentation, dropout, weight decay, architectural tweaks) against FID degradation; this is an extension of existing methods, not a fundamental breakthrough. (4) Scope is focused — mitigate overfitting on a single well-understood benchmark. (5) Evaluation is straightforward — track FID over training steps; progress is directly measurable. The main factor capping the score is that the problem has resisted simple fixes so far (the existing paper's main practical takeaway is early stopping + scaling), suggesting meaningful progress may require non-trivial tuning or novel regularization."
+  }
+}

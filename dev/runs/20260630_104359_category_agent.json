@@ -1,0 +1,11 @@
+{
+  "name": "category_agent",
+  "kind": "agent",
+  "inputs": {
+    "topic": "quantum"
+  },
+  "timestamp": "2026-06-30T10:43:57.773619",
+  "output": "workspace/knowledge/quantum_wikipedia_background.md",
+  "error": null,
+  "duration_s": 1.493
+}

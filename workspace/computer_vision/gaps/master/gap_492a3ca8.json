@@ -1,0 +1,73 @@
+{
+  "gap_id": "gap_492a3ca8",
+  "status": "validated",
+  "title": "Whether Mamba maintains advantage at larger parameter scales",
+  "description": "It remains to be assessed whether Mamba still compares favorably against strong Transformer models and other recurrent models at the 7B parameter scale and beyond.",
+  "type": "future_work",
+  "canonical_description": "performance advantage of selective state space models at larger parameter scales unverified",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2312.00752",
+      "section": "discussion",
+      "anchor": "It remains to assess whether Mamba still compares favorably at these larger sizes",
+      "quote": "It remains to assess whether Mamba still compares favorably at these larger sizes.",
+      "char_offset": [
+        1616,
+        1698
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T07:37:05Z",
+  "verdict": {
+    "gap_id": "gap_492a3ca8",
+    "status": "partially_solved",
+    "confidence": 0.72,
+    "reasoning": "Falcon Mamba 7B directly addresses the core of the gap by demonstrating that a pure Mamba 7B model matches or outperforms strong Transformer counterparts (Mistral 7B, Llama3.1 8B, Gemma 7B) and other recurrent/SSM models. However, the gap explicitly asks about \"7B parameter scale **and beyond**\" — scales above 7B (e.g., 13B, 30B, 70B) remain entirely unverified, and the paper notes that long-context proficiency was not emphasized and in-context learning may still lag. Thus a meaningful piece of the problem remains open.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2410.05355",
+          "title": "Falcon Mamba: The First Competitive Attention-free 7B Language Model",
+          "abstract": "In this technical report, we present Falcon Mamba 7B, a new base large language model based on the novel Mamba architecture. Falcon Mamba 7B is trained on 5.8 trillion tokens with carefully selected data mixtures. As a pure Mamba-based model, Falcon Mamba 7B surpasses leading open-weight models based on Transformers, such as Mistral 7B, Llama3.1 8B, and Falcon2 11B. It is on par with Gemma 7B and outperforms models with different architecture designs, such as RecurrentGemma 9B and RWKV-v6 Finch 7B/14B. Currently, Falcon Mamba 7B is the best-performing Mamba model in the literature at this scale, surpassing both existing Mamba and hybrid Mamba-Transformer models, according to the Open LLM Leaderboard. Due to its architecture, Falcon Mamba 7B is significantly faster at inference and requires substantially less memory for long sequence generation. Despite recent studies suggesting that hybrid Mamba-Transformer models outperform pure architecture designs, we demonstrate that even the pure Mamba design can achieve similar, or even superior results compared to the Transformer and hybrid designs. We make the weights of our implementation of Falcon Mamba 7B publicly available on https://huggingface.co/tiiuae/falcon-mamba-7b, under a permissive license.",
+          "authors": [
+            "Jingwei Zuo",
+            "Maksim Velikanov",
+            "Dhia Eddine Rhaiem",
+            "Ilyas Chahed",
+            "Younes Belkada",
+            "Guillaume Kunsch",
+            "Hakim Hacid"
+          ],
+          "published_date": "2024-10-07T15:40:45Z",
+          "url": "https://arxiv.org/abs/2410.05355v1"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "Falcon Mamba 7B is a 7B-parameter pure Mamba architecture language model trained on 5.8 trillion tokens. The paper demonstrates through extensive benchmarking on Open LLM Leaderboard evaluations that this pure Mamba model matches or outperforms strong Transformer-based models at similar scale (Mistral 7B, Llama3.1 8B, Gemma 7B) and larger models (Falcon2 11B), as well as other recurrent/SSM models (RWKV-v6 Finch 7B/14B, RecurrentGemma 9B, Zamba 7B). It also shows that the Mamba architecture maintains constant memory and throughput during long-sequence generation, unlike Transformers whose costs grow linearly with context length.",
+        "what_remains_open": "The paper fully addresses the core question of whether Mamba maintains advantage at the 7B parameter scale — it shows a pure Mamba 7B model is competitive with or superior to Transformer models at that scale. However, the gap asks about \"7B parameter scale and beyond.\" The paper only demonstrates results at 7B; it does not explore scales beyond 7B (e.g., 13B, 30B, 70B). Additionally, the paper notes that long-context proficiency was not emphasized (trained on only 8k context), and that in-context learning may still lag behind Transformers. So scales beyond 7B remain unverified.",
+        "evidence_snippets": [
+          "Falcon Mamba 7B surpasses leading open-weight models based on Transformers, such as Mistral 7B, Llama3.1 8B, and Falcon2 11B.",
+          "Currently, Falcon Mamba 7B is the best-performing Mamba model in the literature at this scale, surpassing both existing Mamba and hybrid Mamba-Transformer models",
+          "We argue that Falcon Mamba 7B answers the above question positively, and, to the best of our knowledge, the first model to do so."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 1,
+      "skipped_ids": []
+    }
+  },
+  "ranking": {
+    "openness": 0.24,
+    "impact": 0.31208284741366366,
+    "feasibility": 0.2,
+    "feasibility_reasoning": "Training Mamba at 13B+ parameter scales from scratch requires massive compute (hundreds of thousands of GPU-hours, millions of dollars). This is infeasible for a typical researcher or small team without access to large-scale industrial infrastructure. Data exists and methodology is mature (scaling up an established architecture), making the problem well-scoped and evaluable — but the resource barrier is prohibitive. A cheaper alternative (e.g., scaling-law extrapolation from smaller models) would only partially address the gap, which explicitly asks for direct assessment at larger scales."
+  }
+}

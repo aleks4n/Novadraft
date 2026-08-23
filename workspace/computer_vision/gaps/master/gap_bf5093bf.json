@@ -1,0 +1,91 @@
+{
+  "gap_id": "gap_bf5093bf",
+  "status": "validated",
+  "title": "GANs achieve better FID than smaller diffusion model",
+  "description": "BigGAN-deep outperformed the authors' smaller class-conditional diffusion model on FID, though the diffusion model achieved higher recall.",
+  "type": "limitation",
+  "canonical_description": "GANs achieve better sample quality (FID) than diffusion models of comparable size",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2102.09672",
+      "section": "comparison_to_gans",
+      "anchor": "BigGAN-deep outperforms our smaller model in terms of FID",
+      "quote": "We find that BigGAN-deep outperforms our smaller model in terms of FID, but struggles in terms of recall.",
+      "char_offset": [
+        1436,
+        1541
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T07:37:20Z",
+  "verdict": {
+    "gap_id": "gap_bf5093bf",
+    "status": "open",
+    "confidence": 0.95,
+    "reasoning": "Both papers are assessed as not_addressed. Paper 1 (Improved DDPMs) explicitly compares its diffusion model to BigGAN-deep and confirms the gap — BigGAN-deep achieves better FID — but offers no method to close it, only improving likelihood and sampling speed. Paper 2 (Pseudo Density) improves FID for GANs and diffusion models independently but never addresses the comparative question of whether diffusion models can match or exceed GAN FID at comparable size. No paper attempts to solve the gap; the gap remains entirely open.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2102.09672",
+          "title": "Improved Denoising Diffusion Probabilistic Models",
+          "abstract": "Denoising diffusion probabilistic models (DDPM) are a class of generative models which have recently been shown to produce excellent samples. We show that with a few simple modifications, DDPMs can also achieve competitive log-likelihoods while maintaining high sample quality. Additionally, we find that learning variances of the reverse diffusion process allows sampling with an order of magnitude fewer forward passes with a negligible difference in sample quality, which is important for the practical deployment of these models. We additionally use precision and recall to compare how well DDPMs and GANs cover the target distribution. Finally, we show that the sample quality and likelihood of these models scale smoothly with model capacity and training compute, making them easily scalable. We release our code at https://github.com/openai/improved-diffusion",
+          "authors": [
+            "Alex Nichol",
+            "Prafulla Dhariwal"
+          ],
+          "published_date": "2021-02-18T23:44:17Z",
+          "url": "https://arxiv.org/abs/2102.09672v1"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "This paper introduces several improvements to DDPMs (learning variances, cosine noise schedule, importance sampling for the VLB) that improve log-likelihood and enable faster sampling. In the \"Comparison to GANs\" section, the paper explicitly compares their class-conditional diffusion model to BigGAN-deep on ImageNet 64×64 and finds that BigGAN-deep achieves better FID than their smaller diffusion model, while the diffusion model achieves higher recall. However, the paper does not propose any method to close this FID gap — it merely documents the comparison result.",
+        "what_remains_open": "The paper does not address the gap of GANs achieving better FID than diffusion models of comparable size. It actually confirms the gap exists (BigGAN-deep outperforms their smaller diffusion model on FID) and does not propose any modification, architecture change, or training technique that would allow diffusion models to match or exceed GAN FID at comparable model sizes. The gap remains entirely open — the paper's improvements (better likelihood, faster sampling) do not solve the FID disadvantage relative to GANs.",
+        "evidence_snippets": [
+          "We find that BigGAN-deep outperforms our smaller model in terms of FID, but struggles in terms of recall. This suggests that diffusion models are better at covering the modes of the distribution than comparable GANs.",
+          "Table [REF:tbl:classcondfid] summarizes our results."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2407.08659",
+          "title": "Controlling the Fidelity and Diversity of Deep Generative Models via Pseudo Density",
+          "abstract": "We introduce an approach to bias deep generative models, such as GANs and diffusion models, towards generating data with either enhanced fidelity or increased diversity. Our approach involves manipulating the distribution of training and generated data through a novel metric for individual samples, named pseudo density, which is based on the nearest-neighbor information from real samples. Our approach offers three distinct techniques to adjust the fidelity and diversity of deep generative models: 1) Per-sample perturbation, enabling precise adjustments for individual samples towards either more common or more unique characteristics; 2) Importance sampling during model inference to enhance either fidelity or diversity in the generated data; 3) Fine-tuning with importance sampling, which guides the generative model to learn an adjusted distribution, thus controlling fidelity and diversity. Furthermore, our fine-tuning method demonstrates the ability to improve the Frechet Inception Distance (FID) for pre-trained generative models with minimal iterations.",
+          "authors": [
+            "Shuangqi Li",
+            "Chen Liu",
+            "Tong Zhang",
+            "Hieu Le",
+            "Sabine Süsstrunk",
+            "Mathieu Salzmann"
+          ],
+          "published_date": "2024-07-11T16:46:04Z",
+          "url": "https://arxiv.org/abs/2407.08659v2"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "This paper introduces a \"pseudo density\" metric and three techniques (per-sample perturbation, importance sampling during inference, and fine-tuning with importance sampling) to control the fidelity-diversity trade-off in deep generative models, including both GANs and diffusion models. The fine-tuning method can improve FID scores for pre-trained models by adjusting their precision-recall balance. However, the paper does not address the comparative performance gap between GANs and diffusion models; it treats both model classes independently and shows FID improvements for each separately.",
+        "what_remains_open": "The paper does not address the specific gap that GANs achieve better FID than diffusion models of comparable size. It does not compare GANs vs diffusion models head-to-head, does not attempt to close the FID gap between them, and does not investigate why GANs outperform diffusion models on FID. The paper's FID improvements are demonstrated for each model type individually, not in a comparative context. The question of whether diffusion models can match or exceed GAN FID performance at comparable model sizes remains entirely open.",
+        "evidence_snippets": [
+          "We have also demonstrated that adjusting the balance between precision (fidelity) and recall (diversity) through fine-tuning can improve the Frechet Inception Distance (FID) for models pre-trained in a standard manner.",
+          "Our extensive experiments across diverse datasets and various generative models, including different GANs and diffusion models, demonstrate the effectiveness and generality of our proposed approach in controlling the trade-off between fidelity and diversity."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 2,
+      "skipped_ids": []
+    }
+  },
+  "ranking": {
+    "openness": 0.975,
+    "impact": 0.26439912906339846,
+    "feasibility": 0.65,
+    "feasibility_reasoning": "The gap is well-defined (comparable-size GAN vs. diffusion FID on ImageNet) and evaluable via FID. Data is public. The path is clear: architectural improvements (improved U-Net, attention, classifier-free guidance, better schedulers), all known from subsequent literature (ADM, DiT, EDM). No fundamental breakthrough needed. However, training BigGAN-deep and a diffusion model at comparable scale requires substantial compute (hundreds of GPU-days), and fair comparison demands careful control of parameter count, FLOPs, and sampling budget. The problem is thus tractable for a well-equipped academic group but not trivial — it requires non-trivial engineering and compute investment."
+  }
+}

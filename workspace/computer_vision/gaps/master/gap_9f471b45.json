@@ -1,0 +1,93 @@
+{
+  "gap_id": "gap_9f471b45",
+  "status": "validated",
+  "title": "RWKV and RetNet baselines incomplete at long context",
+  "description": "Full results on context length 8k are missing for RWKV and RetNet baselines in the scaling law experiments due to lack of efficient implementations causing out-of-memory or unrealistic computation requirements.",
+  "type": "limitation",
+  "canonical_description": "comparison against strong recurrent baselines incomplete at longer sequence lengths",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2312.00752",
+      "section": "empirical_evaluation",
+      "anchor": "full results on context length 8k are missing for the RWKV and RetNet baselines",
+      "quote": "(We note that full results on context length 8k are missing for the RWKV and RetNet baselines,",
+      "char_offset": [
+        3308,
+        3402
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T07:37:05Z",
+  "verdict": {
+    "gap_id": "gap_9f471b45",
+    "status": "open",
+    "confidence": 0.95,
+    "reasoning": "Both papers are unanimously assessed as not_addressed. GateLoop introduces a new recurrent model but never evaluates RWKV or RetNet baselines at any context length, let alone 8k, and does not address the implementation efficiency issues causing OOM. Sable adapts RetNet's retention mechanism for multi-agent reinforcement learning, a completely different domain from language-model scaling laws, and provides no efficient long-context implementations or scaling-law results for RWKV/RetNet. The original gap — missing RWKV and RetNet baseline results at 8k context in scaling-law experiments due to efficiency bottlenecks — remains entirely untouched.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2311.01927",
+          "title": "GateLoop: Fully Data-Controlled Linear Recurrence for Sequence Modeling",
+          "abstract": "Linear Recurrence has proven to be a powerful tool for modeling long sequences efficiently. In this work, we show that existing models fail to take full advantage of its potential. Motivated by this finding, we develop GateLoop, a foundational sequence model that generalizes linear recurrent models such as S4, S5, LRU and RetNet, by employing data-controlled state transitions. Utilizing this theoretical advance, GateLoop empirically outperforms existing models for auto-regressive language modeling. Our method comes with a low-cost $O(l)$ recurrent mode and an efficient $O(l \\log_{2} l)$ parallel mode making use of highly optimized associative scan implementations. Furthermore, we derive an $O(l^2)$ surrogate attention mode, revealing remarkable implications for Transformer and recently proposed architectures. Specifically, we prove that our approach can be interpreted as providing data-controlled relative-positional information to Attention. While many existing models solely rely on data-controlled cumulative sums for context aggregation, our findings suggest that incorporating data-controlled complex cumulative products may be a crucial step towards more powerful sequence models.",
+          "authors": [
+            "Tobias Katsch"
+          ],
+          "published_date": "2023-11-03T14:08:39Z",
+          "url": "https://arxiv.org/abs/2311.01927v2"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "The paper introduces GateLoop, a fully data-controlled linear recurrent model that generalizes existing models like S4, S5, LRU, and RetNet. It shows that GateLoop outperforms Transformer, Hyena, and S5-Hyena on WikiText103 for autoregressive language modeling. However, the paper does not provide any experimental results for RWKV or RetNet baselines at long context lengths, nor does it address the implementation efficiency issues that cause OOM for these models at 8k+ context.",
+        "what_remains_open": "The gap specifically concerns missing RWKV and RetNet baseline results at context length 8k in scaling law experiments. This paper does not provide those missing results. It introduces a new model (GateLoop) and compares it against Transformer, Hyena, and S5-Hyena, but never evaluates RWKV or RetNet at any context length. The implementation efficiency issues that cause OOM for RWKV/RetNet at long contexts are also not addressed. The gap remains completely open.",
+        "evidence_snippets": [
+          "GateLoop takes a significant performance leap forward over existing models while offering advantages such as avoiding softmax-attention layers (unlike Transformer and Hybrid H3), eliminating the need for tedious initialization (unlike State Space Models), and not requiring long implicit convolutions (unlike Hyena).",
+          "Our method degenerates to RetNet when keeping data-controlled input and output gates but fixing the state transition gate.",
+          "Finally, we demonstrate the empirical effectiveness of our approach. Specifically, our results show that GateLoop outperforms the state of the art models Transformer, Hyena and S5-Hyena on the WikiText103 benchmark for auto-regressive language modeling."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2410.01706",
+          "title": "Sable: a Performant, Efficient and Scalable Sequence Model for MARL",
+          "abstract": "As multi-agent reinforcement learning (MARL) progresses towards solving larger and more complex problems, it becomes increasingly important that algorithms exhibit the key properties of (1) strong performance, (2) memory efficiency, and (3) scalability. In this work, we introduce Sable, a performant, memory-efficient, and scalable sequence modeling approach to MARL. Sable works by adapting the retention mechanism in Retentive Networks (Sun et al., 2023) to achieve computationally efficient processing of multi-agent observations with long context memory for temporal reasoning. Through extensive evaluations across six diverse environments, we demonstrate how Sable is able to significantly outperform existing state-of-the-art methods in a large number of diverse tasks (34 out of 45 tested). Furthermore, Sable maintains performance as we scale the number of agents, handling environments with more than a thousand agents while exhibiting a linear increase in memory usage. Finally, we conduct ablation studies to isolate the source of Sable's performance gains and confirm its efficient computational memory usage.",
+          "authors": [
+            "Omayma Mahjoub",
+            "Sasha Abramowitz",
+            "Ruan de Kock",
+            "Wiem Khlifi",
+            "Simon du Toit",
+            "Jemma Daniel",
+            "Louay Ben Nessir",
+            "Louise Beyers",
+            "Claude Formanek",
+            "Liam Clark",
+            "Arnu Pretorius"
+          ],
+          "published_date": "2024-10-02T16:15:26Z",
+          "url": "https://arxiv.org/abs/2410.01706v5"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "This paper introduces Sable, a multi-agent reinforcement learning (MARL) algorithm that adapts the retention mechanism from Retentive Networks (RetNets) for use in cooperative MARL. It demonstrates strong performance across 45 tasks, memory efficiency, and scalability to over a thousand agents. The paper focuses on adapting RetNet for online RL control policies, not on providing efficient implementations of RWKV or RetNet for long-context language modeling scaling law experiments.",
+        "what_remains_open": "The gap concerns missing RWKV and RetNet baseline results at 8k context length in scaling law experiments for language models, due to lack of efficient implementations causing out-of-memory or unrealistic computation requirements. This paper does not address that gap at all — it does not provide efficient implementations of RWKV or RetNet for long-context language modeling, does not report any scaling law results at 8k context, and operates in a completely different domain (MARL rather than language model scaling laws). The gap remains entirely open.",
+        "evidence_snippets": []
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 2,
+      "skipped_ids": []
+    }
+  },
+  "ranking": {
+    "openness": 0.975,
+    "impact": 0.31208284741366366,
+    "feasibility": 0.62,
+    "feasibility_reasoning": "The gap is implementation-engineering, not a conceptual breakthrough. RWKV and RetNet architectures are well-defined, scaling-law methodology is mature (Kaplan, Chinchilla), and evaluation metrics (perplexity vs. compute, loss scaling) are clear and measurable. The bottleneck is twofold: (1) writing efficient CUDA/Triton kernels to avoid OOM at 8k context — doable for a competent engineer but non-trivial — and (2) substantial GPU compute required to run scaling-law sweeps across multiple model sizes. A small team with good engineering skills and access to moderate GPU clusters (e.g., 8–16 A100s) could realistically complete this in a few months. The main risk is compute cost, not methodological uncertainty. Score is moderate-high because it is scoped and solvable, but not trivial."
+  }
+}

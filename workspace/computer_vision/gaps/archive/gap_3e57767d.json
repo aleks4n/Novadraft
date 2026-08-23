@@ -1,0 +1,123 @@
+{
+  "gap_id": "gap_3e57767d",
+  "status": "validated",
+  "title": "Sinusoidal encodings may allow extrapolation to unseen lengths",
+  "description": "The authors chose sinusoidal positional encodings over learned embeddings because they may allow the model to extrapolate to sequence lengths longer than those encountered during training, but this is stated as a possibility rather than a demonstrated capability.",
+  "type": "assumption",
+  "canonical_description": "sinusoidal positional encoding enables extrapolation to unseen sequence lengths",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1706.03762",
+      "section": "method",
+      "anchor": "may allow the model to extrapolate to sequence lengths longer than the ones encountered during training",
+      "quote": "We chose the sinusoidal version because it may allow the model to extrapolate to sequence lengths longer than the ones encountered during training.",
+      "char_offset": [
+        10429,
+        10576
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    },
+    {
+      "paper_id": "arxiv_1706.03762",
+      "section": "method",
+      "anchor": "hypothesized it would allow the model to easily learn to attend by relative positions",
+      "quote": "We chose this function because we hypothesized it would allow the model to easily learn to attend by relative positions, since for any fixed offset $k$, $PE_{pos+k}$ can be represented as a linear function of $PE_{pos}$.",
+      "char_offset": [
+        10003,
+        10223
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T07:35:12Z",
+  "verdict": {
+    "gap_id": "gap_3e57767d",
+    "status": "solved",
+    "confidence": 0.9,
+    "reasoning": "The gap asked whether sinusoidal positional encodings enable extrapolation to unseen lengths — a possibility stated but not demonstrated in Vaswani et al. Two papers (Papers 2 and 3) directly and systematically test this across multiple downstream tasks and independently find that sinusoidal APE performs poorly at length extrapolation. Paper 1 confirms the failure of vanilla sinusoidal (though it proposes a modified variant, Sandwich, that works via a different relative-position mechanism). The evidence is strong, convergent, and leaves little ambiguity: sinusoidal positional encodings do NOT enable reliable extrapolation to unseen sequence lengths. The original gap — an untested claim — has been resolved by subsequent empirical work.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2212.10356",
+          "title": "Dissecting Transformer Length Extrapolation via the Lens of Receptive Field Analysis",
+          "abstract": "Length extrapolation permits training a transformer language model on short sequences that preserves perplexities when tested on substantially longer sequences. A relative positional embedding design, ALiBi, has had the widest usage to date. We dissect ALiBi via the lens of receptive field analysis empowered by a novel cumulative normalized gradient tool. The concept of receptive field further allows us to modify the vanilla Sinusoidal positional embedding to create ~\\textbf{Sandwich}, the first parameter-free relative positional embedding design that truly length information uses longer than the training sequence. Sandwich shares with KERPLE and T5 the same logarithmic decaying temporal bias pattern with learnable relative positional embeddings; these elucidate future extrapolatable positional embedding design.",
+          "authors": [
+            "Ta-Chung Chi",
+            "Ting-Han Fan",
+            "Alexander I. Rudnicky",
+            "Peter J. Ramadge"
+          ],
+          "published_date": "2022-12-20T15:40:17Z",
+          "url": "https://arxiv.org/abs/2212.10356v2"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "This paper investigates whether sinusoidal positional encodings can enable length extrapolation. It first demonstrates that vanilla Sinusoidal (and Rotary) fail at length extrapolation because they violate the empirical receptive field coverage principle — the model overfits to the limited set of positional embeddings seen during training. The paper then proposes Sandwich, a modified version of Sinusoidal that converts it into a relative positional embedding by keeping only the inner product of sinusoidal embeddings and adding compression ratios. Sandwich is shown to extrapolate to lengths beyond the training sequence, making it the first parameter-free relative positional embedding that uses information beyond the training length.",
+        "what_remains_open": "The paper does NOT demonstrate that vanilla sinusoidal positional encodings (as originally proposed in Vaswani et al. 2017) can extrapolate to unseen lengths. In fact, it confirms they cannot. The extrapolation capability is achieved only after substantially modifying the sinusoidal encoding — converting it from an absolute positional embedding into a relative one (Sandwich) by dropping cross terms, keeping only inner products, and adding compression ratios. The gap's original claim that \"sinusoidal encodings may allow extrapolation\" is thus not validated for the original formulation; a heavily modified derivative achieves extrapolation through a fundamentally different mechanism (relative positional bias with log-decaying pattern).",
+        "evidence_snippets": [
+          "Sinusoidal can be fixed by dropping the intermediate terms and keeping only the decay-with-distance biases; this leads to the creation of~Sandwich, the first parameter-free relative positional embedding that uses information beyond $L_{tr}$.",
+          "they both fail to focus on the most recent $L_{tr}$ tokens because neither of their formulations guarantees a $L_{tr}$-bounded receptive field",
+          "Sandwich is the first parameter-free RPE that truly makes use of distant token information beyond $L_{tr}=512$."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2305.19466",
+          "title": "The Impact of Positional Encoding on Length Generalization in Transformers",
+          "abstract": "Length generalization, the ability to generalize from small training context sizes to larger ones, is a critical challenge in the development of Transformer-based language models. Positional encoding (PE) has been identified as a major factor influencing length generalization, but the exact impact of different PE schemes on extrapolation in downstream tasks remains unclear. In this paper, we conduct a systematic empirical study comparing the length generalization performance of decoder-only Transformers with five different position encoding approaches including Absolute Position Embedding (APE), T5's Relative PE, ALiBi, and Rotary, in addition to Transformers without positional encoding (NoPE). Our evaluation encompasses a battery of reasoning and mathematical tasks. Our findings reveal that the most commonly used positional encoding methods, such as ALiBi, Rotary, and APE, are not well suited for length generalization in downstream tasks. More importantly, NoPE outperforms other explicit positional encoding methods while requiring no additional computation. We theoretically demonstrate that NoPE can represent both absolute and relative PEs, but when trained with SGD, it mostly resembles T5's relative PE attention patterns. Finally, we find that scratchpad is not always helpful to solve length generalization and its format highly impacts the model's performance. Overall, our work suggests that explicit position embeddings are not essential for decoder-only Transformers to generalize well to longer sequences.",
+          "authors": [
+            "Amirhossein Kazemnejad",
+            "Inkit Padhi",
+            "Karthikeyan Natesan Ramamurthy",
+            "Payel Das",
+            "Siva Reddy"
+          ],
+          "published_date": "2023-05-31T00:29:55Z",
+          "url": "https://arxiv.org/abs/2305.19466v2"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper systematically evaluates sinusoidal Absolute Position Embedding (APE) — along with other positional encodings — on length generalization across 10 downstream reasoning and mathematical tasks. It finds that sinusoidal APE performs poorly at extrapolating to unseen lengths, contrary to the possibility suggested in the original Transformer paper. The paper shows that APE and Rotary exhibit similarly poor generalization, while NoPE (no positional encoding) and T5's Relative PE perform best.",
+        "what_remains_open": "The paper fully addresses the gap: it demonstrates that sinusoidal positional encodings do NOT enable reliable extrapolation to unseen sequence lengths in downstream tasks. The gap was about whether this was a demonstrated capability versus a stated possibility, and the paper provides empirical evidence showing it is not a demonstrated capability. No part of the gap remains open — the paper directly tests and answers the question.",
+        "evidence_snippets": [
+          "In most extrapolation scenarios, T5's Relative Bias outperforms other explicit positional encodings. ALiBi positions itself in the middle of the pack, while APE and Rotary show poor generalization performance.",
+          "Most commonly used positional encoding methods, including ALiBi, Rotary, and APE, are ill-suited for length generalization in downstream tasks and are outperformed by T5's Relative PE.",
+          "Our findings reveal that the most commonly used positional encoding methods, such as ALiBi, Rotary, and APE, are not well suited for length generalization in downstream tasks."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2108.12409",
+          "title": "Train Short, Test Long: Attention with Linear Biases Enables Input Length Extrapolation",
+          "abstract": "Since the introduction of the transformer model by Vaswani et al. (2017), a fundamental question has yet to be answered: how does a model achieve extrapolation at inference time for sequences that are longer than it saw during training? We first show that extrapolation can be enabled by simply changing the position representation method, though we find that current methods do not allow for efficient extrapolation. We therefore introduce a simpler and more efficient position method, Attention with Linear Biases (ALiBi). ALiBi does not add positional embeddings to word embeddings; instead, it biases query-key attention scores with a penalty that is proportional to their distance. We show that this method trains a 1.3 billion parameter model on input sequences of length 1024 that extrapolates to input sequences of length 2048, achieving the same perplexity as a sinusoidal position embedding model trained on inputs of length 2048 but training 11% faster and using 11% less memory. ALiBi's inductive bias towards recency also leads it to outperform multiple strong position methods on the WikiText-103 benchmark.",
+          "authors": [
+            "Ofir Press",
+            "Noah A. Smith",
+            "Mike Lewis"
+          ],
+          "published_date": "2021-08-27T17:35:06Z",
+          "url": "https://arxiv.org/abs/2108.12409v2"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper directly addresses the gap by systematically testing whether sinusoidal positional encodings can extrapolate to unseen lengths. It finds that sinusoidal embeddings have \"very weak extrapolation abilities\" — they only improve for about 20-50 tokens beyond training length before degrading. The paper then introduces ALiBi, a new position method that demonstrably enables extrapolation to 2x-6x the training length, and shows that the T5 bias method also enables extrapolation (though inefficiently). The core contribution is demonstrating that extrapolation capability depends heavily on the position encoding method, and providing a practical solution (ALiBi) that works efficiently.",
+        "what_remains_open": "The paper fully addresses the gap. It explicitly tests the extrapolation claim made by Vaswani et al. about sinusoidal encodings, finds it does not work in practice, and provides a working alternative. The gap is resolved: sinusoidal encodings do NOT enable meaningful extrapolation, but other position methods (particularly ALiBi) do. The paper also notes a remaining open question: ALiBi's gains from longer sequences appear to come from reducing the \"early token curse\" rather than actually using longer-range context, which is identified as a future research direction.",
+        "evidence_snippets": [
+          "We find that transformer language models (LMs) that use sinusoidal position embeddings have very weak extrapolation abilities",
+          "We show for the first time that the sinusoidal position method, which technically should be able to extrapolate, in practice has very limited extrapolation capabilities.",
+          "We first show that extrapolation can be enabled by simply changing the position representation method, though we find that current methods do not allow for efficient extrapolation."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 3,
+      "skipped_ids": []
+    }
+  },
+  "ranking": null
+}

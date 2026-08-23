@@ -1,0 +1,155 @@
+{
+  "gap_id": "gap_6758d979",
+  "status": "validated",
+  "title": "Local restricted attention for large inputs and outputs",
+  "description": "The authors plan to investigate local, restricted attention mechanisms that consider only a neighborhood of size r in the input sequence to efficiently handle very large inputs and outputs such as images, audio and video.",
+  "type": "future_work",
+  "canonical_description": "need for local or restricted attention mechanisms to handle large-scale inputs and outputs efficiently",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1706.03762",
+      "section": "why_self_attention",
+      "anchor": "We plan to investigate this approach further in future work",
+      "quote": "We plan to investigate this approach further in future work.",
+      "char_offset": [
+        2192,
+        2252
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T07:35:12Z",
+  "verdict": {
+    "gap_id": "gap_6758d979",
+    "status": "partially_solved",
+    "confidence": 0.55,
+    "reasoning": "All five papers are partial_solution but none directly solves the gap. Each combines local restricted attention with other mechanisms (dilated global attention in Paper 1, adaptation recipes in Paper 2, full+memory attention in Paper 3, frequency-band routing in Paper 4, content-based clustering in Paper 5) rather than purely investigating local attention of neighborhood size r. Audio is entirely unaddressed; video is only touched via one band of a heterogeneous framework (Paper 4); and large-output generation is not explored. The papers demonstrate that local attention is useful, but a focused investigation of purely local restricted attention mechanisms for images, audio, and video—and how varying r trades off efficiency vs. context—remains open. Confidence is moderate because the papers are relevant and show progress, but none squarely targets the gap's core question.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2209.15001",
+          "title": "Dilated Neighborhood Attention Transformer",
+          "abstract": "Transformers are quickly becoming one of the most heavily applied deep learning architectures across modalities, domains, and tasks. In vision, on top of ongoing efforts into plain transformers, hierarchical transformers have also gained significant attention, thanks to their performance and easy integration into existing frameworks. These models typically employ localized attention mechanisms, such as the sliding-window Neighborhood Attention (NA) or Swin Transformer's Shifted Window Self Attention. While effective at reducing self attention's quadratic complexity, local attention weakens two of the most desirable properties of self attention: long range inter-dependency modeling, and global receptive field. In this paper, we introduce Dilated Neighborhood Attention (DiNA), a natural, flexible and efficient extension to NA that can capture more global context and expand receptive fields exponentially at no additional cost. NA's local attention and DiNA's sparse global attention complement each other, and therefore we introduce Dilated Neighborhood Attention Transformer (DiNAT), a new hierarchical vision transformer built upon both. DiNAT variants enjoy significant improvements over strong baselines such as NAT, Swin, and ConvNeXt. Our large model is faster and ahead of its Swin counterpart by 1.6% box AP in COCO object detection, 1.4% mask AP in COCO instance segmentation, and 1.4% mIoU in ADE20K semantic segmentation. Paired with new frameworks, our large variant is the new state of the art panoptic segmentation model on COCO (58.5 PQ) and ADE20K (49.4 PQ), and instance segmentation model on Cityscapes (45.1 AP) and ADE20K (35.4 AP) (no extra data). It also matches the state of the art specialized semantic segmentation models on ADE20K (58.1 mIoU), and ranks second on Cityscapes (84.5 mIoU) (no extra data).",
+          "authors": [
+            "Ali Hassani",
+            "Humphrey Shi"
+          ],
+          "published_date": "2022-09-29T17:57:08Z",
+          "url": "https://arxiv.org/abs/2209.15001v3"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper proposes Dilated Neighborhood Attention (DiNA), an extension of Neighborhood Attention (NA) that uses dilation to create sparse global attention patterns. The paper's core contribution is DiNA, which goes beyond local restricted attention to capture global context. However, the paper also heavily relies on NA (Neighborhood Attention), which is a local restricted attention mechanism that considers only the k nearest neighbors of each token. NA is used as the local component in the DiNAT architecture, alternating with DiNA layers. The paper provides efficient CUDA implementations (via the natten extension) that make NA practical for large visual inputs like images, demonstrating its use in hierarchical vision transformers for classification, detection, and segmentation tasks.",
+        "what_remains_open": "The gap specifically asks about investigating local restricted attention mechanisms that consider only a neighborhood of size r for handling very large inputs and outputs. While the paper uses NA (a local restricted attention) as a component, its main contribution and focus is DiNA — a sparse global attention that dilates neighborhoods to capture more global context, which is the opposite of restricting attention locally. The paper does not systematically investigate how local restricted attention alone (without the dilated variant) handles very large inputs and outputs; instead, it focuses on combining local and sparse global attention. Additionally, the paper only addresses vision tasks (images), not audio or video as mentioned in the gap description. The paper also does not explore varying the neighborhood size r as a mechanism to trade off between efficiency and context for different input scales.",
+        "evidence_snippets": [
+          "Neighborhood Attention (NA) ... localizes self attention for each pixel to its nearest neighbors.",
+          "NA shares the same time and space complexity and number of parameters to those of Swin's WSA and SWSA, but instead operates in overlapping sliding windows, and therefore preserves translation equivariance.",
+          "While local attention based models are able to perform well across different vision tasks due to its preservation of locality and efficiency, they fall short of capturing global context like self attention, which is also crucial to vision."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2512.10411",
+          "title": "SWAA: Sliding Window Attention Adaptation for Efficient and Quality Preserving Long Context Processing",
+          "abstract": "The quadratic complexity of self attention in Transformer based LLMs renders long context inference prohibitively expensive. While Sliding Window Attention (SWA), the simplest sparse attention pattern, offers a linear complexity alternative, it suffers from catastrophic long context performance collapse, which stems from two fundamental factors: the training inference mismatch when naively applying SWA to models pretrained with Full Attention (FA), and the inherent structural inability to access distant information when applying SWA to every module at all times. To address these dual challenges, we propose Sliding Window Attention Adaptation (SWAA), a plug and play toolkit of recipes that adapts FA models to SWA without costly pretraining. SWAA systematically combines four core strategies to tackle these distinct issues: (1) Full Attention (FA) Decode and (2) Interleaving FA and SWA layers, which mitigate structural defects by selectively allowing access to distant information; alongside (3) preserving ``sink'' tokens and (4) lightweight fine tuning, which mitigate the training inference mismatch. Our experiments reveal that while isolated strategies are insufficient, specific synergistic combinations effectively recover long context performance. Despite varying computational overheads, our performance efficiency trade off analysis identifies optimal SWAA configurations for diverse scenarios, achieving 30% to 100% speedups for long context inference with acceptable quality retention. Our code, data and model weights are available at https://github.com/yuyijiong/sliding-window-attention-adaptation",
+          "authors": [
+            "Yijiong Yu",
+            "Jiale Liu",
+            "Qingyun Wu",
+            "Huazheng Wang",
+            "Ji Pei"
+          ],
+          "published_date": "2025-12-11T08:21:24Z",
+          "url": "https://arxiv.org/abs/2512.10411v5"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper proposes SWAA, a toolkit of recipes (FA Decode, Interleaving FA/SWA Layers, Keep First k Tokens, fine-tuning) to adapt full-attention pretrained LLMs to use Sliding Window Attention (SWA) — a local restricted attention mechanism that considers only a neighborhood of size W. This addresses the efficiency aspect of the gap by showing how local attention can be used for long text contexts (up to 128k tokens) with acceptable quality retention, achieving 30-100% speedups. The paper systematically studies combinations of strategies to recover performance lost when switching from full to local attention.",
+        "what_remains_open": "The paper does not investigate local attention mechanisms for non-text modalities (images, audio, video) as specified in the gap. It focuses exclusively on text-based LLMs and long-context QA. It also does not propose or investigate novel local attention patterns themselves — it uses the existing SWA pattern and focuses on adaptation strategies. The gap asks for investigation of local restricted attention mechanisms for large inputs/outputs broadly, while this paper addresses a narrower problem: how to retrofit existing text LLMs to use SWA without catastrophic quality loss. The fundamental investigation of what local patterns work best for different modalities (images, audio, video) remains open.",
+        "evidence_snippets": [
+          "Sliding Window Attention (SWA), the simplest sparse attention pattern, offers a linear complexity alternative",
+          "SWAA systematically combines four practical and composable strategies to tackle these distinct issues",
+          "Our experiments reveal that while isolated strategies are insufficient, specific synergistic combinations effectively recover long context performance."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2507.00453",
+          "title": "Recurrent Memory-Augmented Transformers with Chunked Attention for Long-Context Language Modeling",
+          "abstract": "We present a Transformer architecture for long-context language modeling that combines global attention with two biologically inspired components: chunked local attention and a gated FIFO memory mechanism. This unified attention block allows the model to efficiently handle both short-range and long-range dependencies without increasing attention cost quadratically. The memory module persistently stores past token representations using a gated update mechanism inspired by recurrent networks. Rotary positional encoding is applied per attention head to enable directionally disentangled, scale-invariant positional signals. The architecture is implemented entirely from scratch in PyTorch, with no reliance on high-level libraries, enabling transparent and modular experimentation. Our model offers a lightweight and extensible design for tasks such as dialogue modeling, code completion, and document understanding.",
+          "authors": [
+            "Ankit Kashyap"
+          ],
+          "published_date": "2025-07-01T06:11:38Z",
+          "url": "https://arxiv.org/abs/2507.00453v1"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper proposes a hybrid Transformer architecture that includes a chunked (local) attention mechanism, which restricts self-attention to fixed-size local windows (e.g., 512 tokens). This directly implements the idea of considering only a neighborhood of size r in the input sequence, reducing quadratic complexity to quadratic-over-chunk-size. However, the paper's primary domain is long-context language modeling (text), not the large-scale image, audio, or video inputs/outputs that the gap targets. The local attention is also only one of three parallel attention paths (alongside full and memory attention), rather than a standalone local-restricted mechanism.",
+        "what_remains_open": "The gap specifically targets large inputs and outputs such as images, audio, and video, but this paper only addresses text/language modeling. The gap envisions a purely local/restricted attention mechanism that considers a neighborhood of size r, whereas this paper combines local chunked attention with full global attention and a recurrent memory module in a hybrid fusion. The \"large outputs\" aspect (efficiently generating large output sequences) is not addressed. The paper's future work section explicitly acknowledges that multi-modal fusion (vision, audio) remains open. Additionally, the chunk size is fixed rather than adaptive, and the approach does not explore how to handle the spatial/temporal structure specific to images or audio.",
+        "evidence_snippets": [
+          "In parallel, we apply restricted self-attention within each chunk, masking out tokens beyond the local window. This improves computational efficiency while capturing fine-grained local structure.",
+          "Extending the hybrid attention block to handle multi-modal inputs (e.g., vision, audio) with separate but mergeable attention paths.",
+          "This architecture strikes a balance between the efficiency of localized attention and the contextual strength of global memory."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2604.22808",
+          "title": "FreqFormer: Hierarchical Frequency-Domain Attention with Adaptive Spectral Routing for Long-Sequence Video Diffusion Transformers",
+          "abstract": "Long-sequence video diffusion transformers hit a quadratic self-attention cost that dominates runtime and memory for very long token sequences. Most efficient attention methods use one approximation everywhere, yet video features are spectrally structured: low frequencies carry global layout and coarse motion; high frequencies carry texture and fine detail. We present FreqFormer, a frequency-aware heterogeneous attention framework. Token features are split into spectral bands with different operators: dense global attention on compressed low-frequency content, structured block-sparse attention on mid frequencies, and sliding-window local attention on high frequencies. A lightweight spectral routing network allocates heads across bands using layer statistics and the diffusion timestep, shifting compute toward global structure early in denoising and detail later. Cross-band summary tokens provide cheap residual exchange. FreqFormer is paired with a fused GPU execution plan that co-schedules dense, sparse, and local branches to cut kernel launches and memory traffic. We give a consistent complexity model, an orthonormal-decomposition view of approximation, and simulation-based systems numbers (throughput, arithmetic intensity, memory traffic, duration scaling). In simulations from 64K to 1M tokens, FreqFormer substantially reduces estimated attention FLOPs and KV-related memory traffic versus dense attention while keeping a hardware-friendly pattern, supporting spectrally structured heterogeneous attention as a practical direction for long-video diffusion transformers.",
+          "authors": [
+            "Haopeng Jin"
+          ],
+          "published_date": "2026-04-14T08:29:10Z",
+          "url": "https://arxiv.org/abs/2604.22808v1"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "FreqFormer uses local sliding-window attention (window size w=64) for high-frequency content in video diffusion transformers, which is a form of local restricted attention that considers only a neighborhood. However, this is just one component of a broader heterogeneous attention framework: the paper also uses dense global attention on compressed low-frequency tokens and block-sparse attention on mid-frequency tokens. The local attention is applied only to the high-frequency band (50% of tokens in the reference configuration), not as a general-purpose solution for all content. The paper's main contribution is the frequency-aware heterogeneous attention framework with adaptive spectral routing, not local restricted attention per se.",
+        "what_remains_open": "The gap asks about local restricted attention as a general mechanism for handling large inputs and outputs efficiently. FreqFormer only applies local attention to high-frequency content (one of three bands), while using global dense and sparse attention for other bands. The paper does not investigate whether local attention alone (without frequency decomposition and heterogeneous routing) could suffice for large-scale video generation. It also does not explore local attention as a standalone solution for the general problem of large inputs/outputs across domains (images, audio, etc.) — it is specifically tailored to video diffusion transformers with spectral decomposition. The question of how to design effective local attention mechanisms that work universally for very large sequences (without relying on frequency band partitioning) remains open.",
+        "evidence_snippets": [
+          "High-frequency content is frequently localized and can be handled with local neighborhoods.",
+          "High band: local sliding-window attention ... where w is the local neighborhood size in flattened spectral-token order induced by the separable layout. In experiments, w=64.",
+          "FreqFormer differs from these methods by using different attention operators for different spectral bands, rather than one approximation for all tokens."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2003.05997",
+          "title": "Efficient Content-Based Sparse Attention with Routing Transformers",
+          "abstract": "Self-attention has recently been adopted for a wide range of sequence modeling problems. Despite its effectiveness, self-attention suffers from quadratic compute and memory requirements with respect to sequence length. Successful approaches to reduce this complexity focused on attending to local sliding windows or a small set of locations independent of content. Our work proposes to learn dynamic sparse attention patterns that avoid allocating computation and memory to attend to content unrelated to the query of interest. This work builds upon two lines of research: it combines the modeling flexibility of prior work on content-based sparse attention with the efficiency gains from approaches based on local, temporal sparse attention. Our model, the Routing Transformer, endows self-attention with a sparse routing module based on online k-means while reducing the overall complexity of attention to $O\\left(n^{1.5}d\\right)$ from $O\\left(n^2d\\right)$ for sequence length $n$ and hidden dimension $d$. We show that our model outperforms comparable sparse attention models on language modeling on Wikitext-103 (15.8 vs 18.3 perplexity) as well as on image generation on ImageNet-64 (3.43 vs 3.44 bits/dim) while using fewer self-attention layers. Additionally, we set a new state-of-the-art on the newly released PG-19 data-set, obtaining a test perplexity of 33.2 with a 22 layer Routing Transformer model trained on sequences of length 8192.",
+          "authors": [
+            "Aurko Roy",
+            "Mohammad Saffar",
+            "Ashish Vaswani",
+            "David Grangier"
+          ],
+          "published_date": "2020-03-12T19:50:14Z",
+          "url": "https://arxiv.org/abs/2003.05997v5"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The Routing Transformer proposes a sparse attention mechanism that combines local attention (attending to a fixed temporal window) with content-based routing attention via k-means clustering. This reduces the quadratic complexity of self-attention to O(n^{1.5}d), enabling efficient handling of long sequences (up to 12,288 tokens for images, 8,192 for text). The paper demonstrates strong empirical results on language modeling (Wikitext-103, PG-19, enwik-8) and image generation (ImageNet-64, CIFAR-10), showing that content-based sparsity can outperform purely local or fixed-pattern sparse attention.",
+        "what_remains_open": "The gap specifically asks about \"local, restricted attention mechanisms that consider only a neighborhood of size r.\" While the Routing Transformer uses local attention as one component (half the heads), its main innovation is content-based routing via clustering, which is not purely \"local\" in the sense of a fixed neighborhood of size r. The paper does not fully explore purely local restricted attention as the sole mechanism; rather, it shows that combining local attention with content-based routing works best. Additionally, the paper does not address attention mechanisms that scale to extremely large outputs (e.g., video with very long sequences) beyond the 12k-token image and 8k-token text settings tested. The clustering approach also requires maintaining centroids and may have limitations for sequences where cluster assignments are unstable or where the number of clusters must be tuned.",
+        "evidence_snippets": [
+          "Our work proposes to learn dynamic sparse attention patterns that avoid allocating computation and memory to attend to content unrelated to the query of interest.",
+          "This work builds upon two lines of research: it combines the modeling flexibility of prior work on content-based sparse attention with the efficiency gains from approaches based on local, temporal sparse attention.",
+          "In all our models except the one used for PG-19, we allocate half the heads to do local attention and the other half to route attention as in Equation~[REF:eq:high-res]."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 5,
+      "skipped_ids": []
+    }
+  },
+  "ranking": {
+    "openness": 0.32499999999999996,
+    "impact": 0.2212437900615097,
+    "feasibility": 0.75,
+    "feasibility_reasoning": "High feasibility. (1) Data availability: standard image (ImageNet), audio (AudioSet, LibriSpeech), and video (Kinetics) benchmarks exist with no exotic collection needed. (2) Compute: local attention is inherently efficient (linear in sequence length), so experiments are feasible on a few GPUs — no frontier-scale training required. (3) Methodological maturity: local attention is well-studied (Image Transformer, Sparse Transformers, Axial Transformer); the gap asks for a systematic empirical study varying r across modalities, not a fundamental breakthrough. (4) Scope is focused: vary neighborhood size r and measure efficiency-vs-context trade-offs for images, audio, video. (5) Evaluability is clear: standard metrics (accuracy, perplexity, FLOPs, memory) vs. r. Main feasibility drag: audio is completely unaddressed and may require specialized architectures (e.g., 1D local attention over spectrograms), and \"large-output generation\" is vague — if it means autoregressive generation of high-res images/audio, that raises the compute bar. Still, the core question is empirically tractable with existing tools."
+  }
+}

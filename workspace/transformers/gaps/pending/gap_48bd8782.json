@@ -1,0 +1,25 @@
+{
+  "gap_id": "gap_48bd8782",
+  "status": "unchecked",
+  "title": "Sinusoidal vs. learned positional encodings produce nearly identical results",
+  "description": "The authors experimented with both sinusoidal positional encodings and learned positional embeddings, finding that they produce nearly identical results. The sinusoidal version was chosen because it may allow extrapolation to longer sequences, but this potential benefit is stated as a hypothesis rather than an empirically verified property.",
+  "type": "future_work",
+  "canonical_description": "extrapolation benefit of sinusoidal positional encodings over learned embeddings unverified",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1706.03762",
+      "section": "method",
+      "anchor": "two versions produced nearly identical results",
+      "quote": "We also experimented with using learned positional embeddings [CITE:JonasFaceNet2017] instead, and found that the two versions produced nearly identical results (see Table~[REF:tab:variations] row (E)).",
+      "char_offset": [
+        10225,
+        10427
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-27T09:33:07Z",
+  "verdict": null,
+  "ranking": null
+}

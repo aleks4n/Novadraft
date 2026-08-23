@@ -1,0 +1,494 @@
+\documentclass{article}
+
+
+% if you need to pass options to natbib, use, e.g.:
+%     \PassOptionsToPackage{numbers, compress}{natbib}
+% before loading neurips_2023
+
+
+% ready for submission
+% \usepackage[nonatbib]{neurips_2024}
+% \usepackage[preprint, nonatbib]{neurips_2024}
+
+
+% to compile a preprint version, e.g., for submission to arXiv, add add the
+% [preprint] option:
+%     \usepackage[preprint]{neurips_2023}
+
+
+% to compile a camera-ready version, add the [final] option, e.g.:
+\usepackage[final, nonatbib]{neurips_2024}
+
+
+% to avoid loading the natbib package, add option nonatbib:
+%    \usepackage[nonatbib]{neurips_2023}
+
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+% \usepackage{pdfpages}
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{adjustbox}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{wrapfig}
+\usepackage[dvipsnames]{xcolor}        % colors
+\usepackage[colorinlistoftodos]{todonotes}
+
+\hypersetup{
+    colorlinks,
+    linkcolor={red!50!black},
+    citecolor={blue!50!black},
+    urlcolor={blue!80!black}
+}
+
+\usepackage{enumitem}
+\setlist{noitemsep, nolistsep, leftmargin=*}
+
+
+\newcommand{\ourmethod}{SDI}
+\newcommand{\al}[1]{{\color{blue}#1}}
+
+%% Our imports
+\usepackage[sorting=none]{biblatex} %Imports biblatex package
+\addbibresource{main.bib} %Import the bibliography file
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb} 
+% \usepackage{svg}
+% \hypersetup{hidelinks}
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+
+% from https://tex.stackexchange.com/questions/144840/vertical-loop-block-lines-in-algorithmicx-with-noend-option
+\makeatletter
+\providetoggle{ALG@Ruler@empty}
+\newcounter{ALG@Ruler@Id}
+\apptocmd{\ALG@beginblock}{%
+    \stepcounter{ALG@Ruler@Id}%
+    \def\ALG@Ruler{ALG@Ruler@BeginPoint-\arabic{ALG@Ruler@Id}}%
+    \expandafter\edef\csname ALG@Ruler@AtLevel@\theALG@nested\endcsname{\ALG@Ruler}%
+    \tikz[remember picture, overlay] \coordinate (\ALG@Ruler);%
+    \toggletrue{ALG@Ruler@empty}%
+}{}{}
+\pretocmd{\ALG@endblock}{%
+    \iftoggle{ALG@Ruler@empty}{}{%
+        \def\ALG@Ruler{\csname ALG@Ruler@AtLevel@\theALG@nested\endcsname}%
+        \unskip\tikz[remember picture, overlay] \draw[black!25]
+            ([xshift=0.5em, yshift=-0.5ex]\ALG@Ruler) |- ([xshift=1em]\ALG@Ruler|-0,0);%
+    }%
+    \togglefalse{ALG@Ruler@empty}%
+}{}{}
+\makeatother
+
+\usepackage{cleveref}
+
+\algrenewcommand\algorithmicrequire{\textbf{Input:}}
+\algrenewcommand\algorithmicensure{\textbf{Output:}}
+
+
+\title{Score Distillation via Reparametrized DDIM}
+
+
+\author{%
+    Artem Lukoianov\textsuperscript{1}
+	% \texttt{arteml@mit.edu} \\
+	\And
+	Haitz Sáez de Ocáriz Borde\textsuperscript{2}
+	% \texttt{chri6704@ox.ac.uk}
+	\AND
+	Kristjan Greenewald\textsuperscript{3}
+	% \texttt{kristjan.h.greenewald@ibm.com}
+	\And
+	Vitor Campagnolo Guizilini\textsuperscript{4}
+	% \texttt{vitor.guizilini@tri.global}
+	\And
+	Timur Bagautdinov\textsuperscript{5}
+	% \texttt{timurb@meta.com}
+        \And
+	Vincent Sitzmann\textsuperscript{1}
+	% \texttt{vincent.sitzmann@gmail.com}
+        \And
+        Justin Solomon\textsuperscript{1}
+    % \texttt{jsolomon@mit.edu}
+}
+
+\begin{document}
+
+
+\maketitle
+
+\vbox{%
+	\vskip -0.26in
+	\hsize\textwidth
+	\linewidth\hsize
+	\centering
+	\normalsize
+	\footnotemark[1]Massachusetts Institute of Technology \quad \footnotemark[2]University of Oxford 
+    \quad \footnotemark[3]MIT-IBM Watson AI Lab, IBM Research \quad \footnotemark[4]Toyota Research Institute  \quad \footnotemark[5]Meta Reality Labs Research \\
+	\tt\href{https://lukoianov.com/sdi/}{https://lukoianov.com/sdi/}
+	\vskip 0.3in
+}
+
+
+\input{00_abstract}
+
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=1.\linewidth]{figs/teaser.pdf}
+    \vspace{-.2 in}
+    \caption{
+        Score Distillation Sampling (SDS) ``distills'' 3D shapes from 2D image generative models like DDIM.  
+        While DDIM produces high-quality images (a), the same diffusion model, yields blurry results with SDS in the task of 2D image generation (b); 
+        in 3D, SDS yields over-saturated and simplified shapes  (d).  
+        By replacing the noise term in SDS to agree with DDIM, our algorithm better matches the quality of the diffusion model in 2D (c) and significantly improves 3D generation (e).
+    }
+    \vspace{-.15 in}
+    \label{fig:teaser}
+\end{figure}
+
+
+\section{Introduction}
+\label{sec:intro}
+\input{01_intro}
+
+
+
+\section{Related work}
+\label{sec:related}
+
+
+\textbf{3D generation by training on multi-view data.} 
+%
+Recent 3D generation methods leverage multi-view or 3D data. 
+Zero123~\cite{liu2023zero} and MVDream~\cite{shi2023mvdream} generate consistent multi-view images from text; a 3D radiance field is then obtained via score distillation.
+%
+Video generative models can be fine-tuned on videos of camera tracks around 3D objects, similarly yielding a model that samples multi-view consistent images to train a 3D radiance field~\cite{melas20243d,blattmann2023stable}. 
+%
+Diffusion with Forward Models~\cite{tewari2024diffusion} and Viewset Diffusion~\cite{szymanowicz2023viewset} directly train 3D generative models from 2D images. 
+%
+%
+While these methods excel at generating multi-view consistent, plausible 3D objects, they depend on multi-view data with known camera trajectories, limiting them to synthetic or small bundle-adjusted 3D datasets. 
+%
+We instead focus on methods that require only single-view training images.
+
+\textbf{Distilling 2D into 3D.} 
+%
+Score Distillation was introduced concurrently in Dreamfusion or SDS~\cite{poole2022dreamfusion}, Score Jacobian Chaining (SJC)~\cite{wang2023score}, and Magic3D~\cite{lin2023magic3d}.
+%
+The key idea is to use a frozen diffusion model trained on 2D images and ``distill'' it into 3D assets.
+A volumetric representation of the shape is rendered from a random view, perturbed with random noise, and denoised with the diffusion model; the difference between added and predicted noise is used to improve the rendering.
+These works, however, suffer from over-smoothing and lack of detail.
+Usually a high value of classifier free guidance (CFG $\approx100$)~\cite{ho2022classifier} is used to reduce variance at the cost of over-saturation~\cite{lin2024common}.
+
+
+ProlificDreamer~\cite{wang2024prolificdreamer} generates sharp, detailed results with standard CFG values ($\approx 7.5$) and without over-saturation.
+The key idea is to overfit an additional diffusion model to specifically denoise the current 3D shape estimate.
+Fine-tuning the second model, however, is cumbersome and theoretical justification for this change is still unclear.
+Recent papers further improve on ProlificDreamer's results or try to explain its behavior. 
+SteinDreamer~\cite{wang2023steindreamer}, for example, hypothesizes that ProlificDreamer's improvements come from variance reduction of the sampling procedure \cite{roeder2017sticking}.
+%
+
+Other papers propose heuristics that improve SDS. 
+\cite{katzir2023noise, yu2023text, tang2023stable} decompose the guidance terms and speculate about their relative importance.
+Empirically, visual quality can be improved by suppressing the denoising term with negative prompts~\cite{katzir2023noise} or highlighting the classification term~\cite{yu2023text}. 
+%
+\cite{lin2023magic3d, tang2023make, wang2024prolificdreamer, chen2024it3d} use multi-stage optimization: they first train a volumetric representation and then extract a mesh or voxel grid to fine-tune geometry and texture. 
+%
+HiFA~\cite{zhu2023hifa} combines ad-hoc techniques: additional supervision in latent space, time annealing, kernel smoothing, $z$-variance regularization, 
+and a pretrained mono-depth estimation network 
+to improve the quality of single-stage NeRF generation.
+%
+
+% \al{
+LucidDreamer, or Interval Score Matching (ISM), hypothesizes based on empirical evidence that in SDS, the high-variance random noise term and large reconstruction error of a single-step prediction togehter cause over-smoothing~\cite{liang2023luciddreamer}.
+Based on these observations, the authors replace the random noise term in SDS with noise obtained by running DDIM inversion and introduce multi-step denoising to improve reconstruction quality. 
+As we will show in \cref{sec:sds-guidance}, the update rule of ISM can be seen as a special case of our formulation.
+Moreover, our analysis reveals that the added noise should be inferred \textit{conditionally} on the text prompt $y$, which further improves quality.  
+% although they arrive at their method empirically, their algorithmic changes to SDS are closely related to ours and can be understood as a special case of our formulation.
+% }
+
+
+In this work, rather than augmenting the SDS pipeline or relying on heuristics, we derive Score Distillation through the denoising process of DDIM and propose a simple modification of SDS that significantly improves 3D generation.
+
+
+\section{Background}
+\label{sec:background}
+\input{03_background}
+
+
+\section{Linking SDS to DDIM}
+\label{sec:sds-guidance}
+\input{04_sds_guidance}
+
+
+\begin{figure}[t!]
+    \centering
+    \includegraphics[width=1.0\linewidth]{figs/system.pdf}
+    \vspace{-.25in}
+    \caption{
+        \textbf{Overview of \ourmethod.} 
+        At each training iteration, SDI renders a random view of the 3D shape, runs DDIM inversion up to the noise level $t$, and denoises the image with a pre-trained diffusion model for noise level $t - \tau$.
+        Finally, the denoised image is back-propagated into the 3D shape.
+    }
+    \vspace{-.15in}
+    \label{fig:system}
+\end{figure}
+
+
+\section{Score Distillation via Inversion (SDI)}
+\label{sec:sdi}
+
+As we have shown, SDS follows the velocity field of reparametrized DDIM in \cref{eq:exact_update_kappa}, when $\kappa_{\textrm{SDS}}(x_0(t))$ is randomly sampled in each step.
+Our derivation, however, suggests that $\kappa_{\textrm{SDS}} (x_0(t))$ could be improved by bringing it closer to a solution of the fixed-point equation in \cref{eq:fixed_eq_eps}.
+Indeed, randomly sampling $\kappa_{\textrm{SDS}}$ as in Dreamfusion yields excessive variance and blurry results for standard CFG values, while using higher CFG values leads to over-saturation and lack of detail. 
+On the other hand, solving \cref{eq:fixed_eq_eps} exactly is challenging due to its high dimensionality and nonlinearity. 
+
+%We suggest to obtain $\kappa^t_y$ by inverting DDIM, that is, by integrating the ODE in~\cref{eq:DDIM} with $t$ evolving backwards (from images to noise)~\cite{song2020denoising, mokady2023null, miyake2023negative}.
+% \al{
+Like ISM~\cite{liang2023luciddreamer}, we suggest to obtain $\kappa^t_y$ by inverting DDIM, that is, by integrating the ODE in~\cref{eq:DDIM} with $t$ evolving backwards (from images to noise) as in~\cite{song2020denoising, mokady2023null, miyake2023negative}.
+As we can see in~\cref{eq:fixed_eq_eps}, $\kappa^t_y$ should be a function of the text prompt $y$, leading us to perform DDIM inversion \textit{conditionally} on $y$, unlike ISM.
+% }
+This process approximates but is not identical to the exact solution for $\kappa^t_y$:  fixed points of \cref{eq:fixed_eq_eps} invert a single large step of DDIM, while running the ODE in reverse inverts the entire DDIM trajectory.
+We ablate alternative choices for $\kappa^t_y$ in \cref{sec:ablation} and conclude that in practice DDIM inversion offers the best approximation quality.
+Additionally, to match the iterative nature of DDIM, we employ a linear annealing schedule of $t$.
+We refer to our modified version of SDS as \textit{Score Distillation via Inversion}, or \textit{SDI}.
+
+\begin{figure}[h!]
+    \centering
+    \vspace{-.1in}
+    \includegraphics[width=\linewidth]{figs/infered_vs_random_noise.pdf}
+    \vspace{-.2 in}
+    \caption{
+        Comparison of intermediate variables in SDS and SDI (ours) for different timesteps $t$. 
+        Starting with a rendering of a 3D shape we demonstrate how each algorithm perturbs it ($x(t)$ variable on the top row) 
+                                  and how it is denoised with a single step of diffusion ($x_0(t)$ variable on the bottom row).
+        The prompt used is ``Pumpkin head zombie, skinny, highly detailed, photorealistic, side view.''
+    }
+    \label{fig:inferred_vs_radnom_noise}
+    \vspace{-.05in}
+\end{figure}
+
+\Cref{fig:inferred_vs_radnom_noise} shows the effect of inferring the noise via DDIM inversion instead of sampling it randomly.
+The special structure of the improved $\kappa^t_y$ results in more consistent single-step generations and produces intricate features at earlier times.
+When inverted and not sampled, the noise appears `in the right place': in SDS the noise covers the whole view, including the background, whereas in ours the noise is concentrated on the meaningful part of the 3D shape. 
+This improves geometric and temporal coherency for $x_0(t)$ predictions even for large $t$.
+The reduced variance drastically increases sharpness and level of detail.
+Moreover, it allows to reduce CFG value of generation $\gamma_{\text{fwd}}$ to the standard $7.5$, avoiding over-saturation.
+Another interesting finding is that DDIM inversion works best when the reverse integration is performed with negative CFG $\gamma_{\text{inv}} = -\gamma_{\text{fwd}}=-7.5$.
+The overview of our method is presented in \cref{fig:system}, the details about inversion algorithm are presented in \cref{sec:ablation}, and the implementation details are discussed in \cref{section:impl_details}.
+
+
+\section{Experiments}
+\label{sec:experiments}
+
+\subsection{3D generation}
+We demonstrate the high-fidelity 3D shapes generated with our algorithm in \cref{fig:main_ours_results} and provide more examples of $360^{\circ}$ views in \cref{section:additional_generations}.
+A more detailed qualitative and quantitative comparison of our method with ISM~\cite{liang2023luciddreamer} is provided in \cref{sec:ism_comparison}.
+Additionally, we report the diversity of the generated shapes in \cref{sec:diversity}.
+% and videos in the supplementary materials.
+
+\textbf{Qualitative comparisons.}
+\Cref{fig:reported_comparison} compares 3D generation quality with the results reported in past work using a similar protocol to~\cite{wang2024prolificdreamer, katzir2023noise}. 
+For the baselines we chose: Dreamfusion~\cite{poole2022dreamfusion} (the work we build on), Noise Free Score Distillation (NFSD)~\cite{katzir2023noise} (uses negative prompts in SDS),
+ProlificDreamer~\cite{wang2024prolificdreamer} (fine-tunes and trains a neural network to denoise the 3D shape), Interval Score Matching (ISM)~\cite{liang2023luciddreamer} (obtain the noise sample by inverting DDIM and perform multi-step denoising), and HiFA~\cite{zhu2023hifa} (guides in both image and latent spaces, regularizes the NeRF, and supervises the geometry with mono-depth estimation).
+Our figures indicate that Score Distillation via Inversion (SDI) yields similar or better results compared with state-of-the-art.
+\Cref{sec:additional_comparisons} presents more extensive comparison.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=1.\linewidth]{figs/main_comparison_on_reported.pdf}
+    \vspace{-.25in}
+    \caption{
+        Comparison of 3D generation with other methods using their reported results. 
+        The prompts are ``An ice cream sundae'' and ``A 3D model of an adorable cottage with a thatched roof''.
+    }
+    \label{fig:reported_comparison}
+    \vspace{-.2in}
+\end{figure}
+
+
+
+\textbf{Quantitative comparison.}
+We follow~\cite{poole2022dreamfusion, yu2023text, wang2023steindreamer} to quantitatively evaluate generation quality.
+\Cref{tab:comparison} provides CLIP scores~\cite{hessel2021clipscore} to measure prompt-generation alignment, computed with \texttt{torchmetrics}~\cite{torchmetric} and the ViT-B/32 model~\cite{radford2021learning}.
+We also report ImageReward (IR)~\cite{xu2024imagereward} to imitate possible human preference.
+We include CLIP Image Quality Assessment (IQA)~\cite{wang2023exploring} to measure quality (``Good photo'' vs.\ ``Bad photo''), sharpness (``Sharp photo'' vs.\ ``Blurry photo''), and realism (``Real photo'' vs.\ ``Abstract photo'').
+For each method, we test $43$ prompts with 50 views.
+For multi-stage baselines, we run only the first stage for fair comparison.
+We report the percentage of generations that run out-of-memory or generate an empty volume as diverged (``Div.'' in the table).
+as well as mean run time and VRAM usage.
+For VRAM, we average the maximum usage of GPU memory between runs.
+As many baselines are not open-source, we use their implementations in \texttt{threestudio}~\cite{threestudio2023}.
+SDI outperforms SDS and matches or outperforms the quality of state-of-the-art methods, offering a simple fix to SDS without additional supervision or multi-stage training.
+
+\begin{table}[h]
+\centering
+\caption{
+    Quantitative comparisons to baselines for text-to-3D generation, evaluated by CLIP Score and CLIP IQA.
+    We report mean and standard deviation across 43 prompts and 50 views for each.\vspace{-.15in}
+}
+\label{tab:comparison}
+\
+\begin{adjustbox}{width=\linewidth}
+
+\begin{tabular}{@{}lcccccccc@{}}
+    \toprule
+    Method           & CLIP Score ($\uparrow$) & \multicolumn{3}{c}{CLIP IQA (\%) $\uparrow$} & IR ($\uparrow$)  & Div. (\%) $\downarrow$& Time & VRAM \\ \cmidrule(l){3-5}
+                     &                         & ``quality'' & ``sharpness'' & ``real''       & & & &  \\ \midrule 
+    SDS \cite{poole2022dreamfusion}, $10k$ steps         & $29.81 \pm 2.49$ & $76 \pm 6.6$  & $99 \pm 1.2$ & $98 \pm 2.4$ & $-1.51\pm0.83$ & $18.6$ & 66min & 6.2GB\\
+    SJC \cite{wang2023score},  $10k$ steps               & $30.39 \pm 1.98$ & $76 \pm 6.4$  & $99 \pm 0.1$ & $98 \pm 1.1$ & $-1.76\pm0.51$ & $11.6$ & 13min & 13.1GB\\
+    VSD \cite{wang2024prolificdreamer}, $25k$ steps      & $33.31 \pm 2.39$ & $77 \pm 6.7$  & $98 \pm 1.3$ & $96 \pm 4.4$ & $-1.17\pm0.58$ & $23.2$ & 334min & 47.9GB \\
+    ESD \cite{wang2023taming}, $25k$ steps               & $32.79 \pm 2.15$ & $77 \pm 7.2$  & $98 \pm 1.2$ & $97 \pm 2.7$ & $-1.20\pm0.64$ & $14.0$ & 331min & 46.8GB\\
+    % ISM (NeRF) \cite{liang2023luciddreamer}, $10k$ steps & $32.79 \pm 2.15$ & $77 \pm 7.2$  & $98 \pm 1.2$ & $97 \pm 2.7$ & $14.0$ & 331min & 46.8GB\\
+    HIFA \cite{zhu2023hifa}, $25k$ steps                 & $32.80 \pm 2.35$ & $81 \pm 6.5$  & $98 \pm 1.5$ & $97 \pm 1.2$ & $-1.16\pm0.69$ & $4.7$ & 235min & 46.4GB \\
+    \textbf{\ourmethod(ours), $10k$ steps}               & $33.47 \pm 2.49$ & $82 \pm 6.3$  & $98 \pm 1.3$ & $97 \pm 1.2$ & $-1.18\pm0.59$ & $4.7$ & 119min & 39.2GB\\
+    \bottomrule
+    \vspace{-.15in}
+\end{tabular}
+\end{adjustbox}
+\end{table}
+
+\subsection{Ablations}
+\label{sec:ablation}
+
+\begin{figure}[h]
+    \centering
+    \vspace{-.1in}
+    \includegraphics[width=1.0\linewidth]{figs/main_ablation.pdf}
+    \vspace{-.1in}
+    \caption{Ablation study of proposed improvements.}
+    \label{fig:suggested_improvements}
+    \vspace{-.01in}
+\end{figure}
+
+
+\textbf{Proposed improvements.}
+\Cref{fig:suggested_improvements} ablates the changes we implement on top of SDS.
+Starting from Dreamfusion~\cite{poole2022dreamfusion} with CFG $7.5$ we incrementally add:
+higher NeRF rendering resolution ($64\times64$ to $512\times512$), linear schedule on $t$, and---our core contribution---DDIM inversion.
+The results clearly demonstrate that the main improvement in quality comes from the inferred noise.
+
+
+\textbf{Choice of $\kappa^t_y(x)$.}
+The key component of our algorithm is the choice of inferred noise $\kappa^t_y(x)$.
+%to infer the noise sample.
+In theory, $\kappa^t_y(x)$ should solve \cref{eq:fixed_eq_eps}, but it is impractical to do so.
+Hence, in \cref{fig:kappa_ablation} we compare the following choices of $\kappa^t_y(x)$ and report their numerical errors:
+\begin{itemize}
+    \vspace{-.05in}
+    \item \textit{Random, resampled:} Sample $\kappa^t_y(x)$ in each new update step from $\mathcal{N}(0, I)$ ;
+    \item \textit{Random, fixed:}  Sample $\kappa^t_y(x)$ from $\mathcal{N}(0, I)$ once, and keep it fixed for each iteration;
+    \item \textit{Fixed point iteration:} Since the optimal solution is a fixed point of \cref{eq:fixed_eq_eps}, initialize $\kappa^t_y(x) \sim \mathcal{N}(0, I)$ and run fixed point iteration~\cite{burden19852} for 10 steps (in practice, more steps did not help).
+    \item \textit{SGD optimization:} Optimize $\kappa^t_y(x)$ via gradient decent for 10 steps, initializing with noise.
+    \item \textit{DDIM inversion:} Run DDIM inversion for $int(10t)$ (fewer steps for smaller $t$) steps to time $t$, with negative CFG $\gamma_{\text{inv}}=-7.5$ for inversion and positive $\gamma_{\text{fwd}}=7.5$ for forward inference.
+    \vspace{-.03in}
+\end{itemize}
+
+The left side of \cref{fig:kappa_ablation} compares the choices for 3D generation qualitatively; the right side plots error induced in \cref{eq:fixed_eq_eps} (rescaled to $x_0$ variable due to its ambiguity around $0$).
+%
+As can be seen, the regressed noise has a big impact on the final generations.
+Both fixed point iteration and optimization via gradient descent fail to improve the approximation of $\kappa^t_y$, while fixed point iteration diverges in 3D.
+On the other hand, DDIM inversion yields a reasonable approximation of $\kappa^t_y$ and significantly improves 3D generation quality.
+We provide visual comparison of the obtained noisy images for each baseline in \cref{sec:inferred_noises}.
+
+\begin{figure}[h]
+    \centering
+    \vspace{-.05in}
+    \includegraphics[width=\linewidth]{figs/kappa_ablation.pdf}
+    \vspace{-.15in}
+    \caption{
+        The ablation study of different $\kappa^t_y$ choices in our algorithm.
+        We show the obtained 3D generations on the left (Fixed Point Iteration diverges), and the numerical error in \cref{eq:fixed_eq_eps} induced for each timestep on the right. 
+        The resampled and fixed noise strategies produce the same error.}
+    \label{fig:kappa_ablation}
+    \vspace{-.1in}
+\end{figure}
+
+
+\textbf{CFG for inversion.}
+\label{sec:cfg_inv_ablation}
+\cite{mokady2023null, miyake2023negative} report that DDIM inversion accumulates big numerical error for CFG $\gamma>0$.
+Surprisingly, we find that DDIM inversion for CFG $\gamma_{\text{fwd}}>0$ can be adequately estimated by running the inversion with negative CFG $\gamma_{\text{inv}}=-\gamma_{\text{fwd}}$.
+\Cref{fig:cfg_inversion_3d} compares 3D inversion strategies qualitatively and quantitatively.
+Na\"ively taking $\gamma_{\text{inv}}=\gamma_{\text{fwd}}=7.5$ yields the biggest numerical error, while other strategies perform on par.
+3D generations, illustrated on the right, show that $\gamma_{\text{inv}}=\gamma_{\text{fwd}}=7.5$ introduces excessive numerical errors, causing generation to drift in a random direction.
+The best parameters (as we demonstrate in \cref{sec:cfg_inv_ablation_apendix}) for 2D inversion ($\gamma_{\text{inv}}=\gamma_{\text{fwd}}=0$) fail to converge in 3D as there is not enough guidance toward a class sample.
+Introducing guidance only on the forward pass with $\gamma_{\text{inv}}=0, \gamma_{\text{fwd}}=7.5$ solves the problem, and the algorithm generates the desired 3D shape, but constantly adding CFG on each step over-saturates the image.
+Note in that configuration the inversion is performed unconditionally from the text prompt, matching ISM~\cite{liang2023luciddreamer}.
+As we can see, prompt conditioning is an important component in \cref{eq:fixed_eq_eps}, and
+using $\gamma_{\text{inv}}=-7.5, \gamma_{\text{fwd}}=7.5$ cancels the over-saturation and produces accurate 3D generations.
+
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1.\linewidth]{figs/CFG_inversion_ablation_3D.pdf}
+    \vspace{-.15in}
+    \caption{
+        Comparing DDIM inversion strategies.
+        Left: Numerical error in \cref{eq:fixed_eq_eps} from the inferred noise.
+        Right: Generations for different strategies of using CFG values for denoising and inversion.
+    }
+    \label{fig:cfg_inversion_3d}
+    % \vspace{-.1in}
+\end{figure}
+
+\textbf{Number of steps for DDIM inversion.}
+\Cref{fig:inversion_steps_ablation} ablates the number of steps required for DDIM inversion.
+We use $n=10$ as it provides a good balance between generation quality and speed. 
+
+\begin{figure}[t]
+    \centering
+    \vspace{-.05in}
+    \includegraphics[width=\linewidth]{figs/n_ddim_steps_ablation.pdf}
+    \vspace{-.25in}
+    \caption{
+        Ablation study of the number of inversion steps. 
+        For each configuration we report an average run time and CLIP IQA ``quality'' computed on 43 different prompts.}
+    \label{fig:inversion_steps_ablation}
+    \vspace{-.2in}
+\end{figure}
+
+
+\section{Conclusion, Limitations, and Future Work}
+
+Helping explain the discrepancy between high-quality image generation with diffusion models and the blurry, over-saturated 3D generation of SDS, our derivation exposes how the strategies are reparameterizations of one another up to a single term.
+Our proposed algorithm SDI closes the gap between these methods, matching the performance of the two in 2D and significantly improving 3D results.
+The ablations show that DDIM inversion adequately approximates the correct noise term, and adding it to SDS significantly improves visual quality.
+The results of SDI match or surpass state-of-the-art 3D generations, all without separate diffusion models or 
+additional generation steps.
+
+Some limitations of our algorithm motivate future work.
+While we improve the sample quality of each view, 3D consistency between views remains challenging; as a result, despite the  convexity loss, our algorithm occasionally produces flat or concave ``billboards.'' %
+A possible resolution might involve supervision with pre-trained depth or normal estimators.
+A related problem involves content drift from one view to another.
+Since there was no 3D supervision, there is little to no communication between opposite views, which can lead to inconsistent 3D assets.
+Stronger view conditioning, multi-view supervision, or video generation models might resolve this problem.
+Finally, score distillation is capped by the performance of the underlying diffusion model and is hence prone to  reproduce similar ``hallucinations'' (e.g., text and limbs anomalies); the algorithm inherits the biases of the 2D diffusion model and can produce skewed distributions.
+\Cref{section:failure_cases} demonstrates typical failure cases.
+
+\textbf{Potential broader impacts.} Our work extends existing 2D diffusion models to generation in 3D settings. As such, SDI could marginally improve the ability of bad actors to generate deepfakes or to create 3D assets corresponding to real humans to interact with in virtual environments or games; it also inherits any biases present in the 2D model. While this is a critical problem in industry, our work does not explicitly focus on this use case and, in our view, represents a negligible change in such risks, as highly convincing deepfake tools are already widely available.
+
+\section*{Acknowledgments}
+
+The authors thank Lingxiao Li and Chenyang Yuan for their thoughtful insights and feedback.
+
+Artem Lukoianov acknowledges the generous support of the Toyota–CSAIL Joint Research Center.
+
+Vincent Sitzmann was supported by the National Science Foundation under Grant No.\ 2211259, by the Singapore DSTA under DST00OECI20300823 (New Representations for Vision and 3D Self-Supervised Learning for Label-Efficient Vision), by the Intelligence Advanced Research Projects Activity (IARPA) via Department of Interior/Interior Business Center (DOI/IBC) under 140D0423C0075, by the Amazon Science Hub, and by IBM.
+
+The MIT Geometric Data Processing Group acknowledges the generous support of  Army Research Office grants W911NF2010168 and W911NF2110293, of National Science Foundation grant IIS-2335492, from the CSAIL Future of Data program, from the MIT–IBM Watson AI Laboratory, from the Wistron Corporation, and from the Toyota–CSAIL Joint Research Center.
+
+
+\newpage
+\printbibliography
+
+\include{appendix}
+
+% \include{checklist}
+
+\end{document}

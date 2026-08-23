@@ -1,0 +1,160 @@
+{
+  "gap_id": "gap_e4f46ff8",
+  "status": "validated",
+  "title": "Constant stride sampling degrades log-likelihood",
+  "description": "Using constant striding to reduce sampling steps drastically reduced log-likelihood, requiring extra evaluation steps to compensate.",
+  "type": "caveat",
+  "canonical_description": "Uniform stride schedule for fast sampling degrades log-likelihood",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2102.09672",
+      "section": "log_likelihood_with_fewer_diffusion_steps",
+      "anchor": "drastically reduced log-likelihood",
+      "quote": "In initial experiments, we found that although constant striding did not significantly affect FID, it drastically reduced log-likelihood.",
+      "char_offset": [
+        325,
+        462
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T07:37:20Z",
+  "verdict": {
+    "gap_id": "gap_e4f46ff8",
+    "status": "solved",
+    "confidence": 0.95,
+    "reasoning": "Improved DDPMs (Paper 1) directly identifies the degradation of log-likelihood under uniform stride sampling and proposes a practical solution: including every timestep from 1 to T/K alongside the uniform striding, which recovers log-likelihood with a controlled number of extra evaluation steps. The paper explicitly characterizes the problem, measures it on log-likelihood, and offers a remedy — the very thing the gap calls for. JYS (Paper 5) further addresses the same issue for discrete diffusion models by optimizing the schedule via a KL-divergence bound, strengthening the evidence. Papers 2 (S²-DMs) and 4 (BDDMs) only tackle sample quality (FID, speech metrics) without evaluating log-likelihood, so they do not close the gap. Paper 3 (AutoDiffusion) is not addressed. The core problem — that uniform strides degrade log-likelihood and require extra steps to compensate — is resolved by Improved DDPMs, which both diagnoses the issue and supplies a working schedule.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2102.09672",
+          "title": "Improved Denoising Diffusion Probabilistic Models",
+          "abstract": "Denoising diffusion probabilistic models (DDPM) are a class of generative models which have recently been shown to produce excellent samples. We show that with a few simple modifications, DDPMs can also achieve competitive log-likelihoods while maintaining high sample quality. Additionally, we find that learning variances of the reverse diffusion process allows sampling with an order of magnitude fewer forward passes with a negligible difference in sample quality, which is important for the practical deployment of these models. We additionally use precision and recall to compare how well DDPMs and GANs cover the target distribution. Finally, we show that the sample quality and likelihood of these models scale smoothly with model capacity and training compute, making them easily scalable. We release our code at https://github.com/openai/improved-diffusion",
+          "authors": [
+            "Alex Nichol",
+            "Prafulla Dhariwal"
+          ],
+          "published_date": "2021-02-18T23:44:17Z",
+          "url": "https://arxiv.org/abs/2102.09672v1"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "The paper identifies that constant (uniform) striding to reduce sampling steps drastically reduces log-likelihood. To address this, they propose a modified strided schedule that includes every timestep from 1 to T/K in addition to the uniformly strided timesteps, which greatly improves log-likelihood compared to the uniformly strided schedule. This directly tackles the gap of constant stride sampling degrading log-likelihood.",
+        "what_remains_open": "The paper fully addresses the gap: it identifies the problem (constant striding degrades log-likelihood), characterizes it, and provides a practical solution (including early timesteps in the evaluation schedule). The solution requires T/K extra evaluation steps, which the paper explicitly acknowledges, but this is presented as a necessary trade-off to recover log-likelihood. No part of the gap remains unaddressed.",
+        "evidence_snippets": [
+          "In initial experiments, we found that although constant striding did not significantly affect FID, it drastically reduced log-likelihood.",
+          "To address this, we use a strided subset of timesteps as for FID, but we also include every $t$ from 1 to $T/K$. This requires $T/K$ extra evaluation steps, but greatly improves log-likelihood compared to the uniformly strided schedule."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2401.01520",
+          "title": "S$^{2}$-DMs:Skip-Step Diffusion Models",
+          "abstract": "Diffusion models have emerged as powerful generative tools, rivaling GANs in sample quality and mirroring the likelihood scores of autoregressive models. A subset of these models, exemplified by DDIMs, exhibit an inherent asymmetry: they are trained over $T$ steps but only sample from a subset of $T$ during generation. This selective sampling approach, though optimized for speed, inadvertently misses out on vital information from the unsampled steps, leading to potential compromises in sample quality. To address this issue, we present the S$^{2}$-DMs, which is a new training method by using an innovative $L_{skip}$, meticulously designed to reintegrate the information omitted during the selective sampling phase. The benefits of this approach are manifold: it notably enhances sample quality, is exceptionally simple to implement, requires minimal code modifications, and is flexible enough to be compatible with various sampling algorithms. On the CIFAR10 dataset, models trained using our algorithm showed an improvement of 3.27% to 14.06% over models trained with traditional methods across various sampling algorithms (DDIMs, PNDMs, DEIS) and different numbers of sampling steps (10, 20, ..., 1000). On the CELEBA dataset, the improvement ranged from 8.97% to 27.08%. Access to the code and additional resources is provided in the github.",
+          "authors": [
+            "Yixuan Wang",
+            "Shuangyin Li"
+          ],
+          "published_date": "2024-01-03T03:08:32Z",
+          "url": "https://arxiv.org/abs/2401.01520v2"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper proposes S²-DMs, which adds a skip-step loss (L_skip) during training to compensate for information lost when using constant-stride (skip-step) sampling during inference. The method modifies the training objective to make the model's predictions at step t align better with what the model would predict after skipping several steps, thereby reducing the degradation caused by uniform stride sampling. The approach is evaluated on CIFAR10 and CelebA using FID scores across various sampling algorithms (DDIM, PNDM, DEIS) and step counts (10, 20, 50, 100, 1000).",
+        "what_remains_open": "The paper addresses degradation from constant stride (skip-step) sampling but evaluates only on FID (sample quality), not on log-likelihood. The research gap specifically concerns log-likelihood degradation from constant stride sampling. Since FID and log-likelihood are known to behave differently in diffusion models (the paper itself notes \"the disparity between log-likelihood reduction and FID\"), the paper does not demonstrate whether its method improves log-likelihood under constant stride sampling. The gap about log-likelihood degradation and the need for extra evaluation steps to compensate remains unaddressed.",
+        "evidence_snippets": [
+          "Model performance was evaluated based on the FID",
+          "the disparity between log-likelihood reduction and FID [CITE:heusel2017gans], [CITE:szegedy2016rethinking] remain in some models.",
+          "we evaluate the quality of samples generated by models trained on the CIFAR10 and CelebA datasets, measured using the FID as the evaluation metric"
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2309.10438",
+          "title": "AutoDiffusion: Training-Free Optimization of Time Steps and Architectures for Automated Diffusion Model Acceleration",
+          "abstract": "Diffusion models are emerging expressive generative models, in which a large number of time steps (inference steps) are required for a single image generation. To accelerate such tedious process, reducing steps uniformly is considered as an undisputed principle of diffusion models. We consider that such a uniform assumption is not the optimal solution in practice; i.e., we can find different optimal time steps for different models. Therefore, we propose to search the optimal time steps sequence and compressed model architecture in a unified framework to achieve effective image generation for diffusion models without any further training. Specifically, we first design a unified search space that consists of all possible time steps and various architectures. Then, a two stage evolutionary algorithm is introduced to find the optimal solution in the designed search space. To further accelerate the search process, we employ FID score between generated and real samples to estimate the performance of the sampled examples. As a result, the proposed method is (i).training-free, obtaining the optimal time steps and model architecture without any training process; (ii). orthogonal to most advanced diffusion samplers and can be integrated to gain better sample quality. (iii). generalized, where the searched time steps and architectures can be directly applied on different diffusion models with the same guidance scale. Experimental results show that our method achieves excellent performance by using only a few time steps, e.g. 17.86 FID score on ImageNet 64 $\\times$ 64 with only four steps, compared to 138.66 with DDIM. The code is available at https://github.com/lilijiangg/AutoDiffusion.",
+          "authors": [
+            "Lijiang Li",
+            "Huixia Li",
+            "Xiawu Zheng",
+            "Jie Wu",
+            "Xuefeng Xiao",
+            "Rui Wang",
+            "Min Zheng",
+            "Xin Pan",
+            "Fei Chao",
+            "Rongrong Ji"
+          ],
+          "published_date": "2023-09-19T08:57:24Z",
+          "url": "https://arxiv.org/abs/2309.10438v2"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "The paper proposes AutoDiffusion, a training-free framework that searches for optimal non-uniform time step sequences and compressed architectures for diffusion models to improve sample quality (measured by FID) in few-step regimes. It demonstrates that non-uniform time step selection significantly improves FID scores compared to uniform striding, especially with very few steps (e.g., 4 steps). The method is orthogonal to existing samplers like DDIM, PLMS, and DPM-solver.",
+        "what_remains_open": "The paper does not address log-likelihood at all. The gap specifically concerns how constant/uniform stride sampling degrades log-likelihood, requiring extra evaluation steps to compensate. This paper focuses entirely on sample quality (FID score) rather than log-likelihood. It explicitly rejects KL-divergence (which is related to log-likelihood via ELBO) as a performance metric, showing it correlates poorly with sample quality. The question of whether non-uniform stride schedules can mitigate log-likelihood degradation from step reduction remains completely open.",
+        "evidence_snippets": [
+          "Prior work has pointed out that optimizing the KL-divergence can not improve sample quality [CITE:learned_sampler] [CITE:learned_sampler_ref].",
+          "Tab.~[REF:kdt] shows that the Kendall-tau values between all these metrics and KL-divergence are low, which means that the KL-divergence can not represent the sampled quality.",
+          "We use FID score as the performance estimation metric."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2108.11514",
+          "title": "Bilateral Denoising Diffusion Models",
+          "abstract": "Denoising diffusion probabilistic models (DDPMs) have emerged as competitive generative models yet brought challenges to efficient sampling. In this paper, we propose novel bilateral denoising diffusion models (BDDMs), which take significantly fewer steps to generate high-quality samples. From a bilateral modeling objective, BDDMs parameterize the forward and reverse processes with a score network and a scheduling network, respectively. We show that a new lower bound tighter than the standard evidence lower bound can be derived as a surrogate objective for training the two networks. In particular, BDDMs are efficient, simple-to-train, and capable of further improving any pre-trained DDPM by optimizing the inference noise schedules. Our experiments demonstrated that BDDMs can generate high-fidelity samples with as few as 3 sampling steps and produce comparable or even higher quality samples than DDPMs using 1000 steps with only 16 sampling steps (a 62x speedup).",
+          "authors": [
+            "Max W. Y. Lam",
+            "Jun Wang",
+            "Rongjie Huang",
+            "Dan Su",
+            "Dong Yu"
+          ],
+          "published_date": "2021-08-26T13:23:41Z",
+          "url": "https://arxiv.org/abs/2108.11514v3"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper proposes Bilateral Denoising Diffusion Models (BDDMs) that learn a noise schedule for sampling via a scheduling network, rather than using a fixed uniform stride. This directly addresses the problem that constant/uniform stride schedules degrade quality. The paper shows BDDMs can generate high-quality samples with as few as 3-16 steps, outperforming DDPMs with 1000 steps. However, the paper focuses on sample quality (FID, PESQ, MOS) rather than log-likelihood, which is the specific metric mentioned in the gap. The paper derives a new lower bound that is tighter than the standard ELBO, but evaluates on generation quality metrics rather than log-likelihood values.",
+        "what_remains_open": "The gap specifically states that constant stride sampling degrades *log-likelihood*. This paper does not report log-likelihood results at all — it evaluates using sample quality metrics (PESQ, STOI, MOS, LS-MSE, MCD for speech; FID for images). The paper does not measure or discuss whether the learned noise schedule improves log-likelihood compared to constant stride schedules. Additionally, the paper's method requires a grid search over initial parameters ($\\hat{\\alpha}_N, \\hat{\\beta}_N$) and training a separate scheduling network, which adds complexity. The core question of whether learned schedules recover the log-likelihood loss incurred by uniform striding remains unanswered.",
+        "evidence_snippets": [
+          "In this paper, we propose novel bilateral denoising diffusion models (BDDMs), which take significantly fewer steps to generate high-quality samples.",
+          "Our experiments demonstrated that BDDMs can generate high-fidelity samples with as few as 3 sampling steps and produce comparable or even higher quality samples than DDPMs using 1000 steps with only 16 sampling steps (a 62x speedup).",
+          "Since the same score network was applied to all the methods, we can confirm that noise scheduling is vital for improving the sampling quality and the efficiency of denoising diffusion models."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2410.07761",
+          "title": "$\\textit{Jump Your Steps}$: Optimizing Sampling Schedule of Discrete Diffusion Models",
+          "abstract": "Diffusion models have seen notable success in continuous domains, leading to the development of discrete diffusion models (DDMs) for discrete variables. Despite recent advances, DDMs face the challenge of slow sampling speeds. While parallel sampling methods like $τ$-leaping accelerate this process, they introduce $\\textit{Compounding Decoding Error}$ (CDE), where discrepancies arise between the true distribution and the approximation from parallel token generation, leading to degraded sample quality. In this work, we present $\\textit{Jump Your Steps}$ (JYS), a novel approach that optimizes the allocation of discrete sampling timesteps by minimizing CDE without extra computational cost. More precisely, we derive a practical upper bound on CDE and propose an efficient algorithm for searching for the optimal sampling schedule. Extensive experiments across image, music, and text generation show that JYS significantly improves sampling quality, establishing it as a versatile framework for enhancing DDM performance for fast sampling.",
+          "authors": [
+            "Yong-Hyun Park",
+            "Chieh-Hsin Lai",
+            "Satoshi Hayakawa",
+            "Yuhta Takida",
+            "Yuki Mitsufuji"
+          ],
+          "published_date": "2024-10-10T09:44:25Z",
+          "url": "https://arxiv.org/abs/2410.07761v1"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "The paper identifies that uniform (constant stride) sampling schedules in discrete diffusion models cause Compounding Decoding Error (CDE), which degrades sample quality. It proposes Jump Your Steps (JYS), a method that optimizes the sampling schedule (allocation of timesteps) to minimize CDE by deriving a tractable upper bound (KLUB) and using a hierarchical search strategy. Experiments across image (CIFAR-10), music, and text generation show JYS consistently outperforms uniform schedules at the same number of function evaluations, directly addressing the degradation caused by constant stride sampling.",
+        "what_remains_open": "The paper fully addresses the core problem: it identifies why constant stride degrades quality (CDE), proposes a principled optimization to find better schedules, and empirically validates improvements. However, the gap specifically mentions \"log-likelihood\" degradation, while the paper measures sample quality metrics (FID, perplexity, Hellinger distance, rule-violation rate) rather than directly reporting log-likelihood values. The theoretical connection to log-likelihood is established via Theorem 1 (KL divergence bound), but direct log-likelihood evaluation is not presented.",
+        "evidence_snippets": [
+          "Uniform schedule exhibits compounding decoding errors during parallel sampling, while JYS reduces them by using fewer steps in deterministic phases and reallocating skipped steps to other timesteps.",
+          "We have the following bound on the KL divergence between P_0 and Q_0^{T -> t_1 -> ... -> 0} in terms of cumulative CDEs: D_KL(P_0 || Q_0^{T->t_1->...->0}) <= sum_i E_CDE(t_i -> t_{i+1}).",
+          "We observe that the JYS schedule has fewer errors compared to the uniform schedule for the same NFE."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 5,
+      "skipped_ids": []
+    }
+  },
+  "ranking": null
+}

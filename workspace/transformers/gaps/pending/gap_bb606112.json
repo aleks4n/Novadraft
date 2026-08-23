@@ -1,0 +1,20 @@
+{
+  "gap_id": "gap_bb606112",
+  "status": "unchecked",
+  "title": "Some effects may be architecture-dependent",
+  "description": "The observation that symmetric operations require less data for generalization may be partially dependent on the transformer architecture, since transformers can easily learn symmetric functions by ignoring positional embeddings.",
+  "type": "caveat",
+  "canonical_description": "some observed effects may be partially dependent on transformer architecture",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2201.02177",
+      "section": "experiments",
+      "quote": "We believe this effect might be partially architecture-dependent, since it's easy for a transformer to learn a symmetric function of the operands by ignoring positional embedding.",
+      "char_offset": [
+        4020,
+        4199
+      ]
+    }
+  ],
+  "extracted_at": "2026-06-09T09:17:34Z"
+}

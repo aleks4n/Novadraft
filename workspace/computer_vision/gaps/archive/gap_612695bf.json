@@ -1,0 +1,85 @@
+{
+  "gap_id": "gap_612695bf",
+  "status": "validated",
+  "title": "Quality degrades with too many attention heads",
+  "description": "While single-head attention is 0.9 BLEU worse than the best setting, quality also drops off with too many heads, indicating an optimal number of attention heads exists.",
+  "type": "negative_result",
+  "canonical_description": "attention model performance degrades when using too many heads",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1706.03762",
+      "section": "results",
+      "anchor": "quality also drops off with too many heads",
+      "quote": "While single-head attention is 0.9 BLEU worse than the best setting, quality also drops off with too many heads.",
+      "char_offset": [
+        2590,
+        2702
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T07:35:12Z",
+  "verdict": {
+    "gap_id": "gap_612695bf",
+    "status": "solved",
+    "confidence": 0.92,
+    "reasoning": "Paper 2 (MoH) directly solves the gap: it shows that using all attention heads degrades quality and that dynamically selecting 50–90% of heads consistently outperforms the full model across ViT, DiT, and LLMs (e.g., MoH-LLaMA3-8B using 75% of heads beats LLaMA3-8B by 2.4% avg. accuracy on 14 benchmarks). This confirms the gap's premise and provides a concrete solution. Paper 1 (surgical repair of BOS-sink collapse) is not_addressed — it tackles a different collapse pathology, not the question of optimal head count. With a clean direct_solution on strong empirical evidence, the gap is solved.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2603.09616",
+          "title": "Surgical Repair of Collapsed Attention Heads in ALiBi Transformers",
+          "abstract": "We identify a systematic attention collapse pathology in the BLOOM family of transformer language models, where ALiBi positional encoding causes 31-44% of attention heads to attend almost entirely to the beginning-of-sequence token. The collapse follows a predictable pattern across four model scales (560M to 7.1B parameters), concentrating in head indices where ALiBi's slope schedule imposes the steepest distance penalties. We introduce surgical reinitialization: targeted Q/K/V reinitialization with zeroed output projections and gradient-masked freezing of all non-surgical parameters. Applied to BLOOM-1b7 on a single consumer GPU, the technique recovers 98.7% operational head capacity (242 to 379 of 384 heads) in two passes. A controlled comparison with C4 training data confirms that reinitialization -- not corpus content -- drives recovery, and reveals two distinct post-surgical phenomena: early global functional redistribution that improves the model, and late local degradation that accumulates under noisy training signal. An extended experiment reinitializing mostly-healthy heads alongside collapsed ones produces a model that transiently outperforms stock BLOOM-1b7 by 25% on training perplexity (12.70 vs. 16.99), suggesting that pretrained attention configurations are suboptimal local minima. Code, checkpoints, and diagnostic tools are released as open-source software.",
+          "authors": [
+            "Palmer Schallon"
+          ],
+          "published_date": "2026-03-10T12:57:49Z",
+          "url": "https://arxiv.org/abs/2603.09616v1"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "The paper identifies and surgically repairs BOS-sink attention head collapse in ALiBi-based BLOOM transformer models. It shows that collapsed heads (31-44% of heads attending primarily to the BOS token) can be revived via targeted Q/K/V reinitialization with gradient masking, recovering functional attention capacity. The paper also demonstrates that reinitializing even healthy heads can transiently improve perplexity, suggesting pretrained attention configurations are suboptimal local minima.",
+        "what_remains_open": "The gap concerns the general phenomenon that language model quality degrades when too many attention heads are used, implying an optimal head count exists. This paper does not study that question at all. It addresses a different problem: a specific attention collapse pathology (BOS-sink) caused by ALiBi positional encoding in BLOOM models, and a technique to repair collapsed heads. The paper does not investigate whether having too many heads causes quality degradation, what the optimal number of heads is, or how head count relates to model performance. The repair technique targets heads that are already dysfunctional (collapsed to BOS), not heads that are functional but excessive in number.",
+        "evidence_snippets": [
+          "We identify a systematic attention collapse pathology in the BLOOM family of transformer language models, where ALiBi positional encoding causes 31--44% of attention heads to attend almost entirely to the beginning-of-sequence token.",
+          "The pruning literature treats BOS-sink heads as dead weight---functionally redundant components that can be removed without consequence... Our results suggest a different interpretation. Collapsed heads are not redundant; they are dormant.",
+          "We introduce surgical reinitialization: targeted Q/K/V reinitialization with zeroed output projections and gradient-masked freezing of all non-surgical parameters."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2410.11842",
+          "title": "MoH: Multi-Head Attention as Mixture-of-Head Attention",
+          "abstract": "In this work, we upgrade the multi-head attention mechanism, the core of the Transformer model, to improve efficiency while maintaining or surpassing the previous accuracy level. We show that multi-head attention can be expressed in the summation form. Drawing on the insight that not all attention heads hold equal significance, we propose Mixture-of-Head attention (MoH), a new architecture that treats attention heads as experts in the Mixture-of-Experts (MoE) mechanism. MoH has two significant advantages: First, MoH enables each token to select the appropriate attention heads, enhancing inference efficiency without compromising accuracy or increasing the number of parameters. Second, MoH replaces the standard summation in multi-head attention with a weighted summation, introducing flexibility to the attention mechanism and unlocking extra performance potential. Extensive experiments on ViT, DiT, and LLMs demonstrate that MoH outperforms multi-head attention by using only 50%-90% of the attention heads. Moreover, we demonstrate that pre-trained multi-head attention models, such as LLaMA3-8B, can be further continue-tuned into our MoH models. Notably, MoH-LLaMA3-8B achieves an average accuracy of 64.0% across 14 benchmarks, outperforming LLaMA3-8B by 2.4% by utilizing only 75% of the attention heads. We believe the proposed MoH is a promising alternative to multi-head attention and provides a strong foundation for developing advanced and efficient attention-based models.",
+          "authors": [
+            "Peng Jin",
+            "Bo Zhu",
+            "Li Yuan",
+            "Shuicheng Yan"
+          ],
+          "published_date": "2024-10-15T17:59:44Z",
+          "url": "https://arxiv.org/abs/2410.11842v3"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "The paper proposes Mixture-of-Head attention (MoH), which treats attention heads as experts in a Mixture-of-Experts framework. A router dynamically selects the Top-K most relevant attention heads for each token, and uses weighted summation instead of standard summation. This directly addresses the problem that quality degrades with too many heads by showing that using only 50%-90% of attention heads (selected dynamically per token) outperforms using all heads. The paper validates this across ViT, DiT, and LLMs, including continue-tuning LLaMA3-8B where using 75% of heads outperforms the full model by 2.4% average accuracy across 14 benchmarks.",
+        "what_remains_open": "The paper fully addresses the gap. It demonstrates that quality degrades with too many heads (confirming the gap exists), and provides a practical solution (MoH) that dynamically selects the optimal subset of heads per token, achieving better performance with fewer activated heads. The paper explicitly shows that using 50%-90% of heads outperforms using 100% of heads across multiple architectures and tasks. The gap is solved.",
+        "evidence_snippets": [
+          "MoH enables each token to select the appropriate attention heads, enhancing inference efficiency without compromising accuracy or increasing the number of parameters.",
+          "MoH outperforms multi-head attention by using only 50%\\sim90% of the attention heads.",
+          "MoH-LLaMA3-8B achieves an average accuracy of 64.0% across 14 benchmarks, outperforming LLaMA3-8B by 2.4% by utilizing only 75% of the attention heads."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 2,
+      "skipped_ids": []
+    }
+  },
+  "ranking": null
+}

@@ -1,0 +1,381 @@
+\begin{thebibliography}{}
+
+\bibitem[\protect\citeauthoryear{Arandjelovic and Zisserman}{2018}]{object_sound}
+Relja Arandjelovic and Andrew Zisserman.
+\newblock Objects that sound.
+\newblock In Vittorio Ferrari, Martial Hebert, Cristian Sminchisescu, and Yair Weiss, editors, {\em Computer Vision - {ECCV} 2018 - 15th European Conference, Munich, Germany, September 8-14, 2018, Proceedings, Part {I}}, volume 11205 of {\em Lecture Notes in Computer Science}, pages 451--466. Springer, 2018.
+
+\bibitem[\protect\citeauthoryear{Assran \bgroup \em et al.\egroup }{2023}]{assran2023self}
+Mahmoud Assran, Quentin Duval, Ishan Misra, Piotr Bojanowski, Pascal Vincent, Michael Rabbat, Yann LeCun, and Nicolas Ballas.
+\newblock Self-supervised learning from images with a joint-embedding predictive architecture.
+\newblock In {\em Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition}, pages 15619--15629, 2023.
+
+\bibitem[\protect\citeauthoryear{Baade \bgroup \em et al.\egroup }{2022}]{baade2022}
+Alan Baade, Puyuan Peng, and David Harwath.
+\newblock Mae-ast: Masked autoencoding audio spectrogram transformer.
+\newblock {\em arXiv preprint arXiv:2203.16691}, 2022.
+
+\bibitem[\protect\citeauthoryear{Baevski \bgroup \em et al.\egroup }{2020}]{wav2vec2}
+Alexei Baevski, Yuhao Zhou, Abdelrahman Mohamed, and Michael Auli.
+\newblock wav2vec 2.0: {A} framework for self-supervised learning of speech representations.
+\newblock In Hugo Larochelle, Marc'Aurelio Ranzato, Raia Hadsell, Maria{-}Florina Balcan, and Hsuan{-}Tien Lin, editors, {\em Advances in Neural Information Processing Systems 33: Annual Conference on Neural Information Processing Systems 2020, NeurIPS 2020, December 6-12, 2020, virtual}, 2020.
+
+\bibitem[\protect\citeauthoryear{Baevski \bgroup \em et al.\egroup }{2022}]{d2v}
+Alexei Baevski, Wei{-}Ning Hsu, Qiantong Xu, Arun Babu, Jiatao Gu, and Michael Auli.
+\newblock data2vec: {A} general framework for self-supervised learning in speech, vision and language.
+\newblock {\em CoRR}, abs/2202.03555, 2022.
+
+\bibitem[\protect\citeauthoryear{Baevski \bgroup \em et al.\egroup }{2023}]{baevski2023efficient}
+Alexei Baevski, Arun Babu, Wei-Ning Hsu, and Michael Auli.
+\newblock Efficient self-supervised learning with contextualized target representations for vision, speech and language.
+\newblock In {\em International Conference on Machine Learning}, pages 1416--1429. PMLR, 2023.
+
+\bibitem[\protect\citeauthoryear{Bao \bgroup \em et al.\egroup }{2021}]{bao2021beit}
+Hangbo Bao, Li~Dong, Songhao Piao, and Furu Wei.
+\newblock Beit: Bert pre-training of image transformers.
+\newblock {\em arXiv preprint arXiv:2106.08254}, 2021.
+
+\bibitem[\protect\citeauthoryear{Bardes \bgroup \em et al.\egroup }{2022}]{bardes2022vicregl}
+Adrien Bardes, Jean Ponce, and Yann LeCun.
+\newblock Vicregl: Self-supervised learning of local visual features.
+\newblock {\em Advances in Neural Information Processing Systems}, 35:8799--8810, 2022.
+
+\bibitem[\protect\citeauthoryear{Bengio \bgroup \em et al.\egroup }{2009}]{bengio2009curriculum}
+Yoshua Bengio, J{\'e}r{\^o}me Louradour, Ronan Collobert, and Jason Weston.
+\newblock Curriculum learning.
+\newblock In {\em Proceedings of the 26th annual international conference on machine learning}, pages 41--48, 2009.
+
+\bibitem[\protect\citeauthoryear{Bordes \bgroup \em et al.\egroup }{2021}]{bordes2021high}
+Florian Bordes, Randall Balestriero, and Pascal Vincent.
+\newblock High fidelity visualization of what your self-supervised representation knows about.
+\newblock {\em arXiv preprint arXiv:2112.09164}, 2021.
+
+\bibitem[\protect\citeauthoryear{Brown \bgroup \em et al.\egroup }{2020}]{brown2020language}
+Tom Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared~D Kaplan, Prafulla Dhariwal, Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda Askell, et~al.
+\newblock Language models are few-shot learners.
+\newblock {\em Advances in neural information processing systems}, 33:1877--1901, 2020.
+
+\bibitem[\protect\citeauthoryear{Caron \bgroup \em et al.\egroup }{2020}]{caron2020unsupervised}
+Mathilde Caron, Ishan Misra, Julien Mairal, Priya Goyal, Piotr Bojanowski, and Armand Joulin.
+\newblock Unsupervised learning of visual features by contrasting cluster assignments.
+\newblock {\em Advances in neural information processing systems}, 33:9912--9924, 2020.
+
+\bibitem[\protect\citeauthoryear{Chen \bgroup \em et al.\egroup }{2020a}]{chen2020}
+Mark Chen, Alec Radford, Rewon Child, Jeffrey Wu, Heewoo Jun, David Luan, and Ilya Sutskever.
+\newblock Generative pretraining from pixels.
+\newblock In {\em Proceedings of the 37th International Conference on Machine Learning, {ICML} 2020, 13-18 July 2020, Virtual Event}, volume 119 of {\em Proceedings of Machine Learning Research}, pages 1691--1703. {PMLR}, 2020.
+
+\bibitem[\protect\citeauthoryear{Chen \bgroup \em et al.\egroup }{2020b}]{chen2020gridmask}
+Pengguang Chen, Shu Liu, Hengshuang Zhao, and Jiaya Jia.
+\newblock Gridmask data augmentation.
+\newblock {\em arXiv preprint arXiv:2001.04086}, 2020.
+
+\bibitem[\protect\citeauthoryear{Chen \bgroup \em et al.\egroup }{2022a}]{chen2022hts}
+Ke~Chen, Xingjian Du, Bilei Zhu, Zejun Ma, Taylor Berg-Kirkpatrick, and Shlomo Dubnov.
+\newblock Hts-at: A hierarchical token-semantic audio transformer for sound classification and detection.
+\newblock {\em arXiv preprint arXiv:2202.00874}, 2022.
+
+\bibitem[\protect\citeauthoryear{Chen \bgroup \em et al.\egroup }{2022b}]{chen2022intra}
+Yubei Chen, Adrien Bardes, ZENGYI LI, and Yann LeCun.
+\newblock Intra-instance vicreg: Bag of self-supervised image patch embedding explains the performance.
+\newblock 2022.
+
+\bibitem[\protect\citeauthoryear{Chong \bgroup \em et al.\egroup }{2022}]{chong2022masked}
+Dading Chong, Helin Wang, Peilin Zhou, and Qingcheng Zeng.
+\newblock Masked spectrogram prediction for self-supervised audio pre-training, 2022.
+
+\bibitem[\protect\citeauthoryear{Devlin \bgroup \em et al.\egroup }{2018}]{devlin2018bert}
+Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova.
+\newblock Bert: Pre-training of deep bidirectional transformers for language understanding.
+\newblock {\em arXiv preprint arXiv:1810.04805}, 2018.
+
+\bibitem[\protect\citeauthoryear{Devlin \bgroup \em et al.\egroup }{2019}]{bert}
+Jacob Devlin, Ming{-}Wei Chang, Kenton Lee, and Kristina Toutanova.
+\newblock {BERT:} pre-training of deep bidirectional transformers for language understanding.
+\newblock In Jill Burstein, Christy Doran, and Thamar Solorio, editors, {\em Proceedings of the 2019 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies, {NAACL-HLT} 2019, Minneapolis, MN, USA, June 2-7, 2019, Volume 1 (Long and Short Papers)}, pages 4171--4186. Association for Computational Linguistics, 2019.
+
+\bibitem[\protect\citeauthoryear{Dosovitskiy \bgroup \em et al.\egroup }{2020}]{dosovitskiy2020image}
+Alexey Dosovitskiy, Lucas Beyer, Alexander Kolesnikov, Dirk Weissenborn, Xiaohua Zhai, Thomas Unterthiner, Mostafa Dehghani, Matthias Minderer, Georg Heigold, Sylvain Gelly, et~al.
+\newblock An image is worth 16x16 words: Transformers for image recognition at scale.
+\newblock {\em arXiv preprint arXiv:2010.11929}, 2020.
+
+\bibitem[\protect\citeauthoryear{Fei and Huang}{2023}]{feiincorporating}
+Zhengcong Fei and Junshi Huang.
+\newblock Incorporating unlikely negative cues for distinctive image captioning.
+\newblock 2023.
+
+\bibitem[\protect\citeauthoryear{Fei \bgroup \em et al.\egroup }{2022}]{fei2022deecap}
+Zhengcong Fei, Xu~Yan, Shuhui Wang, and Qi~Tian.
+\newblock Deecap: Dynamic early exiting for efficient image captioning.
+\newblock In {\em Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition}, pages 12216--12226, 2022.
+
+\bibitem[\protect\citeauthoryear{Fei \bgroup \em et al.\egroup }{2023a}]{fei2023masked}
+Zhengcong Fei, Mingyuan Fan, Li~Zhu, Junshi Huang, Xiaoming Wei, and Xiaolin Wei.
+\newblock Masked auto-encoders meet generative adversarial networks and beyond.
+\newblock In {\em Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition}, pages 24449--24459, 2023.
+
+\bibitem[\protect\citeauthoryear{Fei \bgroup \em et al.\egroup }{2023b}]{fei2023uncertainty}
+Zhengcong Fei, Mingyuan Fan, Li~Zhu, Junshi Huang, Xiaoming Wei, and Xiaolin Wei.
+\newblock Uncertainty-aware image captioning.
+\newblock In {\em Proceedings of the AAAI Conference on Artificial Intelligence}, volume~37, pages 614--622, 2023.
+
+\bibitem[\protect\citeauthoryear{Fei}{2019}]{fei2019fast}
+Zheng-cong Fei.
+\newblock Fast image caption generation with position alignment.
+\newblock {\em arXiv preprint arXiv:1912.06365}, 2019.
+
+\bibitem[\protect\citeauthoryear{Fei}{2020}]{fei2020iterative}
+Zhengcong Fei.
+\newblock Iterative back modification for faster image captioning.
+\newblock In {\em Proceedings of the 28th ACM International Conference on Multimedia}, pages 3182--3190, 2020.
+
+\bibitem[\protect\citeauthoryear{Fei}{2021}]{fei2021partially}
+Zhengcong Fei.
+\newblock Partially non-autoregressive image captioning.
+\newblock In {\em Proceedings of the AAAI Conference on Artificial Intelligence}, volume~35, pages 1309--1316, 2021.
+
+\bibitem[\protect\citeauthoryear{Feichtenhofer \bgroup \em et al.\egroup }{2022}]{feichtenhofer2022masked}
+Christoph Feichtenhofer, Yanghao Li, Kaiming He, et~al.
+\newblock Masked autoencoders as spatiotemporal learners.
+\newblock {\em Advances in neural information processing systems}, 35:35946--35958, 2022.
+
+\bibitem[\protect\citeauthoryear{Gemmeke \bgroup \em et al.\egroup }{2017}]{gemmeke2017audio}
+Jort~F Gemmeke, Daniel~PW Ellis, Dylan Freedman, Aren Jansen, Wade Lawrence, R~Channing Moore, Manoj Plakal, and Marvin Ritter.
+\newblock Audio set: An ontology and human-labeled dataset for audio events.
+\newblock In {\em 2017 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)}, pages 776--780. IEEE, 2017.
+
+\bibitem[\protect\citeauthoryear{Gidaris \bgroup \em et al.\egroup }{2020}]{gidaris2020learning}
+Spyros Gidaris, Andrei Bursuc, Nikos Komodakis, Patrick P{\'e}rez, and Matthieu Cord.
+\newblock Learning representations by predicting bags of visual words.
+\newblock In {\em Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition}, pages 6928--6938, 2020.
+
+\bibitem[\protect\citeauthoryear{Gong \bgroup \em et al.\egroup }{2021a}]{gong2021ast}
+Yuan Gong, Yu{-}An Chung, and James~R. Glass.
+\newblock {AST:} audio spectrogram transformer.
+\newblock In Hynek Hermansky, Honza Cernock{\'{y}}, Luk{\'{a}}s Burget, Lori Lamel, Odette Scharenborg, and Petr Motl{\'{\i}}cek, editors, {\em Interspeech 2021, 22nd Annual Conference of the International Speech Communication Association, Brno, Czechia, 30 August - 3 September 2021}, pages 571--575. {ISCA}, 2021.
+
+\bibitem[\protect\citeauthoryear{Gong \bgroup \em et al.\egroup }{2021b}]{gong2021psla}
+Yuan Gong, YuAn Chung, and James Glass.
+\newblock Psla: Improving audio tagging with pretraining, sampling, labeling, and aggregation.
+\newblock {\em IEEE/ACM Transactions on Audio, Speech, and Language Processing}, 2021.
+
+\bibitem[\protect\citeauthoryear{Gong \bgroup \em et al.\egroup }{2021c}]{ssast}
+Yuan Gong, Cheng-I Lai, Yu-An Chung, and James~R. Glass.
+\newblock Ssast: Self-supervised audio spectrogram transformer.
+\newblock {\em ArXiv}, abs/2110.09784, 2021.
+
+\bibitem[\protect\citeauthoryear{Gong \bgroup \em et al.\egroup }{2022a}]{cmkd}
+Yuan Gong, Sameer Khurana, Andrew Rouditchenko, and James Glass.
+\newblock Cmkd: Cnn/transformer-based cross-model knowledge distillation for audio classification, 2022.
+
+\bibitem[\protect\citeauthoryear{Gong \bgroup \em et al.\egroup }{2022b}]{gong2022ssast}
+Yuan Gong, Cheng-I Lai, Yu-An Chung, and James Glass.
+\newblock Ssast: Self-supervised audio spectrogram transformer.
+\newblock In {\em Proceedings of the AAAI Conference on Artificial Intelligence}, volume~36, pages 10699--10709, 2022.
+
+\bibitem[\protect\citeauthoryear{Hacohen and Weinshall}{2019}]{hacohen2019power}
+Guy Hacohen and Daphna Weinshall.
+\newblock On the power of curriculum learning in training deep networks.
+\newblock In {\em International conference on machine learning}, pages 2535--2544. PMLR, 2019.
+
+\bibitem[\protect\citeauthoryear{He \bgroup \em et al.\egroup }{2015}]{He2015DeepRL}
+Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun.
+\newblock Deep residual learning for image recognition.
+\newblock {\em 2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)}, pages 770--778, 2015.
+
+\bibitem[\protect\citeauthoryear{He \bgroup \em et al.\egroup }{2021}]{mae}
+Kaiming He, Xinlei Chen, Saining Xie, Yanghao Li, Piotr Doll{\'a}r, and Ross Girshick.
+\newblock Masked autoencoders are scalable vision learners.
+\newblock {\em arXiv preprint arXiv:2111.06377}, 2021.
+
+\bibitem[\protect\citeauthoryear{He \bgroup \em et al.\egroup }{2022}]{he2022masked}
+Kaiming He, Xinlei Chen, Saining Xie, Yanghao Li, Piotr Doll{\'a}r, and Ross Girshick.
+\newblock Masked autoencoders are scalable vision learners.
+\newblock In {\em Proceedings of the IEEE/CVF conference on computer vision and pattern recognition}, pages 16000--16009, 2022.
+
+\bibitem[\protect\citeauthoryear{Henaff}{2020}]{henaff2020data}
+Olivier Henaff.
+\newblock Data-efficient image recognition with contrastive predictive coding.
+\newblock In {\em International conference on machine learning}, pages 4182--4192. PMLR, 2020.
+
+\bibitem[\protect\citeauthoryear{Hershey \bgroup \em et al.\egroup }{2017}]{vggish}
+Shawn Hershey, Sourish Chaudhuri, Daniel P.~W. Ellis, Jort~F. Gemmeke, Aren Jansen, Channing Moore, Manoj Plakal, Devin Platt, Rif~A. Saurous, Bryan Seybold, Malcolm Slaney, Ron Weiss, and Kevin Wilson.
+\newblock Cnn architectures for large-scale audio classification.
+\newblock In {\em International Conference on Acoustics, Speech and Signal Processing (ICASSP)}. 2017.
+
+\bibitem[\protect\citeauthoryear{Hershey \bgroup \em et al.\egroup }{2021}]{hershey2021benefit}
+Shawn Hershey, Daniel~PW Ellis, Eduardo Fonseca, Aren Jansen, Caroline Liu, R~Channing Moore, and Manoj Plakal.
+\newblock The benefit of temporally-strong labels in audio event classification.
+\newblock In {\em ICASSP 2021-2021 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)}, pages 366--370. IEEE, 2021.
+
+\bibitem[\protect\citeauthoryear{Hsu \bgroup \em et al.\egroup }{2021}]{Hsu2021HuBERTSS}
+Wei-Ning Hsu, Benjamin Bolte, Yao-Hung~Hubert Tsai, Kushal Lakhotia, Ruslan Salakhutdinov, and Abdelrahman Mohamed.
+\newblock Hubert: Self-supervised speech representation learning by masked prediction of hidden units.
+\newblock {\em IEEE/ACM Transactions on Audio, Speech, and Language Processing}, 29:3451--3460, 2021.
+
+\bibitem[\protect\citeauthoryear{Huang \bgroup \em et al.\egroup }{2022}]{huang2022masked}
+Po-Yao Huang, Hu~Xu, Juncheng Li, Alexei Baevski, Michael Auli, Wojciech Galuba, Florian Metze, and Christoph Feichtenhofer.
+\newblock Masked autoencoders that listen.
+\newblock {\em Advances in Neural Information Processing Systems}, 35:28708--28720, 2022.
+
+\bibitem[\protect\citeauthoryear{Kong \bgroup \em et al.\egroup }{2020}]{kong2019panns}
+Qiuqiang Kong, Yin Cao, Turab Iqbal, Yuxuan Wang, Wenwu Wang, and Mark~D. Plumbley.
+\newblock Panns: Large-scale pretrained audio neural networks for audio pattern recognition.
+\newblock {\em {IEEE} {ACM} Trans. Audio Speech Lang. Process.}, 28:2880--2894, 2020.
+
+\bibitem[\protect\citeauthoryear{Koutini \bgroup \em et al.\egroup }{2021}]{paast}
+Khaled Koutini, Jan Schl{\"{u}}ter, Hamid Eghbal{-}zadeh, and Gerhard Widmer.
+\newblock Efficient training of audio transformers with patchout.
+\newblock {\em CoRR}, abs/2110.05069, 2021.
+
+\bibitem[\protect\citeauthoryear{LeCun}{2022}]{lecun2022path}
+Yann LeCun.
+\newblock A path towards autonomous machine intelligence version 0.9. 2, 2022-06-27.
+\newblock {\em Open Review}, 62, 2022.
+
+\bibitem[\protect\citeauthoryear{Li \bgroup \em et al.\egroup }{2022}]{tagging_right}
+Juncheng~B. Li, Shuhui Qu, Po{-}Yao Huang, and Florian Metze.
+\newblock Audiotagging done right: 2nd comparison of deep learning methods for environmental sound classification.
+\newblock {\em CoRR}, abs/2203.13448, 2022.
+
+\bibitem[\protect\citeauthoryear{Liu \bgroup \em et al.\egroup }{2020}]{mockingjay}
+Andy~T. Liu, Shu{-}Wen Yang, Po{-}Han Chi, Po{-}chun Hsu, and Hung{-}yi Lee.
+\newblock Mockingjay: Unsupervised speech representation learning with deep bidirectional transformer encoders.
+\newblock In {\em 2020 {IEEE} International Conference on Acoustics, Speech and Signal Processing, {ICASSP} 2020, Barcelona, Spain, May 4-8, 2020}, pages 6419--6423. {IEEE}, 2020.
+
+\bibitem[\protect\citeauthoryear{Liu \bgroup \em et al.\egroup }{2021}]{swin}
+Ze~Liu, Yutong Lin, Yue Cao, Han Hu, Yixuan Wei, Zheng Zhang, Stephen Lin, and Baining Guo.
+\newblock Swin transformer: Hierarchical vision transformer using shifted windows.
+\newblock In {\em 2021 {IEEE/CVF} International Conference on Computer Vision, {ICCV} 2021, Montreal, QC, Canada, October 10-17, 2021}, pages 9992--10002. {IEEE}, 2021.
+
+\bibitem[\protect\citeauthoryear{Nagrani \bgroup \em et al.\egroup }{2020}]{Nagrani2020VoxcelebLS}
+Arsha Nagrani, Joon~Son Chung, Weidi Xie, and Andrew Zisserman.
+\newblock Voxceleb: Large-scale speaker verification in the wild.
+\newblock {\em Comput. Speech Lang.}, 60, 2020.
+
+\bibitem[\protect\citeauthoryear{Nagrani \bgroup \em et al.\egroup }{2021}]{Nagrani21c}
+Arsha Nagrani, Shan Yang, Anurag Arnab, Aren Jansen, Cordelia Schmid, and Chen Sun.
+\newblock Attention bottlenecks for multimodal fusion.
+\newblock In Marc'Aurelio Ranzato, Alina Beygelzimer, Yann~N. Dauphin, Percy Liang, and Jennifer~Wortman Vaughan, editors, {\em Advances in Neural Information Processing Systems 34: Annual Conference on Neural Information Processing Systems 2021, NeurIPS 2021, December 6-14, 2021, virtual}, pages 14200--14213, 2021.
+
+\bibitem[\protect\citeauthoryear{Niizumi \bgroup \em et al.\egroup }{2022}]{niizumi2022masked}
+Daisuke Niizumi, Daiki Takeuchi, Yasunori Ohishi, Noboru Harada, and Kunio Kashino.
+\newblock Masked spectrogram modeling using masked autoencoders for learning general-purpose audio representation.
+\newblock {\em arXiv:2204.12260}, 2022.
+
+\bibitem[\protect\citeauthoryear{Oneata and Cucu}{2022}]{oneata2022improving}
+Dan Oneata and Horia Cucu.
+\newblock Improving multimodal speech recognition by data augmentation and speech representations.
+\newblock {\em arXiv preprint arXiv:2204.13206}, 2022.
+
+\bibitem[\protect\citeauthoryear{Oord \bgroup \em et al.\egroup }{2018}]{oord2018representation}
+Aaron van~den Oord, Yazhe Li, and Oriol Vinyals.
+\newblock Representation learning with contrastive predictive coding.
+\newblock {\em arXiv preprint arXiv:1807.03748}, 2018.
+
+\bibitem[\protect\citeauthoryear{Park \bgroup \em et al.\egroup }{2019}]{park2019specaugment}
+Daniel~S Park, William Chan, Yu~Zhang, Chung-Cheng Chiu, Barret Zoph, Ekin~D Cubuk, and Quoc~V Le.
+\newblock Specaugment: A simple data augmentation method for automatic speech recognition.
+\newblock {\em arXiv preprint arXiv:1904.08779}, 2019.
+
+\bibitem[\protect\citeauthoryear{Pathak \bgroup \em et al.\egroup }{2016}]{PathakKDDE16}
+Deepak Pathak, Philipp Kr{\"{a}}henb{\"{u}}hl, Jeff Donahue, Trevor Darrell, and Alexei~A. Efros.
+\newblock Context encoders: Feature learning by inpainting.
+\newblock In {\em 2016 {IEEE} Conference on Computer Vision and Pattern Recognition, {CVPR} 2016, Las Vegas, NV, USA, June 27-30, 2016}, pages 2536--2544. {IEEE} Computer Society, 2016.
+
+\bibitem[\protect\citeauthoryear{Patrick \bgroup \em et al.\egroup }{2021}]{stica}
+Mandela Patrick, Po{-}Yao Huang, Ishan Misra, Florian Metze, Andrea Vedaldi, Yuki~M. Asano, and Jo{\~{a}}o~F. Henriques.
+\newblock Space-time crop {\&} attend: Improving cross-modal video representation learning.
+\newblock In {\em 2021 {IEEE/CVF} International Conference on Computer Vision, {ICCV} 2021, Montreal, QC, Canada, October 10-17, 2021}, pages 10540--10552. {IEEE}, 2021.
+
+\bibitem[\protect\citeauthoryear{Piczak}{2015}]{piczak2015dataset}
+Karol~J. Piczak.
+\newblock {ESC}: {Dataset} for {Environmental Sound Classification}.
+\newblock In {\em Proceedings of the 23rd {Annual ACM Conference} on {Multimedia}}, pages 1015--1018. {ACM Press}, 2015.
+
+\bibitem[\protect\citeauthoryear{Platanios \bgroup \em et al.\egroup }{2019}]{platanios2019competence}
+Emmanouil~Antonios Platanios, Otilia Stretcu, Graham Neubig, Barnabas Poczos, and Tom~M Mitchell.
+\newblock Competence-based curriculum learning for neural machine translation.
+\newblock {\em arXiv preprint arXiv:1903.09848}, 2019.
+
+\bibitem[\protect\citeauthoryear{Povey \bgroup \em et al.\egroup }{2011}]{povey2011kaldi}
+Daniel Povey, Arnab Ghoshal, Gilles Boulianne, Lukas Burget, Ondrej Glembek, Nagendra Goel, Mirko Hannemann, Petr Motlicek, Yanmin Qian, Petr Schwarz, et~al.
+\newblock The kaldi speech recognition toolkit.
+\newblock In {\em IEEE 2011 workshop on automatic speech recognition and understanding}, number CONF. IEEE Signal Processing Society, 2011.
+
+\bibitem[\protect\citeauthoryear{Rao and Ballard}{1999}]{rao1999predictive}
+Rajesh~PN Rao and Dana~H Ballard.
+\newblock Predictive coding in the visual cortex: a functional interpretation of some extra-classical receptive-field effects.
+\newblock {\em Nature neuroscience}, 2(1):79--87, 1999.
+
+\bibitem[\protect\citeauthoryear{Schneider \bgroup \em et al.\egroup }{2019}]{wav2vec}
+Steffen Schneider, Alexei Baevski, Ronan Collobert, and Michael Auli.
+\newblock wav2vec: Unsupervised pre-training for speech recognition.
+\newblock In Gernot Kubin and Zdravko Kacic, editors, {\em Interspeech 2019, 20th Annual Conference of the International Speech Communication Association, Graz, Austria, 15-19 September 2019}, pages 3465--3469. {ISCA}, 2019.
+
+\bibitem[\protect\citeauthoryear{Shi \bgroup \em et al.\egroup }{2022}]{avhubert}
+Bowen Shi, Wei{-}Ning Hsu, and Abdelrahman Mohamed.
+\newblock Robust self-supervised audio-visual speech recognition.
+\newblock {\em CoRR}, abs/2201.01763, 2022.
+
+\bibitem[\protect\citeauthoryear{Srivastava \bgroup \em et al.\egroup }{2021}]{srivastava2021conformer}
+Sangeeta Srivastava, Yun Wang, Andros Tjandra, Anurag Kumar, Chunxi Liu, Kritika Singh, and Yatharth Saraf.
+\newblock Conformer-based self-supervised learning for non-speech audio tasks.
+\newblock {\em arXiv preprint arXiv:2110.07313}, 2021.
+
+\bibitem[\protect\citeauthoryear{Tong \bgroup \em et al.\egroup }{2022}]{tong2022videomae}
+Zhan Tong, Yibing Song, Jue Wang, and Limin Wang.
+\newblock Videomae: Masked autoencoders are data-efficient learners for self-supervised video pre-training.
+\newblock {\em Advances in neural information processing systems}, 35:10078--10093, 2022.
+
+\bibitem[\protect\citeauthoryear{Touvron \bgroup \em et al.\egroup }{2023}]{touvron2023llama}
+Hugo Touvron, Thibaut Lavril, Gautier Izacard, Xavier Martinet, Marie-Anne Lachaux, Timoth{\'e}e Lacroix, Baptiste Rozi{\`e}re, Naman Goyal, Eric Hambro, Faisal Azhar, et~al.
+\newblock Llama: Open and efficient foundation language models.
+\newblock {\em arXiv preprint arXiv:2302.13971}, 2023.
+
+\bibitem[\protect\citeauthoryear{van~den Oord \bgroup \em et al.\egroup }{2018}]{cpc}
+A{\"{a}}ron van~den Oord, Yazhe Li, and Oriol Vinyals.
+\newblock Representation learning with contrastive predictive coding.
+\newblock {\em CoRR}, abs/1807.03748, 2018.
+
+\bibitem[\protect\citeauthoryear{Verbitskiy \bgroup \em et al.\egroup }{2021}]{verbitskiy2021eranns}
+Sergey Verbitskiy, Vladimir Berikov, and Viacheslav Vyshegorodtsev.
+\newblock Eranns: Efficient residual audio neural networks for audio pattern recognition.
+\newblock {\em arXiv preprint arXiv:2106.01621}, 2021.
+
+\bibitem[\protect\citeauthoryear{Vincent \bgroup \em et al.\egroup }{2008}]{dae}
+Pascal Vincent, Hugo Larochelle, Yoshua Bengio, and Pierre{-}Antoine Manzagol.
+\newblock Extracting and composing robust features with denoising autoencoders.
+\newblock In William~W. Cohen, Andrew McCallum, and Sam~T. Roweis, editors, {\em Machine Learning, Proceedings of the Twenty-Fifth International Conference {(ICML} 2008), Helsinki, Finland, June 5-9, 2008}, volume 307 of {\em {ACM} International Conference Proceeding Series}, pages 1096--1103. {ACM}, 2008.
+
+\bibitem[\protect\citeauthoryear{Vincent \bgroup \em et al.\egroup }{2010}]{sae}
+Pascal Vincent, Hugo Larochelle, Isabelle Lajoie, Yoshua Bengio, and Pierre{-}Antoine Manzagol.
+\newblock Stacked denoising autoencoders: Learning useful representations in a deep network with a local denoising criterion.
+\newblock {\em J. Mach. Learn. Res.}, 11:3371--3408, 2010.
+
+\bibitem[\protect\citeauthoryear{{Warden}}{2018}]{speechcommandsv2}
+P.~{Warden}.
+\newblock {Speech Commands: A Dataset for Limited-Vocabulary Speech Recognition}.
+\newblock {\em ArXiv e-prints}, April 2018.
+
+\bibitem[\protect\citeauthoryear{Wei \bgroup \em et al.\egroup }{2021}]{maskedfeat}
+Chen Wei, Haoqi Fan, Saining Xie, Chao{-}Yuan Wu, Alan~L. Yuille, and Christoph Feichtenhofer.
+\newblock Masked feature prediction for self-supervised visual pre-training.
+\newblock {\em CoRR}, abs/2112.09133, 2021.
+
+\bibitem[\protect\citeauthoryear{wen Yang \bgroup \em et al.\egroup }{2021}]{yang21c_interspeech}
+Shu wen Yang, Po-Han Chi, Yung-Sung Chuang, Cheng-I~Jeff Lai, Kushal Lakhotia, Yist~Y. Lin, Andy~T. Liu, Jiatong Shi, Xuankai Chang, Guan-Ting Lin, Tzu-Hsien Huang, Wei-Cheng Tseng, Ko~tik Lee, Da-Rong Liu, Zili Huang, Shuyan Dong, Shang-Wen Li, Shinji Watanabe, Abdelrahman Mohamed, and Hung yi~Lee.
+\newblock {SUPERB: Speech Processing Universal PERformance Benchmark}.
+\newblock In {\em Proc. Interspeech 2021}, pages 1194--1198, 2021.
+
+\bibitem[\protect\citeauthoryear{Yan \bgroup \em et al.\egroup }{2021}]{yan2021semi}
+Xu~Yan, Zhengcong Fei, Zekang Li, Shuhui Wang, Qingming Huang, and Qi~Tian.
+\newblock Semi-autoregressive image captioning.
+\newblock In {\em Proceedings of the 29th ACM International Conference on Multimedia}, pages 2708--2716, 2021.
+
+\bibitem[\protect\citeauthoryear{Zhou \bgroup \em et al.\egroup }{2021}]{zhou2021ibot}
+Jinghao Zhou, Chen Wei, Huiyu Wang, Wei Shen, Cihang Xie, Alan Yuille, and Tao Kong.
+\newblock ibot: Image bert pre-training with online tokenizer.
+\newblock {\em arXiv preprint arXiv:2111.07832}, 2021.
+
+\end{thebibliography}

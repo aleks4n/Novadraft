@@ -1,0 +1,23 @@
+{
+  "gap_id": "gap_20279bf9",
+  "status": "unchecked",
+  "title": "Evaluation limited to image classification",
+  "description": "The paper only evaluates ViT on image classification tasks. Applying ViT to other computer vision tasks such as detection and segmentation remains as future work.",
+  "type": "future_work",
+  "canonical_description": "evaluation limited to image classification; detection and segmentation not explored",
+  "evidence": [
+    {
+      "paper_id": "arxiv_2010.11929",
+      "section": "conclusion",
+      "anchor": "such as detection and segmentation",
+      "quote": "One is to apply \\oursabbrv to other computer vision tasks, such as detection and segmentation.",
+      "char_offset": [
+        698,
+        792
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-06-26T21:50:37Z"
+}

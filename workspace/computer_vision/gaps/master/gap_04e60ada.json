@@ -1,0 +1,140 @@
+{
+  "gap_id": "gap_04e60ada",
+  "status": "validated",
+  "title": "Dot product compatibility function may be suboptimal",
+  "description": "Reducing the attention key size d_k hurts model quality, suggesting that determining compatibility is not easy and that a more sophisticated compatibility function than dot product may be beneficial.",
+  "type": "limitation",
+  "canonical_description": "dot-product compatibility function may be insufficient for learning attention weights",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1706.03762",
+      "section": "results",
+      "anchor": "more sophisticated compatibility function than dot product may be beneficial",
+      "quote": "This suggests that determining compatibility is not easy and that a more sophisticated compatibility function than dot product may be beneficial.",
+      "char_offset": [
+        2819,
+        2964
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T07:35:12Z",
+  "verdict": {
+    "gap_id": "gap_04e60ada",
+    "status": "open",
+    "confidence": 0.95,
+    "reasoning": "All four papers are not_addressed — none propose or investigate a more sophisticated compatibility function than dot product. Paper 1 (Easy Attention) eliminates the query-key mechanism entirely, Papers 2–4 all use standard scaled dot-product attention unchanged (Paper 2 for speaker verification, Paper 3 adds temporal reweighting on top, Paper 4 adds relative position encoding and convolution preprocessing). None test whether dot product is suboptimal or suggest an alternative compatibility function. The gap remains completely open.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2308.12874",
+          "title": "Easy attention: A simple attention mechanism for temporal predictions with transformers",
+          "abstract": "To improve the robustness of transformer neural networks used for temporal-dynamics prediction of chaotic systems, we propose a novel attention mechanism called easy attention which we demonstrate in time-series reconstruction and prediction. While the standard self attention only makes use of the inner product of queries and keys, it is demonstrated that the keys, queries and softmax are not necessary for obtaining the attention score required to capture long-term dependencies in temporal sequences. Through the singular-value decomposition (SVD) on the softmax attention score, we further observe that self attention compresses the contributions from both queries and keys in the space spanned by the attention score. Therefore, our proposed easy-attention method directly treats the attention scores as learnable parameters. This approach produces excellent results when reconstructing and predicting the temporal dynamics of chaotic systems exhibiting more robustness and less complexity than self attention or the widely-used long short-term memory (LSTM) network. We show the improved performance of the easy-attention method in the Lorenz system, a turbulence shear flow and a model of a nuclear reactor.",
+          "authors": [
+            "Marcial Sanchis-Agudo",
+            "Yuning Wang",
+            "Roger Arnau",
+            "Luca Guastoni",
+            "Jasmin Lim",
+            "Karthik Duraisamy",
+            "Ricardo Vinuesa"
+          ],
+          "published_date": "2023-08-24T15:54:32Z",
+          "url": "https://arxiv.org/abs/2308.12874v4"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "The paper proposes \"easy attention,\" which replaces the standard query-key-softmax attention mechanism with a directly learned attention matrix α that is input-independent at inference time. The approach is motivated by Koopman operator theory and targets temporal-dynamics prediction of chaotic systems (Lorenz, turbulence, nuclear reactor). It demonstrates improved robustness, reduced complexity, and competitive or better performance on these tasks compared to standard self-attention and LSTM models.",
+        "what_remains_open": "The paper does not address the gap at all. The gap asks whether the dot-product compatibility function (query-key dot product) is suboptimal and whether a more sophisticated compatibility function could improve attention. Instead of proposing a better compatibility function, the paper eliminates the entire query-key-value mechanism and learns attention scores as fixed parameters independent of the input. This is a fundamentally different approach — it bypasses the question of compatibility functions entirely rather than investigating or improving them. The gap about whether dot-product is suboptimal and what a better compatibility function might look like remains completely open.",
+        "evidence_snippets": [
+          "we propose a novel attention mechanism called easy attention which we demonstrate in time-series reconstruction and prediction",
+          "easy attention, which uses neither the softmax nor the linear projections of queries and keys",
+          "we propose removing the W_K, W_Q and softmax from the self attention"
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2203.05642",
+          "title": "Parameter-Free Attentive Scoring for Speaker Verification",
+          "abstract": "This paper presents a novel study of parameter-free attentive scoring for speaker verification. Parameter-free scoring provides the flexibility of comparing speaker representations without the need of an accompanying parametric scoring model. Inspired by the attention component in Transformer neural networks, we propose a variant of the scaled dot product attention mechanism to compare enrollment and test segment representations. In addition, this work explores the effect on performance of (i) different types of normalization, (ii) independent versus tied query/key estimation, (iii) varying the number of key-value pairs and (iv) pooling multiple enrollment utterance statistics. Experimental results for a 4 task average show that a simple parameter-free attentive scoring mechanism can improve the average EER by 10% over the best cosine similarity baseline.",
+          "authors": [
+            "Jason Pelecanos",
+            "Quan Wang",
+            "Yiling Huang",
+            "Ignacio Lopez Moreno"
+          ],
+          "published_date": "2022-03-10T21:11:37Z",
+          "url": "https://arxiv.org/abs/2203.05642v3"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "The paper proposes a parameter-free attentive scoring mechanism for speaker verification, using a scaled dot-product attention mechanism (same as Transformer) to compare enrollment and test speaker embeddings. It studies normalization techniques, tied vs. independent query/key estimation, varying numbers of key-value pairs, and pooling enrollment utterances. The core compatibility function remains the standard scaled dot product — the paper does not investigate or propose alternatives to the dot product compatibility function.",
+        "what_remains_open": "The paper does not address the gap at all. The gap concerns whether the dot product compatibility function is suboptimal for learning attention weights and whether more sophisticated alternatives could be beneficial. This paper uses the exact same scaled dot product compatibility function (q·k) as the original Transformer — it never questions, modifies, or replaces it. The paper's contribution is about applying attention as a scoring backend for speaker verification, not about improving the compatibility function itself. The question of whether dot product is suboptimal and what alternatives might work better remains entirely open.",
+        "evidence_snippets": [
+          "w_{mn} = \\frac{\\exp (\\alpha \\, \\vec{q}_m \\cdot \\vec{k}_n)}{\\sum_{i=1}^M \\sum_{j=1}^N \\exp ( \\alpha \\, \\vec{q}_i \\cdot \\vec{k}_j)}",
+          "Inspired by the attention component in Transformer neural networks, we propose a variant of the scaled dot product attention mechanism to compare enrollment and test segment representations.",
+          "The scoring function can be interpreted simply as a weighted combination of dot products across embeddings (i.e. the value vectors), where the weights are determined using the softmax calculation (based on query and key comparisons)."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2002.00741",
+          "title": "Déjà vu: A Contextualized Temporal Attention Mechanism for Sequential Recommendation",
+          "abstract": "Predicting users' preferences based on their sequential behaviors in history is challenging and crucial for modern recommender systems. Most existing sequential recommendation algorithms focus on transitional structure among the sequential actions, but largely ignore the temporal and context information, when modeling the influence of a historical event to current prediction. In this paper, we argue that the influence from the past events on a user's current action should vary over the course of time and under different context. Thus, we propose a Contextualized Temporal Attention Mechanism that learns to weigh historical actions' influence on not only what action it is, but also when and how the action took place. More specifically, to dynamically calibrate the relative input dependence from the self-attention mechanism, we deploy multiple parameterized kernel functions to learn various temporal dynamics, and then use the context information to determine which of these reweighing kernels to follow for each input. In empirical evaluations on two large public recommendation datasets, our model consistently outperformed an extensive set of state-of-the-art sequential recommendation methods.",
+          "authors": [
+            "Jibang Wu",
+            "Renqin Cai",
+            "Hongning Wang"
+          ],
+          "published_date": "2020-01-29T20:27:42Z",
+          "url": "https://arxiv.org/abs/2002.00741v1"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "This paper proposes a Contextualized Temporal Attention Mechanism (CTA) for sequential recommendation. It uses standard scaled dot-product self-attention to compute content-based importance scores (α stage), then adds temporal kernels (β stage) and contextual mixture (γ stage) to reweight those scores. The paper's contribution is about incorporating temporal and contextual information into attention for sequential recommendation, not about improving or replacing the dot-product compatibility function itself.",
+        "what_remains_open": "The paper does not address the gap at all. It uses the standard scaled dot-product attention (from Vaswani et al., 2017) without modification to the compatibility function. The paper's innovation lies in adding temporal kernels and contextual reweighting on top of the already-computed attention scores, not in proposing a more sophisticated compatibility function than dot product. The question of whether dot-product compatibility is suboptimal and what better alternatives might exist remains completely open.",
+        "evidence_snippets": [
+          "We use the encoder mode of self-attention mechanism to transform the input sequence embedding ... through a stack of d_l self-attentive encoder blocks with d_h heads and d_a hidden units",
+          "the Scaled Dot-Product [CITE:vaswani2017attention]: \\operatorname{Attention}(\\bQ, \\bK, \\bV) = \\operatorname{softmax}\\left(\\frac{ \\boldsymbol{Q} \\cdot \\boldsymbol{K}^T}{\\sqrt{d_a / d_h} } \\right) \\bV",
+          "In this paper, we argue that the transition patterns could widely differ due to the subtle variance within the temporal proximity between neighboring events, associated with its changing context."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2308.03429",
+          "title": "RCMHA: Relative Convolutional Multi-Head Attention for Natural Language Modelling",
+          "abstract": "The Attention module finds common usage in language modeling, presenting distinct challenges within the broader scope of Natural Language Processing. Multi-Head Attention (MHA) employs an absolute positional encoding, which imposes limitations on token length and entails substantial memory consumption during the processing of embedded inputs. The current remedy proposed by researchers involves the utilization of relative positional encoding, similar to the approach adopted in Transformer-XL or Relative Multi-Head Attention (RMHA), albeit the employed architecture consumes considerable memory resources. To address these challenges, this study endeavors to refine MHA, leveraging relative positional encoding in conjunction with the Depth-Wise Convolutional Layer architecture, which promises heightened accuracy coupled with minimized memory usage. The proposed RCMHA framework entails the modification of two integral components: firstly, the application of the Depth-Wise Convolutional Layer to the input embedding, encompassing Query, Key, and Value parameters; secondly, the incorporation of Relative Positional Encoding into the attention scoring phase, harmoniously integrated with Scaled Dot-Product Attention. Empirical experiments underscore the advantages of RCMHA, wherein it exhibits superior accuracy, boasting a score of 0.572 in comparison to alternative attention modules such as MHA, Multi-DConv-Head Attention (MDHA), and RMHA. Concerning memory utilization, RMHA emerges as the most frugal, demonstrating an average consumption of 2.98 GB, surpassing RMHA which necessitates 3.5 GB.",
+          "authors": [
+            "Herman Sugiharto",
+            "Aradea",
+            "Husni Mubarok"
+          ],
+          "published_date": "2023-08-07T09:24:24Z",
+          "url": "https://arxiv.org/abs/2308.03429v1"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "This paper proposes RCMHA, which combines relative positional encoding (from Transformer-XL) with depth-wise convolutional layers on Q, K, V inputs (from MDHA) to improve accuracy and reduce memory usage compared to Relative Multi-Head Attention. The core attention scoring mechanism remains scaled dot-product attention; the paper does not investigate or propose alternatives to the dot product compatibility function.",
+        "what_remains_open": "The paper does not address the gap at all. The gap concerns whether the dot product compatibility function is suboptimal for computing attention weights and whether more sophisticated compatibility functions could improve quality. This paper keeps the scaled dot-product attention mechanism unchanged — it only adds relative positional encoding (which modifies how positions are incorporated into the dot product, not the dot product itself) and depth-wise convolution preprocessing. The fundamental question of whether dot product is a sufficient compatibility function remains entirely open.",
+        "evidence_snippets": [
+          "the attention scoring mechanism within RCMHA stands as a fusion of relative positional encoding and scaled-dot production",
+          "In the context of relative positional encoding, this convention undergoes alteration through the substitution of the conventional absolute positional encoding U_j with the novel concept of relative positional encoding R_{i-j}",
+          "The second pivotal enhancement introduced to the Multi-Head Attention (MHA) involves the integration of a Depth-Wise Convolutional (DWC) layer into each of the constituent input values—namely Query, Key, and Value"
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 4,
+      "skipped_ids": []
+    }
+  },
+  "ranking": {
+    "openness": 0.975,
+    "impact": 0.2212437900615097,
+    "feasibility": 0.55,
+    "feasibility_reasoning": "Tractable but with moderate difficulty. Data exists (standard benchmarks like WMT, GLUE, ImageNet). Compute is feasible for moderate-scale transformers (up to ~1B params), though frontier-scale would be costly. Methodologically there is prior art to build on (additive attention, bilinear forms, kernel-based attention) so this is not a from-scratch breakthrough problem. However, several challenges lower the score: (1) the dot-product's dominance despite years of alternatives suggests either it is genuinely good or hard to beat in practice; (2) controlling for confounding factors (model size, compute budget, training recipes) requires careful experimental design; (3) the scaling issue Vaswani et al. identified (large d_k → softmax saturation) is partly addressed by 1/√d_k, making the \"suboptimal\" claim harder to pin down; (4) any alternative must compete with the dot-product's computational efficiency (optimized GEMM). Evaluation is clear (downstream task performance, attention entropy, gradient analysis). Overall: plausible research direction with a clear path, but not easy — the gap persists for a reason."
+  }
+}

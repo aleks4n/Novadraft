@@ -1,0 +1,246 @@
+\begin{thebibliography}{41}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Brock et~al.(2018)Brock, Donahue, and Simonyan]{biggan}
+Brock, A., Donahue, J., and Simonyan, K.
+\newblock Large scale gan training for high fidelity natural image synthesis.
+\newblock \emph{arXiv preprint arXiv:1809.11096}, 2018.
+
+\bibitem[Brown et~al.(2020)Brown, Mann, Ryder, Subbiah, Kaplan, Dhariwal,
+  Neelakantan, Shyam, Sastry, Askell, Agarwal, Herbert-Voss, Krueger, Henighan,
+  Child, Ramesh, Ziegler, Wu, Winter, Hesse, Chen, Sigler, Litwin, Gray, Chess,
+  Clark, Berner, McCandlish, Radford, Sutskever, and Amodei]{gpt3}
+Brown, T.~B., Mann, B., Ryder, N., Subbiah, M., Kaplan, J., Dhariwal, P.,
+  Neelakantan, A., Shyam, P., Sastry, G., Askell, A., Agarwal, S.,
+  Herbert-Voss, A., Krueger, G., Henighan, T., Child, R., Ramesh, A., Ziegler,
+  D.~M., Wu, J., Winter, C., Hesse, C., Chen, M., Sigler, E., Litwin, M., Gray,
+  S., Chess, B., Clark, J., Berner, C., McCandlish, S., Radford, A., Sutskever,
+  I., and Amodei, D.
+\newblock Language models are few-shot learners, 2020.
+
+\bibitem[Chen et~al.(2020{\natexlab{a}})Chen, Radford, Child, Wu, Jun,
+  Dhariwal, Luan, and Sutskever]{igpt}
+Chen, M., Radford, A., Child, R., Wu, J., Jun, H., Dhariwal, P., Luan, D., and
+  Sutskever, I.
+\newblock Generative pretraining from pixels, 2020{\natexlab{a}}.
+\newblock URL
+  \url{https://cdn.openai.com/papers/Generative_Pretraining_from_Pixels_V2.pdf}.
+
+\bibitem[Chen et~al.(2020{\natexlab{b}})Chen, Zhang, Zen, Weiss, Norouzi, and
+  Chan]{wavegrad}
+Chen, N., Zhang, Y., Zen, H., Weiss, R.~J., Norouzi, M., and Chan, W.
+\newblock Wavegrad: Estimating gradients for waveform generation,
+  2020{\natexlab{b}}.
+
+\bibitem[Chen et~al.(2018)Chen, Mishra, Rohaninejad, and Abbeel]{pixelsnail}
+Chen, X., Mishra, N., Rohaninejad, M., and Abbeel, P.
+\newblock Pixelsnail: An improved autoregressive generative model.
+\newblock In \emph{International Conference on Machine Learning}, pp.\
+  864--872. PMLR, 2018.
+
+\bibitem[Child(2020)]{vdvae}
+Child, R.
+\newblock Very deep vaes generalize autoregressive models and can outperform
+  them on images.
+\newblock \emph{arXiv preprint arXiv:2011.10650}, 2020.
+
+\bibitem[Child et~al.(2019)Child, Gray, Radford, and
+  Sutskever]{sparsetransformer}
+Child, R., Gray, S., Radford, A., and Sutskever, I.
+\newblock Generating long sequences with sparse transformers, 2019.
+
+\bibitem[Gao et~al.(2020)Gao, Song, Poole, Wu, and Kingma]{ebmdiffusion}
+Gao, R., Song, Y., Poole, B., Wu, Y.~N., and Kingma, D.~P.
+\newblock Learning energy-based models by diffusion recovery likelihood, 2020.
+
+\bibitem[He et~al.(2015)He, Zhang, Ren, and Sun]{resnet}
+He, K., Zhang, X., Ren, S., and Sun, J.
+\newblock Deep residual learning for image recognition, 2015.
+
+\bibitem[Henighan et~al.(2020)Henighan, Kaplan, Katz, Chen, Hesse, Jackson,
+  Jun, Brown, Dhariwal, Gray, Hallacy, Mann, Radford, Ramesh, Ryder, Ziegler,
+  Schulman, Amodei, and McCandlish]{scalingcompendium}
+Henighan, T., Kaplan, J., Katz, M., Chen, M., Hesse, C., Jackson, J., Jun, H.,
+  Brown, T.~B., Dhariwal, P., Gray, S., Hallacy, C., Mann, B., Radford, A.,
+  Ramesh, A., Ryder, N., Ziegler, D.~M., Schulman, J., Amodei, D., and
+  McCandlish, S.
+\newblock Scaling laws for autoregressive generative modeling, 2020.
+
+\bibitem[Heusel et~al.(2017)Heusel, Ramsauer, Unterthiner, Nessler, and
+  Hochreiter]{fid}
+Heusel, M., Ramsauer, H., Unterthiner, T., Nessler, B., and Hochreiter, S.
+\newblock Gans trained by a two time-scale update rule converge to a local nash
+  equilibrium.
+\newblock Advances in Neural Information Processing Systems 30 (NIPS 2017),
+  2017.
+
+\bibitem[Ho et~al.(2019)Ho, Chen, Srinivas, Duan, and Abbeel]{flow++}
+Ho, J., Chen, X., Srinivas, A., Duan, Y., and Abbeel, P.
+\newblock Flow++: Improving flow-based generative models with variational
+  dequantization and architecture design.
+\newblock \emph{arXiv preprint arXiv:1902.00275}, 2019.
+
+\bibitem[Ho et~al.(2020)Ho, Jain, and Abbeel]{ddpm}
+Ho, J., Jain, A., and Abbeel, P.
+\newblock Denoising diffusion probabilistic models, 2020.
+
+\bibitem[Hyv{\"a}rinen(2005)]{hyverianscorematching}
+Hyv{\"a}rinen, A.
+\newblock Estimation of non-normalized statistical models by score matching.
+\newblock \emph{Journal of Machine Learning Research}, 6\penalty0
+  (Apr):\penalty0 695--709, 2005.
+
+\bibitem[Jolicoeur-Martineau et~al.(2020)Jolicoeur-Martineau, Piché-Taillefer,
+  des Combes, and Mitliagkas]{adversarial}
+Jolicoeur-Martineau, A., Piché-Taillefer, R., des Combes, R.~T., and
+  Mitliagkas, I.
+\newblock Adversarial score matching and improved sampling for image
+  generation, 2020.
+
+\bibitem[Kaplan et~al.(2020)Kaplan, McCandlish, Henighan, Brown, Chess, Child,
+  Gray, Radford, Wu, and Amodei]{scalinglaws}
+Kaplan, J., McCandlish, S., Henighan, T., Brown, T.~B., Chess, B., Child, R.,
+  Gray, S., Radford, A., Wu, J., and Amodei, D.
+\newblock Scaling laws for neural language models, 2020.
+
+\bibitem[Kingma \& Ba(2014)Kingma and Ba]{adam}
+Kingma, D.~P. and Ba, J.
+\newblock Adam: A method for stochastic optimization, 2014.
+
+\bibitem[Kingma \& Dhariwal(2018)Kingma and Dhariwal]{glow}
+Kingma, D.~P. and Dhariwal, P.
+\newblock Glow: Generative flow with invertible 1x1 convolutions.
+\newblock In \emph{Advances in neural information processing systems}, pp.\
+  10215--10224, 2018.
+
+\bibitem[Kingma \& Welling(2013)Kingma and Welling]{vae}
+Kingma, D.~P. and Welling, M.
+\newblock Auto-encoding variational bayes, 2013.
+
+\bibitem[Kong et~al.(2020)Kong, Ping, Huang, Zhao, and Catanzaro]{diffwave}
+Kong, Z., Ping, W., Huang, J., Zhao, K., and Catanzaro, B.
+\newblock Diffwave: A versatile diffusion model for audio synthesis, 2020.
+
+\bibitem[Krizhevsky(2009)]{cifar10}
+Krizhevsky, A.
+\newblock Learning multiple layers of features from tiny images, 2009.
+\newblock URL
+  \url{http://www.cs.toronto.edu/~kriz/learning-features-2009-TR.pdf}.
+
+\bibitem[Kynkäänniemi et~al.(2019)Kynkäänniemi, Karras, Laine, Lehtinen,
+  and Aila]{improvedpr}
+Kynkäänniemi, T., Karras, T., Laine, S., Lehtinen, J., and Aila, T.
+\newblock Improved precision and recall metric for assessing generative models,
+  2019.
+
+\bibitem[McCandlish et~al.(2018)McCandlish, Kaplan, Amodei, and
+  Team]{gradnoisescale}
+McCandlish, S., Kaplan, J., Amodei, D., and Team, O.~D.
+\newblock An empirical model of large-batch training, 2018.
+
+\bibitem[Menick \& Kalchbrenner(2018)Menick and Kalchbrenner]{spn}
+Menick, J. and Kalchbrenner, N.
+\newblock Generating high fidelity images with subscale pixel networks and
+  multidimensional upscaling, 2018.
+
+\bibitem[Parmar et~al.(2018)Parmar, Vaswani, Uszkoreit, Kaiser, Shazeer, Ku,
+  and Tran]{imagetransformer}
+Parmar, N., Vaswani, A., Uszkoreit, J., Kaiser, {\L}., Shazeer, N., Ku, A., and
+  Tran, D.
+\newblock Image transformer.
+\newblock \emph{arXiv preprint arXiv:1802.05751}, 2018.
+
+\bibitem[Ravuri \& Vinyals(2019)Ravuri and Vinyals]{cas}
+Ravuri, S. and Vinyals, O.
+\newblock Classification accuracy score for conditional generative models.
+\newblock \emph{arXiv preprint arXiv:1905.10887}, 2019.
+
+\bibitem[Razavi et~al.(2019)Razavi, van~den Oord, and Vinyals]{vqvae2}
+Razavi, A., van~den Oord, A., and Vinyals, O.
+\newblock Generating diverse high-fidelity images with vq-vae-2, 2019.
+
+\bibitem[Roy et~al.(2020)Roy, Saffar, Vaswani, and
+  Grangier]{routingtransformer}
+Roy, A., Saffar, M., Vaswani, A., and Grangier, D.
+\newblock Efficient content-based sparse attention with routing transformers,
+  2020.
+
+\bibitem[Salimans et~al.(2016)Salimans, Goodfellow, Zaremba, Cheung, Radford,
+  and Chen]{inceptionscore}
+Salimans, T., Goodfellow, I., Zaremba, W., Cheung, V., Radford, A., and Chen,
+  X.
+\newblock Improved techniques for training gans, 2016.
+
+\bibitem[Salimans et~al.(2017)Salimans, Karpathy, Chen, and Kingma]{pixelcnn++}
+Salimans, T., Karpathy, A., Chen, X., and Kingma, D.~P.
+\newblock Pixelcnn++: Improving the pixelcnn with discretized logistic mixture
+  likelihood and other modifications, 2017.
+
+\bibitem[Sohl-Dickstein et~al.(2015)Sohl-Dickstein, Weiss, Maheswaranathan, and
+  Ganguli]{diffusion}
+Sohl-Dickstein, J., Weiss, E.~A., Maheswaranathan, N., and Ganguli, S.
+\newblock Deep unsupervised learning using nonequilibrium thermodynamics, 2015.
+
+\bibitem[Song et~al.(2020{\natexlab{a}})Song, Meng, and Ermon]{ddim}
+Song, J., Meng, C., and Ermon, S.
+\newblock Denoising diffusion implicit models, 2020{\natexlab{a}}.
+
+\bibitem[Song \& Ermon(2019)Song and Ermon]{scorematching}
+Song, Y. and Ermon, S.
+\newblock Generative modeling by estimating gradients of the data distribution.
+\newblock In \emph{Advances in Neural Information Processing Systems}, pp.\
+  11918--11930, 2019.
+
+\bibitem[Song \& Ermon(2020)Song and Ermon]{improvedscore}
+Song, Y. and Ermon, S.
+\newblock Improved techniques for training score-based generative models.
+\newblock \emph{arXiv preprint arXiv:2006.09011}, 2020.
+
+\bibitem[Song et~al.(2020{\natexlab{b}})Song, Sohl-Dickstein, Kingma, Kumar,
+  Ermon, and Poole]{sde}
+Song, Y., Sohl-Dickstein, J., Kingma, D.~P., Kumar, A., Ermon, S., and Poole,
+  B.
+\newblock Score-based generative modeling through stochastic differential
+  equations, 2020{\natexlab{b}}.
+
+\bibitem[Vahdat \& Kautz(2020)Vahdat and Kautz]{nvae}
+Vahdat, A. and Kautz, J.
+\newblock Nvae: A deep hierarchical variational autoencoder.
+\newblock \emph{arXiv preprint arXiv:2007.03898}, 2020.
+
+\bibitem[van~den Oord et~al.(2016{\natexlab{a}})van~den Oord, Kalchbrenner, and
+  Kavukcuoglu]{pixelrnn}
+van~den Oord, A., Kalchbrenner, N., and Kavukcuoglu, K.
+\newblock Pixel recurrent neural networks, 2016{\natexlab{a}}.
+
+\bibitem[van~den Oord et~al.(2016{\natexlab{b}})van~den Oord, Kalchbrenner,
+  Vinyals, Espeholt, Graves, and Kavukcuoglu]{imagenet64}
+van~den Oord, A., Kalchbrenner, N., Vinyals, O., Espeholt, L., Graves, A., and
+  Kavukcuoglu, K.
+\newblock Conditional image generation with pixelcnn decoders,
+  2016{\natexlab{b}}.
+\newblock URL \url{http://image-net.org/small/download.php}.
+
+\bibitem[van~den Oord et~al.(2016{\natexlab{c}})van~den Oord, Kalchbrenner,
+  Vinyals, Espeholt, Graves, and Kavukcuoglu]{pixelcnn}
+van~den Oord, A., Kalchbrenner, N., Vinyals, O., Espeholt, L., Graves, A., and
+  Kavukcuoglu, K.
+\newblock Conditional image generation with pixelcnn decoders,
+  2016{\natexlab{c}}.
+
+\bibitem[Vaswani et~al.(2017)Vaswani, Shazeer, Parmar, Uszkoreit, Jones, Gomez,
+  Kaiser, and Polosukhin]{transformers}
+Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A.~N.,
+  Kaiser, L., and Polosukhin, I.
+\newblock Attention is all you need, 2017.
+
+\bibitem[Yu et~al.(2015)Yu, Seff, Zhang, Song, Funkhouser, and Xiao]{lsun}
+Yu, F., Seff, A., Zhang, Y., Song, S., Funkhouser, T., and Xiao, J.
+\newblock Lsun: Construction of a large-scale image dataset using deep learning
+  with humans in the loop, 2015.
+
+\end{thebibliography}

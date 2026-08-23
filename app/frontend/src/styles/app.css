@@ -1,0 +1,472 @@
+/* Additions on top of the ported design system (design.css). Kept separate so
+   the design tokens/components stay byte-faithful to the source. */
+
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+/* Amber "working" state for the agent status LED (design ships green/red). */
+.status-led--amber { background: var(--accent-amber); box-shadow: 0 0 0 3px #d9a04c22; }
+.status-led--red { background: var(--accent-warm); box-shadow: 0 0 0 3px #c75b5b22; }
+
+/* Inline paper-agent run panel, shown inside the Add-paper step. */
+.run-panel {
+  margin-top: 16px; padding: 14px 16px; border-radius: var(--radius);
+  background: var(--bg-panel); border: 1px solid var(--border);
+}
+.run-panel-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.run-panel-title { font-weight: 600; font-size: 13px; color: var(--text); }
+.run-panel-query {
+  margin-left: auto; font-family: var(--font-mono); font-size: 11.5px;
+  color: var(--text-3); background: var(--bg-inset); padding: 2px 8px; border-radius: 6px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40%;
+}
+.run-panel-head:has(.run-panel-query) .run-panel-actions { margin-left: 0; }
+
+/* Live paper-agent run transcript. */
+.run-transcript { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; }
+.run-line { display: flex; align-items: baseline; gap: 7px; line-height: 1.4; }
+.run-glyph { flex-shrink: 0; width: 12px; text-align: center; font-weight: 600; }
+.run-text { color: var(--text); font-weight: 500; }
+.run-sub {
+  color: var(--text-4); font-family: var(--font-mono); font-size: 11px;
+  margin-left: auto; padding-left: 8px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; max-width: 140px;
+}
+
+/* Add-paper run banner */
+.addpaper-status {
+  margin-top: 14px; padding: 12px 14px; border-radius: var(--radius);
+  background: var(--accent-ai-soft); border: 1px solid var(--border);
+  color: var(--text-2); font-size: 13px;
+}
+
+/* Generic centered empty/loading state for list/detail views. */
+.empty-state {
+  text-align: center; color: var(--text-4); padding: 40px 20px;
+  font-size: 13px;
+}
+
+/* Status chip on paper rows (fetched / extracted / summarized / verified / complete). */
+.paper-status {
+  display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 8px;
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600;
+  background: var(--bg-inset); color: var(--text-3); border: 1px solid var(--border);
+}
+.paper-status--complete { background: #e7f3ec; color: var(--accent-green); border-color: #cfe6d8; }
+.paper-status--summarized { background: var(--accent-soft); color: var(--accent); border-color: #d9d9fb; }
+
+/* ===== Paper lifecycle pipeline (PaperPipeline.tsx) ========================= */
+/* Wider pipe column on the list rows. */
+.paper-row { grid-template-columns: 32px 1fr 128px 24px; }
+.paper-row-pipe { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+
+/* Compact variant: five segments that fill as stages complete. */
+.ppipe--compact { display: flex; gap: 3px; width: 100%; }
+.ppipe-seg {
+  flex: 1; height: 4px; border-radius: 2px; background: var(--border);
+}
+.ppipe-seg--done { background: var(--accent-green); }
+
+/* Full variant: labelled horizontal stepper on the detail view. */
+.pipeline-strip {
+  margin: 4px 0 18px; padding: 14px 18px; background: var(--bg-panel);
+  border: 1px solid var(--border); border-radius: var(--radius);
+}
+.ppipe { display: flex; align-items: flex-start; }
+.ppipe-step {
+  position: relative; display: flex; flex-direction: column; align-items: center;
+  flex: 1; gap: 6px; text-align: center;
+}
+.ppipe-node {
+  width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; background: var(--bg-inset); border: 1.5px solid var(--border);
+  color: var(--text-4); z-index: 1;
+}
+.ppipe-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.ppipe-label { font-size: 11.5px; color: var(--text-4); font-weight: 500; }
+.ppipe-bar {
+  position: absolute; top: 12px; left: 50%; width: 100%; height: 2px;
+  background: var(--border); z-index: 0;
+}
+.ppipe-step--done .ppipe-node { background: #e7f3ec; border-color: #bfe0cd; color: var(--accent-green); }
+.ppipe-step--done .ppipe-label { color: var(--text-2); }
+.ppipe-step--done .ppipe-bar { background: #bfe0cd; }
+.ppipe-step--current .ppipe-node { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.ppipe-step--current .ppipe-label { color: var(--accent); font-weight: 600; }
+/* GapPipeline extra states: active (live), skipped (n/a for this gap). */
+.ppipe-step--active .ppipe-node { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.ppipe-step--active .ppipe-label { color: var(--accent); font-weight: 600; }
+.ppipe-step--skipped .ppipe-node { border-style: dashed; opacity: 0.7; }
+.ppipe-step--skipped .ppipe-label { color: var(--text-5); }
+.ppipe-dot--skip { background: transparent; border: 1px dashed var(--text-4); width: 7px; height: 7px; }
+.ppipe-spin {
+  width: 11px; height: 11px; border-radius: 50%;
+  border: 1.5px solid var(--accent-soft); border-top-color: var(--accent);
+  animation: spin 0.7s linear infinite;
+}
+.pipeline-note { margin-top: 10px; font-size: 12.5px; color: var(--text-3); }
+
+/* Tag variants on paper rows. */
+.tag--gap { color: var(--accent); background: var(--accent-soft); border-color: #d9d9fb; }
+.tag--warn { color: var(--accent-warm); background: #fbeaea; border-color: #f0d2d2; }
+
+/* Inline notice (e.g. ingestion warnings). */
+.notice {
+  display: flex; gap: 10px; align-items: flex-start; margin-bottom: 16px;
+  padding: 12px 14px; border-radius: var(--radius); font-size: 12.5px;
+}
+.notice .icon { flex-shrink: 0; margin-top: 1px; }
+.notice--warn { background: #fbeaea; border: 1px solid #f0d2d2; color: #8a3b3b; }
+.notice--resume {
+  background: var(--accent-soft); border: 1px solid #d6d6fb; color: var(--text-2);
+  align-items: center;
+}
+.notice.notice--resume b { display: inline; color: var(--text); }
+.notice--resume .btn { flex-shrink: 0; }
+.notice b { display: block; }
+.notice ul { margin: 8px 0 0; padding-left: 16px; color: var(--text-2); }
+.notice li { font-family: var(--font-mono); font-size: 11.5px; margin-bottom: 2px; }
+.notice-toggle {
+  display: flex; align-items: center; gap: 6px; background: none; border: none;
+  padding: 0; cursor: pointer; color: inherit; font: inherit;
+}
+
+/* Summary-verification card. */
+.card-head-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.card-sublabel {
+  font-size: 11px; color: var(--text-4); text-transform: uppercase;
+  letter-spacing: 0.03em; margin-bottom: 6px;
+}
+.verify-badge {
+  font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 8px;
+  text-transform: uppercase; letter-spacing: 0.03em;
+}
+.verify-badge--ok { background: #e7f3ec; color: var(--accent-green); }
+.verify-badge--issues { background: #fcf1dc; color: #8b6014; }
+
+/* Reported-results metric grid. */
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+.metric { padding: 10px 12px; background: var(--bg-inset); border-radius: var(--radius-sm); }
+.metric-val { font-family: var(--font-mono); font-size: 18px; color: var(--accent); letter-spacing: -0.02em; }
+.metric-name { font-size: 12px; color: var(--text-2); font-weight: 500; margin-top: 2px; }
+.metric-ds { font-size: 11px; color: var(--text-4); margin-top: 1px; }
+.metric-cmp { font-size: 10.5px; color: var(--text-4); margin-top: 2px; font-style: italic; }
+
+/* ===== Gaps ================================================================ */
+/* Gap type leads; colour is the derived severity accent. */
+.gap-type {
+  display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 8px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.01em; text-transform: capitalize;
+}
+.gap-type--high   { background: #FCE4E4; color: #A03B3B; }
+.gap-type--medium { background: #FCF1DC; color: #8B6014; }
+.gap-type--low    { background: #E4F0DA; color: #4E7639; }
+.gap-status {
+  font-size: 11px; color: var(--text-4); text-transform: capitalize;
+}
+
+/* Sortable gaps table. Header cells toggle sort; rows route to the gap detail.
+   table-layout:fixed + width:100% makes it span the full content column and gives
+   every column an explicit width (from the <colgroup>), so the resize handles can
+   trade width between neighbours without changing the total. */
+.gaps-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  table-layout: fixed;
+}
+.gaps-th {
+  position: relative;
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-4);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Drag handle straddling the right edge of each header cell. */
+.gaps-col-resize {
+  position: absolute; top: 0; right: -4px;
+  width: 8px; height: 100%;
+  cursor: col-resize; touch-action: none; z-index: 2;
+}
+.gaps-col-resize::after {
+  content: ""; position: absolute; top: 25%; right: 4px;
+  width: 2px; height: 50%; border-radius: 1px;
+  background: transparent; transition: background 80ms;
+}
+.gaps-th:hover .gaps-col-resize::after { background: var(--border); }
+.gaps-col-resize:hover::after { background: var(--accent); }
+body.col-resizing { cursor: col-resize; user-select: none; }
+body.col-resizing .gaps-row:hover { background: transparent; }
+.gaps-th:hover { color: var(--text-2); }
+.gaps-th--active { color: var(--text); }
+.gaps-th--num { text-align: right; }
+.gaps-th-inner { display: inline-flex; align-items: center; gap: 4px; }
+.gaps-th--num .gaps-th-inner { flex-direction: row-reverse; }
+.gaps-sort-caret {
+  width: 12px; height: 12px;
+  opacity: 0;
+  transition: opacity 80ms, transform 120ms;
+}
+.gaps-th:hover .gaps-sort-caret { opacity: 0.4; }
+.gaps-sort-caret.is-active { opacity: 1; }
+.gaps-sort-caret.is-asc { transform: rotate(180deg); }
+.gaps-row {
+  cursor: pointer;
+  transition: background 80ms;
+  border-bottom: 1px solid var(--border);
+}
+.gaps-row:hover { background: var(--bg-soft); }
+.gaps-row td {
+  padding: 10px 12px; color: var(--text-3); vertical-align: middle;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.gaps-cell-title {
+  color: var(--text);
+  font-weight: 500;
+}
+.gaps-cell-num {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-2);
+  letter-spacing: -0.02em;
+}
+
+/* The combined "Overall" score — the headline metric, emphasised over the
+   individual dimensions beside it. */
+.gaps-cell-num--strong {
+  color: var(--text-1);
+  font-weight: 600;
+}
+
+/* --- Ranking controls: view-time weights + min-floor filters --------------- */
+/* Toggle lives in the tabbar, pushed to the far right. */
+.rank-controls-toggle {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 10px; margin-bottom: -1px;
+  background: transparent; border: 1px solid var(--border); border-radius: 7px;
+  color: var(--text-2); font-size: 12.5px; cursor: pointer;
+}
+.rank-controls-toggle:hover { color: var(--text); border-color: var(--text-4); }
+.rank-controls-toggle.is-open {
+  color: var(--accent); border-color: var(--accent); background: var(--accent-soft);
+}
+.rank-controls-toggle-icon { width: 13px; height: 13px; }
+.rank-controls-badge {
+  font-family: var(--font-mono); font-size: 10.5px; line-height: 1;
+  padding: 2px 5px; border-radius: 6px;
+  background: var(--accent-warm); color: #fff;
+}
+
+.rank-controls {
+  display: flex; flex-wrap: wrap; align-items: flex-start; gap: 28px;
+  margin: -8px 0 22px; padding: 16px 18px;
+  background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius);
+}
+.rank-controls-group { display: flex; flex-direction: column; gap: 8px; min-width: 230px; }
+.rank-controls-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+.rank-controls-title {
+  font-size: 12px; font-weight: 600; color: var(--text-2);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.rank-controls-hint { font-size: 11px; color: var(--text-4); }
+.rank-knob { display: grid; grid-template-columns: 74px 1fr 34px; align-items: center; gap: 10px; }
+.rank-knob-label { font-size: 12.5px; color: var(--text-2); }
+.rank-knob-val {
+  font-family: var(--font-mono); font-size: 11.5px; color: var(--text-3);
+  text-align: right; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+}
+
+/* Range inputs, restyled to the app's tokens: a thin inset track with an accent
+   thumb ringed in the panel colour. Track + thumb must be set per-engine. */
+.rank-knob input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 16px; background: transparent; cursor: pointer; outline: none;
+}
+.rank-knob input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 3px; background: var(--bg-inset); border: 1px solid var(--border);
+}
+.rank-knob input[type="range"]::-moz-range-track {
+  height: 4px; border-radius: 3px; background: var(--bg-inset); border: 1px solid var(--border);
+}
+.rank-knob input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 13px; height: 13px; margin-top: -6px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--bg-panel);
+  box-shadow: 0 0 0 1px var(--accent); transition: box-shadow 80ms;
+}
+.rank-knob input[type="range"]::-moz-range-thumb {
+  width: 13px; height: 13px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--bg-panel);
+  box-shadow: 0 0 0 1px var(--accent); transition: box-shadow 80ms;
+}
+.rank-knob input[type="range"]:hover::-webkit-slider-thumb { box-shadow: 0 0 0 1px var(--accent), 0 0 0 4px var(--accent-soft); }
+.rank-knob input[type="range"]:hover::-moz-range-thumb { box-shadow: 0 0 0 1px var(--accent), 0 0 0 4px var(--accent-soft); }
+.rank-knob input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 1px var(--accent), 0 0 0 4px var(--accent-soft); }
+.rank-knob input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 1px var(--accent), 0 0 0 4px var(--accent-soft); }
+.rank-controls-reset {
+  align-self: center; padding: 6px 12px;
+  background: var(--bg-inset); border: 1px solid var(--border); border-radius: 7px;
+  color: var(--text-2); font-size: 12.5px; cursor: pointer;
+}
+.rank-controls-reset:hover { color: var(--text); border-color: var(--text-4); }
+
+/* Evidence blocks on the gap detail. */
+.evidence {
+  border-left: 3px solid var(--border-strong); padding-left: 12px;
+  margin: 0 0 12px;
+}
+.evidence:last-child { margin-bottom: 0; }
+.evidence-quote { color: var(--text-2); font-size: 13px; line-height: 1.5; }
+.evidence-meta { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+.evidence-section { font-size: 11px; color: var(--text-4); font-family: var(--font-mono); }
+.ground-chip {
+  font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 7px;
+  text-transform: uppercase; letter-spacing: 0.03em;
+}
+.ground--ok { background: #e7f3ec; color: var(--accent-green); }
+.ground--warn { background: #fcf1dc; color: #8b6014; }
+.ground--bad { background: #fbeaea; color: #a03b3b; }
+
+/* ===== Agent run pipeline (RunTranscript.tsx) ============================== */
+.run-pipe { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; }
+.run-stage { display: flex; gap: 11px; align-items: flex-start; padding: 5px 0; position: relative; }
+/* connector line between stage nodes */
+.run-stage:not(:last-child)::before {
+  content: ""; position: absolute; left: 10px; top: 26px; bottom: -5px; width: 2px;
+  background: var(--border);
+}
+.run-stage--done:not(:last-child)::before { background: #bfe0cd; }
+.run-stage-node {
+  width: 21px; height: 21px; border-radius: 50%; flex-shrink: 0; z-index: 1;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-inset); border: 1.5px solid var(--border); color: var(--text-4);
+}
+.run-stage-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.run-stage-spin {
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 2px solid var(--accent-soft); border-top-color: var(--accent);
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+/* Sidebar running indicator — an entity with a live agent run spins in the nav. */
+.sidebar-spin {
+  display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  border: 2px solid var(--accent-soft); border-top-color: var(--accent);
+  animation: spin 0.7s linear infinite;
+}
+.sidebar-item--busy .sidebar-item-label { color: var(--accent); }
+/* Overall score shown after a gap's name in the nav tree. */
+.sidebar-score {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-3);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- ingest box (Papers overview) — a growing multi-line query field -------- */
+.papers-ingest-box {
+  background: var(--bg-panel); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 12px 14px 10px;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.02);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.papers-ingest-textarea {
+  width: 100%; border: 0; outline: 0; background: transparent; resize: none;
+  font-family: var(--font-sans); font-size: 14px; line-height: 1.5; color: var(--text);
+}
+.papers-ingest-textarea::placeholder { color: var(--text-5); }
+.papers-ingest-actions { display: flex; align-items: center; gap: 10px; }
+.papers-ingest-hint {
+  flex: 1; min-width: 0; font-size: 11.5px; color: var(--text-4);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* --- ingest queue (Papers overview) — one row per still-resolving query ----- */
+.ingestq { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.ingestq-row {
+  border: 1px solid var(--border); border-radius: 10px; background: var(--bg-inset);
+  padding: 8px 12px;
+}
+.ingestq-row--error { border-color: #f0d2d2; background: #fdf6f6; }
+.ingestq-main { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ingestq-icon { display: flex; align-items: center; color: var(--text-4); flex-shrink: 0; }
+.ingestq-query {
+  font-family: var(--font-mono); font-size: 12.5px; color: var(--text-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%;
+}
+.ingestq-status { font-size: 12px; color: var(--text-4); flex: 1; min-width: 0; }
+.ingestq-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.run-candidates--queue { margin-top: 10px; }
+.ingestq-batch { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.ingestq-batch-foot { display: flex; align-items: center; justify-content: space-between; }
+.ingestq-batch-hint { font-size: 12px; color: var(--text-4); }
+
+/* Run-panel head actions (cancel / resume / dismiss) sit at the right edge. */
+.run-panel-actions { margin-left: auto; display: flex; gap: 6px; flex-shrink: 0; }
+.run-stage-body { padding-top: 1px; min-width: 0; }
+.run-stage-label { font-size: 13px; font-weight: 500; color: var(--text-3); display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.run-stage-pass { font-size: 11px; font-weight: 500; color: var(--accent); font-family: var(--font-mono); }
+.run-stage-hint { font-size: 11.5px; color: var(--text-4); margin-top: 1px; }
+.run-stage--done .run-stage-node { background: #e7f3ec; border-color: #bfe0cd; color: var(--accent-green); }
+.run-stage--done .run-stage-label { color: var(--text-2); }
+.run-stage--active .run-stage-node { border-color: var(--accent); }
+.run-stage--active .run-stage-label { color: var(--text); font-weight: 600; }
+.run-stage--error .run-stage-node { background: #fbeaea; border-color: #f0d2d2; color: var(--accent-warm); }
+.run-stage--error .run-stage-label { color: var(--accent-warm); }
+
+.run-error { color: var(--accent-warm); margin: 10px 0 0; font-size: 12.5px; }
+.run-done { margin: 10px 0 0; color: var(--text-3); font-size: 12.5px; }
+.run-log-toggle {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 10px;
+  background: none; border: none; cursor: pointer; padding: 0;
+  font-size: 12px; color: var(--text-4); font-family: inherit;
+}
+.run-log-toggle:hover { color: var(--text-2); }
+.run-transcript {
+  display: flex; flex-direction: column; gap: 3px; font-size: 12.5px;
+  margin-top: 8px; max-height: 220px; overflow-y: auto;
+  padding: 8px 10px; background: var(--bg-inset); border-radius: var(--radius-sm);
+}
+
+/* --- Paper-agent pause states: ambiguous picker & missing-source drop zone --- */
+
+/* Wraps the interactive resolution UI under the run pipeline. */
+.run-resolve { margin-top: 14px; }
+.run-note { font-size: 12.5px; color: var(--text-2); margin: 0 0 10px; line-height: 1.5; }
+
+/* Candidate picker for an ambiguous title fetch. */
+.run-candidates { display: grid; gap: 8px; }
+.candidate-card {
+  text-align: left; padding: 10px 12px; border-radius: var(--radius-sm);
+  background: var(--bg-inset); border: 1px solid var(--border); cursor: pointer;
+  transition: border-color .12s ease, background .12s ease;
+}
+.candidate-card:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); }
+.candidate-card:disabled { opacity: .55; cursor: not-allowed; }
+.candidate-title { font-weight: 600; font-size: 13px; color: var(--text); }
+.candidate-meta { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.candidate-id { font-family: var(--font-mono); font-size: 11px; color: var(--text-4); margin-top: 4px; }
+
+/* Drag-and-drop target for supplying a missing pdf/tex source. */
+.source-drop {
+  display: flex; align-items: center; gap: 12px; padding: 16px;
+  border-radius: var(--radius); border: 1.5px dashed var(--border-strong);
+  background: var(--bg-inset); cursor: pointer; margin-top: 4px;
+  transition: border-color .12s ease, background .12s ease;
+}
+.source-drop--over { border-color: var(--accent); background: var(--accent-soft); }
+.source-drop--busy { cursor: default; opacity: .7; }
+.source-drop-body { display: flex; flex-direction: column; gap: 2px; }
+.source-drop-body b { font-size: 13px; color: var(--text); }
+.source-drop-body span { font-size: 12px; color: var(--text-3); }

@@ -1,0 +1,34 @@
+\newcommand{\tbdatasetexamples}[1]{
+\begin{table}[#1]
+    \caption{Examples of the input and output of the tasks.}
+    \centering
+    \small
+    \resizebox{\linewidth}{!}{%
+        \begin{tabular}{lll}
+            \toprule
+            \textbf{Task}    & \textbf{Input Example}                                                  & \textbf{Output Example}           \\
+            \midrule
+            \multicolumn{3}{c}{Primitive Tasks}                                                                                            \\
+            \midrule
+            Copy             & \texttt{Copy the following words: <w1> <w2> <w3> <w4> <w5>}             & \texttt{<w1> <w2> <w3> <w4> <w5>} \\
+            Reverse          & \texttt{Reverse the following words: <w1> <w2> <w3> <w4> <w5>}          & \texttt{<w5> <w4> <w3> <w2> <w1>} \\
+            \midrule
+            \multicolumn{3}{c}{Mathematical and Algroithmic Tasks}                                                                         \\
+            \midrule
+            Addition         & \texttt{Compute: 5 3 7 2 6 + 1 9 1 7 ?}                                 & \texttt{The answer is 5 5 6 4 3.} \\
+            Polynomial Eval. & \texttt{Evaluate x = 3  in  ( 3 x ** 0 + 1 x ** 1 + 1 x ** 2 ) \% 10 ?} & \texttt{The answer is 5.}         \\
+            Sorting          & \texttt{Sort the following numbers: 3 1 4 1 5 ?}                        & \texttt{The answer is 1 1 3 4 5.} \\
+            Summation        & \texttt{Compute: ( 1 + 2 + 3 + 4 + 7 ) \% 10 ?}                         & \texttt{The answer is 7.}         \\
+            Parity           & \texttt{Is the number of 1's even in [ 1 0 0 1 1] ?}                    & \texttt{The answer is No.}        \\
+            LEGO             & \texttt{If a = -1; b = -a; c = +b; d = +c. Then what is c?}             & \texttt{The answer is +1.}        \\
+            \midrule
+            \multicolumn{3}{c}{Classical Length Generalization Datasets}                                                                   \\
+            \midrule
+            SCAN             & \texttt{jump twice and run left}                                        & \texttt{JUMP JUMP TURN\_LEFT RUN} \\
+            PCFG             & \texttt{shift prepend K10 R1 K12 , E12 F16}                             & \texttt{F16 K10 R1 K12 E12}       \\
+            \bottomrule
+        \end{tabular}
+    }
+    \label{tab:dataset-examples}
+\end{table}{}
+}

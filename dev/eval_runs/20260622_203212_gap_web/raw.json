@@ -1,0 +1,700 @@
+[
+  {
+    "paper_id": "arxiv_1706.03762",
+    "title": "Attention Is All You Need",
+    "timing": {
+      "gaps_s": 395.52
+    },
+    "gaps_result_meta": {
+      "status": "ok",
+      "paper_id": "arxiv_1706.03762",
+      "n_gaps": 7,
+      "gap_ids": [
+        "gap_cf72395a",
+        "gap_6234cb4c",
+        "gap_c1e939fb",
+        "gap_3aa425ca",
+        "gap_d9238884",
+        "gap_7e78920f",
+        "gap_eed7194b"
+      ],
+      "fetched_sections": [
+        {
+          "name": "method",
+          "reason": "Check for stated limitations/assumptions about positional encodings and attention mechanisms.",
+          "present": true
+        },
+        {
+          "name": "why_self_attention",
+          "reason": "Check for limitations of prior recurrent models stated as motivation.",
+          "present": true
+        },
+        {
+          "name": "introduction",
+          "reason": "Check for stated limitations or future work mentioned in intro.",
+          "present": true
+        },
+        {
+          "name": "training",
+          "reason": "Check for stated limitations, assumptions, or negative results in training setup.",
+          "present": true
+        },
+        {
+          "name": "results",
+          "reason": "Check for limitations, negative results, or caveats in experimental results.",
+          "present": true
+        },
+        {
+          "name": "results",
+          "reason": "Re-verify exact wording of the compatibility function statement in model variations.",
+          "present": true
+        },
+        {
+          "name": "conclusion",
+          "reason": "Confirm exact wording of the conclusion text for anchors.",
+          "present": true
+        },
+        {
+          "name": "results",
+          "reason": "Confirm exact text of the Model Variations paragraph about compatibility function.",
+          "present": true
+        },
+        {
+          "name": "method",
+          "reason": "Verify the phrase 'auto-regressive' appears in method to ensure it's not confused with other sections.",
+          "present": true
+        },
+        {
+          "name": "why_self_attention",
+          "reason": "Verify that 'compatibility function' phrases in why_self_attention don't duplicate the anchor I plan to use from results.",
+          "present": true
+        },
+        {
+          "name": "introduction",
+          "reason": "Verify 'inherently sequential nature precludes' and 'fundamental constraint of sequential computation' are unique within this section.",
+          "present": true
+        },
+        {
+          "name": "why_self_attention",
+          "reason": "Verify exact wording: 'self-attention could be restricted to considering only a neighborhood' for potential anchor uniqueness.",
+          "present": true
+        },
+        {
+          "name": "conclusion",
+          "reason": "Verify 'plan to apply them to other tasks' appears only once in conclusion.",
+          "present": true
+        }
+      ],
+      "warnings": [
+        "gap_agent_fetched_sections: method, why_self_attention, introduction, training, results, results, conclusion, results, method, why_self_attention, introduction, why_self_attention, conclusion"
+      ]
+    },
+    "tool_trace": [
+      {
+        "name": "get_section",
+        "args": {
+          "name": "method",
+          "reason": "Check for stated limitations/assumptions about positional encodings and attention mechanisms."
+        },
+        "result_chars": 10576
+      },
+      {
+        "name": "get_section",
+        "args": {
+          "name": "why_self_attention",
+          "reason": "Check for limitations of prior recurrent models stated as motivation."
+        },
+        "result_chars": 3392
+      },
+      {
+        "name": "get_section",
+        "args": {
+          "name": "introduction",
+          "reason": "Check for stated limitations or future work mentioned in intro."
+        },
+        "result_chars": 2199
+      },
+      {
+        "name": "get_section",
+        "args": {
+          "name": "training",
+          "reason": "Check for stated limitations, assumptions, or negative results in training setup."
+        },
+        "result_chars": 2466
+      },
+      {
+        "name": "get_section",
+        "args": {
+          "name": "results",
+          "reason": "Check for limitations, negative results, or caveats in experimental results."
+        },
+        "result_chars": 5153
+      },
+      {
+        "name": "get_section",
+        "args": {
+          "name": "results",
+          "reason": "Re-verify exact wording of the compatibility function statement in model variations."
+        },
+        "result_chars": 5153
+      },
+      {
+        "name": "get_section",
+        "args": {
+          "name": "conclusion",
+          "reason": "Confirm exact wording of the conclusion text for anchors."
+        },
+        "result_chars": 1265
+      },
+      {
+        "name": "get_section",
+        "args": {
+          "name": "results",
+          "reason": "Confirm exact text of the Model Variations paragraph about compatibility function."
+        },
+        "result_chars": 5153
+      },
+      {
+        "name": "get_section",
+        "args": {
+          "name": "method",
+          "reason": "Verify the phrase 'auto-regressive' appears in method to ensure it's not confused with other sections."
+        },
+        "result_chars": 10576
+      },
+      {
+        "name": "get_section",
+        "args": {
+          "name": "why_self_attention",
+          "reason": "Verify that 'compatibility function' phrases in why_self_attention don't duplicate the anchor I plan to use from results."
+        },
+        "result_chars": 3392
+      },
+      {
+        "name": "get_section",
+        "args": {
+          "name": "introduction",
+          "reason": "Verify 'inherently sequential nature precludes' and 'fundamental constraint of sequential computation' are unique within this section."
+        },
+        "result_chars": 2199
+      },
+      {
+        "name": "get_section",
+        "args": {
+          "name": "why_self_attention",
+          "reason": "Verify exact wording: 'self-attention could be restricted to considering only a neighborhood' for potential anchor uniqueness."
+        },
+        "result_chars": 3392
+      },
+      {
+        "name": "get_section",
+        "args": {
+          "name": "conclusion",
+          "reason": "Verify 'plan to apply them to other tasks' appears only once in conclusion."
+        },
+        "result_chars": 1265
+      }
+    ],
+    "gaps": [
+      {
+        "gap_id": "gap_cf72395a",
+        "status": "unchecked",
+        "title": "Auto-regressive decoding limits parallelism",
+        "description": "The Transformer's decoder generates tokens one at a time in an auto-regressive fashion, so inference remains sequential even though training is fully parallelized. The authors list making generation less sequential as a research goal.",
+        "type": "future_work",
+        "canonical_description": "sequential generation due to auto-regressive decoding",
+        "evidence": [
+          {
+            "paper_id": "arxiv_1706.03762",
+            "section": "conclusion",
+            "anchor": "Making generation less sequential",
+            "quote": "Making generation less sequential is another research goals of ours.",
+            "char_offset": [
+              910,
+              978
+            ],
+            "grounding_status": "matched",
+            "ambiguous_offsets": null
+          }
+        ],
+        "extracted_at": "2026-06-22T18:27:39Z"
+      },
+      {
+        "gap_id": "gap_6234cb4c",
+        "status": "unchecked",
+        "title": "Not evaluated on non-text modalities",
+        "description": "The Transformer is only evaluated on text tasks (machine translation and constituency parsing). Application to other input and output modalities such as images, audio, and video is left as future work.",
+        "type": "future_work",
+        "canonical_description": "application to non-text modalities unexplored",
+        "evidence": [
+          {
+            "paper_id": "arxiv_1706.03762",
+            "section": "conclusion",
+            "anchor": "input and output modalities other than text",
+            "quote": "We plan to extend the Transformer to problems involving input and output modalities other than text and to investigate local, restricted attention mechanisms to efficiently handle large inputs and outputs such as images, audio and video.",
+            "char_offset": [
+              672,
+              909
+            ],
+            "grounding_status": "matched",
+            "ambiguous_offsets": null
+          }
+        ],
+        "extracted_at": "2026-06-22T18:27:39Z"
+      },
+      {
+        "gap_id": "gap_c1e939fb",
+        "status": "unchecked",
+        "title": "Full attention expensive for long sequences",
+        "description": "Self-attention attends to all positions, which becomes computationally expensive for very long inputs. The authors propose investigating local, restricted attention mechanisms to handle large inputs and outputs efficiently.",
+        "type": "future_work",
+        "canonical_description": "full attention too expensive for long sequences; restricted attention needed",
+        "evidence": [
+          {
+            "paper_id": "arxiv_1706.03762",
+            "section": "conclusion",
+            "anchor": "local, restricted attention mechanisms",
+            "quote": "We plan to extend the Transformer to problems involving input and output modalities other than text and to investigate local, restricted attention mechanisms to efficiently handle large inputs and outputs such as images, audio and video.",
+            "char_offset": [
+              672,
+              909
+            ],
+            "grounding_status": "matched",
+            "ambiguous_offsets": null
+          }
+        ],
+        "extracted_at": "2026-06-22T18:27:39Z"
+      },
+      {
+        "gap_id": "gap_3aa425ca",
+        "status": "unchecked",
+        "title": "Dot-product compatibility may be insufficient",
+        "description": "Experiments varying attention key size show that reducing d_k hurts quality, suggesting that the dot-product compatibility function may not be optimal and that a more sophisticated compatibility function could be beneficial.",
+        "type": "caveat",
+        "canonical_description": "dot product attention compatibility function may be insufficient",
+        "evidence": [
+          {
+            "paper_id": "arxiv_1706.03762",
+            "section": "results",
+            "anchor": "more sophisticated compatibility function than dot product",
+            "quote": "This suggests that determining compatibility is not easy and that a more sophisticated compatibility function than dot product may be beneficial.",
+            "char_offset": [
+              2819,
+              2964
+            ],
+            "grounding_status": "matched",
+            "ambiguous_offsets": null
+          }
+        ],
+        "extracted_at": "2026-06-22T18:27:39Z"
+      },
+      {
+        "gap_id": "gap_d9238884",
+        "status": "unchecked",
+        "title": "Label smoothing hurts perplexity",
+        "description": "The authors note that label smoothing hurts perplexity, as the model learns to be more unsure, though it improves accuracy and BLEU score.",
+        "type": "negative_result",
+        "canonical_description": "label smoothing degrades perplexity while improving accuracy",
+        "evidence": [
+          {
+            "paper_id": "arxiv_1706.03762",
+            "section": "training",
+            "anchor": "This hurts perplexity, as the model learns",
+            "quote": "This hurts perplexity, as the model learns to be more unsure, but improves accuracy and BLEU score.",
+            "char_offset": [
+              2367,
+              2466
+            ],
+            "grounding_status": "matched",
+            "ambiguous_offsets": null
+          }
+        ],
+        "extracted_at": "2026-06-22T18:27:39Z"
+      },
+      {
+        "gap_id": "gap_7e78920f",
+        "status": "unchecked",
+        "title": "Self-attention computationally costly for very long sequences",
+        "description": "Self-attention's O(n^2) complexity makes it expensive for very long sequences; the authors note that restricting attention to a neighborhood of size r could improve performance and plan to investigate this.",
+        "type": "future_work",
+        "canonical_description": "self-attention quadratic complexity limits long-sequence efficiency",
+        "evidence": [
+          {
+            "paper_id": "arxiv_1706.03762",
+            "section": "why_self_attention",
+            "anchor": "self-attention could be restricted to considering only a neighborhood",
+            "quote": "To improve computational performance for tasks involving very long sequences, self-attention could be restricted to considering only a neighborhood of size $r$ in the input sequence centered around the respective output position.",
+            "char_offset": [
+              1905,
+              2134
+            ],
+            "grounding_status": "matched",
+            "ambiguous_offsets": null
+          }
+        ],
+        "extracted_at": "2026-06-22T18:27:39Z"
+      },
+      {
+        "gap_id": "gap_eed7194b",
+        "status": "unchecked",
+        "title": "Prior recurrent models are inherently sequential",
+        "description": "The paper states that recurrent models' inherently sequential nature precludes parallelization within training examples, which becomes critical at longer sequence lengths as memory constraints limit batching.",
+        "type": "limitation",
+        "canonical_description": "recurrent models inherently sequential preventing parallelization",
+        "evidence": [
+          {
+            "paper_id": "arxiv_1706.03762",
+            "section": "introduction",
+            "anchor": "inherently sequential nature precludes parallelization",
+            "quote": "This inherently sequential nature precludes parallelization within training examples, which becomes critical at longer sequence lengths, as memory constraints limit batching across examples.",
+            "char_offset": [
+              864,
+              1054
+            ],
+            "grounding_status": "matched",
+            "ambiguous_offsets": null
+          }
+        ],
+        "extracted_at": "2026-06-22T18:27:39Z"
+      }
+    ],
+    "n_gaps": 7,
+    "n_ungrounded_quotes": 0
+  },
+  {
+    "paper_id": "arxiv_2006.11239",
+    "title": "Denoising Diffusion Probabilistic Models",
+    "timing": {
+      "gaps_s": 273.07
+    },
+    "gaps_result_meta": {
+      "status": "ok",
+      "paper_id": "arxiv_2006.11239",
+      "n_gaps": 7,
+      "gap_ids": [
+        "gap_d752b954",
+        "gap_d854bbd1",
+        "gap_9bf83010",
+        "gap_942b3ff8",
+        "gap_751a5153",
+        "gap_be9f54c7",
+        "gap_7283c452"
+      ],
+      "fetched_sections": [
+        {
+          "name": "experiments",
+          "reason": "Need to check for stated limitations about log-likelihood not being competitive and about lossless codelengths being consumed by imperceptible details",
+          "present": true
+        },
+        {
+          "name": "introduction",
+          "reason": "Need to check for stated limitations about diffusion models not having high quality samples before this work",
+          "present": true
+        },
+        {
+          "name": "diffusion_models_and_denoising_autoencoders",
+          "reason": "Need to check for explicitly stated assumptions like the Gaussian reverse process and the weighted variational bound",
+          "present": true
+        },
+        {
+          "name": "broader_impact",
+          "reason": "Check for stated limitations, ethical concerns, or caveats that might be gaps",
+          "present": true
+        },
+        {
+          "name": "experimental_details",
+          "reason": "Check if there are additional stated limitations or caveats about experimental setup",
+          "present": true
+        },
+        {
+          "name": "extra_information",
+          "reason": "Check for any additional stated limitations or caveats not covered elsewhere",
+          "present": true
+        },
+        {
+          "name": "samples",
+          "reason": "Check for any additional gaps or caveats about sample quality",
+          "present": true
+        },
+        {
+          "name": "related_work",
+          "reason": "Check for any explicitly stated gaps or limitations about prior diffusion model work",
+          "present": true
+        },
+        {
+          "name": "extended_derivations",
+          "reason": "Check for any additional stated assumptions or caveats in the mathematical derivations",
+          "present": true
+        },
+        {
+          "name": "extra_information",
+          "reason": "Already fetched - confirming the proof-of-concept caveat about compression",
+          "present": true
+        },
+        {
+          "name": "introduction",
+          "reason": "Double-check exact text for the anchor about log-likelihoods and lossless codelengths",
+          "present": true
+        }
+      ],
+      "warnings": [
+        "gap_agent_fetched_sections: experiments, introduction, diffusion_models_and_denoising_autoencoders, broader_impact, experimental_details, extra_information, samples, related_work, extended_derivations, extra_information, introduction"
+      ]
+    },
+    "tool_trace": [
+      {
+        "name": "get_section",
+        "args": {
+          "name": "experiments",
+          "reason": "Need to check for stated limitations about log-likelihood not being competitive and about lossless codelengths being consumed by imperceptible details"
+        },
+        "result_chars": 10398
+      },
+      {
+        "name": "get_section",
+        "args": {
+          "name": "introduction",
+          "reason": "Need to check for stated limitations about diffusion models not having high quality samples before this work"
+        },
+        "result_chars": 3206
+      },
+      {
+        "name": "get_section",
+        "args": {
+          "name": "diffusion_models_and_denoising_autoencoders",
+          "reason": "Need to check for explicitly stated assumptions like the Gaussian reverse process and the weighted variational bound"
+        },
+        "result_chars": 9764
+      },
+      {
+        "name": "get_section",
+        "args": {
+          "name": "broader_impact",
+          "reason": "Check for stated limitations, ethical concerns, or caveats that might be gaps"
+        },
+        "result_chars": 2141
+      },
+      {
+        "name": "get_section",
+        "args": {
+          "name": "experimental_details",
+          "reason": "Check if there are additional stated limitations or caveats about experimental setup"
+        },
+        "result_chars": 4173
+      },
+      {
+        "name": "get_section",
+        "args": {
+          "name": "extra_information",
+          "reason": "Check for any additional stated limitations or caveats not covered elsewhere"
+        },
+        "result_chars": 727
+      },
+      {
+        "name": "get_section",
+        "args": {
+          "name": "samples",
+          "reason": "Check for any additional gaps or caveats about sample quality"
+        },
+        "result_chars": 2740
+      },
+      {
+        "name": "get_section",
+        "args": {
+          "name": "related_work",
+          "reason": "Check for any explicitly stated gaps or limitations about prior diffusion model work"
+        },
+        "result_chars": 2431
+      },
+      {
+        "name": "get_section",
+        "args": {
+          "name": "extended_derivations",
+          "reason": "Check for any additional stated assumptions or caveats in the mathematical derivations"
+        },
+        "result_chars": 1801
+      },
+      {
+        "name": "get_section",
+        "args": {
+          "name": "extra_information",
+          "reason": "Already fetched - confirming the proof-of-concept caveat about compression"
+        },
+        "result_chars": 727
+      },
+      {
+        "name": "get_section",
+        "args": {
+          "name": "introduction",
+          "reason": "Double-check exact text for the anchor about log-likelihoods and lossless codelengths"
+        },
+        "result_chars": 3206
+      }
+    ],
+    "gaps": [
+      {
+        "gap_id": "gap_d752b954",
+        "status": "unchecked",
+        "title": "Log-likelihoods not competitive with likelihood-based models",
+        "description": "The paper states that despite high sample quality, diffusion models do not achieve competitive log-likelihoods compared to autoregressive models, flows, and VAEs.",
+        "type": "limitation",
+        "canonical_description": "log-likelihoods not competitive with other likelihood-based models",
+        "evidence": [
+          {
+            "paper_id": "arxiv_2006.11239",
+            "section": "introduction",
+            "anchor": "do not have competitive log likelihoods",
+            "quote": "Despite their sample quality, our models do not have competitive log likelihoods compared to other likelihood-based models (our models do, however, have log likelihoods better than the large estimates annealed importance sampling has been reported to produce for energy based models and score matching~[CITE:du2019implicit] [CITE:song2019generative]).",
+            "char_offset": [
+              2395,
+              2746
+            ],
+            "grounding_status": "matched",
+            "ambiguous_offsets": null
+          }
+        ],
+        "extracted_at": "2026-06-22T18:32:12Z"
+      },
+      {
+        "gap_id": "gap_d854bbd1",
+        "status": "unchecked",
+        "title": "Majority of lossless codelength describes imperceptible details",
+        "description": "The paper finds that more than half of the model's lossless codelength is consumed by imperceptible image details, indicating an inductive bias toward lossy compression.",
+        "type": "limitation",
+        "canonical_description": "most bits in lossless coding describe imperceptible details",
+        "evidence": [
+          {
+            "paper_id": "arxiv_2006.11239",
+            "section": "introduction",
+            "anchor": "majority of our models' lossless codelengths",
+            "quote": "We find that the majority of our models' lossless codelengths  are consumed to describe imperceptible image details~([REF:sec:coding]).",
+            "char_offset": [
+              2747,
+              2882
+            ],
+            "grounding_status": "matched",
+            "ambiguous_offsets": null
+          }
+        ],
+        "extracted_at": "2026-06-22T18:32:12Z"
+      },
+      {
+        "gap_id": "gap_9bf83010",
+        "status": "unchecked",
+        "title": "Unexplored data modalities beyond images",
+        "description": "The authors state that diffusion models have excellent inductive biases for image data and look forward to investigating their utility in other data modalities.",
+        "type": "future_work",
+        "canonical_description": "application to non-image data modalities unexplored",
+        "evidence": [
+          {
+            "paper_id": "arxiv_2006.11239",
+            "section": "conclusion",
+            "anchor": "utility in other data modalities",
+            "quote": "Since diffusion models seem to have excellent inductive biases for image data, we look forward to investigating their utility in other data modalities and as components in other types of generative models and machine learning systems.",
+            "char_offset": [
+              330,
+              564
+            ],
+            "grounding_status": "matched",
+            "ambiguous_offsets": null
+          }
+        ],
+        "extracted_at": "2026-06-22T18:32:12Z"
+      },
+      {
+        "gap_id": "gap_942b3ff8",
+        "status": "unchecked",
+        "title": "Use as components in other generative models and systems",
+        "description": "The authors propose future work on using diffusion models as components in other types of generative models and machine learning systems.",
+        "type": "future_work",
+        "canonical_description": "use as components in other generative models and machine learning systems",
+        "evidence": [
+          {
+            "paper_id": "arxiv_2006.11239",
+            "section": "conclusion",
+            "anchor": "components in other types of generative models",
+            "quote": "Since diffusion models seem to have excellent inductive biases for image data, we look forward to investigating their utility in other data modalities and as components in other types of generative models and machine learning systems.",
+            "char_offset": [
+              330,
+              564
+            ],
+            "grounding_status": "matched",
+            "ambiguous_offsets": null
+          }
+        ],
+        "extracted_at": "2026-06-22T18:32:12Z"
+      },
+      {
+        "gap_id": "gap_751a5153",
+        "status": "unchecked",
+        "title": "Lossy compression scheme not yet practical",
+        "description": "The paper notes that its lossy compression argument is only a proof of concept because the required minimal random coding procedure is not tractable for high-dimensional data.",
+        "type": "caveat",
+        "canonical_description": "lossy compression argument is a proof of concept not a practical system",
+        "evidence": [
+          {
+            "paper_id": "arxiv_2006.11239",
+            "section": "extra_information",
+            "anchor": "only a proof of concept",
+            "quote": "Our lossy compression argument in [REF:sec:coding] is only a proof of concept, because [REF:alg:sending,alg:receiving] depend on a procedure such as minimal random coding~[CITE:havasi2018minimal], which is not tractable for high dimensional data.",
+            "char_offset": [
+              271,
+              517
+            ],
+            "grounding_status": "matched",
+            "ambiguous_offsets": null
+          }
+        ],
+        "extracted_at": "2026-06-22T18:32:12Z"
+      },
+      {
+        "gap_id": "gap_be9f54c7",
+        "status": "unchecked",
+        "title": "Simple decoder could be replaced by more powerful model",
+        "description": "The paper acknowledges that the independent discrete decoder used for L0 could be replaced by a more powerful conditional autoregressive model, but leaves this to future work.",
+        "type": "future_work",
+        "canonical_description": "simple independent decoder could be replaced by more powerful conditional model",
+        "evidence": [
+          {
+            "paper_id": "arxiv_2006.11239",
+            "section": "diffusion_models_and_denoising_autoencoders",
+            "anchor": "leave that to future work",
+            "quote": "(It would be straightforward to instead incorporate a more powerful decoder like a conditional autoregressive model, but we leave that to future work.)",
+            "char_offset": [
+              7133,
+              7284
+            ],
+            "grounding_status": "matched",
+            "ambiguous_offsets": null
+          }
+        ],
+        "extracted_at": "2026-06-22T18:32:12Z"
+      },
+      {
+        "gap_id": "gap_7283c452",
+        "status": "unchecked",
+        "title": "Prior diffusion models not shown to generate high quality samples",
+        "description": "The paper states that to the best of the authors' knowledge, prior diffusion models had not been demonstrated capable of generating high quality samples comparable to GANs or autoregressive models.",
+        "type": "open_problem",
+        "canonical_description": "diffusion models previously unable to generate high quality samples",
+        "evidence": [
+          {
+            "paper_id": "arxiv_2006.11239",
+            "section": "introduction",
+            "anchor": "no demonstration that they are capable of generating high quality samples",
+            "quote": "Diffusion models are straightforward to define and efficient to train, but to the best of our knowledge, there has been no demonstration that they are capable of generating high quality samples.",
+            "char_offset": [
+              1513,
+              1707
+            ],
+            "grounding_status": "matched",
+            "ambiguous_offsets": null
+          }
+        ],
+        "extracted_at": "2026-06-22T18:32:12Z"
+      }
+    ],
+    "n_gaps": 7,
+    "n_ungrounded_quotes": 0
+  }
+]

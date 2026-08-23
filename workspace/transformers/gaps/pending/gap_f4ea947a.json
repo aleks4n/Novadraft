@@ -1,0 +1,20 @@
+{
+  "gap_id": "gap_f4ea947a",
+  "status": "unchecked",
+  "title": "Inherently sequential nature of recurrent models",
+  "description": "The paper states that recurrent models factor computation along symbol positions, creating an inherently sequential nature that precludes parallelization within training examples, especially problematic at longer sequence lengths due to memory constraints.",
+  "type": "open_problem",
+  "canonical_description": "recurrent models inherently sequential due to symbol-position-aligned computation, preventing parallelization within training examples",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1706.03762",
+      "section": "introduction",
+      "quote": "This inherently sequential nature precludes parallelization within training examples, which becomes critical at longer sequence lengths, as memory constraints limit batching across examples.",
+      "char_offset": [
+        864,
+        1054
+      ]
+    }
+  ],
+  "extracted_at": "2026-06-22T13:28:22Z"
+}

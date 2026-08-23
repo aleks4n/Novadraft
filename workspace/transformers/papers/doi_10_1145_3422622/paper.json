@@ -1,0 +1,52 @@
+{
+  "paper_id": "doi_10_1145_3422622",
+  "metadata": {
+    "title": "Generative adversarial networks",
+    "authors": [
+      "Ian Goodfellow",
+      "Jean Pouget-Abadie",
+      "Mehdi Mirza",
+      "Bing Xu",
+      "David Warde-Farley",
+      "Sherjil Ozair",
+      "Aaron Courville",
+      "Yoshua Bengio"
+    ],
+    "year": 2020,
+    "venue": "Communications of the ACM",
+    "abstract": "<jats:p>\n            Generative adversarial networks are a kind of artificial intelligence algorithm designed to solve the\n            <jats:italic>generative modeling</jats:italic>\n            problem. The goal of a generative model is to study a collection of training examples and learn the probability distribution that generated them. Generative Adversarial Networks (GANs) are then able to generate more examples from the estimated probability distribution. Generative models based on deep learning are common, but GANs are among the most successful generative models (especially in terms of their ability to generate realistic high-resolution images). GANs have been successfully applied to a wide variety of tasks (mostly in research settings) but continue to present unique challenges and research opportunities because they are based on game theory while most other approaches to generative modeling are based on optimization.\n          </jats:p>",
+    "identifiers": {
+      "arxiv_id": null,
+      "doi": "10.1145/3422622",
+      "semantic_scholar_id": null,
+      "openreview_id": null
+    },
+    "publication_date": "2020-10-22"
+  },
+  "source": {
+    "input_query": "Generative Adversarial Networks",
+    "input_type": "title",
+    "resolved_via": "crossref+unpaywall",
+    "source_url": "https://doi.org/10.1145/3422622",
+    "files": {
+      "pdf": null,
+      "tex_dir": null,
+      "tex_main": null
+    },
+    "fetched_at": "2026-06-08T20:18:56Z"
+  },
+  "content": null,
+  "summary": null,
+  "gaps": {
+    "gap_ids": []
+  },
+  "processing": {
+    "fetched": true,
+    "extracted": false,
+    "summarized": false,
+    "gaps_extracted": false
+  },
+  "warnings": [
+    "no_open_access_pdf"
+  ]
+}
