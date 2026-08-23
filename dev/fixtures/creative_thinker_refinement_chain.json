@@ -1,0 +1,12 @@
+{
+  "idea": "idea_sample.json",
+  "mode": "refinement",
+  "width": 1,
+  "depth": 1,
+  "task": "Take the single next step on this idea \u2014 whatever is most obviously missing.",
+  "context": "creative_thinker_context.json",
+  "styles": "neutral",
+  "tool_use": false,
+  "max_llm_calls": 10,
+  "triggering_action": "user: just take the next step on this"
+}

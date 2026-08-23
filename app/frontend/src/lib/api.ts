@@ -1,7 +1,10 @@
 // API client for the ideation backend. Reads are plain fetch; the paper-agent
 // run is an SSE stream (the reader mirrors dev/static/index.html::runStreaming).
 
-import type { Idea, Paper, RunEvent, RunMeta, TopicBundle, TopicMeta } from "./types";
+import type {
+  ContextRef, Idea, Paper, RunEvent, RunMeta, Session, SessionDraft, SessionSummary,
+  TopicBundle, TopicMeta,
+} from "./types";
 
 // Web app: relative URLs, proxied to the backend by Vite (dev) / served same-
 // origin (prod static). Desktop app: the bundle loads from Tauri's asset origin,
@@ -44,6 +47,27 @@ async function postJSON<T>(path: string, body?: unknown): Promise<T> {
     headers: { "content-type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+  if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+  return r.json() as Promise<T>;
+}
+
+async function patchJSON<T>(path: string, body: unknown): Promise<T> {
+  const r = await fetch(API_BASE + path, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+  return r.json() as Promise<T>;
+}
+
+async function del(path: string): Promise<void> {
+  const r = await fetch(API_BASE + path, { method: "DELETE" });
+  if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+}
+
+async function delJSON<T>(path: string): Promise<T> {
+  const r = await fetch(API_BASE + path, { method: "DELETE" });
   if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
   return r.json() as Promise<T>;
 }
@@ -128,4 +152,98 @@ export function runIdeaAgent(
   body: { mode: "generate" | "expand"; sketch?: string; count?: number },
 ): Promise<RunMeta> {
   return postJSON<RunMeta>(`/api/topics/${encodeURIComponent(slug)}/ideas/run`, body);
+}
+
+
+// --- sessions ------------------------------------------------------------------
+// The session chat surface. Sessions are workspace records, so everything here is
+// a plain read/write against workspace/<slug>/sessions/ — only `send` starts a run.
+
+const S = (slug: string) => `/api/topics/${encodeURIComponent(slug)}/sessions`;
+
+export const sessionApi = {
+  list: (slug: string) =>
+    getJSON<{ sessions: SessionSummary[] }>(S(slug)).then((d) => d.sessions),
+  get: (slug: string, id: string) =>
+    getJSON<Session>(`${S(slug)}/${encodeURIComponent(id)}`),
+  create: (slug: string, title = "", context: { kind: string; id: string }[] = []) =>
+    postJSON<Session>(S(slug), { title, context }),
+  rename: (slug: string, id: string, title: string) =>
+    patchJSON<Session>(`${S(slug)}/${encodeURIComponent(id)}`, { title }),
+  remove: (slug: string, id: string) => del(`${S(slug)}/${encodeURIComponent(id)}`),
+
+  // Load items into the session context without sending a turn — the
+  // click-in-the-panel path. Items already loaded are a no-op, not a duplicate.
+  addContext: (slug: string, id: string, context: { kind: string; id: string }[]) =>
+    postJSON<{ session: Session; added: ContextRef[] }>(
+      `${S(slug)}/${encodeURIComponent(id)}/context`, { context }),
+  removeContext: (slug: string, id: string, kind: string, itemId: string) =>
+    del(`${S(slug)}/${encodeURIComponent(id)}/context/${encodeURIComponent(kind)}/${encodeURIComponent(itemId)}`),
+
+  // One chat turn: records the message, loads its context, starts the thinker.
+  send: (slug: string, id: string, body: SendBody) =>
+    postJSON<{ session: Session; message: unknown; run: RunMeta }>(
+      `${S(slug)}/${encodeURIComponent(id)}/send`, body),
+
+  // Write a finished run's envelope onto the transcript and file its unaccepted
+  // output as working copies. Idempotent by run id, so a reload (or a second tab)
+  // re-reads rather than appending duplicates.
+  land: (slug: string, id: string, runId: string) =>
+    postJSON<{ session: Session; message: unknown; drafts: SessionDraft[] }>(
+      `${S(slug)}/${encodeURIComponent(id)}/land`, { runId }),
+
+  // --- working copies: the accept / dismiss step ---------------------------
+  drafts: (slug: string, id: string) =>
+    getJSON<{ drafts: SessionDraft[] }>(`${S(slug)}/${encodeURIComponent(id)}/drafts`)
+      .then((d) => d.drafts),
+  // Accept: into the global workspace — a new idea.json, or an overwrite of the
+  // record the run modified. The working copy is consumed either way.
+  // `as` decides where an `update` copy lands: over the record it was refined from
+  // (the default), or beside it as a new variant — the two options the thinker's
+  // divergence suggestion offers.
+  acceptDraft: (slug: string, id: string, draftId: string, as_: "overwrite" | "variant" = "overwrite") =>
+    postJSON<{ result: { created: string[]; written: string[] }; session: Session; drafts: SessionDraft[] }>(
+      `${S(slug)}/${encodeURIComponent(id)}/drafts/${encodeURIComponent(draftId)}/accept`,
+      { as: as_ }),
+  // Dismiss: recorded on the working copy as a decision; nothing is written to the
+  // knowledge base and the card stays decided across reloads.
+  dismissDraft: (slug: string, id: string, draftId: string) =>
+    delJSON<{ drafts: SessionDraft[] }>(
+      `${S(slug)}/${encodeURIComponent(id)}/drafts/${encodeURIComponent(draftId)}`),
+
+  async upload(slug: string, id: string, file: File): Promise<{ session: Session; added: ContextRef[] }> {
+    const fd = new FormData();
+    fd.append("file", file);
+    const r = await fetch(`${API_BASE}${S(slug)}/${encodeURIComponent(id)}/files`,
+      { method: "POST", body: fd });
+    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+    return r.json();
+  },
+};
+
+export interface SendBody {
+  text: string;
+  context: { kind: string; id: string }[];
+  mode: "generation" | "refinement";
+  ideaId: string | null;
+  width: number;
+  depth: number;
+  styles: string[];
+  toolUse: boolean;
+  maxLlmCalls?: number;
+}
+
+// A researcher's own edit to an idea (spine fields + the open sections). The
+// thinking graph, relations and provenance are not reachable from here — those
+// are written by the agents, with a rationale attached.
+export function patchIdea(
+  slug: string,
+  ideaId: string,
+  patch: {
+    title?: string; oneLiner?: string; description?: string; problem?: string;
+    sections?: Record<string, string | string[] | null>; sectionOrder?: string[];
+  },
+): Promise<Idea> {
+  return patchJSON<Idea>(
+    `/api/topics/${encodeURIComponent(slug)}/ideas/${encodeURIComponent(ideaId)}`, patch);
 }

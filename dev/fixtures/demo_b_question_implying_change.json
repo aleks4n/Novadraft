@@ -1,0 +1,7 @@
+{
+  "idea": "demo_idea.json", "context": "demo_context.json",
+  "mode": "refinement", "width": 2, "depth": 1, "styles": "neutral",
+  "task": "What if the app ran on the phone itself instead of sending every photo to a server?",
+  "tool_use": false, "max_llm_calls": 12,
+  "triggering_action": "DEMO B - a question that implies a change"
+}

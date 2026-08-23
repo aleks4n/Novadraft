@@ -1,0 +1,293 @@
+{
+ "idea_id": "idea_92614563",
+ "title": "DDIM-NLL: likelihood from the DDIM trajectory via instantaneous change-of-variables",
+ "state": "root",
+ "one_liner": "Attach a Hutchinson-trace change-of-variables term to the DDIM steps already taken during sampling, so negative log-likelihood comes at the marginal cost of one Jacobian-vector product per step.",
+ "description": "DDIM sampling is deterministic: it is an Euler-style discretization of the probability flow ODE, so the log-density of a generated x_0 is the log-density of the initial noise plus the accumulated log-|det| of the drift's Jacobian along that same trajectory. The DDIM paper left NLL unevaluated only because it treated likelihood as needing a separate inference pass; the instantaneous change-of-variables formula supplies it for free inside the existing sampling loop. The drift the trace is attached to does not need to be learned separately: a trained DDPM already encodes the velocity, and writing its \u03b5-prediction in v-prediction form \u2014 v_\u03b8(x_t,t) = \u221a\u1fb1_t\u00b7\u03b5_\u03b8(x_t,t) \u2212 \u221a(1\u2212\u1fb1_t)\u00b7x\u0302\u2080(x_t,t) \u2014 turns \"learn velocity instead of score\" into a free reparameterization, not a new training problem, with the same continuous-limit drift as the score parameterization. At each step we compute that drift and add \u0394t\u00b7div(v), with the divergence estimated by Hutchinson's random-projection trace estimator (one backward-mode vjp through the network per step). If the reparameterized drift proves inconsistent with the deployed map, the fallback is trajectory distillation: regress a velocity network on the per-step DDIM displacements so the drift is literally the generator of the discrete map and sampler-consistency holds by construction. Either way the estimate is an approximate NLL that is exact in the continuous limit, at essentially the cost of the sampling run itself, reporting likelihood for the very sampler the model deploys.",
+ "problem": "",
+ "addresses": [
+  "gap_4fc22ace"
+ ],
+ "relations": [],
+ "inherited_from": null,
+ "sections": {
+  "technique": "Take a trained DDPM/DDIM \u03b5-prediction model and a fixed T-step schedule. Obtain the drift one of two ways, cheapest first. (A) Free reparameterization: write the trained model's drift in v-prediction form v_\u03b8(x_t,t) = \u221a\u1fb1_t\u00b7\u03b5_\u03b8(x_t,t) \u2212 \u221a(1\u2212\u1fb1_t)\u00b7x\u0302\u2080(x_t,t), where x\u0302\u2080 is the DDPM's denoising estimate; no retraining, and the continuous-limit drift is identical to the score drift. (B) Trajectory distillation: train a velocity network v_\u03b8(x_t,t) by L2 regression against the per-step displacement (x_{t\u22121} \u2212 x_t)/\u0394t recorded along the trained DDPM's deterministic sampling trajectories, so the drift is literally the generator of the deployed discrete map and the score network drops out of the loop entirely. In the sampling loop with either drift: (1) compute v_\u03b8(x_t,t); (2) draw z ~ N(0,I), compute z\u1d40 J_v z via one vjp through the network, average over k=1\u20134 projections for variance control; (3) accumulate the divergence term into a running log-Jacobian sum; (4) at the end add log-density of x_T under N(0,I). Report NLL = -(sum + log p(x_T)). Validate by comparing against (a) a Score-SDE-style adaptive fine ODE solve as ground-truth continuous likelihood, (b) an importance-weighted lower bound on the reverse chain, (c) NLL as a function of T (e.g., 10, 50, 100, 1000 steps) to quantify discretization bias, (d) for branch (B), the accumulated log-Jacobian against the log-|det| of the learned map computed directly, and (e) the invariance of the accumulated log-Jacobian and its Hutchinson variance across \u03b5/v/score parameterizations of the same continuous drift \u2014 this test decides between (A) and (B) before any distillation is committed to.",
+  "open_questions": [
+   "Is the accumulated log-Jacobian (and its Hutchinson variance) invariant to which parameterization (\u03b5-prediction vs. v-prediction vs. score) of the same continuous drift is used in the discrete Euler map? If invariant, the free reparameterization suffices and no distillation is needed.",
+   "Does the discretization bias of DDIM's Euler steps corrupt the change-of-variables estimate, and does it converge to the continuous ODE likelihood as T grows or to some other quantity?",
+   "Does a trajectory-distilled velocity inherit the DDIM discretization bias or correct it, and does its accumulated log-Jacobian match the log-|det| of the learned map?",
+   "How many Hutchinson projections per step are needed to keep variance acceptable, and does the per-step vjp make this cheaper or more expensive than a fine-grained ODE solve at equal accuracy?",
+   "Should the divergence be accumulated along the pure deterministic DDIM path or along a predictor\u2013corrector variant, and which one matches the model's reported sampling distribution?",
+   "Is the resulting NLL comparable to DDPM/Score-SDE NLL numbers given that DDIM's marginal is defined by the discretized map rather than the continuous SDE?"
+  ],
+  "rationale": "Stance: combiner. I fuse DDIM (deterministic, few-step sampler with no likelihood access) with the instantaneous change-of-variables estimator from the probability-flow-ODE literature (exact likelihood, but normally requiring an expensive, separate, fine-grained ODE solve). The composition is the contribution: the estimator runs inside the DDIM loop and reuses its trajectory, so marginal cost is one extra JVP per step instead of a second inference pass. The task \"learn velocity from the trained DDPM instead of score\" resolves into a free reparameterization first: the trained model already encodes the velocity, and its v-prediction form is the flow-matching drift with no new training; trajectory distillation is the fallback that makes sampler-consistency hold by construction at the cost of retraining. The empirical question that decides between them is parameterization invariance of the accumulated log-Jacobian, which remains open. Unverified claims from outside the provided context: (1) that DDIM's discrete steps correspond to discretizing the probability flow ODE in the sense required for change-of-variables; (2) that the Hutchinson/Skilling trace estimator plus instantaneous change-of-variables is the standard exact-likelihood method in the score-SDE literature; (3) that later ODE-sampler papers (e.g., EDM-style) compute NLL along their own deterministic trajectories rather than along DDIM specifically \u2014 if (3) is true, the novelty is narrow and the value is the cheap, sampler-consistent estimator rather than the general technique."
+ },
+ "section_order": [
+  "technique",
+  "open_questions",
+  "rationale"
+ ],
+ "evaluation": {
+  "novelty": null,
+  "feasibility": null,
+  "significance": null
+ },
+ "provenance": [],
+ "origin": {
+  "run_id": "run_29e68a76",
+  "node_id": "run_29e68a76:n1",
+  "node_path": [
+   "run_29e68a76:n0",
+   "run_29e68a76:n1"
+  ],
+  "style": "combiner",
+  "mode": "generation",
+  "parent_idea_id": null,
+  "suggested": null,
+  "inherited_from": null,
+  "inherited_upto_run": null
+ },
+ "runs": [
+  {
+   "run_id": "run_29e68a76",
+   "session_id": null,
+   "timestamp": "2026-08-21T12:45:05Z",
+   "header": {
+    "mode": "generation",
+    "width": 2,
+    "depth": 1,
+    "model": "reasoner",
+    "agent_styles": [
+     "combiner",
+     "neutral"
+    ],
+    "context_ids": [
+     "gap_4fc22ace",
+     "user_input"
+    ],
+    "triggering_action": "session sess_c685e355",
+    "tool_use": false,
+    "task": "Give me ideas"
+   },
+   "nodes": [
+    {
+     "node_id": "run_29e68a76:n0",
+     "parent_id": null,
+     "text": "# (untitled idea)",
+     "style": "-",
+     "score": null,
+     "status": "kept",
+     "depth": 0,
+     "kind": "root",
+     "title": "Give me ideas",
+     "comparison": "",
+     "question": null,
+     "sources": []
+    },
+    {
+     "node_id": "run_29e68a76:n1",
+     "parent_id": "run_29e68a76:n0",
+     "text": "DDIM-NLL: likelihood from the DDIM trajectory via instantaneous change-of-variables\nAttach a Hutchinson-trace change-of-variables term to the DDIM steps already taken during sampling, so negative log-likelihood comes at the marginal cost of one Jacobian-vector product per step.\nDDIM sampling is deterministic: it is an Euler-style discretization of the probability flow ODE, so the log-density of a generated x_0 is the log-density of the initial noise plus the accumulated log-|det| of the drift's Jacobian along that same trajectory. The DDIM paper left NLL unevaluated only because it treated likelihood as needing a separate inference pass; the instantaneous change-of-variables formula supplies it for free inside the existing sampling loop. At each step we already compute the drift v_\u03b8(x_t, t); we add \u0394t\u00b7div(v), with the divergence estimated by Hutchinson's random-projection trace estimator (one backward-mode vjp through the score network per step). This gives an approximate NLL that is exact in the continuous limit, at essentially the cost of the sampling run itself, and \u2014 unlike a separately-solved fine ODE \u2014 it reports likelihood for the very sampler the model deploys.\nTake a trained DDIM \u03b5-prediction model and a fixed T-step schedule. In the sampling loop, at each step: (1) compute the standard DDIM drift v_\u03b8(x_t,t); (2) draw z ~ N(0,I), compute z\u1d40 J_v z via one vjp through the score network, average over k=1\u20134 projections for variance control; (3) accumulate the divergence term into a running log-Jacobian sum; (4) at the end add log-density of x_T under N(0,I). Report NLL = -(sum + log p(x_T)). Validate by comparing against (a) the Score-SDE-style adaptive fine ODE solve as ground-truth continuous likelihood, (b) an importance-weighted lower bound on the reverse chain, and (c) NLL as a function of T (e.g., 10, 50, 100, 1000 steps) to quantify discretization bias.",
+     "style": "combiner",
+     "score": 0.6452,
+     "status": "accepted",
+     "depth": 1,
+     "kind": "candidate",
+     "title": "DDIM-NLL: likelihood from the DDIM trajectory via instantaneous change-of-variables",
+     "comparison": "rank 1/2",
+     "question": null,
+     "sources": []
+    }
+   ],
+   "edges": [
+    {
+     "from": "run_29e68a76:n0",
+     "to": "run_29e68a76:n1",
+     "type": "expanded-into"
+    }
+   ],
+   "outcome": {
+    "accepted_node": "run_29e68a76:n1",
+    "escalation": null,
+    "truncated": false,
+    "escalation_node": null,
+    "escalation_diagnosis": "",
+    "status": "completed",
+    "reason": "2 candidates survived deduplication",
+    "limit": null,
+    "accepted_nodes": [
+     "run_29e68a76:n1"
+    ],
+    "summary": {
+     "objective": "Give me ideas",
+     "accepted": "carved from run_29e68a76 on acceptance: DDIM-NLL: likelihood from the DDIM trajectory via instantaneous change-of-variables; DDIM NLL via the probability-flow ODE: trace-estimated bits/dim without a variational bound",
+     "rejected": "",
+     "open": [
+      "Does the discretization bias of DDIM's Euler steps corrupt the change-of-variables estimate, and does it converge to the continuous ODE likelihood as T grows or to some other quantity?",
+      "How many Hutchinson projections per step are needed to keep variance acceptable, and does the per-step vjp make this cheaper or more expensive than a fine-grained ODE solve at equal accuracy?",
+      "Which parameterization (\u03b5-prediction vs. v-prediction vs. score) gives the drift that actually satisfies the change-of-variables identity, and does the answer change the estimate?",
+      "Should the divergence be accumulated along the pure deterministic DDIM path or along a predictor\u2013corrector variant, and which one matches the model's reported sampling distribution?",
+      "Is the resulting NLL comparable to DDPM/Score-SDE NLL numbers given that DDIM's marginal is defined by the discretized map rather than the continuous SDE?"
+     ]
+    },
+    "answer": ""
+   }
+  },
+  {
+   "run_id": "run_723f4a9b",
+   "session_id": null,
+   "timestamp": "2026-08-21T13:55:44Z",
+   "header": {
+    "mode": "refinement",
+    "width": 2,
+    "depth": 2,
+    "model": "reasoner",
+    "agent_styles": [
+     "neutral"
+    ],
+    "context_ids": [
+     "gap_4fc22ace",
+     "idea_92614563",
+     "user_input"
+    ],
+    "triggering_action": "session sess_c685e355",
+    "tool_use": false,
+    "task": "What if we learn the velocity/flow matching from the trained ddpm instead of score matching?"
+   },
+   "nodes": [
+    {
+     "node_id": "run_723f4a9b:n0",
+     "parent_id": null,
+     "text": "# DDIM-NLL: likelihood from the DDIM trajectory via instantaneous change-of-variables\n_Attach a Hutchinson-trace change-of-variables term to the DDIM steps already taken during sampling, so negative log-likelihood comes at the marginal cost of one Jacobian-vector product per step._\n\n## description\nDDIM sampling is deterministic: it is an Euler-style discretization of the probability flow ODE, so the log-density of a generated x_0 is the log-density of the initial noise plus the accumulated log-|det| of the drift's Jacobian along that same trajectory. The DDIM paper left NLL unevaluated only because it treated likelihood as needing a separate inference pass; the instantaneous change-of-variables formula supplies it for free inside the existing sampling loop. At each step we already compute the drift v_\u03b8(x_t, t); we add \u0394t\u00b7div(v), with the divergence estimated by Hutchinson's random-projection trace estimator (one backward-mode vjp through the score network per step). This gives an approximate NLL that is exact in the continuous limit, at essentially the cost of the sampling run itself, and \u2014 unlike a separately-solved fine ODE \u2014 it reports likelihood for the very sampler the model deploys.\n\n**addresses gaps:** gap_4fc22ace\n\n## technique\nTake a trained DDIM \u03b5-prediction model and a fixed T-step schedule. In the sampling loop, at each step: (1) compute the standard DDIM drift v_\u03b8(x_t,t); (2) draw z ~ N(0,I), compute z\u1d40 J_v z via one vjp through the score network, average over k=1\u20134 projections for variance control; (3) accumulate the divergence term into a running log-Jacobian sum; (4) at the end add log-density of x_T under N(0,I). Report NLL = -(sum + log p(x_T)). Validate by comparing against (a) the Score-SDE-style adaptive fine ODE solve as ground-truth continuous likelihood, (b) an importance-weighted lower bound on the reverse chain, and (c) NLL as a function of T (e.g., 10, 50, 100, 1000 steps) to quantify discretization bias.\n\n## open_questions\n- Does the discretization bias of DDIM's Euler steps corrupt the change-of-variables estimate, and does it converge to the continuous ODE likelihood as T grows or to some other quantity?\n- How many Hutchinson projections per step are needed to keep variance acceptable, and does the per-step vjp make this cheaper or more expensive than a fine-grained ODE solve at equal accuracy?\n- Which parameterization (\u03b5-prediction vs. v-prediction vs. score) gives the drift that actually satisfies the change-of-variables identity, and does the answer change the estimate?\n- Should the divergence be accumulated along the pure deterministic DDIM path or along a predictor\u2013corrector variant, and which one matches the model's reported sampling distribution?\n- Is the resulting NLL comparable to DDPM/Score-SDE NLL numbers given that DDIM's marginal is defined by the discretized map rather than the continuous SDE?\n\n## rationale\nStance: combiner. I fuse DDIM (deterministic, few-step sampler with no likelihood access) with the instantaneous change-of-variables estimator from the probability-flow-ODE literature (exact likelihood, but normally requiring an expensive, separate, fine-grained ODE solve). The composition is the contribution: the estimator runs inside the DDIM loop and reuses its trajectory, so marginal cost is one extra JVP per step instead of a second inference pass. The naive stack \u2014 sample with DDIM, then run a separate fine ODE solver \u2014 is exactly the \"simple way\" the DDIM authors found missing: it doubles cost and estimates the likelihood of a different trajectory than the sampler actually produces; this pairing makes the estimate consistent with the deployed sampler, which is the efficiency win. Unverified claims from outside the provided context: (1) that DDIM's discrete steps correspond to discretizing the probability flow ODE in the sense required for change-of-variables; (2) that the Hutchinson/Skilling trace estimator plus instantaneous change-of-variables is the standard exact-likelihood method in the score-SDE literature; (3) that later ODE-sampler papers (e.g., EDM-style) compute NLL along their own deterministic trajectories rather than along DDIM specifically \u2014 if (3) is true, the novelty is narrow and the value is the cheap, sampler-consistent estimator rather than the general technique.",
+     "style": "-",
+     "score": null,
+     "status": "kept",
+     "depth": 0,
+     "kind": "root",
+     "title": "DDIM-NLL: likelihood from the DDIM trajectory via instantaneous change-of-variables",
+     "comparison": "",
+     "question": null,
+     "sources": []
+    },
+    {
+     "node_id": "run_723f4a9b:n1",
+     "parent_id": "run_723f4a9b:n0",
+     "text": "Train a velocity network v_\u03b8(x_t, t) by L2 regression against the per-step displacement (x_{t-1} \u2212 x_t)/\u0394t recorded along the trained DDPM's deterministic sampling trajectories, then run the standard loop with v_\u03b8 as the drift and attach the Hutchinson trace to v_\u03b8's Jacobian. This makes the drift literally the generator of the deployed discrete map, so sampler-consistency \u2014 the idea's headline property \u2014 holds by construction rather than by assuming the \u03b5-prediction drift satisfies the change-of-variables identity; the score network drops out of the loop entirely. Validate by comparing the accumulated log-Jacobian against the log-|det| of the learned map computed directly, and by checking NLL as a function of T to see whether the distilled velocity inherits the DDIM discretization bias or corrects it.",
+     "style": "neutral",
+     "score": 1.0,
+     "status": "kept",
+     "depth": 1,
+     "kind": "branch",
+     "title": "Regress the velocity on the trained DDPM's per-step DDIM displacements (trajectory distillation).",
+     "comparison": "Branch 0 is the direct answer to the run's question: it learns the velocity from the trained DDPM's own discrete displacements rather than from its score, so the score network drops out of the loop and the idea's headline property \u2014 sampler-consistency \u2014 holds by construction. Branch 1 still derives its regression target from the trained score's analytic field, which is a refinement of score matching rather than the replacement the prompt asked for, and it evaluates a v_\u03b8 one step removed from the deployed DDIM sampler.",
+     "question": "Does the finite-difference DDIM displacement converge to a well-defined velocity field as the number of steps grows, or does the regression target shift with the step schedule?",
+     "sources": []
+    },
+    {
+     "node_id": "run_723f4a9b:n2",
+     "parent_id": "run_723f4a9b:n0",
+     "text": "Keep the trained DDPM untouched, compute its implied continuous velocity in closed form from the score (the probability-flow drift for the chosen parameterization), and fit v_\u03b8 by L2 regression on (x_t, t) pairs from the marginal; run the change-of-variables estimator on v_\u03b8. The point of the learned velocity is not sampler identity but a drift on which the CoV identity provably holds in the continuous limit, with the regression residual as a separate, measurable bias source \u2014 so NLL error decomposes into regression error versus discretization error, directly answering the first open question. Validate with NLL vs T at fixed network capacity, NLL vs capacity at fixed T, and a fine ODE solve as ground truth. This stops short of retraining the base model with flow matching, which would be a different idea rather than an estimator for the trained DDPM's sampler.",
+     "style": "neutral",
+     "score": null,
+     "status": "pruned",
+     "depth": 1,
+     "kind": "branch",
+     "title": "Regress the velocity on the analytic probability-flow field derived from the trained score, and attach the CoV estimator to the learned field.",
+     "comparison": "A sound refinement of the score-derived drift \u2014 its error decomposition (regression vs discretization) is useful \u2014 but it stays anchored to the trained score's analytic field rather than replacing score matching, and it estimates likelihood for a velocity that is one step removed from the deployed DDIM sampler.",
+     "question": "Which parameterization (\u03b5, v, or score) yields the probability-flow velocity in closed form, so the regression target is computable without a separate ODE solve?",
+     "sources": []
+    },
+    {
+     "node_id": "run_723f4a9b:n3",
+     "parent_id": "run_723f4a9b:n1",
+     "text": "Keep the trained DDPM exactly as is: write its drift in v-prediction form v_\u03b8(x_t,t) = \u221a\u1fb1_t\u00b7\u03b5_\u03b8(x_t,t) \u2212 \u221a(1\u2212\u1fb1_t)\u00b7x\u0302\u2080(x_t,t), where x\u0302\u2080 is the DDPM's denoising estimate, and attach the Hutchinson trace to v_\u03b8's Jacobian \u2014 no new training. This answers the task by observing that the velocity is already encoded in the model: 'learning velocity instead of score' is a free reparameterization, not a separate learning problem. The continuous-limit drift is identical across \u03b5/v/score parameterizations, but the discrete Euler map differs, so the empirical question is whether the accumulated log-Jacobian and its Hutchinson variance are invariant to the choice. This is the cheapest branch and it directly settles the parameterization open question before any distillation is committed to.",
+     "style": "neutral",
+     "score": 1.0,
+     "status": "accepted",
+     "depth": 2,
+     "kind": "branch",
+     "title": "Reparameterize, don't retrain: use the trained DDPM's \u03b5-prediction as the flow-matching velocity (v-prediction) and attach the trace to that drift.",
+     "comparison": "Resolved \"learn velocity/flow matching from the trained DDPM instead of score\" into a two-option answer: a free v-prediction reparameterization of the trained model (preferred, no retraining) with trajectory distillation as the fallback. Technique, open questions, and rationale rewritten to center the parameterization-invariance test that decides between them; the \"which parameterization\" open question is sharpened accordingly.",
+     "question": "Is the standard DDIM \u03b5-prediction step an exact Euler step of the probability-flow ODE in continuous time, or a different discretization that changes when the drift is reparameterized as v-prediction?",
+     "sources": []
+    },
+    {
+     "node_id": "run_723f4a9b:n4",
+     "parent_id": "run_723f4a9b:n1",
+     "text": "Sample x\u2080 from the trained DDPM's generative distribution, draw t, and apply the DDPM's own forward noising to get x_t; regress a fresh velocity network v_\u03b8(x_t,t) against the schedule-appropriate conditional target dx_t/dt given (x\u2080, x_t) \u2014 conditional flow matching with the DDPM as teacher. Run the same deterministic Euler loop on v_\u03b8 with the Hutchinson trace. Because the FM path is continuous by construction, the T\u2192\u221e limit of the accumulated log-Jacobian is well-defined, making the discretization-bias open question directly measurable instead of a worry. Honest departure: this integrates the FM ODE, not the deployed DDIM map, so sampler-consistency is traded for a cleaner continuous interpretation and (ideally) a straighter path.",
+     "style": "neutral",
+     "score": null,
+     "status": "pruned",
+     "depth": 2,
+     "kind": "branch",
+     "title": "Conditional flow matching on the DDPM's forward marginals (self-distillation into a continuous velocity), then run the traced Euler loop on that velocity.",
+     "comparison": "Loser for now: a legitimate alternative, but it requires training a fresh velocity network and integrates the FM ODE rather than the deployed DDIM map, trading away the idea's sampler-consistency property and deferring the cheap empirical check that branch 0 performs immediately.",
+     "question": "For the DDPM's forward schedule, does the ODE with velocity v(x_t,t) = E[dx_t/dt | x_t] transport the noise prior exactly to the data/model marginal, so that its continuous-limit NLL equals the DDPM's true likelihood?",
+     "sources": []
+    }
+   ],
+   "edges": [
+    {
+     "from": "run_723f4a9b:n0",
+     "to": "run_723f4a9b:n1",
+     "type": "expanded-into"
+    },
+    {
+     "from": "run_723f4a9b:n0",
+     "to": "run_723f4a9b:n2",
+     "type": "expanded-into"
+    },
+    {
+     "from": "run_723f4a9b:n1",
+     "to": "run_723f4a9b:n3",
+     "type": "expanded-into"
+    },
+    {
+     "from": "run_723f4a9b:n1",
+     "to": "run_723f4a9b:n4",
+     "type": "expanded-into"
+    }
+   ],
+   "outcome": {
+    "accepted_node": "run_723f4a9b:n3",
+    "escalation": null,
+    "truncated": false,
+    "escalation_node": null,
+    "escalation_diagnosis": "",
+    "status": "completed",
+    "reason": "reached the requested depth 2",
+    "limit": null,
+    "accepted_nodes": [
+     "run_723f4a9b:n3"
+    ],
+    "summary": {
+     "objective": "What if we learn the velocity/flow matching from the trained ddpm instead of score matching?",
+     "accepted": "Resolved \"learn velocity/flow matching from the trained DDPM instead of score\" into a two-option answer: a free v-prediction reparameterization of the trained model (preferred, no retraining) with trajectory distillation as the fallback. Technique, open questions, and rationale rewritten to center the parameterization-invariance test that decides between them; the \"which parameterization\" open question is sharpened accordingly.",
+     "rejected": "Regress the velocity on the analytic probability-flow field derived from the trained score, and attach the CoV estimator to the learned field.: A sound refinement of the score-derived drift \u2014 its error decomposition (regression vs discretization) is useful \u2014 but it stays anchored to the trained score's analytic field rather than replacing score matching, and it estimates likelihood for a velocity that is one step removed from the deployed DDIM sampler.; Conditional flow matching on the DDPM's forward marginals (self-distillation into a continuous velocity), then run the traced Euler loop on that velocity.: Loser for now: a legitimate alternative, but it requires training a fresh velocity network and integrates the FM ODE rather than the deployed DDIM map, trading away the idea's sampler-consistency property and deferring the cheap empirical check that branch 0 performs immediately.",
+     "open": [
+      "Is the accumulated log-Jacobian (and its Hutchinson variance) invariant to which parameterization (\u03b5-prediction vs. v-prediction vs. score) of the same continuous drift is used in the discrete Euler map? If invariant, the free reparameterization suffices and no distillation is needed.",
+      "Does the discretization bias of DDIM's Euler steps corrupt the change-of-variables estimate, and does it converge to the continuous ODE likelihood as T grows or to some other quantity?",
+      "Does a trajectory-distilled velocity inherit the DDIM discretization bias or correct it, and does its accumulated log-Jacobian match the log-|det| of the learned map?",
+      "How many Hutchinson projections per step are needed to keep variance acceptable, and does the per-step vjp make this cheaper or more expensive than a fine-grained ODE solve at equal accuracy?",
+      "Should the divergence be accumulated along the pure deterministic DDIM path or along a predictor\u2013corrector variant, and which one matches the model's reported sampling distribution?",
+      "Is the resulting NLL comparable to DDPM/Score-SDE NLL numbers given that DDIM's marginal is defined by the discretized map rather than the continuous SDE?"
+     ]
+    },
+    "answer": "The run asked whether to learn velocity/flow matching from the trained DDPM instead of score matching, and the conclusion is: no separate training is needed \u2014 the velocity is already encoded in the trained model. Writing its \u03b5-prediction in v-prediction form, v_\u03b8 = \u221a\u1fb1\u00b7\u03b5_\u03b8 \u2212 \u221a(1\u2212\u1fb1)\u00b7x\u0302\u2080, turns \"learn velocity instead of score\" into a free reparameterization, and the Hutchinson trace should be attached to that drift. Since the continuous-limit drift is identical across \u03b5/v/score parameterizations, the only open question is whether the discrete Euler map's accumulated log-Jacobian (and its Hutchinson variance) is invariant to the choice \u2014 that test should be run before any distillation is committed to. If the reparameterized drift proves inconsistent, the fallback is trajectory distillation: regress a velocity network on the per-step DDIM displacements so the drift is literally the generator of the deployed discrete map, at the cost of retraining."
+   }
+  }
+ ],
+ "created_at": "2026-08-21T13:44:55Z",
+ "updated_at": "2026-08-21T13:44:55Z",
+ "_session": {
+  "draft_id": "draft_ebcbe6a8",
+  "session_id": "sess_c685e355",
+  "kind": "update",
+  "run_id": "20260821_155544_what-if-we-learn-the-velocity-flow-match",
+  "source_index": null,
+  "target_idea_id": "idea_92614563",
+  "label": "DDIM-NLL: likelihood from the DDIM trajectory via instantaneous change-of-variables",
+  "status": "open",
+  "created_at": "2026-08-21T13:59:04Z"
+ }
+}

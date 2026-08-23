@@ -1,0 +1,64 @@
+{
+ "idea_id": null,
+ "title": "DPM-NLL: exact discrete log-det of the deployed DPM-Solver trajectory via residual Hutchinson",
+ "state": "provisional",
+ "one_liner": "Pair DDIM-NLL's instantaneous change-of-variables with DPM-Solver's exponential integrator so the reported NLL is the exact determinant of the deployed discrete sampler \u2014 not a continuous-limit approximation \u2014 at a fraction of the trace-estimator VJPs.",
+ "description": "DPM-Solver is a fast sampler with no likelihood machinery: it integrates the probability-flow ODE with an exact linear part and reaches target sample quality in ~10\u201320 steps. DDIM-NLL supplies the missing density machinery \u2014 instantaneous change-of-variables plus a Hutchinson trace per step \u2014 but only as a first-order, Euler-flavored estimate that spends one backward-mode VJP per step and approaches the true density only in the continuous limit. The composition: run DPM-Solver (multi-step form) as the backbone, contribute the linear part of every step to the log-determinant in closed form, and apply the residual Hutchinson estimator only to the nonlinear score part. The interface is the work: a naive sum of \u0394t\u00b7div along a DPM-Solver trajectory is not the determinant of the solver's discrete map, because higher-order steps contain cross-Jacobian trace terms tr(J_i J_j) that separate traces miss \u2014 so the likelihood would lag the sampler's own order of accuracy. Decomposing solver steps into composing first-order substeps (as the multi-step variants do) turns the log-det into a sum of per-step affine+score determinants, with any remaining cross-term estimated by one coupled double-VJP. The payoff: matched accuracy at 5\u201310\u00d7 fewer VJPs, and \u2014 unlike both the base Euler estimate and an FFJORD-style fine ODE \u2014 an NLL for the exact sampler the model actually deploys.",
+ "problem": "",
+ "addresses": [
+  "gap_4fc22ace"
+ ],
+ "relations": [],
+ "inherited_from": null,
+ "sections": {
+  "technique": "Use deterministic DPM-Solver-2M/DPM-Solver++ (\u03b7=0) with K\u224810\u201320 steps. Each step, given cached score evaluations, is affine-plus-score: x_{i+1} = a_i x_i + \u03a3_j b_{ij} \u03b5_\u03b8(x_cached). Accumulate log|det| = \u03a3_i [ d\u00b7log|a_i| + log|det(I + a_i^{-1} \u03a3_j b_{ij} J_{ij})| ], with J_{ij} the input Jacobian of \u03b5_\u03b8 at the cached point; first-order truncation in the b coefficients, plus optional second-order cross-terms via coupled Hutchinson (a JVP through the inner evaluation then a VJP through the outer \u2014 one double backward pass per cross-term). Use Rademacher vectors, a few Hutchinson samples per step, shared/antithetic seeds across steps to tame accumulated variance, and report mean\u00b1std over seeds. Validate on CIFAR-10 / ImageNet-64 against a fine-grid FFJORD-style ODE NLL and the long-run SDE ELBO; plot NLL gap vs step count and count VJPs at matched NLL error.",
+  "open_questions": [
+   "Does DPM-Solver's step-count advantage transfer to the trace-estimator budget at matched likelihood accuracy, or is likelihood error dominated by log-det truncation rather than sample error?",
+   "Is the coupled-Hutchinson estimate of tr(J_i J_j) stable, and does the 2M substep decomposition make these cross-terms unnecessary in practice?",
+   "Are the per-step Jacobians a_i I + \u03a3 b_ij J_ij well-conditioned at the large h values DPM-Solver uses, so the accumulated log-det does not drift?",
+   "Which parameterization (\u03b5- vs v-prediction) yields the smallest b coefficients and therefore the tightest first-order truncation?",
+   "Is the exact discrete log-det of the deployed sampler the quantity practitioners want, or does it deliberately conflate sampler bias with model quality?"
+  ],
+  "rationale": "Combiner stance: I fuse two explicitly named methods \u2014 DDIM-NLL's instantaneous change-of-variables (density machinery, but first-order and one VJP per step) and DPM-Solver's exponential integrator (fast, accurate, but has no likelihood concept). Each supplies what the other lacks, and the composition (solver backbone + closed-form linear-part determinant + residual Hutchinson on the nonlinear part) is the contribution. The efficiency argument is the central one: DPM-Solver's ~10\u201320 step accuracy means the dominant VJP budget drops by roughly an order of magnitude. The 'what breaks when naively stacked' point is the interface work: a naive continuous-limit log-det sum is not the discrete map's determinant for higher-order solvers because of cross-Jacobian trace terms, and the fix (substep decomposition / coupled Hutchinson) is the actual novel engineering. Unverified claims to flag: the ~10\u201320-step accuracy equivalence of DPM-Solver is asserted from its paper, not re-derived here; that DPM-Solver-2M is exactly a composition of affine+score substeps whose log-det is a sum should be checked against Lu et al. 2022's update equations; and that per-step VJPs dominate the cost of the base DDIM-NLL is assumed from the base idea's own framing."
+ },
+ "section_order": [
+  "technique",
+  "open_questions",
+  "rationale"
+ ],
+ "evaluation": {
+  "novelty": null,
+  "feasibility": null,
+  "significance": null
+ },
+ "provenance": [],
+ "origin": {
+  "run_id": "run_03f8c476",
+  "node_id": "run_03f8c476:n2",
+  "node_path": [
+   "run_03f8c476:n0",
+   "run_03f8c476:n2"
+  ],
+  "style": "combiner",
+  "mode": "generation",
+  "parent_idea_id": null,
+  "suggested": null,
+  "inherited_from": null,
+  "inherited_upto_run": null
+ },
+ "runs": [],
+ "created_at": "",
+ "updated_at": "",
+ "_session": {
+  "draft_id": "draft_fbe2b36d",
+  "session_id": "sess_c685e355",
+  "kind": "create",
+  "run_id": "20260821_154939_generate-an-idea-variant-from-that-idea",
+  "source_index": 1,
+  "target_idea_id": null,
+  "label": "DPM-NLL: exact discrete log-det of the deployed DPM-Solver trajectory via residual Hutchinson",
+  "status": "dismissed",
+  "created_at": "2026-08-21T13:51:50Z",
+  "decided_at": "2026-08-21T13:54:25Z"
+ }
+}

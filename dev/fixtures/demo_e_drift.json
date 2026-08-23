@@ -1,0 +1,7 @@
+{
+  "idea": "demo_idea.json", "context": "demo_context.json",
+  "mode": "refinement", "width": 2, "depth": 1, "styles": "neutral",
+  "task": "Change the idea: drop the photos entirely. Instead the gardener types a description of the symptoms and a language model diagnoses it from the text.",
+  "tool_use": false, "max_llm_calls": 12,
+  "triggering_action": "DEMO E - a command that replaces the mechanism"
+}

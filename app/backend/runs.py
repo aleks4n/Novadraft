@@ -37,7 +37,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from dev.registry import GRAPH_BUILDERS
+from dev.registry import GRAPH_BUILDERS, INPUT_ADAPTERS
 from dev.runlog import RunRecorder
 from src.common.utils import storage
 from src.common.utils.logging.runlog import slugify
@@ -137,7 +137,7 @@ class RunManager:
     # --- lifecycle ----------------------------------------------------------------
 
     def start(self, slug: str, agent: str, kind: str, inputs: dict, query: str,
-              *, target: dict | None = None) -> dict:
+              *, target: dict | None = None, session_id: str | None = None) -> dict:
         """Launch a run in a background thread and return its meta immediately.
 
         If an *active* run with the same (slug, agent, query) exists, it is
@@ -152,7 +152,8 @@ class RunManager:
             self._load_slug(slug)
             for meta in self._runs.values():
                 if (meta.get("slug") == slug and meta.get("agent") == agent
-                        and meta.get("query") == query and meta["status"] in _ACTIVE):
+                        and meta.get("query") == query and meta["status"] in _ACTIVE
+                        and meta.get("session_id") == session_id):
                     return {**meta, "existing": True}
 
             run_id = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{slugify(query)}"
@@ -163,7 +164,8 @@ class RunManager:
             meta = {
                 "run_id": run_id, "slug": slug, "agent": agent, "kind": kind,
                 "query": query, "inputs": inputs, "status": "running",
-                "target": target, "candidates": [], "result_paper_id": None,
+                "target": target, "session_id": session_id,
+                "candidates": [], "result_paper_id": None,
                 "result_idea_ids": [], "error": None, "note": None,
                 "log": f"{run_id}.jsonl",
                 "created_at": _now_iso(), "updated_at": _now_iso(),
@@ -194,7 +196,8 @@ class RunManager:
         if meta["status"] in _ACTIVE:
             raise ValueError("run is still active — cancel it first")
         fresh = self.start(meta["slug"], meta["agent"], meta["kind"],
-                           meta["inputs"], meta["query"], target=meta.get("target"))
+                           meta["inputs"], meta["query"], target=meta.get("target"),
+                           session_id=meta.get("session_id"))
         if fresh["run_id"] != run_id:
             self.delete(run_id)
         return fresh
@@ -226,13 +229,24 @@ class RunManager:
         cancel = self._cancels[run_id]
         graph = GRAPH_BUILDERS[meta["agent"]]()
         error: str | None = None
+        # The stored inputs are always **JSON** (they round-trip through the run
+        # index and a restart). Agents whose graph state isn't JSON-typeable —
+        # the creative thinker takes a whole ``ThinkerCall`` — declare an
+        # ``input_adapter`` in their manifest, applied here exactly as the dev UI
+        # applies it, so an app run and a dev run are the same run.
+        adapter = INPUT_ADAPTERS.get(meta["agent"])
+        try:
+            graph_inputs = adapter(meta["inputs"]) if adapter else meta["inputs"]
+        except Exception as e:  # noqa: BLE001 — a bad spec must not kill the thread
+            self._update(run_id, status="error", error=f"{type(e).__name__}: {e}")
+            return
 
         with open(self.log_path(run_id), "w") as fh:  # type: ignore[arg-type]
             rec = RunRecorder(fh, meta["agent"], meta["slug"], meta["inputs"])
             rec.start(graph.get_graph(xray=True).draw_mermaid())
             try:
                 for ns, mode, data in graph.stream(
-                    meta["inputs"], stream_mode=["updates", "custom"], subgraphs=True,
+                    graph_inputs, stream_mode=["updates", "custom"], subgraphs=True,
                     config={"recursion_limit": GRAPH_RECURSION_LIMIT},
                 ):
                     if cancel.is_set():
@@ -292,6 +306,11 @@ class RunManager:
                 patch["target"] = {"kind": "paper", "id": output["paper_id"]}
         if isinstance(output.get("idea_ids"), list):
             patch["result_idea_ids"] = output["idea_ids"]
+        # The creative thinker returns one envelope as its whole output. Keeping it
+        # on the entry means a reloaded client renders the result from the run
+        # index without replaying the event stream to find the footer.
+        if "answer" in output and "idea" in output:
+            patch["envelope"] = output
         self._update(run_id, **patch)
 
 

@@ -1,0 +1,65 @@
+{
+ "idea_id": null,
+ "title": "DDIM-NLL: likelihood from the DDIM trajectory via instantaneous change-of-variables",
+ "state": "provisional",
+ "one_liner": "Attach a Hutchinson-trace change-of-variables term to the DDIM steps already taken during sampling, so negative log-likelihood comes at the marginal cost of one Jacobian-vector product per step.",
+ "description": "DDIM sampling is deterministic: it is an Euler-style discretization of the probability flow ODE, so the log-density of a generated x_0 is the log-density of the initial noise plus the accumulated log-|det| of the drift's Jacobian along that same trajectory. The DDIM paper left NLL unevaluated only because it treated likelihood as needing a separate inference pass; the instantaneous change-of-variables formula supplies it for free inside the existing sampling loop. At each step we already compute the drift v_\u03b8(x_t, t); we add \u0394t\u00b7div(v), with the divergence estimated by Hutchinson's random-projection trace estimator (one backward-mode vjp through the score network per step). This gives an approximate NLL that is exact in the continuous limit, at essentially the cost of the sampling run itself, and \u2014 unlike a separately-solved fine ODE \u2014 it reports likelihood for the very sampler the model deploys.",
+ "problem": "",
+ "addresses": [
+  "gap_4fc22ace"
+ ],
+ "relations": [],
+ "inherited_from": null,
+ "sections": {
+  "technique": "Take a trained DDIM \u03b5-prediction model and a fixed T-step schedule. In the sampling loop, at each step: (1) compute the standard DDIM drift v_\u03b8(x_t,t); (2) draw z ~ N(0,I), compute z\u1d40 J_v z via one vjp through the score network, average over k=1\u20134 projections for variance control; (3) accumulate the divergence term into a running log-Jacobian sum; (4) at the end add log-density of x_T under N(0,I). Report NLL = -(sum + log p(x_T)). Validate by comparing against (a) the Score-SDE-style adaptive fine ODE solve as ground-truth continuous likelihood, (b) an importance-weighted lower bound on the reverse chain, and (c) NLL as a function of T (e.g., 10, 50, 100, 1000 steps) to quantify discretization bias.",
+  "open_questions": [
+   "Does the discretization bias of DDIM's Euler steps corrupt the change-of-variables estimate, and does it converge to the continuous ODE likelihood as T grows or to some other quantity?",
+   "How many Hutchinson projections per step are needed to keep variance acceptable, and does the per-step vjp make this cheaper or more expensive than a fine-grained ODE solve at equal accuracy?",
+   "Which parameterization (\u03b5-prediction vs. v-prediction vs. score) gives the drift that actually satisfies the change-of-variables identity, and does the answer change the estimate?",
+   "Should the divergence be accumulated along the pure deterministic DDIM path or along a predictor\u2013corrector variant, and which one matches the model's reported sampling distribution?",
+   "Is the resulting NLL comparable to DDPM/Score-SDE NLL numbers given that DDIM's marginal is defined by the discretized map rather than the continuous SDE?"
+  ],
+  "rationale": "Stance: combiner. I fuse DDIM (deterministic, few-step sampler with no likelihood access) with the instantaneous change-of-variables estimator from the probability-flow-ODE literature (exact likelihood, but normally requiring an expensive, separate, fine-grained ODE solve). The composition is the contribution: the estimator runs inside the DDIM loop and reuses its trajectory, so marginal cost is one extra JVP per step instead of a second inference pass. The naive stack \u2014 sample with DDIM, then run a separate fine ODE solver \u2014 is exactly the \"simple way\" the DDIM authors found missing: it doubles cost and estimates the likelihood of a different trajectory than the sampler actually produces; this pairing makes the estimate consistent with the deployed sampler, which is the efficiency win. Unverified claims from outside the provided context: (1) that DDIM's discrete steps correspond to discretizing the probability flow ODE in the sense required for change-of-variables; (2) that the Hutchinson/Skilling trace estimator plus instantaneous change-of-variables is the standard exact-likelihood method in the score-SDE literature; (3) that later ODE-sampler papers (e.g., EDM-style) compute NLL along their own deterministic trajectories rather than along DDIM specifically \u2014 if (3) is true, the novelty is narrow and the value is the cheap, sampler-consistent estimator rather than the general technique."
+ },
+ "section_order": [
+  "technique",
+  "open_questions",
+  "rationale"
+ ],
+ "evaluation": {
+  "novelty": null,
+  "feasibility": null,
+  "significance": null
+ },
+ "provenance": [],
+ "origin": {
+  "run_id": "run_29e68a76",
+  "node_id": "run_29e68a76:n1",
+  "node_path": [
+   "run_29e68a76:n0",
+   "run_29e68a76:n1"
+  ],
+  "style": "combiner",
+  "mode": "generation",
+  "parent_idea_id": null,
+  "suggested": null,
+  "inherited_from": null,
+  "inherited_upto_run": null
+ },
+ "runs": [],
+ "created_at": "",
+ "updated_at": "",
+ "_session": {
+  "draft_id": "draft_cee1baa3",
+  "session_id": "sess_c685e355",
+  "kind": "create",
+  "run_id": "20260821_144505_give-me-ideas",
+  "source_index": 0,
+  "target_idea_id": null,
+  "label": "DDIM-NLL: likelihood from the DDIM trajectory via instantaneous change-of-variables",
+  "status": "accepted",
+  "created_at": "2026-08-21T12:46:04Z",
+  "decided_at": "2026-08-21T13:44:55Z",
+  "result_idea_id": "idea_92614563"
+ }
+}
