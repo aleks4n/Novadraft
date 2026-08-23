@@ -203,8 +203,29 @@ def _search_result_keys(result: SearchResult) -> set[str]:
 
 
 def _is_arxiv_url(url: str) -> bool:
-	host = (urlparse(url).hostname or "").lower()
-	return host == "arxiv.org" or host.endswith(".arxiv.org")
+	return _canonical_arxiv_url(url) is not None
+
+
+def _canonical_arxiv_url(url: str) -> str | None:
+	"""Return a canonical arXiv abstract URL when an arXiv identifier is present."""
+	parsed = urlparse(url)
+	host = (parsed.hostname or "").lower()
+	if "arxiv.org" not in host:
+		return None
+
+	# Accept urls like /abs/<id>, /pdf/<id>.pdf, /html/<id> (ar5iv mirror), etc.
+	identifier_match = re.search(
+		r"(?:/abs/|/pdf/|/html/)([0-9]{4}\.[0-9]{4,5})(?:v\d+)?(?:\.pdf)?",
+		parsed.path,
+		flags=re.IGNORECASE,
+	)
+	if not identifier_match:
+		# Fallback: if path/query still contains a valid modern arXiv id.
+		identifier_match = re.search(r"([0-9]{4}\.[0-9]{4,5})(?:v\d+)?", url)
+	if not identifier_match:
+		return None
+	identifier = identifier_match.group(1)
+	return f"https://arxiv.org/abs/{identifier}"
 
 
 def _deduplicate_search_results(results: list[SearchResult]) -> list[SearchResult]:
@@ -951,7 +972,13 @@ def paper_search_node(state: InvestigatorState) -> dict:
 			if web_error is not None:
 				return {"research_result": {"error": f"web_search_failed: {web_error}; arxiv_search_failed: {arxiv_error}"}}
 			return {"research_result": {"error": f"arxiv_search_failed: {arxiv_error}"}}
-	results = _deduplicate_search_results([result for result in results if _is_arxiv_url(result.url)])
+	normalized_results: list[SearchResult] = []
+	for result in results:
+		canonical_url = _canonical_arxiv_url(result.url)
+		if not canonical_url:
+			continue
+		normalized_results.append(SearchResult(title=result.title, url=canonical_url, snippet=result.snippet))
+	results = _deduplicate_search_results(normalized_results)
 	return {
 		"research_result": {
 			"requested_count": state["paper_count"],
