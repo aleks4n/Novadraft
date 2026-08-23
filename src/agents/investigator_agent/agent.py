@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Literal, TypedDict
+from xml.etree import ElementTree as ET
 from urllib.parse import parse_qs, unquote, urlparse
 
 import requests
@@ -580,6 +581,44 @@ def _search_web(query: str, max_results: int = _MAX_RESULT_COUNT) -> list[Search
 	return results
 
 
+def _search_arxiv(query: str, max_results: int = _MAX_RESULT_COUNT) -> list[SearchResult]:
+	"""Search arXiv directly as a reliable fallback for paper discovery."""
+	response = requests.get(
+		"https://export.arxiv.org/api/query",
+		params={
+			"search_query": f"all:{query}",
+			"start": 0,
+			"max_results": max_results,
+			"sortBy": "relevance",
+			"sortOrder": "descending",
+		},
+		headers={"User-Agent": _USER_AGENT},
+		timeout=_REQUEST_TIMEOUT,
+	)
+	response.raise_for_status()
+
+	root = ET.fromstring(response.text)
+	ns = {"atom": "http://www.w3.org/2005/Atom"}
+	results: list[SearchResult] = []
+	for entry in root.findall("atom:entry", ns):
+		title = re.sub(r"\s+", " ", (entry.findtext("atom:title", "", ns) or "")).strip()
+		snippet = re.sub(r"\s+", " ", (entry.findtext("atom:summary", "", ns) or "")).strip()
+		url = ""
+		for link in entry.findall("atom:link", ns):
+			href = (link.attrib.get("href") or "").strip()
+			rel = (link.attrib.get("rel") or "").strip().lower()
+			if href and ("/abs/" in href or rel == "alternate"):
+				url = href
+				break
+		if not url:
+			url = (entry.findtext("atom:id", "", ns) or "").strip()
+		if title and url:
+			results.append(SearchResult(title=title, url=url, snippet=snippet))
+		if len(results) >= max_results:
+			break
+	return results
+
+
 def _download_path(session_id: str, name: str, suffix: str) -> Path:
 	downloads_dir = storage.workspace_root() / session_id / "downloads"
 	downloads_dir.mkdir(parents=True, exist_ok=True)
@@ -705,9 +744,14 @@ def _paper_to_text(result: dict, query: str) -> str:
 		lines.extend(["", "Extract:"])
 		lines.append(json.dumps(extract, indent=2, ensure_ascii=False, default=str))
 
-	if gaps:
-		lines.extend(["", "Gaps:"])
-		lines.append(json.dumps(gaps, indent=2, ensure_ascii=False, default=str))
+	lines.extend(["", "Gaps:"])
+	if "gaps" in result:
+		if gaps:
+			lines.append(json.dumps(gaps, indent=2, ensure_ascii=False, default=str))
+		else:
+			lines.append("No gaps were returned.")
+	else:
+		lines.append("Gap extraction did not run for this paper result.")
 
 	return "\n".join(lines)
 
@@ -892,10 +936,21 @@ def paper_node(state: InvestigatorState) -> dict:
 def paper_search_node(state: InvestigatorState) -> dict:
 	"""Find paper landing pages before the bounded sequential download step."""
 	search_query = f"{state['query']} research paper site:arxiv.org"
+	web_error: str | None = None
 	try:
 		results = _search_web(search_query, max_results=max(_MAX_RESULT_COUNT, state["paper_count"] * 3))
 	except Exception as exc:  # noqa: BLE001 - return a readable text error
-		return {"research_result": {"error": f"{type(exc).__name__}: {exc}"}}
+		results = []
+		web_error = f"{type(exc).__name__}: {exc}"
+
+	if not results:
+		try:
+			results = _search_arxiv(state["query"], max_results=max(_MAX_RESULT_COUNT, state["paper_count"] * 3))
+		except Exception as exc:  # noqa: BLE001 - preserve web failure details when both fail
+			arxiv_error = f"{type(exc).__name__}: {exc}"
+			if web_error is not None:
+				return {"research_result": {"error": f"web_search_failed: {web_error}; arxiv_search_failed: {arxiv_error}"}}
+			return {"research_result": {"error": f"arxiv_search_failed: {arxiv_error}"}}
 	results = _deduplicate_search_results([result for result in results if _is_arxiv_url(result.url)])
 	return {
 		"research_result": {
@@ -913,29 +968,28 @@ def download_papers_node(state: InvestigatorState) -> dict:
 		return {}
 
 	_ensure_workspace(state["session_id"])
-	# Try the full deduplicated pool so blocked publishers can be replaced by
-	# later accessible candidates instead of consuming a requested slot.
+	requested_count = max(1, min(int(state.get("paper_count", 1)), _MAX_PAPER_DOWNLOADS))
+	# Respect the user's requested count strictly: investigate only the top-N
+	# candidates instead of expanding the attempt pool.
 	candidates = [
 		candidate for candidate in (result.get("search_results") or [])
 		if _is_arxiv_url(candidate.get("url") or "")
-	]
+	][:requested_count]
 
 	def download_one(candidate: dict) -> dict:
 		query = candidate.get("url") or candidate.get("title") or state["query"]
 		try:
 			if ENABLE_FAST_MULTI_PAPER_DOWNLOAD:
+				# Fast mode runs the full paper pipeline directly for each selected
+				# candidate, avoiding an extra prefetch that can create duplicate
+				# records before analysis starts.
+				paper_result = run_paper_agent(state["session_id"], query, stream=False)
+			else:
 				fetch_result = fetch_paper(state["session_id"], query)
 				if fetch_result.get("status") == "ok":
-					paper = fetch_result.get("paper") or {}
-					paper_result = {
-						"status": "ok",
-						"paper_id": paper.get("paper_id"),
-						"fetch": fetch_result,
-					}
+					paper_result = run_paper_agent(state["session_id"], query, stream=False)
 				else:
 					paper_result = fetch_result
-			else:
-				paper_result = run_paper_agent(state["session_id"], query, stream=False)
 		except Exception as exc:  # noqa: BLE001 - one failed candidate must not stop the session
 			paper_result = {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
 		return {
@@ -946,25 +1000,14 @@ def download_papers_node(state: InvestigatorState) -> dict:
 		}
 
 	papers: list[dict] = []
-	successful: list[dict] = []
-	candidate_index = 0
-	while candidate_index < len(candidates) and len(successful) < state["paper_count"]:
-		remaining_slots = state["paper_count"] - len(successful)
-		batch = candidates[candidate_index:candidate_index + min(_MAX_PARALLEL_PAPER_DOWNLOADS, remaining_slots)]
-		candidate_index += len(batch)
+	for candidate_index in range(0, len(candidates), _MAX_PARALLEL_PAPER_DOWNLOADS):
+		batch = candidates[candidate_index:candidate_index + _MAX_PARALLEL_PAPER_DOWNLOADS]
 		if not batch:
-			break
+			continue
 		with ThreadPoolExecutor(max_workers=len(batch)) as executor:
 			batch_results = list(executor.map(download_one, batch))
 		papers.extend(batch_results)
-		successful.extend(
-			item for item in batch_results
-			if (item.get("result") or {}).get("status") == "ok"
-		)
-	successful = [item for item in papers if (item.get("result") or {}).get("status") == "ok"]
-	selected = successful[:state["paper_count"]]
-	if len(selected) < state["paper_count"]:
-		selected.extend(item for item in papers if item not in selected and len(selected) < state["paper_count"])
+	selected = papers[:requested_count]
 	evidence = list(result.get("evidence") or [])
 	for index, item in enumerate(selected, start=1):
 		evidence.extend(_paper_evidence(item.get("result") or {}, index))

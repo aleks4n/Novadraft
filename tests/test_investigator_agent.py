@@ -147,6 +147,26 @@ def test_multi_paper_workflow_searches_then_downloads_each_candidate(monkeypatch
 	assert len(download_result["attempted_papers"]) == 3
 
 
+def test_paper_search_falls_back_to_arxiv_when_web_returns_empty(monkeypatch):
+	monkeypatch.setattr(agent, "_search_web", lambda query, max_results=None: [])
+	monkeypatch.setattr(
+		agent,
+		"_search_arxiv",
+		lambda query, max_results=None: [
+			agent.SearchResult(title="A", url="https://arxiv.org/abs/1"),
+			agent.SearchResult(title="B", url="https://arxiv.org/abs/2"),
+		],
+	)
+
+	result = agent.paper_search_node({"query": "transformers", "paper_count": 2})["research_result"]
+
+	assert result["requested_count"] == 2
+	assert [item["url"] for item in result["search_results"]] == [
+		"https://arxiv.org/abs/1",
+		"https://arxiv.org/abs/2",
+	]
+
+
 def test_multi_paper_workflow_uses_later_candidates_after_fetch_failures(monkeypatch):
 	candidates = [
 		agent.SearchResult("Blocked one", "https://arxiv.org/abs/blocked1"),
@@ -156,13 +176,21 @@ def test_multi_paper_workflow_uses_later_candidates_after_fetch_failures(monkeyp
 	]
 	monkeypatch.setattr(agent, "ENABLE_FAST_MULTI_PAPER_DOWNLOAD", True)
 	monkeypatch.setattr(agent, "_ensure_workspace", lambda session_id: None)
-
-	def fetch(destination, query):
-		if "blocked" in query:
-			raise RuntimeError("403")
-		return {"status": "ok", "paper": {"paper_id": query, "metadata": {"title": query}}}
-
-	monkeypatch.setattr(agent, "fetch_paper", fetch)
+	runs = []
+	monkeypatch.setattr(
+		agent,
+		"run_paper_agent",
+		lambda session_id, query, stream: (
+			runs.append((session_id, query, stream))
+			or ({"status": "error", "error": "403"} if "blocked" in query else {
+				"status": "ok",
+				"paper_id": query,
+				"fetch": {"paper": {"paper_id": query, "metadata": {"title": query}}},
+				"summary": {"summary": "ok"},
+				"gaps": {"gaps": []},
+			})
+		),
+	)
 	state = {
 		"session_id": "session-42", "query": "transformers", "paper_count": 2,
 		"research_result": {"search_results": [item.__dict__ for item in candidates]},
@@ -170,8 +198,12 @@ def test_multi_paper_workflow_uses_later_candidates_after_fetch_failures(monkeyp
 
 	result = agent.download_papers_node(state)["research_result"]
 
-	assert [item["title"] for item in result["papers"]] == ["Good one", "Good two"]
-	assert len(result["attempted_papers"]) == 4
+	assert [item["title"] for item in result["papers"]] == ["Blocked one", "Good one"]
+	assert len(result["attempted_papers"]) == 2
+	assert runs == [
+		("session-42", "https://arxiv.org/abs/blocked1", False),
+		("session-42", "https://arxiv.org/abs/good1", False),
+	]
 
 
 def test_multi_paper_workflow_stops_after_requested_successes(monkeypatch):
@@ -179,14 +211,18 @@ def test_multi_paper_workflow_stops_after_requested_successes(monkeypatch):
 		agent.SearchResult(f"Paper {index}", f"https://arxiv.org/abs/{index}")
 		for index in range(5)
 	]
-	attempted = []
+	runs = []
 	monkeypatch.setattr(agent, "ENABLE_FAST_MULTI_PAPER_DOWNLOAD", True)
 	monkeypatch.setattr(agent, "_ensure_workspace", lambda session_id: None)
 	monkeypatch.setattr(
 		agent,
-		"fetch_paper",
-		lambda destination, query: attempted.append(query) or {
-			"status": "ok", "paper": {"paper_id": query, "metadata": {"title": query}},
+		"run_paper_agent",
+		lambda session_id, query, stream: runs.append((session_id, query, stream)) or {
+			"status": "ok",
+			"paper_id": query,
+			"fetch": {"paper": {"paper_id": query, "metadata": {"title": query}}},
+			"summary": {"summary": "ok"},
+			"gaps": {"gaps": []},
 		},
 	)
 
@@ -195,7 +231,34 @@ def test_multi_paper_workflow_stops_after_requested_successes(monkeypatch):
 		"research_result": {"search_results": [item.__dict__ for item in candidates]},
 	})["research_result"]
 
-	assert len(attempted) == 3
+	assert len(runs) == 3
+	assert len(result["papers"]) == 3
+
+
+def test_multi_paper_workflow_does_not_expand_attempt_pool_on_failures(monkeypatch):
+	candidates = [
+		agent.SearchResult(f"Paper {index}", f"https://arxiv.org/abs/{index}")
+		for index in range(6)
+	]
+	runs = []
+	monkeypatch.setattr(agent, "ENABLE_FAST_MULTI_PAPER_DOWNLOAD", True)
+	monkeypatch.setattr(agent, "_ensure_workspace", lambda session_id: None)
+	monkeypatch.setattr(
+		agent,
+		"run_paper_agent",
+		lambda session_id, query, stream: runs.append((session_id, query, stream)) or {
+			"status": "error",
+			"error": "blocked",
+		},
+	)
+
+	result = agent.download_papers_node({
+		"session_id": "session-42", "query": "transformers", "paper_count": 3,
+		"research_result": {"search_results": [item.__dict__ for item in candidates]},
+	})["research_result"]
+
+	assert len(runs) == 3
+	assert len(result["attempted_papers"]) == 3
 	assert len(result["papers"]) == 3
 
 
