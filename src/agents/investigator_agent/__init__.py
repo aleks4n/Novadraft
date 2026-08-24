@@ -26,5 +26,12 @@ MANIFEST = {
 			"required": True,
 			"placeholder": "research-session-123",
 		},
+		{
+			"name": "category_slug",
+			"type": "text",
+			"required": True,
+			"placeholder": "machine-learning",
+			"help": "Validator category; sessions are stored under sessions/<session_id>.",
+		},
 	],
 }
