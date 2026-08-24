@@ -398,6 +398,49 @@ def test_run_uses_injected_graph(monkeypatch):
 	assert fake_graph.inputs == {"text": "search the web for transformers", "session_id": "session-123"}
 
 
+def test_run_places_category_session_in_nested_workspace(monkeypatch):
+	class FakeGraph:
+		def __init__(self):
+			self.inputs = None
+
+		def invoke(self, inputs):
+			self.inputs = inputs
+			return {"result": "ok"}
+
+	fake_graph = FakeGraph()
+	monkeypatch.setattr(agent, "_get_graph", lambda: fake_graph)
+
+	result = agent.run(
+		"search the web for transformers",
+		session_id="session-123",
+		category_slug="machine-learning",
+		stream=False,
+	)
+
+	assert result == "ok"
+	assert fake_graph.inputs == {
+		"text": "search the web for transformers",
+		"session_id": "session-123",
+		"workspace_key": "machine-learning/sessions/session-123",
+	}
+
+
+def test_category_session_workspace_path_is_safe_and_nested():
+	assert agent._session_workspace("session-123", "machine-learning") == "machine-learning/sessions/session-123"
+	with pytest.raises(ValueError, match="category_slug"):
+		agent._session_workspace("session-123", "../outside")
+
+
+def test_ensure_workspace_creates_nested_category_session_directory(monkeypatch, tmp_path):
+	monkeypatch.setenv("NOVADRAFT_WORKSPACE", str(tmp_path))
+	workspace_key = agent._session_workspace("session-123", "machine-learning")
+
+	created = agent._ensure_workspace(workspace_key)
+
+	assert created == tmp_path / "machine-learning" / "sessions" / "session-123"
+	assert (created / "meta.json").is_file()
+
+
 def test_actor_conditions_routing_on_saved_reflections(monkeypatch):
 	captured = {}
 	monkeypatch.setattr(agent, "_ensure_workspace", lambda session_id: None)

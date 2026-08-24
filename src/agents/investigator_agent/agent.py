@@ -155,6 +155,9 @@ _EVALUATION_SYSTEM_PROMPT = (
 class InvestigatorState(TypedDict, total=False):
 	text: str
 	session_id: str
+	# ``workspace_key`` is the category-relative location used by downstream
+	# agents, e.g. ``machine-learning/sessions/session-42``.
+	workspace_key: str
 	mode: str
 	query: str
 	paper_count: int
@@ -203,8 +206,29 @@ def _search_result_keys(result: SearchResult) -> set[str]:
 
 
 def _is_arxiv_url(url: str) -> bool:
-	host = (urlparse(url).hostname or "").lower()
-	return host == "arxiv.org" or host.endswith(".arxiv.org")
+	return _canonical_arxiv_url(url) is not None
+
+
+def _canonical_arxiv_url(url: str) -> str | None:
+	"""Return a canonical arXiv abstract URL when an arXiv identifier is present."""
+	parsed = urlparse(url)
+	host = (parsed.hostname or "").lower()
+	if "arxiv.org" not in host:
+		return None
+
+	# Accept urls like /abs/<id>, /pdf/<id>.pdf, /html/<id> (ar5iv mirror), etc.
+	identifier_match = re.search(
+		r"(?:/abs/|/pdf/|/html/)([0-9]{4}\.[0-9]{4,5})(?:v\d+)?(?:\.pdf)?",
+		parsed.path,
+		flags=re.IGNORECASE,
+	)
+	if not identifier_match:
+		# Fallback: if path/query still contains a valid modern arXiv id.
+		identifier_match = re.search(r"([0-9]{4}\.[0-9]{4,5})(?:v\d+)?", url)
+	if not identifier_match:
+		return None
+	identifier = identifier_match.group(1)
+	return f"https://arxiv.org/abs/{identifier}"
 
 
 def _deduplicate_search_results(results: list[SearchResult]) -> list[SearchResult]:
@@ -309,26 +333,40 @@ class _HTMLTextExtractor(HTMLParser):
 		return re.sub(r"[ \t]+", " ", text).strip()
 
 
-def _session_workspace(session_id: str) -> str:
-	"""Validate a session identifier before using it as a workspace directory."""
-	session_id = _normalize(session_id)
-	if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}", session_id):
+def _workspace_component(value: str, *, field: str) -> str:
+	"""Validate one path component supplied by an agent caller."""
+	value = _normalize(value)
+	if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}", value):
 		raise ValueError(
-			"session_id must contain only letters, numbers, underscores, or hyphens "
+			f"{field} must contain only letters, numbers, underscores, or hyphens "
 			"and must start with a letter or number."
 		)
-	return session_id
+	return value
 
 
-def _ensure_workspace(session_id: str) -> Path:
-	category_dir = storage.category_dir(session_id)
+def _session_workspace(session_id: str, category_slug: str | None = None) -> str:
+	"""Return the category-relative workspace path for one investigator session.
+
+	Validator callers provide ``category_slug`` and therefore write beneath
+	``workspace/<category>/sessions/<session_id>/``.  Omitting it retains the
+	legacy standalone location for existing integrations.
+	"""
+	session_id = _workspace_component(session_id, field="session_id")
+	if category_slug is None:
+		return session_id
+	category_slug = _workspace_component(category_slug, field="category_slug")
+	return f"{category_slug}/sessions/{session_id}"
+
+
+def _ensure_workspace(workspace_key: str) -> Path:
+	category_dir = storage.category_dir(workspace_key)
 	meta_path = category_dir / "meta.json"
 	if not meta_path.exists():
 		category_dir.mkdir(parents=True, exist_ok=True)
 		now = storage.now_iso()
 		meta = {
-			"category_slug": session_id,
-			"name": f"Investigator session {session_id}",
+			"category_slug": workspace_key,
+			"name": f"Investigator session {workspace_key.rsplit('/', 1)[-1]}",
 			"description": "Workspace used by the investigator agent for one ad hoc research session.",
 			"source_url": None,
 			"created_at": now,
@@ -619,8 +657,8 @@ def _search_arxiv(query: str, max_results: int = _MAX_RESULT_COUNT) -> list[Sear
 	return results
 
 
-def _download_path(session_id: str, name: str, suffix: str) -> Path:
-	downloads_dir = storage.workspace_root() / session_id / "downloads"
+def _download_path(workspace_key: str, name: str, suffix: str) -> Path:
+	downloads_dir = storage.category_dir(workspace_key) / "downloads"
 	downloads_dir.mkdir(parents=True, exist_ok=True)
 	safe = re.sub(r"[^A-Za-z0-9]+", "-", name).strip("-").lower() or "download"
 	return downloads_dir / f"{safe}{suffix}"
@@ -888,11 +926,12 @@ def _store_reflection(session_id: str, text: str, lesson: str) -> None:
 
 def actor(state: InvestigatorState) -> dict:
 	"""Reflexion actor: route the request while conditioning on prior lessons."""
-	_ensure_workspace(state["session_id"])
+	workspace_key = state.get("workspace_key", state["session_id"])
+	_ensure_workspace(workspace_key)
 	attempt = int(state.get("attempt", 0)) + 1
 	reflections = list(state.get("reflections") or [])
 	if attempt == 1:
-		reflections = _load_reflections(state["session_id"], state["text"])
+		reflections = _load_reflections(workspace_key, state["text"])
 	decision = _decide_request(state["text"], reflections)
 	trace.log_event("investigator_actor", attempt=attempt, reflections=len(reflections), mode=decision["mode"])
 	return {**decision, "attempt": attempt, "reflections": reflections}
@@ -924,10 +963,10 @@ def _answer_from_fetched_pages(query: str, pages: list[dict]) -> str | None:
 
 
 def paper_node(state: InvestigatorState) -> dict:
-	session_id = state["session_id"]
-	_ensure_workspace(session_id)
+	workspace_key = state.get("workspace_key", state["session_id"])
+	_ensure_workspace(workspace_key)
 	try:
-		result = run_paper_agent(session_id, state["query"], stream=False)
+		result = run_paper_agent(workspace_key, state["query"], stream=False)
 	except Exception as exc:  # noqa: BLE001 - return a readable text error
 		result = {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
 	return {"research_result": {**result, "evidence": _paper_evidence(result)}}
@@ -951,7 +990,13 @@ def paper_search_node(state: InvestigatorState) -> dict:
 			if web_error is not None:
 				return {"research_result": {"error": f"web_search_failed: {web_error}; arxiv_search_failed: {arxiv_error}"}}
 			return {"research_result": {"error": f"arxiv_search_failed: {arxiv_error}"}}
-	results = _deduplicate_search_results([result for result in results if _is_arxiv_url(result.url)])
+	normalized_results: list[SearchResult] = []
+	for result in results:
+		canonical_url = _canonical_arxiv_url(result.url)
+		if not canonical_url:
+			continue
+		normalized_results.append(SearchResult(title=result.title, url=canonical_url, snippet=result.snippet))
+	results = _deduplicate_search_results(normalized_results)
 	return {
 		"research_result": {
 			"requested_count": state["paper_count"],
@@ -967,7 +1012,8 @@ def download_papers_node(state: InvestigatorState) -> dict:
 	if result.get("error"):
 		return {}
 
-	_ensure_workspace(state["session_id"])
+	workspace_key = state.get("workspace_key", state["session_id"])
+	_ensure_workspace(workspace_key)
 	requested_count = max(1, min(int(state.get("paper_count", 1)), _MAX_PAPER_DOWNLOADS))
 	# Respect the user's requested count strictly: investigate only the top-N
 	# candidates instead of expanding the attempt pool.
@@ -983,11 +1029,11 @@ def download_papers_node(state: InvestigatorState) -> dict:
 				# Fast mode runs the full paper pipeline directly for each selected
 				# candidate, avoiding an extra prefetch that can create duplicate
 				# records before analysis starts.
-				paper_result = run_paper_agent(state["session_id"], query, stream=False)
+				paper_result = run_paper_agent(workspace_key, query, stream=False)
 			else:
-				fetch_result = fetch_paper(state["session_id"], query)
+				fetch_result = fetch_paper(workspace_key, query)
 				if fetch_result.get("status") == "ok":
-					paper_result = run_paper_agent(state["session_id"], query, stream=False)
+					paper_result = run_paper_agent(workspace_key, query, stream=False)
 				else:
 					paper_result = fetch_result
 		except Exception as exc:  # noqa: BLE001 - one failed candidate must not stop the session
@@ -1016,7 +1062,7 @@ def download_papers_node(state: InvestigatorState) -> dict:
 
 def web_node(state: InvestigatorState) -> dict:
 	query = state["query"]
-	session_id = state["session_id"]
+	session_id = state.get("workspace_key", state["session_id"])
 	try:
 		results = _search_web(query)
 	except Exception as exc:  # noqa: BLE001 - return a readable text error
@@ -1044,7 +1090,7 @@ def web_node(state: InvestigatorState) -> dict:
 
 def url_node(state: InvestigatorState) -> dict:
 	try:
-		result = _scrape_url(state["url"], session_id=state["session_id"], save_requested=state.get("save_requested", False))
+		result = _scrape_url(state["url"], session_id=state.get("workspace_key", state["session_id"]), save_requested=state.get("save_requested", False))
 	except Exception as exc:  # noqa: BLE001 - return a readable text error
 		return {"research_result": {"error": f"{type(exc).__name__}: {exc}"}}
 
@@ -1176,7 +1222,7 @@ def reflect(state: InvestigatorState) -> dict:
 		reflections.append(lesson)
 	reflections = reflections[-_MAX_REFLECTIONS_PER_TASK:]
 	print(f"Investigator reflection: {lesson}")
-	_store_reflection(state["session_id"], state["text"], lesson)
+	_store_reflection(state.get("workspace_key", state["session_id"]), state["text"], lesson)
 	trace.log_event("investigator_reflection", attempt=state.get("attempt", 1), lesson=lesson)
 	return {"reflections": reflections}
 
@@ -1242,6 +1288,7 @@ def run(
 	text: str,
 	*,
 	session_id: str,
+	category_slug: str | None = None,
 	stream: bool = True,
 	echo: bool | None = None,
 	max_attempts: int = _DEFAULT_MAX_ATTEMPTS,
@@ -1251,12 +1298,15 @@ def run(
 	Returns plain text so callers can display it directly. The paper path uses
 	the existing paper agent; the generic path searches the web and fetches the
 	top hits when the prompt asks for more than just a search result list. Every
-	download is stored in ``workspace/<session_id>/``.
+	download is stored in ``workspace/<category>/sessions/<session_id>/`` when
+	``category_slug`` is supplied by the validator.  The category-less form is
+	kept for standalone callers during migration.
 	"""
 	text = _normalize(text)
 	if not text:
 		raise ValueError("Text must not be empty.")
-	session_id = _session_workspace(session_id)
+	session_id = _workspace_component(session_id, field="session_id")
+	workspace_key = _session_workspace(session_id, category_slug)
 
 	graph = _get_graph()
 	if max_attempts < 1:
@@ -1264,6 +1314,8 @@ def run(
 	# Keep the historical graph input shape for the common/default call; the
 	# evaluator supplies its own default when this optional control is absent.
 	inputs = {"text": text, "session_id": session_id}
+	if category_slug is not None:
+		inputs["workspace_key"] = workspace_key
 	if max_attempts != _DEFAULT_MAX_ATTEMPTS:
 		inputs["max_attempts"] = max_attempts
 	if not stream:
@@ -1271,7 +1323,7 @@ def run(
 
 	if echo is None:
 		echo = True
-	runlog = GraphRunLog("investigator_agent", workspace=session_id, run_hint=text)
+	runlog = GraphRunLog("investigator_agent", workspace=workspace_key, run_hint=text)
 	runlog.run(graph, inputs, echo=echo)
 	if runlog.error:
 		raise RuntimeError(runlog.error)
