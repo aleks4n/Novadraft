@@ -23,18 +23,19 @@ def run(args: InvestigatorArgs, _ctx: Context, env: ToolEnv) -> ToolResult:
     The import is lazy: the agent pulls in the paper pipeline and the web stack, and this
     module is imported at dev-harness discovery time.
 
-    KNOWN MISMATCH — the investigator writes its downloads to `workspace/<session_id>/`,
-    treating the session id as a category (it writes a meta.json there, so the session
-    shows up in /api/topics as a research topic). This orchestrator keeps session files
-    under `workspace/<category>/sessions/<session_id>/`. Until that is reconciled only the
-    returned text is used, so papers it fetches do not reach the next turn's context.
+    Passing `category_slug` is what puts its downloads where the next turn will look:
+    with it the investigator writes to `workspace/<category>/sessions/<session_id>/`,
+    which is the directory `assemble_context` already reads session papers from. Omitting
+    it selects the standalone legacy path, and fetched papers then reach nobody.
     """
     if not args.query.strip():
         return ToolResult(tool=TOOL.name, ok=False, error="empty query")
 
     from src.agents.investigator_agent import run as run_investigator
 
-    text = run_investigator(args.query, session_id=env.session_id or "session-adhoc",
+    text = run_investigator(args.query,
+                            session_id=env.session_id or "session-adhoc",
+                            category_slug=env.category_slug or None,
                             stream=False)
     return ToolResult(tool=TOOL.name, text=str(text))
 

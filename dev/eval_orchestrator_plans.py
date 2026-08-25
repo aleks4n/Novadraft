@@ -45,7 +45,7 @@ print("loading the orchestrator (langgraph import — slow from cold) ...", flus
 from src.common.schemas.gap import GapRecord  # noqa: E402
 from src.common.utils import storage  # noqa: E402
 from src.agents.orchestrator_agent.context import assemble_context  # noqa: E402
-from src.common.schemas.idea import Idea  # noqa: E402
+from src.common.schemas.idea import IdeaRecord  # noqa: E402
 from src.agents.orchestrator_agent.schemas import (  # noqa: E402
     FocusSelection, Plan, ReflectJudgment, ToolCall, ToolResult,
 )
@@ -79,7 +79,7 @@ CASES: list[dict] = [
     # refined ideas, so a plan that generates and then refines unasked is wrong here.
     {"name": "gap_generate", "focus": "gap", "message": "Give me 3 ideas for this gap",
      "expect": {"tool": "creative_thinker", "thinking_mode": "generation", "width": 3,
-                "steps": 1}},
+                "steps": 1, "styles_distinct": True}},
     {"name": "gap_generate_constrained", "focus": "gap",
      "message": "Give me 3 ideas for this gap, nothing that needs retraining",
      "expect": {"tool": "creative_thinker", "thinking_mode": "generation"}},
@@ -130,7 +130,7 @@ CASES: list[dict] = [
      "previous": {"ideas": 3, "asked": 4, "keep_results": False,
                   "done_criteria": ["4 candidate ideas returned"],
                   "feedback": "The candidates all restated the gap instead of proposing a "
-                              "method. Discarded. Plan again with lenses that force a "
+                              "method. Discarded. Plan again with styles that force a "
                               "concrete mechanism."},
      "expect": {"tool": "creative_thinker", "thinking_mode": "generation"}},
 
@@ -210,6 +210,13 @@ def check(plan: Plan, expect: dict, focus: FocusSelection) -> list[str]:
         widths = [s.args.get("width") for s in plan.steps if s.tool == "creative_thinker"]
         if expect["width"] not in widths:
             fails.append(f"expected width {expect['width']}, got {widths or 'none'}")
+    if "styles_distinct" in expect:
+        # A fan-out whose stances repeat returns the right number of candidates from the
+        # same point of view — the failure the roster exists to prevent.
+        for i, step in enumerate(plan.steps, 1):
+            named = step.args.get("styles") or []
+            if len(named) != len(set(named)):
+                fails.append(f"step {i}: repeated styles {named}")
     if "work_on" in expect:
         # It must name exactly as many ideas as the user meant, and name them from what is
         # actually in scope — an id from nowhere fails the step at dispatch.
@@ -273,9 +280,9 @@ def _previous_round(case: dict) -> dict:
     if not spec:
         return {}
     got = spec.get("ideas", 0)
-    ideas = [Idea(idea_id=f"idea_prev{n}", title=f"Prior candidate {n}",
-                  description="A candidate produced in the previous round.",
-                  method=["frame the problem", "build the variant", "measure against baseline"])
+    ideas = [IdeaRecord(idea_id=f"idea_prev{n}", title=f"Prior candidate {n}",
+                        description="A candidate produced in the previous round.",
+                        sections={"technique": ["frame it", "build it", "measure it"]})
              for n in range(1, got + 1)]
     return {
         "plan": Plan(

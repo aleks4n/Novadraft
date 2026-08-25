@@ -23,10 +23,10 @@ from pathlib import Path
 
 from pydantic import TypeAdapter
 
-from src.common.schemas.idea import Idea
+from src.common.schemas.idea import IdeaRecord
 from src.common.utils import storage
 
-_IDEAS = TypeAdapter(list[Idea])
+_IDEAS = TypeAdapter(list[IdeaRecord])
 
 
 def session_dir(category_slug: str, session_id: str) -> Path:
@@ -44,7 +44,8 @@ def _path(category_slug: str, session_id: str, run_id: str) -> Path:
 
 def write_result(
     category_slug: str, session_id: str, run_id: str, *,
-    message: str = "", answer: str = "", ideas: list[Idea] | None = None,
+    message: str = "", answer: str = "", ideas: list[IdeaRecord] | None = None,
+    envelopes: list[dict] | None = None, offers: list[dict] | None = None,
 ) -> Path:
     """Persist one run's outcome.
 
@@ -65,6 +66,11 @@ def write_result(
                 "message": message,
                 "answer": answer,
                 "ideas": [i.model_dump(mode="json") for i in (ideas or [])],
+                # What each offered idea came from. The thinking graph lives on the
+                # envelope rather than on the candidate, so accepting one needs the
+                # envelope that produced it, not just the candidate itself.
+                "envelopes": envelopes or [],
+                "offers": offers or [],
             },
             indent=2,
             ensure_ascii=False,
@@ -78,7 +84,8 @@ def read_result(category_slug: str, session_id: str, run_id: str) -> dict:
     """One run's outcome; empty defaults if it wrote none."""
     p = _path(category_slug, session_id, run_id)
     if not p.exists():
-        return {"run_id": run_id, "created_at": "", "message": "", "answer": "", "ideas": []}
+        return {"run_id": run_id, "created_at": "", "message": "", "answer": "",
+                "ideas": [], "envelopes": [], "offers": []}
     return json.loads(p.read_text(encoding="utf-8"))
 
 
@@ -107,6 +114,6 @@ def read_runs(category_slug: str, session_id: str, limit: int = 3,
     return runs[-limit:] if limit else runs
 
 
-def read_ideas(category_slug: str, session_id: str, run_id: str) -> list[Idea]:
+def read_ideas(category_slug: str, session_id: str, run_id: str) -> list[IdeaRecord]:
     """The drafts `run_id` offered — the only ideas commit is allowed to write."""
     return _IDEAS.validate_python(read_result(category_slug, session_id, run_id)["ideas"])

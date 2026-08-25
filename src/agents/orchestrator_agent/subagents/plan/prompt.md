@@ -88,15 +88,30 @@ want the results worked further — refined, deepened, sharpened, detailed, thou
 made concrete. Generating and then refining unasked spends twice the time and hands back
 fewer, narrower candidates than they asked for.
 
-Pick `lenses` (agent styles) to make generated candidates genuinely different from each
-other — a skeptic, a transferer who borrows from other fields, an optimizer, someone who
-takes the premise to its extreme. Diversity comes from the lenses, not from asking one
-style for variety.
+Pick `styles` to make generated candidates genuinely different from each other. The roster
+is fixed — each name is a written stance, and one you invent silently becomes `neutral`,
+which quietly makes every candidate alike:
 
-`width` is how many candidates a generation call returns. When the user names a number —
-"give me 3 ideas" — that number is the width. When they don't, leave the default. Lenses
-supply the *angles*, width the *count*: name one lens per candidate you expect, and the
-thinker fills any remainder itself. How deep refinement goes is fixed and not yours to set.
+    optimizer    improve it, cut its dominant cost
+    combiner     fuse two things that are not usually put together
+    skeptic      attack the premise the idea rests on
+    transferer   import a mechanism from another field
+    minimalist   strip it to the smallest thing that could work
+    extremist    take the premise to its limit and see what breaks
+    neutral      no stance — the default for refinement
+
+Diversity comes from picking different stances, not from asking one for variety. What is
+specific to *this* gap belongs in `instruction`, which every style receives.
+
+`width` is how many candidates a generation call returns, up to 6 — one per stance in the
+roster. When the user names a number, that number is the width; when they don't, leave the
+default. Styles supply the *angles*, width the *count*: name one style per candidate you
+expect, and the thinker fills any remainder from the roster itself.
+
+`depth` is refinement only: how many levels of the tree it grows. 1 is a single pass and
+loses most of what refinement is for, so raise it when the user wants an idea genuinely
+thought through — "properly", "in depth", "really work it out" — and leave the default
+otherwise.
 
 Set `tool_use` for generation. Candidates are better when the thinker can check what has
 actually been published while it thinks, and it costs only time. Leave it off when the
@@ -135,9 +150,7 @@ One per kind of request. `instruction` is shortened here; write it in full.
   "steps": [
     {"tool": "creative_thinker", "needs": [],
      "args": {"thinking_mode": "generation", "width": 3, "tool_use": true,
-              "lenses": ["a skeptic who questions the premise",
-                         "a transferer who borrows from another field",
-                         "an optimizer focused on cost"],
+              "styles": ["skeptic", "transferer", "optimizer"],
               "instruction": "Fan out over the gap..."},
      "why": "The user wants new candidates and none exist yet."}
   ],
@@ -156,10 +169,7 @@ One step. They asked for ideas, not for worked-through ideas, so it ends here.
   "steps": [
     {"tool": "creative_thinker", "needs": [],
      "args": {"thinking_mode": "generation", "width": 4, "tool_use": true,
-              "lenses": ["a skeptic who questions the premise",
-                         "a transferer who borrows from another field",
-                         "an optimizer focused on cost",
-                         "someone who takes the premise to its extreme"],
+              "styles": ["skeptic", "transferer", "optimizer", "extremist"],
               "instruction": "Fan out over the gap..."},
      "why": "The user wants new candidates and none exist yet."},
     {"tool": "creative_thinker", "needs": [1],
@@ -183,8 +193,7 @@ against an empty selection and returns nothing.
   "steps": [
     {"tool": "creative_thinker", "needs": [],
      "args": {"thinking_mode": "refinement",
-              "lenses": ["a skeptic who attacks the idea's core premise",
-                         "a practitioner who doubts the claimed cost"],
+              "styles": ["skeptic"], "depth": 3,
               "instruction": "Name the most fragile assumption in this idea..."},
      "why": "A question about the selected idea is refinement, not research."}
   ],
@@ -223,10 +232,7 @@ harder about this idea.
      "why": "What has been tried is a question for sources, not for thinking."},
     {"tool": "creative_thinker", "needs": [1],
      "args": {"thinking_mode": "generation", "width": 4, "tool_use": true,
-              "lenses": ["a transferer who borrows from another field",
-                         "an optimizer focused on cost",
-                         "a skeptic who questions the premise",
-                         "someone who takes the premise to its extreme"],
+              "styles": ["transferer", "optimizer", "skeptic", "extremist"],
               "instruction": "Generate candidates that do not repeat the directions the
                               investigator reported..."},
      "why": "Step 2 is grounded in step 1's findings, so it declares needs: [1]."}
@@ -245,7 +251,7 @@ Plan one more, different from the three in hand."**
   "steps": [
     {"tool": "creative_thinker", "needs": [],
      "args": {"thinking_mode": "generation", "width": 1, "tool_use": true,
-              "lenses": ["someone who takes the premise to its extreme"],
+              "styles": ["extremist"],
               "instruction": "Produce one further candidate, distinct from the three
                               already in hand..."},
      "why": "One is missing. The three in hand stay on offer and are not regenerated."}

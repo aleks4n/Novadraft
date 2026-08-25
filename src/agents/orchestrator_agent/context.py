@@ -6,10 +6,11 @@ that fetches its own context can quietly widen or narrow scope; this cannot.
 What goes in:
   - the gaps and ideas the user selected (looked up across every gap stage, since a
     selected gap may sit in to_rank/ or master/)
-  - **one hop out from each**: a gap's source papers, and an idea's parents (the gap it
-    addresses, plus that gap's papers). A gap on its own is a sentence or two — the paper
-    it came from is what says which setting the idea has to work in, and an idea without
-    its gap can't be meaningfully refined.
+  - **one hop out from each**: a gap's source papers, and where a selected idea came from
+    (the gaps in its `addresses`, the ideas in its `relations`, plus those gaps' papers).
+    A gap on its own is a sentence or two — the paper it came from is what says which
+    setting the idea has to work in, and an idea without its gap can't be meaningfully
+    refined.
   - every paper the investigator fetched into this session, so the next turn sees what the
     last one found
   - the drafts the previous turn offered, and the last few turns of the exchange, so a
@@ -37,7 +38,8 @@ from pydantic import ValidationError
 
 from src.common.schemas.context import Context
 from src.common.schemas.gap import GapRecord
-from src.common.schemas.idea import Idea
+from src.common.schemas.idea import IdeaRecord
+from src.common.schemas.idea_compat import normalize
 from src.common.tools import paper_access
 from src.common.utils import storage
 from src.agents.orchestrator_agent import session
@@ -57,9 +59,19 @@ def _load_gap(category: str, gap_id: str) -> GapRecord | None:
         return None
 
 
-def _load_idea(category: str, idea_id: str) -> Idea | None:
+def _load_idea(category: str, idea_id: str) -> IdeaRecord | None:
+    """One idea from the workspace, normalized on the way in.
+
+    Records written by the earlier pipeline predate the current format — `summary` /
+    `method` / `related_gaps`, and no `runs[]` — so they are read through
+    `idea_compat.normalize`, which maps them onto `IdeaRecord` without writing anything
+    back. A record already in the current shape passes through unchanged.
+    """
+    raw = storage.read_idea_json(category, idea_id)
+    if not raw:
+        return None
     try:
-        return Idea.model_validate(storage.read_idea_json(category, idea_id))
+        return normalize(raw)
     except (ValidationError, TypeError):
         return None
 
@@ -107,7 +119,7 @@ def assemble_context(state: OrchestratorState) -> dict:
                                before=state.get("run_id", ""))
 
     gaps: dict[str, GapRecord] = {}
-    ideas: dict[str, Idea] = {}
+    ideas: dict[str, IdeaRecord] = {}
     missing: list[str] = []
 
     # 1. what the user actually selected
@@ -130,24 +142,30 @@ def assemble_context(state: OrchestratorState) -> dict:
     # "make the second one concrete" has no second one to work on. Only the most recent
     # run: older declined drafts would pile up, and accepted ones are loadable by id.
     if earlier:
-        for raw in earlier[-1].get("ideas") or []:
+        previous_run = earlier[-1]
+        for index, raw in enumerate(previous_run.get("ideas") or []):
             try:
-                draft = Idea.model_validate(raw)
+                draft = IdeaRecord.model_validate(raw)
             except (ValidationError, TypeError):
                 continue
-            ideas.setdefault(draft.idea_id, draft)
+            # Keyed by position, not by `idea_id`: a draft has none until it is accepted,
+            # so keying on it would collapse every draft of a run onto one entry.
+            ideas.setdefault(
+                draft.idea_id or f"{previous_run.get('run_id', 'run')}#{index}", draft)
 
-    # 2. one hop: a selected idea's parents (the gap it addresses, or its parent idea)
+    # 2. one hop: what a selected idea came from. `addresses` names the gaps it attacks;
+    #    `relations` names its typed edges to other ideas (child-of, variant-of, ...).
     for idea in list(ideas.values()):
-        for edge in idea.parents:
-            if edge.parent_kind == "gap" and edge.parent_id not in gaps:
-                parent = _load_gap(category, edge.parent_id)
+        for gap_id in idea.addresses:
+            if gap_id not in gaps:
+                parent = _load_gap(category, gap_id)
                 if parent:
-                    gaps[edge.parent_id] = parent
-            elif edge.parent_kind == "idea" and edge.parent_id not in ideas:
-                parent_idea = _load_idea(category, edge.parent_id)
-                if parent_idea:
-                    ideas[edge.parent_id] = parent_idea
+                    gaps[gap_id] = parent
+        for relation in idea.relations:
+            if relation.target not in ideas:
+                related = _load_idea(category, relation.target)
+                if related:
+                    ideas[relation.target] = related
 
     # 3. one hop: every in-scope gap's source papers
     papers: dict[str, dict] = {}

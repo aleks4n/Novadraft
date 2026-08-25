@@ -10,7 +10,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from src.common.schemas.idea import Idea
+from src.common.schemas.idea import IdeaRecord
 
 # --- session I/O -------------------------------------------------------------
 
@@ -36,7 +36,7 @@ class OrchestratorOutput(BaseModel):
 
     run_id: str
     answer: str = ""
-    ideas: list[Idea] = Field(default_factory=list)
+    ideas: list[IdeaRecord] = Field(default_factory=list)
 
 
 # --- plan (LLM output) -------------------------------------------------------
@@ -121,10 +121,26 @@ class ReflectJudgment(BaseModel):
 
 
 class ToolResult(BaseModel):
-    """One dispatched step's outcome. A failure is recorded, not raised."""
+    """One dispatched step's outcome. A failure is recorded, not raised.
+
+    `status` and `limit` come from the subagent when it has them. A run that hits a
+    compute ceiling returns the survivors of its last completed round and says so — that
+    is the normal way divergent thinking ends, not an error — and reflect has to be able
+    to tell it apart from thinking that simply went badly, or it replans into a budget
+    that is already spent.
+    """
 
     tool: str
     ok: bool = True
     error: str = ""
-    ideas: list[Idea] = Field(default_factory=list)
+    ideas: list[IdeaRecord] = Field(default_factory=list)
     text: str = ""
+    status: str = "completed"
+    limit: str = ""
+    envelope: dict[str, Any] = Field(
+        default_factory=dict,
+        description="The subagent's own return, kept whole and opaque. A generation run's "
+                    "thinking graph lives on the envelope's carrier record rather than on "
+                    "the candidates, and the accept step needs the real envelope to carve "
+                    "the right slice of it onto whichever draft the user takes.",
+    )

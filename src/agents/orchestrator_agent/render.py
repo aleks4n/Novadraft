@@ -19,38 +19,46 @@ from __future__ import annotations
 
 from src.common.schemas.context import Context
 from src.common.schemas.gap import GapRecord
-from src.common.schemas.idea import Idea
+from src.common.schemas.idea import IdeaRecord
 from src.agents.orchestrator_agent.schemas import ToolCall, ToolResult
 
 _MAX_PAPERS = 3  # papers run ~6k chars each; see context_view for why only these are capped
 
 
-def _idea_block(idea: Idea, with_id: bool = False) -> list[str]:
+def _idea_block(idea: IdeaRecord, with_id: bool = False) -> list[str]:
     """One idea, in full.
 
-    Omits `thought_graph` (the thinker owns its shape, it is unbounded, and no structural
-    criterion can be stated over it) and `status` / `origin` / the timestamps (identical on
-    every record).
+    Omits `runs` (the thinker's thought graph — unbounded, and no structural criterion can
+    be stated over it), `evaluation`, `provenance`, `origin` and the timestamps.
 
-    `with_id` separates the two callers. A committed idea the user selected is a real,
-    referenceable thing, so its id is shown. A fresh draft's is not: it exists only until
-    the user accepts it, and an id an LLM has seen is an id it can echo into a sentence
-    that reads as though something was saved.
+    `sections` is rendered in reading order via `ordered_sections()`, because the thinker
+    names its own section keys and their order is part of the record rather than an
+    accident of dict insertion. A value may be markdown or a list.
+
+    `with_id` separates the two callers. A committed idea the user selected has an id and
+    is a real, referenceable thing. A fresh draft has none — `idea_id is None` is what
+    marks it — and inventing one for display would put an id in front of a model that
+    could echo it into a sentence reading as though something was saved.
     """
-    if with_id:
+    if with_id and idea.idea_id:
         lines, pad = [f'- idea {idea.idea_id}: "{idea.title}"'], "    "
     else:
         lines, pad = [f'  · "{idea.title}"'], "      "
-    for text in (idea.short, idea.description):
+    for text in (idea.one_liner, idea.problem, idea.description):
         if text:
             lines.append(f"{pad}{text}")
-    for step in idea.method:
-        lines.append(f"{pad}- {step}")
-    if idea.related_papers:
-        lines.append(f"{pad}papers: {', '.join(idea.related_papers)}")
-    if idea.parents:
-        lines.append(f"{pad}addresses: " + ", ".join(
-            f"{edge.parent_kind} {edge.parent_id}" for edge in idea.parents))
+    for key, value in idea.ordered_sections():
+        if isinstance(value, list):
+            lines.append(f"{pad}{key}:")
+            for item in value:
+                lines.append(f"{pad}  - {item}")
+        elif value:
+            lines.append(f"{pad}{key}: {value}")
+    if idea.addresses:
+        lines.append(f"{pad}addresses: {', '.join(idea.addresses)}")
+    for relation in idea.relations:
+        lines.append(f"{pad}{relation.type} {relation.target}"
+                     + (f" — {relation.rationale}" if relation.rationale else ""))
     return lines
 
 

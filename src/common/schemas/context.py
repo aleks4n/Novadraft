@@ -15,12 +15,12 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from src.common.schemas.gap import GapRecord
-from src.common.schemas.idea import Idea
+from src.common.schemas.idea import IdeaRecord
 
 
 class Context(BaseModel):
     gaps: list[GapRecord] = Field(default_factory=list)
-    ideas: list[Idea] = Field(default_factory=list)
+    ideas: list[IdeaRecord] = Field(default_factory=list)
     papers: list[dict[str, Any]] = Field(
         default_factory=list,
         description="Paper records in scope — the session's fetches plus any the user named.",

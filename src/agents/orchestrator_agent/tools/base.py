@@ -18,11 +18,17 @@ from src.agents.orchestrator_agent.schemas import ToolResult
 
 @dataclass(frozen=True)
 class ToolEnv:
-    """Which run is calling. Tools need it for provenance and session-scoped writes."""
+    """Which run is calling, and what it may spend.
+
+    `max_llm_calls` is this step's slice of the turn's budget. A subagent's own ceiling is
+    per call, which is the right unit for it and the wrong one for a turn: several steps
+    across several reflect rounds multiply. Zero means "use the subagent's own default".
+    """
 
     category_slug: str = ""
     session_id: str = ""
     run_id: str = ""
+    max_llm_calls: int = 0
 
 
 @dataclass(frozen=True)

@@ -16,13 +16,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from src.common.schemas.idea import Idea
+from src.common.schemas.idea import IdeaRecord
+from src.common.schemas.idea_compat import normalize
 from src.common.utils import storage
 
 
 @dataclass
 class IdeaGraph:
-    ideas: dict[str, Idea] = field(default_factory=dict)
+    ideas: dict[str, IdeaRecord] = field(default_factory=dict)
     skipped: list[str] = field(default_factory=list)  # files that didn't validate
 
     @classmethod
@@ -34,41 +35,51 @@ class IdeaGraph:
             if raw is None:
                 continue
             try:
-                graph.ideas[idea_id] = Idea.model_validate(raw)
+                graph.ideas[idea_id] = normalize(raw)
             except Exception:  # noqa: BLE001 — a stale file shouldn't break the graph
                 graph.skipped.append(idea_id)
         return graph
 
-    def get(self, idea_id: str) -> Idea | None:
+    def get(self, idea_id: str) -> IdeaRecord | None:
         return self.ideas.get(idea_id)
 
-    def children_of(self, node_id: str) -> list[Idea]:
-        """Ideas with an edge pointing at `node_id` — works for a gap id or an idea id."""
-        return [i for i in self.ideas.values()
-                if any(p.parent_id == node_id for p in i.parents)]
+    def children_of(self, node_id: str) -> list[IdeaRecord]:
+        """Ideas with an edge pointing at `node_id` — works for a gap id or an idea id.
 
-    def for_gap(self, gap_id: str) -> list[Idea]:
+        Two edge kinds, kept apart on the record: `addresses` holds the gaps an idea
+        attacks, `relations` holds its typed edges to other ideas.
+        """
+        return [i for i in self.ideas.values()
+                if node_id in i.addresses
+                or any(r.target == node_id for r in i.relations)]
+
+    def for_gap(self, gap_id: str) -> list[IdeaRecord]:
         """Ideas born directly from this gap."""
-        return [i for i in self.ideas.values()
-                if any(p.parent_id == gap_id and p.parent_kind == "gap" for p in i.parents)]
+        return [i for i in self.ideas.values() if gap_id in i.addresses]
 
-    def ancestors(self, idea_id: str) -> list[Idea]:
-        """The idea's parent chain, nearest first. Stops at gaps (which aren't ideas)."""
-        chain: list[Idea] = []
+    def ancestors(self, idea_id: str) -> list[IdeaRecord]:
+        """The idea's parent chain, nearest first. Stops at gaps (which aren't ideas).
+
+        Follows `child-of` and `variant-of` only: those say where the record came from.
+        `inspired-by` is a reference, not a lineage, and `merged-into` points the other
+        way — following either would make the chain something other than an ancestry.
+        """
+        chain: list[IdeaRecord] = []
         seen = {idea_id}
         current = self.get(idea_id)
         while current:
-            parent = next((p for p in current.parents if p.parent_kind == "idea"), None)
-            if parent is None or parent.parent_id in seen:
+            parent = next((r for r in current.relations
+                           if r.type in ("child-of", "variant-of")), None)
+            if parent is None or parent.target in seen:
                 break
-            seen.add(parent.parent_id)
-            current = self.get(parent.parent_id)
+            seen.add(parent.target)
+            current = self.get(parent.target)
             if current is None:
                 break
             chain.append(current)
         return chain
 
-    def roots(self) -> list[Idea]:
+    def roots(self) -> list[IdeaRecord]:
         """Ideas that came straight from a gap rather than from another idea."""
         return [i for i in self.ideas.values()
-                if not any(p.parent_kind == "idea" for p in i.parents)]
+                if not any(r.type in ("child-of", "variant-of") for r in i.relations)]

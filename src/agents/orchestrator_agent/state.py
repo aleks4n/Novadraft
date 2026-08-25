@@ -16,7 +16,7 @@ from __future__ import annotations
 from typing import List, TypedDict
 
 from src.common.schemas.context import Context
-from src.common.schemas.idea import Idea
+from src.common.schemas.idea import IdeaRecord
 from src.agents.orchestrator_agent.schemas import (
     FocusSelection,
     Plan,
@@ -54,5 +54,5 @@ class OrchestratorState(TypedDict, total=False):
     iteration: int  # incremented in reflect; the loop guard
 
     # --- after finish ---
-    ideas: List[Idea]  # drafts offered to the user; nothing written
+    ideas: List[IdeaRecord]  # drafts offered to the user; nothing written
     answer: str

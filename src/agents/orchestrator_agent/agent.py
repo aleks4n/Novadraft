@@ -33,7 +33,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.common.schemas.context import Context
-from src.common.schemas.idea import Idea
+from src.common.schemas.idea import IdeaRecord
 from src.common.utils.logging.runlog import GraphRunLog
 from src.agents.orchestrator_agent import session
 from src.agents.orchestrator_agent.context import assemble_context
@@ -67,7 +67,7 @@ def _context_for(step: ToolCall, base: Context,
     if not step.needs:
         return base, ""
 
-    ideas: list[Idea] = []
+    ideas: list[IdeaRecord] = []
     findings: list[str] = []
     for n in step.needs:
         earlier = produced.get(n)
@@ -143,18 +143,34 @@ def finish(state: OrchestratorState) -> dict:
     Drafts are persisted under the session so `commit_selection` can later write exactly
     what the user was shown. Nothing reaches the idea graph here.
 
-    Provenance is stamped here rather than in the tools: a subagent knows which lens
-    produced an idea, but not which session or run it was called from.
+    Provenance is not re-stamped: the thinker already sets `origin` on what it produced —
+    the run, the node in its trace, the stance — and the session that run belonged to is
+    carried by the run entry and by the session file the drafts land in. Overwriting it
+    here would replace what the thinker knows with less.
     """
     judgment: ReflectJudgment = state.get("judgment") or ReflectJudgment()
     plan_: Plan = state.get("plan") or Plan()
     session_id, run_id = state["session_id"], state["run_id"]
 
-    ideas = []
+    # An offer is a draft plus where it came from. Accepting needs the envelope that
+    # produced it — the thinking graph sits on the envelope, not on the candidate — so the
+    # provenance is recorded now, while it is still known, rather than reconstructed later
+    # from a pooled list that has lost which step made what.
+    ideas: list[IdeaRecord] = []
+    envelopes: list[dict] = []
+    offers: list[dict] = []
     for result in state.get("results") or []:
-        for idea in result.ideas:
-            origin = idea.origin.model_copy(update={"session_id": session_id, "run_id": run_id})
-            ideas.append(idea.model_copy(update={"origin": origin}))
+        if not result.ideas:
+            continue
+        envelope_index = len(envelopes)
+        envelopes.append(result.envelope)
+        # A refinement's first offered idea IS the envelope's record; the rest are drafts.
+        refined_first = bool(result.envelope) and result.ideas[0].idea_id is not None
+        for position, idea in enumerate(result.ideas):
+            is_carrier = refined_first and position == 0
+            offers.append({"envelope": envelope_index,
+                           "draft": None if is_carrier else position - int(refined_first)})
+            ideas.append(idea)
 
     # Whoever saw the last decision-relevant thing speaks: reflect when tools ran (it is
     # the only step that saw the results), the planner when none did (it is the only step
@@ -168,6 +184,7 @@ def finish(state: OrchestratorState) -> dict:
     session.write_result(
         state["category_slug"], session_id, run_id,
         message=state.get("message", ""), answer=answer, ideas=ideas,
+        envelopes=envelopes, offers=offers,
     )
     # session_id / run_id are already in state; echoing them here puts them in this
     # node's update delta, which is what the app's run manager watches to learn where
