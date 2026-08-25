@@ -45,7 +45,7 @@ htmlcov/
 coverage.xml
 *.cover
 .hypothesis/
-tests/
+.pytest_cache/
 
 # Type checkers / linters
 .mypy_cache/
