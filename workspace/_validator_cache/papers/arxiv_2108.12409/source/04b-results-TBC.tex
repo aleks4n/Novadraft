@@ -1,0 +1,19 @@
+To ensure that our results are not specific to the WikiText-103 corpus, we next apply our model and the baselines to a different domain while using a similar model architecture and the same ALiBi slopes as those used in the previous subsection.
+
+We emphasize that our set of slopes was chosen by running experiments on the WikiText-103 corpus, and here we apply that set of slopes to a model trained on a very different text domain. Throughout the entire process of developing this method, we ran only one set of experiments on this domain using the previously selected set of slopes. %
+
+
+Specifically, we use the Toronto BooksCorpus~\citep{zhu2015aligning}, which has been used to train BERT~\citep{bert} (in conjuction with the English Wikipedia). The corpus is about 700M tokens (2.9 GB).
+
+We use the same train/validation/test split as~\citet{khandelwal20generalization} and their tokenization, which uses BERT's vocabulary of 29K byte-pair encodings.
+Since the vocabulary is much smaller than WikiText-103's, we replace the adaptive word embedding and softmax of \citet{baevski} with a tied word embedding and softmax matrix \citep{tying,inan2017}.
+
+\input{figure_wrappers/tbc_extra_lsb_all}
+
+
+
+Our results in Figure~\ref{fig:tbc_extra_lsb_all} (and Table~\ref{tab:books_lsb})  replicate our success on the WikiText-103 dataset. Our model surpasses the sinusoidal baseline when trained on the same amount of input tokens ($L$) and, in addition, our model is able to extrapolate to longer sequences at inference. This occurs even though our set of slopes was \emph{not} tuned on this dataset. %
+This result establishes the generality of ALiBi and the particular set of slopes we found and suggests that they may be used on different text domains without further hyperparameter tuning.
+
+Tables~\ref{tab:books_test} and \ref{tab:books_test_sota} present the perplexities for our \al models, the baselines, and the current state of the art on the Toronto BookCorpus validation and test sets. Our results here mirror our results on WikiText-103: we improve over the sinusoidal baseline even when AliBi is trained on fewer tokens. %
+ 

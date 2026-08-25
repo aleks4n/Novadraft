@@ -1,0 +1,40 @@
+\begin{table}[t]
+\caption{Validation and test perplexities on the Toronto Book Corpus dataset with a sliding window (\S\ref{sec:analysis}). Following~\citep{baevski,khandelwal20generalization,sandwich,shortformer}, we set the sliding window stride $S$=512. %
+}
+\label{tab:books_test_sota}
+\begin{center}
+\centering
+
+\begin{tabular}{@{}lccc@{}} \toprule
+{Model}  &{Param. $\downarrow$}& Valid $\downarrow$ & Test $\downarrow$ \\ \midrule
+kNN-LM~\citep{khandelwal20generalization} &\textbf{247M} &14.20&10.89 \\ 
+Shortformer~\citep{shortformer} &\textbf{247M} &13.40&10.88 \\ 
+Sandwich~\citep{sandwich} &\textbf{247M} &-&10.83 \\ 
+Staged Training~\citep{shortformer}&\textbf{247M}  &12.80&10.48 \\
+
+
+ \midrule
+Sinusoidal, L = 3072 &\textbf{247M} & 14.06 & 11.40   \\
+
+\midrule
+ 
+ 
+ &&& \\
+\addlinespace[-0.75em]
+
+\multirow{2}{*}[3pt]{\rotatebox[origin=c]{90}{ALiBi}} 
+$L$ = 512, $L_{valid}$ = 3072 &\textbf{247M}&13.76 & 11.11 \\
+~~~~$L$ = 3072, $L_{valid}$ = 3072 &\textbf{247M}&12.70 & 10.40 \\
+
+\addlinespace[-0.75em]
+ &&& \\
+\bottomrule
+
+
+\end{tabular}
+
+\end{center}
+\end{table}
+
+
+

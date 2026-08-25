@@ -2,10 +2,12 @@ from .paper import PaperRecord, PaperMetadata, PaperIdentifiers, PaperSource, Pa
 from .summary import PaperSummary
 from .summary_verify import SummaryCritique, SummaryVerification, CritiqueIssue, GroundingResult
 from .gap import GapRecord, GapEvidence, LLMGapCandidate, LLMGapList, GAP_TYPES
+from .evidence import Evidence, CitationClaim, CitedAnswer
 
 __all__ = [
     "PaperRecord", "PaperMetadata", "PaperIdentifiers", "PaperSource", "PaperProcessing",
     "PaperSummary",
     "SummaryCritique", "SummaryVerification", "CritiqueIssue", "GroundingResult",
     "GapRecord", "GapEvidence", "LLMGapCandidate", "LLMGapList", "GAP_TYPES",
+    "Evidence", "CitationClaim", "CitedAnswer",
 ]

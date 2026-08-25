@@ -1,0 +1,9 @@
+\section{Conclusion}
+
+We showed that the sinusoidal position embedding approach does not enable transformers to extrapolate to inputs longer than the ones they were trained on. We then established that extrapolation in transformers can be enabled by just changing the position method.
+We showed that our \al method offers an extremely simple replacement for existing position approaches and allow models to extrapolate. In addition, when not extrapolating, our method achieves either better perplexity than the sinusoidal method (in models smaller than 1B parameters, trained on less data) or similar perplexity (in larger, billion parameter models trained on much more data). 
+\al is simple to implement and does not slow down runtime or require extra parameters (but does occasionally require a negligible amount of extra memory).
+Using our method, we sped up the training of a 1.3 billion parameter model evaluated on the same input sequence length as GPT-3 (2048). 
+
+\subsubsection*{Acknowledgments}
+We thank Tim Dettmers, Gabriel Ilharco, Jungo Kasai, Hao Peng, Sewon Min, Sofia Serrano, Sam Shleifer, Luke Zettlemoyer, Julian Michael, Nikolaos Pappas, Yizhong Wang, and the anonymous reviewers for their valuable feedback and fruitful discussions.

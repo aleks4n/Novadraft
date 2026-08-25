@@ -1,0 +1,17 @@
+\begin{Verbatim}[commandchars=\\\{\}]
+\PYG{k+kn}{import} \PYG{n+nn}{numpy} \PYG{k+kn}{as} \PYG{n+nn}{np}
+
+\PYG{n}{base} \PYG{o}{=} \PYG{l+m+mf}{1e4}
+\PYG{n}{heads} \PYG{o}{=} \PYG{l+m+mi}{12}
+\PYG{n}{seq\PYGZus{}len} \PYG{o}{=} \PYG{l+m+mi}{8192}
+\PYG{n}{positions} \PYG{o}{=} \PYG{n}{np}\PYG{o}{.}\PYG{n}{arange}\PYG{p}{(}\PYG{n}{seq\PYGZus{}len}\PYG{p}{)[}\PYG{o}{...}\PYG{p}{,} \PYG{n+nb+bp}{None}\PYG{p}{]}
+\PYG{n}{bar\PYGZus{}d} \PYG{o}{=} \PYG{l+m+mi}{128} \PYG{c+c1}{\PYGZsh{} This is the hyperparameter of Sandwich}
+\PYG{n}{i} \PYG{o}{=} \PYG{n}{np}\PYG{o}{.}\PYG{n}{arange}\PYG{p}{(}\PYG{n}{bar\PYGZus{}d} \PYG{o}{//} \PYG{l+m+mi}{2}\PYG{p}{)}
+
+\PYG{n}{pos\PYGZus{}embs} \PYG{o}{=} \PYG{n}{np}\PYG{o}{.}\PYG{n}{concatenate}\PYG{p}{([}\PYG{n}{np}\PYG{o}{.}\PYG{n}{sin}\PYG{p}{(}\PYG{n}{positions} \PYG{o}{/} \PYG{n}{base} \PYG{o}{**} \PYG{p}{(}\PYG{l+m+mi}{2} \PYG{o}{*} \PYG{n}{i} \PYG{o}{/} \PYG{n}{bar\PYGZus{}d}\PYG{p}{)),}
+                          \PYG{n}{np}\PYG{o}{.}\PYG{n}{cos}\PYG{p}{(}\PYG{n}{positions} \PYG{o}{/} \PYG{n}{base} \PYG{o}{**} \PYG{p}{(}\PYG{l+m+mi}{2} \PYG{o}{*} \PYG{n}{i} \PYG{o}{/} \PYG{n}{bar\PYGZus{}d}\PYG{p}{))],}
+                          \PYG{n}{axis}\PYG{o}{=\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{)}
+\PYG{n}{sandwich} \PYG{o}{=} \PYG{n}{np}\PYG{o}{.}\PYG{n}{matmul}\PYG{p}{(}\PYG{n}{pos\PYGZus{}embs}\PYG{p}{,} \PYG{n}{pos\PYGZus{}embs}\PYG{o}{.}\PYG{n}{T}\PYG{p}{)}
+\PYG{n}{compression\PYGZus{}ratio} \PYG{o}{=} \PYG{n}{np}\PYG{o}{.}\PYG{n}{arange}\PYG{p}{(}\PYG{l+m+mi}{1}\PYG{p}{,} \PYG{n}{heads} \PYG{o}{+} \PYG{l+m+mi}{1}\PYG{p}{)} \PYG{o}{*} \PYG{l+m+mi}{8} \PYG{o}{/} \PYG{n}{heads}
+\PYG{n}{multi\PYGZus{}head\PYGZus{}sandwich} \PYG{o}{=} \PYG{n}{sandwich}\PYG{p}{[}\PYG{n+nb+bp}{None}\PYG{p}{,} \PYG{o}{...}\PYG{p}{]} \PYG{o}{/} \PYG{n}{compression\PYGZus{}ratio}\PYG{p}{[}\PYG{o}{...}\PYG{p}{,} \PYG{n+nb+bp}{None}\PYG{p}{,} \PYG{n+nb+bp}{None}\PYG{p}{]}
+\end{Verbatim}

@@ -8,17 +8,23 @@ actions:
 - web: search the web and return the top results plus fetched excerpts
 - url: scrape a direct URL, downloading PDFs when possible
 
-The output is always plain text so callers can display it directly.
+The output is always plain text so callers can display it directly.  Routing
+and execution follow a bounded Reflexion loop: an actor selects a strategy, an
+evaluator checks the resulting artifact, and a reflection becomes memory for a
+revised attempt (and for later runs of the same request).
 """
 from __future__ import annotations
 
 import html as html_module
 import json
+import os
 import re
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Literal, TypedDict
+from xml.etree import ElementTree as ET
 from urllib.parse import parse_qs, unquote, urlparse
 
 import requests
@@ -27,21 +33,39 @@ from pydantic import BaseModel, Field
 from pdfminer.high_level import extract_text as extract_pdf_text
 
 from src.agents.paper_agent import run as run_paper_agent
+from src.common.tools.paper_fetch import fetch as fetch_paper
 from src.common.utils import storage
+from src.common.utils.logging import trace
 from src.common.utils.logging.runlog import GraphRunLog
+from src.common.schemas.evidence import CitedAnswer, CitationClaim, Evidence
 from src.llm.registry import chat, chat_with_structured_output, get_llm
 
 _USER_AGENT = "novadraft-investigator-agent/1.0"
 _REQUEST_TIMEOUT = 20
 _MAX_RESULT_COUNT = 5
+_MAX_PAPER_SEARCH_CANDIDATES = 15
 _MAX_PAPER_DOWNLOADS = 5
 _MAX_PAGE_CHARS = 4000
+_DEFAULT_MAX_ATTEMPTS = 2
+_MAX_REFLECTIONS_PER_TASK = 5
+_MAX_PARALLEL_PAPER_DOWNLOADS = 3
+# Stop retrying retrieval failures and render the deterministic partial result.
+ENABLE_DETERMINISTIC_FETCH_FALLBACK = True
+# Multi-paper requests normally need downloaded sources, not full analysis.
+ENABLE_FAST_MULTI_PAPER_DOWNLOAD = True
 
 _WEB_ANSWER_SYSTEM_PROMPT = (
 	"Answer the user's query using only the supplied fetched web-page content. "
 	"Do not use outside knowledge or assume facts not supported by those pages. "
 	"If the pages do not contain enough information, say so plainly. "
 	"Give a concise, direct, however detailed answer."
+)
+
+_CITED_ANSWER_SYSTEM_PROMPT = (
+	"Answer the user's question using only the supplied evidence. Return one concise "
+	"answer and claims that support it. Every claim must cite one or more exact source_id "
+	"values from the evidence. Do not invent sources or facts. Mark claims verified only "
+	"when the evidence directly supports them."
 )
 
 
@@ -77,6 +101,30 @@ class InvestigatorDecision(BaseModel):
 	)
 
 
+class InvestigatorReflection(BaseModel):
+	"""A compact, reusable lesson produced after an unsuccessful attempt."""
+	lesson: str = Field(
+		default="",
+		description="One concrete instruction for the next attempt; do not restate the whole task.",
+	)
+
+
+class InvestigatorEvaluation(BaseModel):
+	"""A compact evaluation of whether the latest attempt produced a usable result."""
+	success: bool = Field(
+		default=False,
+		description="True when the latest attempt produced a usable result for the user's request.",
+	)
+	feedback: str = Field(
+		default="",
+		description="A concise explanation of why the attempt succeeded or failed; useful for the next reflection step.",
+	)
+	reason: str = Field(
+		default="",
+		description="Short justification for the success flag.",
+	)
+
+
 _DECISION_SYSTEM_PROMPT = (
 	"You route a single user instruction to the right research action. "
 	"Pick exactly one action: paper, paper_search, web, or url. "
@@ -88,10 +136,28 @@ _DECISION_SYSTEM_PROMPT = (
 	"Set save_requested true only when the user asks to download, save, scrape, crawl, or fetch content. "
 	"Return the best downstream query or URL. Keep the query concise and literal.")
 
+_REFLECTION_SYSTEM_PROMPT = (
+	"You are the reflection component in a Reflexion research agent. "
+	"Given a user's request, the attempted route, and evaluator feedback, write one concise, "
+	"actionable lesson for the next attempt. Focus on changing the search target, route, or "
+	"retrieval strategy. Do not claim the task was completed and do not invent facts.")
+
+_EVALUATION_SYSTEM_PROMPT = (
+	"You are the evaluator in a Reflexion research agent. "
+	"Judge whether the latest attempt produced a usable result for the user request. "
+	"Evaluate delivery and usefulness of the artifact, not factual truth. "
+	"Return success=true when the attempt produced readable, relevant content such as a paper result, paper candidates, a web answer, or a scraped URL. "
+	"Return success=false when the attempt errored, produced no usable artifact, or left a major gap. "
+	"Return concise feedback that would help the next reflection step."
+)
+
 
 class InvestigatorState(TypedDict, total=False):
 	text: str
 	session_id: str
+	# ``workspace_key`` is the category-relative location used by downstream
+	# agents, e.g. ``machine-learning/sessions/session-42``.
+	workspace_key: str
 	mode: str
 	query: str
 	paper_count: int
@@ -99,6 +165,12 @@ class InvestigatorState(TypedDict, total=False):
 	save_requested: bool
 	should_fetch_pages: bool
 	research_result: dict
+	evidence: list[dict]
+	claims: list[dict]
+	attempt: int
+	max_attempts: int
+	reflections: list[str]
+	evaluation: dict
 	result: str
 
 
@@ -108,6 +180,121 @@ class SearchResult:
 	url: str
 	snippet: str = ""
 
+
+def _search_result_keys(result: SearchResult) -> set[str]:
+	"""Return identity aliases across paper mirrors and URL variants."""
+	value = f"{result.title} {result.url}"
+	keys: set[str] = set()
+	arxiv = re.search(r"arxiv\.org/(?:abs|pdf)/([0-9]{4}\.[0-9]{4,5})(?:v\d+)?", value, re.IGNORECASE)
+	if arxiv:
+		keys.add(f"arxiv:{arxiv.group(1)}")
+	doi = re.search(r"10\.\d{4,9}/[-._;()/:A-Z0-9]+", value, re.IGNORECASE)
+	if doi:
+		keys.add(f"doi:{doi.group(0).rstrip(').,;').lower()}")
+	title = re.sub(r"^\s*\[[^]]+\]\s*", "", result.title)
+	title = re.sub(r"^\s*arxiv:\s*\d{4}\.\d{4,5}(?:v\d+)?\s*", "", title, flags=re.IGNORECASE)
+	title = re.sub(
+		r"\s*(?:[-|:]\s*)?(?:arxiv(?:\.org)?|google research|wikipedia)\s*$",
+		"", title, flags=re.IGNORECASE,
+	)
+	title = re.sub(r"[^a-z0-9]+", " ", title.lower()).strip()
+	if title:
+		keys.add(f"title:{title}")
+	if not keys:
+		keys.add(f"url:{result.url.rstrip('/').lower()}")
+	return keys
+
+
+def _is_arxiv_url(url: str) -> bool:
+	return _canonical_arxiv_url(url) is not None
+
+
+def _canonical_arxiv_url(url: str) -> str | None:
+	"""Return a canonical arXiv abstract URL when an arXiv identifier is present."""
+	parsed = urlparse(url)
+	host = (parsed.hostname or "").lower()
+	if "arxiv.org" not in host:
+		return None
+
+	# Accept urls like /abs/<id>, /pdf/<id>.pdf, /html/<id> (ar5iv mirror), etc.
+	identifier_match = re.search(
+		r"(?:/abs/|/pdf/|/html/)([0-9]{4}\.[0-9]{4,5})(?:v\d+)?(?:\.pdf)?",
+		parsed.path,
+		flags=re.IGNORECASE,
+	)
+	if not identifier_match:
+		# Fallback: if path/query still contains a valid modern arXiv id.
+		identifier_match = re.search(r"([0-9]{4}\.[0-9]{4,5})(?:v\d+)?", url)
+	if not identifier_match:
+		return None
+	identifier = identifier_match.group(1)
+	return f"https://arxiv.org/abs/{identifier}"
+
+
+def _deduplicate_search_results(results: list[SearchResult]) -> list[SearchResult]:
+	seen: set[str] = set()
+	unique: list[SearchResult] = []
+	for result in results:
+		keys = _search_result_keys(result)
+		if keys & seen:
+			continue
+		seen.update(keys)
+		unique.append(result)
+	return unique
+
+
+def _evidence_id(source_type: str, index: int) -> str:
+	return f"{source_type}-{index}"
+
+
+def _web_evidence(results: list[dict], pages: list[dict]) -> list[dict]:
+	evidence: list[dict] = []
+	for index, item in enumerate(results, start=1):
+		evidence.append(Evidence(
+			source_id=_evidence_id("web", index), title=item.get("title") or "Untitled source",
+			url=item.get("url"), source_type="web", snippet=item.get("snippet") or "",
+			text=item.get("snippet") or "", credibility=0.25,
+		).model_dump())
+	for index, item in enumerate(pages, start=1):
+		evidence.append(Evidence(
+			source_id=_evidence_id("page", index), title=item.get("title") or "Untitled page",
+			url=item.get("url"), source_type="pdf" if item.get("kind") == "pdf" else "web",
+			text=item.get("text") or "", fetched=not bool(item.get("error")),
+			credibility=0.75 if not item.get("error") else 0.0, error=item.get("error"),
+		).model_dump())
+	return evidence
+
+
+def _claims_from_answer(answer: str | None, evidence: list[dict]) -> list[dict]:
+	if not answer or not evidence:
+		return []
+	try:
+		cited = chat_with_structured_output(
+			get_llm("cheap", temperature=0), _CITED_ANSWER_SYSTEM_PROMPT,
+			json.dumps({"answer": answer, "evidence": evidence}, ensure_ascii=False), CitedAnswer,
+		)
+		valid_ids = {item["source_id"] for item in evidence}
+		return [claim.model_dump() for claim in cited.claims
+				if set(claim.source_ids).issubset(valid_ids)]
+	except Exception:  # best-effort citation tracking must not lose the answer
+		return []
+
+def _paper_evidence(result: dict, index: int = 1) -> list[dict]:
+	paper = result.get("fetch", {}).get("paper") or {}
+	metadata = paper.get("metadata") or {}
+	source = paper.get("source") or {}
+	if not metadata and not source and not result.get("summary") and not result.get("paper_id"):
+		return []
+	text = result.get("summary") or result.get("message") or ""
+	if not isinstance(text, str):
+		text = json.dumps(text, ensure_ascii=False, default=str)
+	return [Evidence(
+		source_id=_evidence_id("paper", index),
+		title=metadata.get("title") or "Paper source",
+		url=source.get("source_url"), source_type="paper", text=text,
+		fetched=result.get("status") == "ok", credibility=0.9 if result.get("status") == "ok" else 0.0,
+		error=result.get("error"),
+	).model_dump()]
 
 class _HTMLTextExtractor(HTMLParser):
 	def __init__(self) -> None:
@@ -146,26 +333,40 @@ class _HTMLTextExtractor(HTMLParser):
 		return re.sub(r"[ \t]+", " ", text).strip()
 
 
-def _session_workspace(session_id: str) -> str:
-	"""Validate a session identifier before using it as a workspace directory."""
-	session_id = _normalize(session_id)
-	if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}", session_id):
+def _workspace_component(value: str, *, field: str) -> str:
+	"""Validate one path component supplied by an agent caller."""
+	value = _normalize(value)
+	if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}", value):
 		raise ValueError(
-			"session_id must contain only letters, numbers, underscores, or hyphens "
+			f"{field} must contain only letters, numbers, underscores, or hyphens "
 			"and must start with a letter or number."
 		)
-	return session_id
+	return value
 
 
-def _ensure_workspace(session_id: str) -> Path:
-	category_dir = storage.category_dir(session_id)
+def _session_workspace(session_id: str, category_slug: str | None = None) -> str:
+	"""Return the category-relative workspace path for one investigator session.
+
+	Validator callers provide ``category_slug`` and therefore write beneath
+	``workspace/<category>/sessions/<session_id>/``.  Omitting it retains the
+	legacy standalone location for existing integrations.
+	"""
+	session_id = _workspace_component(session_id, field="session_id")
+	if category_slug is None:
+		return session_id
+	category_slug = _workspace_component(category_slug, field="category_slug")
+	return f"{category_slug}/sessions/{session_id}"
+
+
+def _ensure_workspace(workspace_key: str) -> Path:
+	category_dir = storage.category_dir(workspace_key)
 	meta_path = category_dir / "meta.json"
 	if not meta_path.exists():
 		category_dir.mkdir(parents=True, exist_ok=True)
 		now = storage.now_iso()
 		meta = {
-			"category_slug": session_id,
-			"name": f"Investigator session {session_id}",
+			"category_slug": workspace_key,
+			"name": f"Investigator session {workspace_key.rsplit('/', 1)[-1]}",
 			"description": "Workspace used by the investigator agent for one ad hoc research session.",
 			"source_url": None,
 			"created_at": now,
@@ -268,13 +469,20 @@ def _heuristic_decide_request(text: str) -> dict:
 	return {"mode": "web", "query": query, "paper_count": 1, "url": url or None, "save_requested": save_requested, "should_fetch_pages": should_fetch_pages, "decision_reason": "heuristic fallback"}
 
 
-def _decide_request(text: str) -> dict:
+def _decide_request(text: str, reflections: list[str] | None = None) -> dict:
 	clean = _normalize(text)
+	memory = [_normalize(item) for item in (reflections or []) if _normalize(item)]
+	actor_input = clean
+	if memory:
+		actor_input += "\n\nLessons from unsuccessful earlier attempts:\n" + "\n".join(
+			f"- {lesson}" for lesson in memory[-_MAX_REFLECTIONS_PER_TASK:]
+		)
+		actor_input += "\nUse these lessons to choose a revised strategy."
 	try:
 		decision = chat_with_structured_output(
 			get_llm("reasoner", temperature=0),
 			_DECISION_SYSTEM_PROMPT,
-			clean,
+			actor_input,
 			InvestigatorDecision,
 		)
 	except Exception:
@@ -375,7 +583,7 @@ def _extract_html_excerpt(html_text: str) -> str:
 	return _strip_html(html_text)
 
 
-def _search_web(query: str) -> list[SearchResult]:
+def _search_web(query: str, max_results: int = _MAX_RESULT_COUNT) -> list[SearchResult]:
 	response = requests.get(
 		"https://duckduckgo.com/html/",
 		params={"q": query},
@@ -406,13 +614,51 @@ def _search_web(query: str) -> list[SearchResult]:
 			snippet = re.sub(r"\s+", " ", _strip_html(html_module.unescape(snippet))).strip()
 		if title and href:
 			results.append(SearchResult(title=title, url=href, snippet=snippet))
-		if len(results) >= _MAX_RESULT_COUNT:
+		if len(results) >= max_results:
 			break
 	return results
 
 
-def _download_path(session_id: str, name: str, suffix: str) -> Path:
-	downloads_dir = storage.workspace_root() / session_id / "downloads"
+def _search_arxiv(query: str, max_results: int = _MAX_RESULT_COUNT) -> list[SearchResult]:
+	"""Search arXiv directly as a reliable fallback for paper discovery."""
+	response = requests.get(
+		"https://export.arxiv.org/api/query",
+		params={
+			"search_query": f"all:{query}",
+			"start": 0,
+			"max_results": max_results,
+			"sortBy": "relevance",
+			"sortOrder": "descending",
+		},
+		headers={"User-Agent": _USER_AGENT},
+		timeout=_REQUEST_TIMEOUT,
+	)
+	response.raise_for_status()
+
+	root = ET.fromstring(response.text)
+	ns = {"atom": "http://www.w3.org/2005/Atom"}
+	results: list[SearchResult] = []
+	for entry in root.findall("atom:entry", ns):
+		title = re.sub(r"\s+", " ", (entry.findtext("atom:title", "", ns) or "")).strip()
+		snippet = re.sub(r"\s+", " ", (entry.findtext("atom:summary", "", ns) or "")).strip()
+		url = ""
+		for link in entry.findall("atom:link", ns):
+			href = (link.attrib.get("href") or "").strip()
+			rel = (link.attrib.get("rel") or "").strip().lower()
+			if href and ("/abs/" in href or rel == "alternate"):
+				url = href
+				break
+		if not url:
+			url = (entry.findtext("atom:id", "", ns) or "").strip()
+		if title and url:
+			results.append(SearchResult(title=title, url=url, snippet=snippet))
+		if len(results) >= max_results:
+			break
+	return results
+
+
+def _download_path(workspace_key: str, name: str, suffix: str) -> Path:
+	downloads_dir = storage.category_dir(workspace_key) / "downloads"
 	downloads_dir.mkdir(parents=True, exist_ok=True)
 	safe = re.sub(r"[^A-Za-z0-9]+", "-", name).strip("-").lower() or "download"
 	return downloads_dir / f"{safe}{suffix}"
@@ -536,9 +782,14 @@ def _paper_to_text(result: dict, query: str) -> str:
 		lines.extend(["", "Extract:"])
 		lines.append(json.dumps(extract, indent=2, ensure_ascii=False, default=str))
 
-	if gaps:
-		lines.extend(["", "Gaps:"])
-		lines.append(json.dumps(gaps, indent=2, ensure_ascii=False, default=str))
+	lines.extend(["", "Gaps:"])
+	if "gaps" in result:
+		if gaps:
+			lines.append(json.dumps(gaps, indent=2, ensure_ascii=False, default=str))
+		else:
+			lines.append("No gaps were returned.")
+	else:
+		lines.append("Gap extraction did not run for this paper result.")
 
 	return "\n".join(lines)
 
@@ -546,7 +797,14 @@ def _paper_to_text(result: dict, query: str) -> str:
 def _web_to_text(result: dict, query: str) -> str:
 	answer = result.get("answer")
 	if isinstance(answer, str) and answer.strip():
-		return answer.strip()
+		claims = result.get("claims") or []
+		if not claims:
+			return answer.strip()
+		lines = [answer.strip(), "", "Citations:"]
+		for claim in claims:
+			ids = ", ".join(claim.get("source_ids") or []) or "unreferenced"
+			lines.append(f"- [{ids}] {claim.get('text') or ''}")
+		return "\n".join(lines)
 
 	lines = ["Web research", f"Query: {query}"]
 
@@ -585,7 +843,14 @@ def _web_to_text(result: dict, query: str) -> str:
 def _url_to_text(result: dict, url: str) -> str:
 	answer = result.get("answer")
 	if isinstance(answer, str) and answer.strip():
-		return answer.strip()
+		claims = result.get("claims") or []
+		if not claims:
+			return answer.strip()
+		lines = [answer.strip(), "", "Citations:"]
+		for claim in claims:
+			ids = ", ".join(claim.get("source_ids") or []) or "unreferenced"
+			lines.append(f"- [{ids}] {claim.get('text') or ''}")
+		return "\n".join(lines)
 
 	lines = ["URL scrape", f"URL: {url}", f"Kind: {result.get('kind', 'unknown')}" ]
 	if result.get("error"):
@@ -618,8 +883,63 @@ def _multi_paper_to_text(result: dict, query: str) -> str:
 	return "\n".join(lines)
 
 
+def _reflection_memory_path(session_id: str) -> Path:
+	return storage.category_dir(session_id) / "investigator_reflections.json"
+
+
+def _task_key(text: str) -> str:
+	"""A stable, content-addressed key keeps lessons scoped to one request."""
+	import hashlib
+	return hashlib.sha256(_normalize(text).lower().encode("utf-8")).hexdigest()
+
+
+def _load_reflections(session_id: str, text: str) -> list[str]:
+	path = _reflection_memory_path(session_id)
+	if not path.exists():
+		return []
+	try:
+		records = json.loads(path.read_text(encoding="utf-8"))
+		lessons = records.get(_task_key(text), []) if isinstance(records, dict) else []
+		return [_normalize(item) for item in lessons if isinstance(item, str) and _normalize(item)][-_MAX_REFLECTIONS_PER_TASK:]
+	except (OSError, json.JSONDecodeError):
+		return []
+
+
+def _store_reflection(session_id: str, text: str, lesson: str) -> None:
+	lesson = _normalize(lesson)
+	if not lesson:
+		return
+	path = _reflection_memory_path(session_id)
+	try:
+		records = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+		if not isinstance(records, dict):
+			records = {}
+	except (OSError, json.JSONDecodeError):
+		records = {}
+	key = _task_key(text)
+	lessons = [item for item in records.get(key, []) if isinstance(item, str) and _normalize(item)]
+	if lesson not in lessons:
+		lessons.append(lesson)
+	records[key] = lessons[-_MAX_REFLECTIONS_PER_TASK:]
+	path.write_text(json.dumps(records, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def actor(state: InvestigatorState) -> dict:
+	"""Reflexion actor: route the request while conditioning on prior lessons."""
+	workspace_key = state.get("workspace_key", state["session_id"])
+	_ensure_workspace(workspace_key)
+	attempt = int(state.get("attempt", 0)) + 1
+	reflections = list(state.get("reflections") or [])
+	if attempt == 1:
+		reflections = _load_reflections(workspace_key, state["text"])
+	decision = _decide_request(state["text"], reflections)
+	trace.log_event("investigator_actor", attempt=attempt, reflections=len(reflections), mode=decision["mode"])
+	return {**decision, "attempt": attempt, "reflections": reflections}
+
+
 def interpret(state: InvestigatorState) -> dict:
-	return _decide_request(state["text"])
+	"""Backward-compatible name for the investigator's actor stage."""
+	return actor(state)
 
 
 def _answer_from_fetched_pages(query: str, pages: list[dict]) -> str | None:
@@ -643,22 +963,40 @@ def _answer_from_fetched_pages(query: str, pages: list[dict]) -> str | None:
 
 
 def paper_node(state: InvestigatorState) -> dict:
-	session_id = state["session_id"]
-	_ensure_workspace(session_id)
+	workspace_key = state.get("workspace_key", state["session_id"])
+	_ensure_workspace(workspace_key)
 	try:
-		result = run_paper_agent(session_id, state["query"], stream=False)
+		result = run_paper_agent(workspace_key, state["query"], stream=False)
 	except Exception as exc:  # noqa: BLE001 - return a readable text error
 		result = {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
-	return {"research_result": result}
+	return {"research_result": {**result, "evidence": _paper_evidence(result)}}
 
 
 def paper_search_node(state: InvestigatorState) -> dict:
 	"""Find paper landing pages before the bounded sequential download step."""
-	search_query = f"{state['query']} research paper"
+	search_query = f"{state['query']} research paper site:arxiv.org"
+	web_error: str | None = None
 	try:
-		results = _search_web(search_query)
+		results = _search_web(search_query, max_results=max(_MAX_RESULT_COUNT, state["paper_count"] * 3))
 	except Exception as exc:  # noqa: BLE001 - return a readable text error
-		return {"research_result": {"error": f"{type(exc).__name__}: {exc}"}}
+		results = []
+		web_error = f"{type(exc).__name__}: {exc}"
+
+	if not results:
+		try:
+			results = _search_arxiv(state["query"], max_results=max(_MAX_RESULT_COUNT, state["paper_count"] * 3))
+		except Exception as exc:  # noqa: BLE001 - preserve web failure details when both fail
+			arxiv_error = f"{type(exc).__name__}: {exc}"
+			if web_error is not None:
+				return {"research_result": {"error": f"web_search_failed: {web_error}; arxiv_search_failed: {arxiv_error}"}}
+			return {"research_result": {"error": f"arxiv_search_failed: {arxiv_error}"}}
+	normalized_results: list[SearchResult] = []
+	for result in results:
+		canonical_url = _canonical_arxiv_url(result.url)
+		if not canonical_url:
+			continue
+		normalized_results.append(SearchResult(title=result.title, url=canonical_url, snippet=result.snippet))
+	results = _deduplicate_search_results(normalized_results)
 	return {
 		"research_result": {
 			"requested_count": state["paper_count"],
@@ -669,31 +1007,62 @@ def paper_search_node(state: InvestigatorState) -> dict:
 
 
 def download_papers_node(state: InvestigatorState) -> dict:
-	"""Run the existing one-paper workflow once for each web candidate."""
+	"""Fetch independent papers concurrently, preserving search order."""
 	result = state["research_result"]
 	if result.get("error"):
 		return {}
 
-	_ensure_workspace(state["session_id"])
-	papers = []
-	for candidate in (result.get("search_results") or [])[:state["paper_count"]]:
+	workspace_key = state.get("workspace_key", state["session_id"])
+	_ensure_workspace(workspace_key)
+	requested_count = max(1, min(int(state.get("paper_count", 1)), _MAX_PAPER_DOWNLOADS))
+	# Respect the user's requested count strictly: investigate only the top-N
+	# candidates instead of expanding the attempt pool.
+	candidates = [
+		candidate for candidate in (result.get("search_results") or [])
+		if _is_arxiv_url(candidate.get("url") or "")
+	][:requested_count]
+
+	def download_one(candidate: dict) -> dict:
 		query = candidate.get("url") or candidate.get("title") or state["query"]
 		try:
-			paper_result = run_paper_agent(state["session_id"], query, stream=False)
+			if ENABLE_FAST_MULTI_PAPER_DOWNLOAD:
+				# Fast mode runs the full paper pipeline directly for each selected
+				# candidate, avoiding an extra prefetch that can create duplicate
+				# records before analysis starts.
+				paper_result = run_paper_agent(workspace_key, query, stream=False)
+			else:
+				fetch_result = fetch_paper(workspace_key, query)
+				if fetch_result.get("status") == "ok":
+					paper_result = run_paper_agent(workspace_key, query, stream=False)
+				else:
+					paper_result = fetch_result
 		except Exception as exc:  # noqa: BLE001 - one failed candidate must not stop the session
 			paper_result = {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
-		papers.append({
+		return {
 			"title": candidate.get("title"),
 			"url": candidate.get("url"),
 			"query": query,
 			"result": paper_result,
-		})
-	return {"research_result": {**result, "papers": papers}}
+		}
+
+	papers: list[dict] = []
+	for candidate_index in range(0, len(candidates), _MAX_PARALLEL_PAPER_DOWNLOADS):
+		batch = candidates[candidate_index:candidate_index + _MAX_PARALLEL_PAPER_DOWNLOADS]
+		if not batch:
+			continue
+		with ThreadPoolExecutor(max_workers=len(batch)) as executor:
+			batch_results = list(executor.map(download_one, batch))
+		papers.extend(batch_results)
+	selected = papers[:requested_count]
+	evidence = list(result.get("evidence") or [])
+	for index, item in enumerate(selected, start=1):
+		evidence.extend(_paper_evidence(item.get("result") or {}, index))
+	return {"research_result": {**result, "papers": selected, "attempted_papers": papers, "evidence": evidence}}
 
 
 def web_node(state: InvestigatorState) -> dict:
 	query = state["query"]
-	session_id = state["session_id"]
+	session_id = state.get("workspace_key", state["session_id"])
 	try:
 		results = _search_web(query)
 	except Exception as exc:  # noqa: BLE001 - return a readable text error
@@ -713,12 +1082,15 @@ def web_node(state: InvestigatorState) -> dict:
 				result["answer"] = answer
 		except Exception as exc:  # noqa: BLE001 - preserve fetched pages if the LLM is unavailable
 			result["answer_error"] = f"{type(exc).__name__}: {exc}"
+	result["evidence"] = _web_evidence(result["search_results"], result["pages"])
+	if result.get("answer"):
+		result["claims"] = _claims_from_answer(result["answer"], result["evidence"])
 	return {"research_result": result}
 
 
 def url_node(state: InvestigatorState) -> dict:
 	try:
-		result = _scrape_url(state["url"], session_id=state["session_id"], save_requested=state.get("save_requested", False))
+		result = _scrape_url(state["url"], session_id=state.get("workspace_key", state["session_id"]), save_requested=state.get("save_requested", False))
 	except Exception as exc:  # noqa: BLE001 - return a readable text error
 		return {"research_result": {"error": f"{type(exc).__name__}: {exc}"}}
 
@@ -728,7 +1100,139 @@ def url_node(state: InvestigatorState) -> dict:
 			result["answer"] = answer
 	except Exception as exc:  # noqa: BLE001 - preserve the fetched page if the LLM is unavailable
 		result["answer_error"] = f"{type(exc).__name__}: {exc}"
+	result["evidence"] = _web_evidence([], [result])
+	if result.get("answer"):
+		result["claims"] = _claims_from_answer(result["answer"], result["evidence"])
 	return {"research_result": result}
+
+
+def _deterministic_evaluate(mode: str, result: dict) -> tuple[bool, str]:
+	feedback = ""
+	if result.get("error"):
+		feedback = f"The {mode} route failed: {result['error']}"
+	elif mode == "paper" and result.get("status") != "ok":
+		feedback = result.get("message") or f"The paper workflow ended with status {result.get('status', 'unknown')}."
+	elif mode == "paper_search" and not result.get("papers"):
+		feedback = "No candidate paper completed; refine the paper title/topic or use a more specific source."
+	elif mode == "web" and not result.get("answer") and not result.get("search_results"):
+		feedback = "The web search returned no results; revise the search query."
+	elif mode == "url" and not result.get("text"):
+		feedback = "The supplied URL produced no readable content; try its canonical or downloadable form."
+	return not feedback, feedback
+
+
+def _fetch_failed(mode: str, result: dict) -> bool:
+	"""Identify retrieval failures that cannot be improved by Reflexion."""
+	if result.get("error"):
+		return True
+	if mode == "paper":
+		return result.get("status") in {"error", "needs_source"}
+	if mode == "paper_search":
+		if not result.get("papers"):
+			return True
+		return all((item.get("result") or {}).get("status") in {"error", "needs_source"}
+				   for item in result.get("papers") or [])
+	if mode == "web":
+		if not result.get("search_results"):
+			return True
+		pages = result.get("pages") or []
+		return bool(pages) and all(page.get("error") for page in pages)
+	return mode == "url" and not result.get("text")
+
+
+def evaluate(state: InvestigatorState) -> dict:
+	"""Reflexion evaluator with an LLM judgment and a deterministic fallback.
+
+	The evaluation step now uses an LLM when available to judge whether the
+	latest artifact is usable, while still falling back to the deterministic
+	rule-based checks used previously when the model call fails.
+	"""
+	
+	mode = state["mode"]
+	result = state.get("research_result") or {}
+	user_request = _normalize(state.get("text") or "")
+	query = _normalize(state.get("query") or "")
+	if ENABLE_DETERMINISTIC_FETCH_FALLBACK and _fetch_failed(mode, result):
+		evaluation = {
+			"success": True,
+			"feedback": "Fetch failed; continuing with the deterministic partial result instead of retrying.",
+			"reason": "deterministic fetch fallback",
+			"attempt": state.get("attempt", 1),
+		}
+		trace.log_event("investigator_evaluator", **evaluation)
+		return {"evaluation": evaluation}
+	payload = {
+		"mode": mode,
+		"user_request": user_request,
+		"query": query,
+		"result": result,
+	}
+
+	try:
+		judgment = chat_with_structured_output(
+			get_llm("reasoner", temperature=0),
+			_EVALUATION_SYSTEM_PROMPT,
+			json.dumps(payload, ensure_ascii=False, default=str),
+			InvestigatorEvaluation,
+		)
+		success = bool(getattr(judgment, "success", False))
+		feedback = _normalize(getattr(judgment, "feedback", ""))
+		reason = _normalize(getattr(judgment, "reason", ""))
+	except Exception:
+		success, feedback = _deterministic_evaluate(mode, result)
+		reason = ""
+
+	if not feedback and not success:
+		feedback = "The latest attempt did not produce a usable result."
+
+	evaluation = {
+		"success": success,
+		"feedback": feedback,
+		"reason": reason,
+		"attempt": state.get("attempt", 1),
+	}
+	trace.log_event("investigator_evaluator", **evaluation)
+	return {"evaluation": evaluation}
+
+
+def _fallback_reflection(state: InvestigatorState) -> str:
+	mode = state.get("mode", "research")
+	feedback = (state.get("evaluation") or {}).get("feedback") or "The result was unusable."
+	return f"After the {mode} route failed, use the evaluator feedback to make the next query or source more specific: {feedback}"
+
+
+def reflect(state: InvestigatorState) -> dict:
+	"""Convert evaluator feedback into a concise lesson and persist it as memory."""
+	feedback = (state.get("evaluation") or {}).get("feedback") or "The result was unusable."
+	try:
+		reflection = chat_with_structured_output(
+			get_llm("cheap", temperature=0),
+			_REFLECTION_SYSTEM_PROMPT,
+			f"User request:\n{state['text']}\n\nAttempted route: {state.get('mode')}\n\nEvaluator feedback:\n{feedback}",
+			InvestigatorReflection,
+		)
+		lesson = _normalize(reflection.lesson)
+	except Exception:
+		lesson = ""
+	if not lesson:
+		lesson = _fallback_reflection(state)
+
+	reflections = list(state.get("reflections") or [])
+	if lesson not in reflections:
+		reflections.append(lesson)
+	reflections = reflections[-_MAX_REFLECTIONS_PER_TASK:]
+	print(f"Investigator reflection: {lesson}")
+	_store_reflection(state.get("workspace_key", state["session_id"]), state["text"], lesson)
+	trace.log_event("investigator_reflection", attempt=state.get("attempt", 1), lesson=lesson)
+	return {"reflections": reflections}
+
+
+def _route_after_evaluate(state: InvestigatorState) -> str:
+	if (state.get("evaluation") or {}).get("success"):
+		return "render"
+	if int(state.get("attempt", 1)) >= int(state.get("max_attempts", _DEFAULT_MAX_ATTEMPTS)):
+		return "render"
+	return "reflect"
 
 
 def render(state: InvestigatorState) -> dict:
@@ -746,22 +1250,26 @@ def render(state: InvestigatorState) -> dict:
 
 def build_investigator_graph():
 	g = StateGraph(InvestigatorState)
-	g.add_node("interpret", interpret)
+	g.add_node("actor", actor)
 	g.add_node("paper", paper_node)
 	g.add_node("paper_search", paper_search_node)
 	g.add_node("download_papers", download_papers_node)
 	g.add_node("web", web_node)
 	g.add_node("url", url_node)
+	g.add_node("evaluate", evaluate)
+	g.add_node("reflect", reflect)
 	g.add_node("render", render)
 
-	g.add_edge(START, "interpret")
-	g.add_conditional_edges("interpret", _route_after_interpret,
+	g.add_edge(START, "actor")
+	g.add_conditional_edges("actor", _route_after_interpret,
 							{"paper": "paper", "paper_search": "paper_search", "web": "web", "url": "url"})
-	g.add_edge("paper", "render")
+	g.add_edge("paper", "evaluate")
 	g.add_edge("paper_search", "download_papers")
-	g.add_edge("download_papers", "render")
-	g.add_edge("web", "render")
-	g.add_edge("url", "render")
+	g.add_edge("download_papers", "evaluate")
+	g.add_edge("web", "evaluate")
+	g.add_edge("url", "evaluate")
+	g.add_conditional_edges("evaluate", _route_after_evaluate, {"render": "render", "reflect": "reflect"})
+	g.add_edge("reflect", "actor")
 	g.add_edge("render", END)
 	return g.compile()
 
@@ -776,27 +1284,46 @@ def _get_graph():
 	return _GRAPH
 
 
-def run(text: str, *, session_id: str, stream: bool = True, echo: bool | None = None) -> str:
+def run(
+	text: str,
+	*,
+	session_id: str,
+	category_slug: str | None = None,
+	stream: bool = True,
+	echo: bool | None = None,
+	max_attempts: int = _DEFAULT_MAX_ATTEMPTS,
+) -> str:
 	"""Route a free-text instruction to paper fetch/summarize or web scraping.
 
 	Returns plain text so callers can display it directly. The paper path uses
 	the existing paper agent; the generic path searches the web and fetches the
 	top hits when the prompt asks for more than just a search result list. Every
-	download is stored in ``workspace/<session_id>/``.
+	download is stored in ``workspace/<category>/sessions/<session_id>/`` when
+	``category_slug`` is supplied by the validator.  The category-less form is
+	kept for standalone callers during migration.
 	"""
 	text = _normalize(text)
 	if not text:
 		raise ValueError("Text must not be empty.")
-	session_id = _session_workspace(session_id)
+	session_id = _workspace_component(session_id, field="session_id")
+	workspace_key = _session_workspace(session_id, category_slug)
 
 	graph = _get_graph()
+	if max_attempts < 1:
+		raise ValueError("max_attempts must be at least 1.")
+	# Keep the historical graph input shape for the common/default call; the
+	# evaluator supplies its own default when this optional control is absent.
 	inputs = {"text": text, "session_id": session_id}
+	if category_slug is not None:
+		inputs["workspace_key"] = workspace_key
+	if max_attempts != _DEFAULT_MAX_ATTEMPTS:
+		inputs["max_attempts"] = max_attempts
 	if not stream:
 		return graph.invoke(inputs)["result"]
 
 	if echo is None:
 		echo = True
-	runlog = GraphRunLog("investigator_agent", workspace=session_id, run_hint=text)
+	runlog = GraphRunLog("investigator_agent", workspace=workspace_key, run_hint=text)
 	runlog.run(graph, inputs, echo=echo)
 	if runlog.error:
 		raise RuntimeError(runlog.error)
@@ -808,4 +1335,5 @@ if __name__ == "__main__":
 
 	prompt = " ".join(sys.argv[2:]) or "what was the name of the 11th us president?"
 	session_id = sys.argv[1] if len(sys.argv) > 1 else "investigator-session"
-	print(run(prompt, session_id=session_id, stream=False))
+	max_attempts = int(os.getenv("NOVADRAFT_MAX_ATTEMPTS", str(_DEFAULT_MAX_ATTEMPTS)))
+	print(run(prompt, session_id=session_id, stream=False, max_attempts=max_attempts))

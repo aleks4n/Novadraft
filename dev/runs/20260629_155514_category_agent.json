@@ -1,0 +1,11 @@
+{
+  "name": "category_agent",
+  "kind": "agent",
+  "inputs": {
+    "topic": "machine learning"
+  },
+  "timestamp": "2026-06-29T15:55:13.774880",
+  "output": "workspace/knowledge/machine_learning_wikipedia_background.md",
+  "error": null,
+  "duration_s": 1.095
+}

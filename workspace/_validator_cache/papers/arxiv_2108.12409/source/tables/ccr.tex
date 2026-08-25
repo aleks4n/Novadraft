@@ -1,0 +1,45 @@
+\begin{table}[!htbp]
+
+
+
+\caption{Perplexity, memory, and train time on the CC100+RoBERTa corpus for our \al models and the sinusoidal baseline. We run our \lt = 512 (1024) model and the sinusoidal model with \lt = 1024 (2048) for the same amount of time. We show that our models achieve strong results even though they use 6--11\% less memory. }
+\label{tab:ccr}
+\begin{center}
+\centering
+
+
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+&  \multicolumn{3}{c}{Training}&  \multicolumn{2}{c}{Valid PPL $\downarrow$}\\ \cmidrule(l){2-4} \cmidrule(l){5-6} 
+&   { Memory $\downarrow$} & {Updates} &{ Hours $\downarrow$} &\li = 1024  & \li = 2048   \\             
+\midrule
+Sinusoidal, $L_{train}$ = 1024  &26.2 GB &46.7k &5.5k &  \textbf{9.24}  & -   \\              
+ALiBi, $L_{train}$ = 512        &\textbf{24.6 GB}& 50.0k&5.5k&  9.30  & -   \\
+ 
+\midrule
+Sinusoidal, $L_{train}$ = 2048  &29.3 GB &44.2k &  5.9k&-&   9.01\\ 
+ALiBi, $L_{train}$ = 1024        &\textbf{26.2 GB}&50.0k & 5.9k &-&  \textbf{8.92}  \\
+\bottomrule
+\end{tabular}
+
+
+\end{center}
+\end{table}
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+

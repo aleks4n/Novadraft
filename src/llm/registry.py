@@ -19,6 +19,7 @@ work without network access.
 from __future__ import annotations
 
 import os
+import json
 import random
 import sys
 import time
@@ -114,8 +115,8 @@ def chat_with_structured_output(llm, system: str, user: str, schema: type[T]) ->
     `llm.with_structured_output(schema).invoke(...)`.
 
     The model is steered via function calling to return exactly `schema`, and
-    the validated instance is returned. Recovers from DeepSeek's occasional
-    `{"parameters": {...}}` nesting of the tool-call arguments instead of
+    the validated instance is returned. Provider-specific envelopes around the
+    tool-call arguments are unwrapped by `_normalize_structured_args` rather than
     raising a pydantic ValidationError.
 
     `tool_choice` is left as ``"auto"`` rather than forcing the function call:
@@ -142,9 +143,7 @@ def chat_with_structured_output(llm, system: str, user: str, schema: type[T]) ->
     for attempt in range(_STRUCTURED_ATTEMPTS):
         resp = _invoke_with_retry(lambda: bound.invoke(messages))
         if resp.tool_calls:
-            args = resp.tool_calls[0]["args"]
-            if set(args) == {"parameters"} and isinstance(args.get("parameters"), dict):
-                args = args["parameters"]
+            args = _normalize_structured_args(resp.tool_calls[0]["args"], schema)
             break
         # Thinking-mode models sometimes answer with the JSON inline (as prose)
         # instead of emitting a tool call — recover by parsing it from the text.
@@ -162,11 +161,32 @@ def chat_with_structured_output(llm, system: str, user: str, schema: type[T]) ->
             f"{schema.__name__}: model returned no parseable structured output "
             f"in {_STRUCTURED_ATTEMPTS} attempts"
         )
-    result = schema.model_validate(args)
+    result = schema.model_validate(_normalize_structured_args(args, schema))
 
     _trace("chat_with_structured_output", system, user, schema=schema,
            output=result.model_dump(), t0=t0)
     return result
+
+
+def _normalize_structured_args(args, schema: type[BaseModel]):
+    """Unwrap provider-specific envelopes around structured tool arguments."""
+    if not isinstance(args, dict):
+        return args
+
+    fields = set(schema.model_fields)
+    for wrapper in ("parameters", "critique", "info", "data", "result", "output"):
+        value = args.get(wrapper)
+        if wrapper not in fields and len(args) == 1 and value is not None:
+            if isinstance(value, dict):
+                return value
+            if isinstance(value, str):
+                try:
+                    parsed = json.loads(value)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(parsed, dict):
+                    return parsed
+    return args
 
 
 def _json_from_text(content) -> dict | None:

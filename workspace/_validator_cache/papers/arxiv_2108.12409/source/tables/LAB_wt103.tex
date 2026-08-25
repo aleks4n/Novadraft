@@ -1,0 +1,30 @@
+\begin{table}[h]
+\caption{Perplexity when ALiBi extrapolates on the WikiText-103 development set. $^*$For results we present for the sinusoidal, rotary and T5 bias models, \lt = \li (so we do not test the extrapolation abilities of those baselines here). 
+}
+\label{tab:LSB_wt103}
+\begin{center}
+\begin{tabular}{@{}rcccccccc@{}}
+\toprule
+\multicolumn{1}{c}{ALiBi } &  \multicolumn{8}{c}{Evaluation Length} \\  
+Train Length & 64 & 128 & 256 & 512 & 1024 & 1536 & 2048 & 3072 \\\cmidrule(r){1-1} \cmidrule(l){2-9}
+64   &28.46&24.70&22.88&22.09&21.73&21.63&21.59&21.53\\
+128  &-&23.98&21.70&20.67&20.36&20.29&20.31&20.28\\
+256  &-&-&\textbf{21.29}&19.89&19.29&19.13&19.10&19.03\\
+512  &-&-&-&19.73&18.81&18.50&18.48    &18.40\\
+1024 &-&-&-&-&\textbf{18.66}&18.20&18.05        &17.96\\
+1536 &-  &  -&-  &  -&-  &\textbf{18.12 }& 17.90&17.72  \\
+2048 & - & - & - &  -& - & -&\textbf{17.91 }    &17.64 \\
+3072 &  -&-  &  -&  -&  -&- &-         &\textbf{17.60} \\ 
+
+\midrule %
+\midrule
+\multicolumn{1}{c}{Sinusoidal$^*$ }&\textbf{ 28.03}&\textbf{ 23.81}& 21.45& 20.05&19.34&19.05&18.87&18.67\\
+\multicolumn{1}{c}{Rotary$^*$ } &- &-&-&20.07&19.33&-&-&18.57\\
+\multicolumn{1}{c}{T5 Bias$^*$ }&- &-&-&\textbf{19.65}&18.80&-&-&18.01\\
+
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+

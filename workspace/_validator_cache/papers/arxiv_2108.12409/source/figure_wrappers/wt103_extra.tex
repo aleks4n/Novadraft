@@ -1,0 +1,17 @@
+
+\begin{figure}[h]
+\centering
+\begin{subfigure}{.5\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figures/wt103_extra_512.pdf}
+\end{subfigure}%
+\begin{subfigure}{.5\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figures/wt103_extra_1024.pdf}
+\end{subfigure}
+\caption{Extrapolation:
+as the (validation-set's) input sequence gets longer ($x$-axis), current position methods (sinusoidal, rotary, and T5) show degraded perplexity ($y$-axis, lower is better), but our method (\S\ref{sec:ourmethod}) does not.  Models were trained on WikiText-103 with sequences of $L=$ 512 (left) or $L=$ 1,024 (right) tokens.  T5 ran out of memory on our 32GB GPU. For more detail on exact perplexities and runtimes, see Tables~\ref{tab:appendix:wt103_extra_512} and~\ref{tab:appendix:wt103_extra_1024} in the appendix.}
+
+\label{fig:wt103_extra}
+\end{figure}
+

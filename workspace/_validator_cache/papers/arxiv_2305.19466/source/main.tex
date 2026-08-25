@@ -1,0 +1,1332 @@
+\documentclass{article}
+
+
+
+
+
+
+
+
+\usepackage[final]{neurips_2023}
+
+
+
+
+\usepackage[utf8]{inputenc} %
+\usepackage[T1]{fontenc}    %
+\usepackage{url}            %
+\usepackage{tabularx}       
+\usepackage{multirow}       
+\usepackage{booktabs}       
+\usepackage{tabulary}
+\usepackage{amsfonts}       %
+\usepackage{amsmath}        %
+\usepackage{amssymb}        %
+\usepackage{amsthm}
+\usepackage{nicefrac}       %
+\usepackage{microtype}      %
+\usepackage{xcolor}         %
+\usepackage{xargs}          %
+\usepackage{tikz}           %
+\usepackage{wrapfig}        %
+\usepackage{subcaption}    %
+\usepackage{overpic}        %
+\usepackage{tasks}         %
+\usepackage[most]{tcolorbox}      %
+\usepackage{enumitem}
+\usepackage{pifont}
+\usepackage{framed}
+\usepackage{nicematrix}
+\usepackage[colorinlistoftodos,prependcaption,textsize=tiny,textwidth=0.7in]{todonotes} %
+
+\definecolor{darkGreen}{rgb}{0.2,0.5,0.2}
+\definecolor{mydarkblue}{rgb}{0,0.08,0.45}
+\usepackage[colorlinks,citecolor=mydarkblue,urlcolor=mydarkblue,linkcolor=mydarkblue]{hyperref}
+
+\usepackage[noabbrev,nameinlink]{cleveref}       %
+
+\usepackage{thmtools}
+\declaretheoremstyle[
+bodyfont=\normalfont
+]{normalstyle}
+
+
+\usepackage{thm-restate}
+\declaretheorem[name=Theorem]{thm}
+\declaretheorem[name=Definition]{defo}
+\declaretheorem[name=Proposition]{prop}
+\declaretheorem[name=Remark,style=normalstyle]{rmk}
+\declaretheorem[name=Assumption]{assmp}
+
+\newtheorem{theorem}{Theorem}
+
+\usepackage[framemethod=TikZ]{mdframed}
+\mdfdefinestyle{MyFrame}{%
+    linecolor=black,
+    outerlinewidth=.3pt,
+    roundcorner=5pt,
+    innertopmargin=1pt, %
+    innerbottommargin=1pt, %
+    innerrightmargin=1pt,
+    innerleftmargin=1pt,
+    backgroundcolor=black!0!white}
+
+\mdfdefinestyle{MyFrame2}{%
+    linecolor=white,
+    outerlinewidth=1pt,
+    roundcorner=2pt,
+    innertopmargin=5pt, %
+    innerbottommargin=5pt, %
+    innerrightmargin=10pt,
+    innerleftmargin=10pt,
+    backgroundcolor=black!3!white}
+
+\include{match_commands}
+
+\include{tables/dataset_examples.tex}
+\include{tables/unified_scratchpad_format.tex} 
+\include{tables/hyperparameters.tex}
+\include{tables/pretraining_ppl.tex}
+
+\newcommandx{\siva}[2][1=]{\todo[linecolor=red,backgroundcolor=red!25,bordercolor=red,#1]{S.R: #2}}
+\newcommandx{\amirhossein}[2][1=]{}
+\newcommandx{\pd}[2][1=]{\todo[linecolor=teal,backgroundcolor=teal!25,bordercolor=teal,#1]{P.D: #2}}
+\newcommandx{\inkpad}[2][1=]{\todo[linecolor=cyan,backgroundcolor=cyan!25,bordercolor=cyan,#1]{I.P.: #2}}
+\newcommandx{\karthi}[2][1=]{\todo[linecolor=green,backgroundcolor=green!25,bordercolor=green,#1]{K.N: #2}}
+
+
+\newlist{todolist}{itemize}{2}
+\setlist[todolist]{label=$\square$}
+\newcommand{\cmark}{\ding{51}}%
+\newcommand{\xmark}{\ding{55}}%
+\newcommand{\done}{\rlap{$\square$}{\raisebox{2pt}{\large\hspace{1pt}\cmark}}%
+\hspace{-2.5pt}}
+\newcommand{\wontfix}{\rlap{$\square$}{\large\hspace{1pt}\xmark}}
+
+\definecolor{mila-purple}{RGB}{120, 0, 121}
+\definecolor{mila-khaki}{RGB}{245, 231, 206}
+\definecolor{mila-khaki-dark}{RGB}{185, 174, 154}
+\definecolor{mila-greenblue}{RGB}{130, 207, 190}
+\definecolor{plot-blue}{RGB}{132,182,206}
+\definecolor{plot-red}{RGB}{199,140,121}
+\definecolor{plot-green}{RGB}{157,207,127}
+
+
+\title{The Impact of Positional Encoding on Length Generalization in Transformers}
+
+
+
+
+\author{%
+}
+
+
+\author{
+  Amirhossein Kazemnejad$^{1}$,\,\, Inkit Padhi$^{2}$\\ \textbf{Karthikeyan Natesan Ramamurthy}$^{2}$,\,\,  \textbf{Payel Das}$^{2}$,\,\,\textbf{Siva Reddy}$^{1,3,4}$ \vspace{0.2em} \\
+$^1$Mila, McGill University; $^2$IBM Research; \\ $^3$Facebook CIFAR AI Chair; $^4$ServiceNow Research \vspace{0.1em}\\ 
+  \texttt{\{amirhossein.kazemnejad,siva.reddy\}@mila.quebec} \\
+  \texttt{inkpad@ibm.com},\,\texttt{\{knatesa,daspa\}@us.ibm.com} \\
+  }
+
+
+
+\begin{document}
+
+
+\maketitle
+
+
+\begin{abstract}
+  Length generalization, the ability to generalize from small training context sizes to larger ones, is a critical challenge in the development of Transformer-based language models.
+  Positional encoding (PE) has been identified as a major factor influencing length generalization, but the exact impact of different PE schemes on extrapolation in downstream tasks remains unclear.
+  In this paper, we conduct a systematic empirical study comparing the length generalization performance of decoder-only Transformers with five different position encoding approaches including Absolute Position Embedding (APE), T5's Relative PE, ALiBi, and Rotary, in addition to Transformers without positional encoding (NoPE).
+  Our evaluation encompasses a battery of reasoning and mathematical tasks.
+  Our findings reveal that the most commonly used positional encoding methods, such as ALiBi, Rotary, and APE, are not well suited for length generalization in downstream tasks.
+  More importantly, NoPE outperforms other explicit positional encoding methods while requiring no additional computation.
+  We theoretically demonstrate that NoPE can represent both absolute and relative PEs, but when trained with SGD, it mostly resembles T5's Relative PE attention patterns.
+  Finally, we find that scratchpad is not always helpful to solve length generalization and its format highly impacts the model's performance.
+  Overall, our work suggests that explicit position encodings are not essential for decoder-only Transformers to generalize well to longer sequences.
+\end{abstract}
+
+\section{Introduction}
+The ability to generalize from smaller training context sizes to larger ones, commonly known as length generalization, is a major challenge for Transformer-based language models\amirhossein{should I remove language models? and just say transformer-based models} \citep{Vaswani2017:Transformer, Deletang2023:Chomskey,Zhang2023:LEGO}.
+Even with larger Transformers, this issue persists \citep{Brown2020:GPT3, Furrer2020:CompGenSM}.
+With larger context sizes, a model can benefit from more in-context-learning examples, higher numbers of reasoning steps, or longer text generation.
+However, training a Transformer with a larger context size can be excessively slow and memory-intensive.
+This is even more pronounced in the recent paradigm of model finetuning on instruction-following datasets \citep{Wei2022:SFT,Chung2022:ScalingSFT,Ouyang2022:InstructGPT}.
+It is not only infeasible to train the model on all possible context lengths, but also the number of training examples drops dramatically as the sequence length increases
+requiring the model to generalize from finite and shorter-length training examples.
+In this work, we focus on the effect of \emph{positional encoding} on length generalization in the ``\textbf{decoder-only}" Transformers on various tasks trained from scratch.
+\Cref{fig:teaser} summarizes our finding that using no positional encoding is better than using explicit positional encodings.\amirhossein{should we keep this sentence in this form? it seems a bit disconnected from the previous paragraph.}
+
+
+Positional encoding (PE) seems to be a major factor in the length generalization of Transformers as the model has to systematically encode tokens in \emph{all} possible positions.
+The original Transformer architecture \citep{Vaswani2017:Transformer} used non-parametric periodic functions to represent \emph{absolute position embeddings} (APE) in a systematic manner, but further studies have shown that these functions are inadequate for length generalization \citep{Ontanon2022:MakeTransformerCompositional}.
+The prevailing belief is that relative PEs \citep{Shaw2018:RelativePosEnc,Raffel2020:T5} are more effective in length generalization
+than APE variants \citep{Ontanon2022:MakeTransformerCompositional,Csordas2021:DevilInDetail}.
+However, \cite{Press2022:ALiBi} has shown that even Transformers with relative PEs, such as Rotary \citep{Su2021:Rotary}, can be poor at length generalization.
+But the evaluation of PEs often relies on language modeling perplexity as a key metric \citep{Haviv2022:NoPETransformer,Press2022:ALiBi} which does not always align with the performance on downstream tasks  \citep{Tay2022:PerplexityDontTransfer}.
+This raises important questions: what exactly is the influence of positional encoding on length generalization at \emph{downstream tasks}? 
+Moreover, early empirical evidence shows that decoder-only Transformers without explicit position information \citep{Tsai2019:TransformerDissection,Haviv2022:NoPETransformer} can perform as well as existing PEs in in-distribution settings, but its effects on  length generalization and downstream performance are unclear. 
+
+
+
+Recently, asking models to emit intermediate computation steps into a scratchpad, also referred to as \emph{chain-of-thought}, has been adopted to improve the length extrapolation in Transformers \citep{Nye2021:Scratchpad,Wei2022:ChainOfThought}.
+These techniques are architecture-independent and can be used with any PE method.
+However, it remains an open question whether these techniques, at least in regard to length generalization, render the choice of PE irrelevant,
+especially given that model performance is highly sensitive to the scratchpad format \citep{Bueno2022:MarkupTokens,Akyurek2022:GPT3AdditionScratchpadFormat}.
+
+
+\begin{figure}[!t]
+  \hspace{2em}
+  \begin{overpic}[width=0.8\textwidth]{figures/paper_teaser.pdf}
+    \put (76, 17) {
+      \begin{minipage}{0.3\textwidth}
+        \scriptsize
+        \sffamily
+        Positional Encodings \\
+        used in GPT3-style \\ LLMs: \\
+        BLOOM (\citeyear{Scao2022:BLOOM}), \\
+        PaLM (\citeyear{Chowdhery2022:PaLM}),  \\
+        and LLaMA (\citeyear{Touvron2023:LLaMA}).
+      \end{minipage}
+    }
+  \end{overpic}
+  \caption{
+    No positional encoding (NoPE) outperforms all other positional encodings at length generalization of decoder-only Transformers (GPT-style) trained from scratch and evaluated on a battery of reasoning-like downstream tasks.
+    This figure shows aggregate ranking of positional encoding methods across 10 tasks.
+  }
+  \label{fig:teaser}
+\end{figure}
+
+
+
+
+
+To answer these questions, we conduct a systematic study on the length generalization of decoder-only Transformers, popularized by the GPT-family of models \citep{Radford2019:Language}, with the most commonly used positional encoding schemes, both with and without scratchpad.
+Specifically, we evaluate APE \citep{Vaswani2017:Transformer}, T5's Relative PE \citep{Raffel2020:T5}, ALiBi \citep{Press2022:ALiBi}, Rotary \citep{Su2021:Rotary} and no positional encoding (NoPE) on a battery of reasoning and mathematical tasks.
+Our results show that:
+
+\begin{itemize}[leftmargin=10pt,itemsep=0pt]
+  \item Most commonly used positional encoding methods, including ALiBi, Rotary, and APE, are ill-suited for length generalization in downstream tasks and are outperformed by T5's Relative PE.
+  \item Transformers without positional encoding (NoPE) outperform all explicit positional encoding schemes. They achieve this without computing additional terms in the attention mechanism (in contrast to explicit PEs).
+  \item We show that NoPE is theoretically capable of representing both absolute and relative PEs. But empirically, it is closer to the relative encoding scheme similar to T5's Relative PE. \amirhossein{We can say "for the first" to distinct our work, but doesn't seem very necessary to me.}
+  \item Scratchpad is not always helpful for length generalization and its format highly impacts the performance. The attention distributions reveal that NoPE and T5's Relative PE encourage attending to both long and short-range positions, ALiBi to recent positions, and Rotary and APE to no particular positions.
+\end{itemize}
+
+\section{Background: Positional Encoding in Transformers}
+
+Transformers, in contrast to sequential models such as RNNs, are parallel architectures that employ positional encoding to help encode word order.
+The most common choices for positional encoding are either \emph{absolute},
+where each absolute position (e.g. 1, 2, 3, ...) is directly represented, or \emph{relative},
+where the distance between tokens is used as positional information.
+In this section, we briefly review the popular encoding methods used in Transformers (Refer to \Cref{sec:pe-background} for more formal details).
+
+\emph{Absolute Position Embedding} (APE), embeds each absolute position $i$ into position vector $\vp_i$ and adds word embeddings to their corresponding $\vp_i$ before feeding them to the model.
+The non-parametric variant of APE uses periodic functions such as sine and cosine to generate embeddings for any position $i$ \citep{Vaswani2017:Transformer}. On the other hand, a learned version of APE, used in GPT3 \citep{Brown2020:GPT3} and OPT \citep{Zhang2022:OPT}, trains the position embeddings along with the model parameters, and it cannot generate a position embedding for unseen positions, so the context window is set to a fixed length.
+
+\emph{T5's Relative bias}, first maps the relative distance $(i-j)$ between tokens at positions $i$ and $j$ to a scalar bias value $b = f(i-j)$, where $f$ is a lookup table.
+The relative bias $b$ (learned during training) then is added to the dot product of the query and key in the self-attention mechanism. The lookup table maps distances larger than a threshold to the same parameter to enable generalization to unseen distances.
+
+\emph{Rotary}, used in PaLM \citep{Chowdhery2022:PaLM} and LLaMA \citep{Touvron2023:LLaMA}, rotates the query and key representations with an angle proportional to their absolute positions before applying the dot product attention. As a result of this rotation, the attention dot product will only depend on the relative distance between tokens, effectively making it a relative positional encoding \citep{Su2021:Rotary}.
+
+\emph{ALiBi}, used in BLOOM \citep{Scao2022:BLOOM}, is similar to T5's Relative Bias but instead subtracts a scalar bias from the attention score. This bias grows linearly with the distance between the query and key tokens. This, in effect, creates a preference toward recent tokens (recency bias).
+
+Note that encoder-only Transformers, such as BERT, become bag-of-words models in the absence of positional encoding.
+However, decoder-only Transformers with causal attention mask are not permutation invariant and can model sequences even without explicit position information \citep{Tsai2019:TransformerDissection}.
+But it is unclear if these models encode position information implicitly or generalize to unseen lengths.
+We demystify this in \Cref{sec:nope-analysis}.
+
+
+
+
+\section{Model Evaluation}
+\label{sec:eval_framework}
+\paragraph{Length Generalization Setup}
+Following \citet{Anil2022:LengthFailure}, we focus on algorithmic tasks such as copying, addition, etc.
+For each task, we train on a finite number of examples of up to a certain length and test them on both seen and unseen lengths at inference.
+We present these problems as sequence-to-sequence tasks, where the input sequence is the problem instance and the output sequence is the solution.
+Formally, let
+$\mathcal{D} = \{(\vx_i, \vy_i)\}$
+denote a dataset of such task where $\vx_i$ is the input and $\vy_i$ is the output sequence.
+For each task a function $\lambda: \mathcal{D} \rightarrow \mathbb{N}$ can be defined that returns the length bucket of a task instance $d \in \mathcal{D}$.
+This can be the number of tokens or any general notion of length/depth of reasoning.
+Using this function and a threshold $L$, we employ samples where $\lambda \le L$ for learning the task and samples where $\lambda > L$ for evaluating generalization.
+The performance on each instance is reported as the exact-match accuracy of its answer with the ground truth.
+\tbdatasetexamples{t}
+\paragraph{Architecture}
+We use a conventional decoder-only Transformer architecture as a base for all experiments and consider different approaches for encoding positions:
+\textbf{Absolute Position Embedding (APE)}, \textbf{ALiBi}, \textbf{Rotary} and \textbf{T5's Relative Bias}.
+We also consider removing the positional encoding (\textbf{NoPE}) to better understand its role in length generalization.
+Note that we use APE with sinusoidal functions \citep{Vaswani2017:Transformer} as the learnable variant cannot produce embeddings for unseen positions.
+Given the absence of publicly available Transformer-based LM trained with aforementioned PEs on the same pretraining data, we opt to train our models from scratch for each task on its training data with the autoregressive language modeling objective $\log p_\theta(\vy|\vx) = \sum_{t=1}^{T} \log p_\theta(y_t|\vx, \vy_{1:t-1})$.
+We use the same hyperparameters for all PEs and employ the ``\texttt{base}'' model size configuration, popular in HuggingFace library \citep{Wolf2020:Huggingface}, resulting in $\sim$107M trainable weights (List of all hyperparameters in \Cref{sec:exp-details-hparams}).
+\paragraph{Tasks}
+Our study of length generalization is concentrated on downstream tasks.
+Particularly, we evaluate the models on three categories (\Cref{tab:dataset-examples}) of synthetic tasks that have been widely used in the literature to investigate length generalization:
+(1) Primitive tasks such as Copying and Reversing
+\citep{Ontanon2022:MakeTransformerCompositional},
+(2) Mathematical and reasoning tasks such as Addition \citep{Nye2021:Scratchpad},
+Polynomial Evaluation, Sorting, Summation \citep{Saxton2018:DeepmindMath}, Parity \citep{Anil2022:LengthFailure}, LEGO \citep{Zhang2023:LEGO}
+and (3) Classical length generalization datasets such as SCAN \citep{Lake2018:SCAN} and PCFG \citep{Hupkes2020:Compositionality}.
+These tasks provide us with complete control over the train-test distribution, while also requiring reasoning and compositionality skills, which serve as fundamental building blocks for more complex tasks.
+For the first two categories, we generate the corresponding datasets.
+Specifically, we first sample the length of the task instance from the uniform distribution
+$\mathcal{U}(1, L)$, and then, according to the task's generative process, we sample the input and output sequences. For the test set, we follow the same procedure but sample length from $\mathcal{U}(1, 2L)$ to include both seen and unseen lengths.
+Throughout the paper, unless otherwise stated, we use $L=20$.
+For the third category of tasks, we use length generalization splits from the corresponding datasets.
+\Cref{tab:dataset-examples} provides an example of each task (More examples in \Cref{sec:exp-details-tasks}).
+
+
+We report the results of our empirical evaluation over ten tasks and three seeds per dataset-PE pair.
+
+\section{What Is The Effect of Positional Encoding?}
+
+
+
+\label{sec:results_len_extrapolation}
+In this section we provide comparative results of positional encodings at length generalization.
+To provide a holistic view, following \citet{Liang2022:HELM}, we report the mean ranking of various models in \Cref{fig:teaser,fig:mrr-per-category} when compared against each other for all tasks and scenarios.
+Furthermore, we showcase the accuracy of models evaluated on examples of various lengths in \Cref{fig:showcase}.
+(Detailed results for each task and scenario can be found in \Cref{sec:full-results}).
+
+\begin{figure}[tp]
+  \centering
+  \includegraphics[width=\textwidth]{figures/mrr_per_ds_category_paper.pdf}
+  \caption{
+    Aggregate ranking of positional encoding methods on length extrapolation across three different groups of tasks.
+    No PE and T5's Relative Bias outperform other encoding methods in these categories.
+  }
+  \label{fig:mrr-per-category}
+\end{figure}
+
+
+\begin{figure}[t]
+  \begin{minipage}{\linewidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/showcase.pdf}
+    \caption{
+      Showcasing the generalization behavior of different positional encodings on 6 datasets.
+      The shaded area represents evaluation examples with I.I.D. lengths (i.e. seen during training).
+      Since all models perform perfectly, or close to it, on the I.I.D. lengths (measured on unseen examples), for improved readability, we only show a subset of them in the figure. Refer to \Cref{sec:full-results} for more detailed plots.
+    }
+    \label{fig:showcase}
+  \end{minipage}
+\end{figure}
+
+
+
+
+First, we observe that in most tasks, models achieve a perfect or near-perfect accuracy (\Cref{fig:showcase}) on the I.I.D. lengths, which indicates that models have no problem fitting to the training data. However, the differences among positional encoding methods become more apparent when we evaluate on lengths that are larger than seen during training. In most extrapolation scenarios, T5's Relative Bias outperforms other explicit positional encodings.
+ALiBi positions itself in the middle of the pack, while APE and Rotary show poor generalization performance.
+
+Although Rotary is often considered a relative encoding method \citep{Ontanon2022:MakeTransformerCompositional}, our results show that it performs more similarly to APE than to other relative schemes.
+Moreover,
+ALiBi, despite its promise for length generalization, underperforms with respect to T5's Relative Bias in most cases.
+This result aligns with \citet{Taylor2022:Galactica} who found no significant improvement from ALiBi.
+
+Surprisingly, the NoPE model, which is just a decoder-only Transformer without any positional encoding, performs on par with or even better than the best-performing explicit PE, T5's Relative Bias.
+NoPE achieves the same level of generalization without \emph{any computational overhead} since it does not compute any additional term in the attention mechanism. This property has a direct impact on the runtime and memory footprint of the model.
+For instance, \citet{Press2022:ALiBi} reported that the additional computation incurred by T5's Relative Bias can make the training and inference time of the model almost two times slower than the Transformer with APE.
+
+
+\section{How Does NoPE Represent Positions?}
+\label{sec:nope-analysis}
+
+
+
+\begin{figure}[t]
+  \begin{minipage}{0.5\linewidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/per_layer_2x2__scan__mdlen_tr25_ts48.pdf}
+    \vspace{-3mm}
+  \end{minipage}
+  \begin{minipage}{0.5\linewidth}
+    \vspace{3mm}
+    \centering
+    \includegraphics[width=\textwidth]{figures/avg_all_layers_noleg__scan__mdlen_tr25_ts48_paper.pdf}
+    \vspace{-3mm}
+  \end{minipage}
+  \includegraphics[width=\linewidth]{figures/per_layer__scan__mdlen_tr25_ts48_legend.pdf}
+  \caption{
+    Distance of NoPE attention patterns with other positional encoding schemes measured across instances of SCAN dataset. The left figure shows the distance per layer, and the right figure shows the average distance across all layers. NoPE' denotes NoPE trained with a different seed.
+  }
+  \label{fig:similarity_per_layer}
+\end{figure}
+
+The surprising performance of NoPE model suggests that it capture useful positional information that can also generalize. But, how it does so is the primary question. In the next two sections, we provide theoretical and empirical analysis towards answering this question.
+\subsection{NoPE can theoretically represent both absolute and relative PEs}
+
+Let $f_\theta$ be a NoPE decoder-only Transformer model, where $\theta$ denotes the
+model parameters.
+$f_\theta$ processes the input sequence $\vx = \left[\texttt{<bos>}, x_1, \ldots, x_T\right]$ by applying a series of layers.
+Note that since $f_\theta$ does not have any PE, the input $\vx$ is not augmented with positional information (e.g. $[1, 2, \ldots, T]$).
+Each layer $l$, consisting of self-attention heads and a feed-forward sub-layer, reads the previous hidden state $\mH^{(l-1)}$ and produces the hidden state at layer $l$: $\mH^{l}$.
+Each head is parameterized by a query $\mW_Q$, key $\mW_K$, value $\mW_V$, and output $\mW_O$ matrices, where $\mW_Q, \mW_K, \mW_V \in \mathbb{R}^{h \times d}$ and $\mW_O \in \mathbb{R}^{d \times h}$. $d$ and $h$ are the model's hidden state size and attention dimension, respectively.
+$\mW_1, \mW_2 \in \mathbb{R}^{d \times k.d}$ are the weight matrices of the feed-forward sub-layer.
+
+\begin{mdframed}[style=MyFrame2]
+  \begin{restatable}[\textbf{Absolute Encoding}]{thm}{EncodeAbsolute}
+    \label{thm:encode_absolute}
+    Let $\vx$ be an input sequence of length $T+1$ to the model.
+    Then, the first layer of $f_\theta$ can recover absolute positions $[1, \ldots, T+1]$ in the hidden state $\mH^{(1)}$.
+    That is, there exist $\mW_Q$, $\mW_K$, $\mW_V$, $\mW_O$, $\mW_1$, and $\mW_2$ such that the self-attention and feedforward operations in the first layer compute absolute positions and write it to the next hidden state.
+  \end{restatable}
+\end{mdframed}
+
+We refer to \Cref{sec:sketch-proof-no-pe} for the complete proof of \Cref{thm:encode_absolute}.
+This theorem shows that stochastic gradient descent (SGD) can potentially learn to recover absolute positions in NoPE Transformers. Next, we demonstrate how relative PE can be implemented in subsequent layers:
+
+\begin{mdframed}[style=MyFrame2]
+  \begin{restatable}[\textbf{Relative Encoding}]{thm}{EncodeRelative}
+    \label{thm:encode_relative}
+    Suppose that the hidden state $\mH^{(1)}$ contains absolute positional information, as stated in \Cref{thm:encode_absolute}, and assume that it is not overwritten by any subsequent layers.
+    Then, the self-attention in all subsequent layers can implement a relative positional encoding:
+    there exists a parameterization of $f_\theta$ such that, for $l\ge 2$, the attention dot product between query $\vq_n$ and key $\vk_m$ at positions $n$ and $m$ can be expressed as:
+    \begin{equation}
+      \begin{aligned}
+        \langle \vq_n, \vk_m \rangle & = f_\mathrm{cnt}(\vq, \vk) + f_\mathrm{rel}(n-m) \
+      \end{aligned}
+    \end{equation}
+    where $f_\mathrm{cnt}$ is a function of their content, and $f_\mathrm{rel}$ is a function of their relative distance.
+  \end{restatable}
+\end{mdframed}
+
+\Cref{sec:nope_relative_encoding_proof} provides the complete proof of \Cref{thm:encode_relative}.
+Our theoretical results suggest that SGD can choose between relative and absolute encoding in NoPE Transformers. But, what mechanism SGD learns in practice is not clear. We next investigate this question empirically.
+
+\label{sec:nope_mechanism}
+
+\subsection{NoPE learns to use relative PE in practice}
+\label{sec:analysis}
+
+In order to explore the mechanisms that NoPE employs in practice, we conduct a quantitative analysis by comparing its attention pattern to models trained with different positional encoding techniques. The hypothesis is that if NoPE utilizes a similar algorithm to other PEs, then the attention patterns of these models should be quite similar.
+
+To this end, we feed the same input to both models and, at layer $l$, we compute the minimum distance between the attention distribution of any heads in the first model and any head in the second model. %
+Formally, let
+$\mathrm{P}_t = p(\vk|\vq_t)$
+be a probability distribution produced by a causal self-attention head for query at position $t$, over the keys $\vk \in [\vk_1, \dots \vk_t]$ in a given transformer layer.
+Over a sequence of length $T$, we define the similarity between two heads $\mathrm{P}$ and $\mathrm{Q}$ as $D_\mathrm{AT}(\mathrm{P}, \mathrm{Q}) = \frac{1}{T} \sum_{t=1}^T D_\mathrm{JSD}(\mathrm{P}_t || \mathrm{Q}_t) $
+which averages the Jensen–Shannon divergence (JSD) between the two heads over all positions.
+For the distance of two models $A$ and $B$ at layer $l$,
+we take the minimum distance between all pairs of attention heads in the corresponding layer:
+\begin{equation}
+  \begin{aligned}
+    D^{(l)}(A, B) & = \min_{(\mathrm{P}, \mathrm{Q}) \in A_l \times B_l} D_\mathrm{AT}(\mathrm{P}, \mathrm{Q}) \\
+  \end{aligned}
+  \label{eq:similarity}
+\end{equation}
+where $A_l$ and $B_l$ are the attention heads in layer $l$ of models $A$ and $B$ respectively.
+We empirically measure the distance between NoPE and other positional encoding schemes after training.
+Specifically, we sample examples from each length bucket and feed them (the concatenation gold input and output) to compute the attention maps and the distance using \Cref{eq:similarity}. We also consider the distance between different seeds of NoPE as a baseline.
+\Cref{fig:similarity_per_layer} shows the distance per layer for the first four layers. (later layers show similar trends \Cref{fig:similarity_per_layer_full}).
+We find that NoPE's attention patterns are most similar to that of T5's Relative PE,
+and least similar to APE and Rotary. The same trend can be observed across all layers and length buckets, and even when averaged across all layers.
+These results potentially suggest that a Transformer model without positional encoding, trained with
+stochastic gradient descent learns to represent positions in a way similar to T5's Relative PE, which is a relative positional encoding scheme.
+
+\section{Does Scratchpad Render The Choice of Positional Encoding Irrelevant?}
+\label{sec:scratchpad}
+\tbunifiedscratch  In scratchpad/CoT prompting, the model generates intermediate computations required to reach the final answer as explicit parts of the output.
+Such mechanisms, in effect, provide a direct decomposition and storage for intermediate values, which has been shown to improve the length generalization of Transformers even at small scale \citep{Nye2021:Scratchpad}.
+Since scratchpad only modifies the model's input and output (not the architecture), it is unclear and unexplored how architectural choices such as positional encoding affect the length generalization in the presence of scratchpad. To answer this question, we train all PEs \emph{with} and \emph{without} scratchpad on the mathematical and reasoning group of tasks, and compare their performance.
+
+Moreover, the decision of how to represent the intermediate computations in the scratchpad, i.e. the scratchpad format, is an important design choice that has a non-trivial impact on the model's performance \citep{Bueno2022:MarkupTokens}.
+
+To account for those, we consider five components in each step of scratchpad: \texttt{<input>}, \texttt{<computation>}, \texttt{<output>}, \texttt{<variable\_update>}, and \texttt{<remaining\_input>} (\Cref{fig:unified_scratchpad_format}).
+In our experiments, we create different variations of scratchpad format by enabling or disabling each component, which allows us to systematically study their impact.\footnote{Since using scratchpad creates very long sequences, we follow \citet{Nye2021:Scratchpad} and set the length threshold $L=8$ for tasks that use it to avoid out-of-memory errors.}
+\Cref{fig:scratchpad_formats_per_ds} summarizes our results.
+Similar to the remarks made by \citep{Nye2021:Scratchpad, Anil2022:LengthFailure} we observe that across all PEs and regardless of the format, scratchpad is beneficial solely for the addition task. Additionally, our findings indicate that having a positional encoding with robust length generalization is crucial since scratchpad/CoT alone may not enhance the generalization.
+
+
+
+
+
+
+
+
+\begin{figure}[t]
+  \begin{minipage}{\linewidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/scratchpad_mrr_per_ds.pdf}
+    \caption{
+      Mean ranks of scratchpad format aggregated across all models per each dataset.
+      The effectiveness of scratchpad is task dependent.
+    }
+    \label{fig:scratchpad_formats_per_ds}
+  \end{minipage}
+\end{figure}
+
+\vspace{-2mm}
+\subsection{Which part of the sequence is attended to?}
+\label{sec:attention_distance}
+
+
+
+The scratchpad format that is often used \citep{Nye2021:Scratchpad}, similar to \Cref{fig:unified_scratchpad_format}, contains redundant information.
+One such example is the repetition of the remaining portion of an input ($\mathcal{R}$) in each step of the scratchpad. But, the attention can attend to this information directly from the main input. So, it remains unclear which specific part of the scratchpad different PEs rely on to solve the task.
+
+
+
+To address this question, we take the models trained with full Format on addition, the case in which scratchpad is helpful across all PEs, and examine their attentions. Specifically, for tokens in \begin{wrapfigure}[28]{r}{0.4\textwidth}
+  \raisebox{0pt}[\dimexpr\height-2\baselineskip\relax]{
+    \centering
+    \includegraphics[width=\linewidth]{figures/attended_distance__s2s_addition__len_tr8_ts16_i1_c1_o1_v1_r1.pdf}
+  }
+  \caption{Distribution of the normalized distance between the query and the key of the self-attention (addition task + full scracthpad), averaged across all layers and heads.}
+  \label{fig:attended_distance}
+\end{wrapfigure}the output sequence, we calculate the \emph{distance $d$} between the current  query $\vq_t$ and the attended key $\vk_n$ as $(t - n + 1)$ and subsequently normalize it based on the length of the sequence at the present step. The normalized value is denoted as $\bar{d}$.
+
+\Cref{fig:attended_distance} depicts the distribution of $\bar{d}$.
+Values of $\bar{d}$ close to 0 indicate attention to tokens near the current position (e.g. current scratchpad step), while values close to 1 signify attention to distant tokens (e.g. the input).
+NoPE and T5's Relative PE resemble each other and exhibit a bimodal distribution, reflecting both short-range and long-range attention.
+Conversely, ALiBi (due to its recency bias) strongly favors short-range attention. Rotary, on the other hand, produces a distribution resembling APE, which is more uniformly distributed. Notably, NoPE and T5's RPE are the top-performing PEs in this setup, which suggest the bimodal distribution to be more optimal.
+
+
+
+
+
+\section{Discussion}
+\label{sec:discussion}
+
+Practitioners have to make important choices about the nuances of the Transformer architecture like positional encoding before undertaking the costly pretraining process.
+In the I.I.D evaluation of PEs, we demonstrate similar performance across different PEs, in line with observations of \citet{Haviv2022:NoPETransformer} and \citet{Scao2022:LMinOneMillionGPUHours}, which makes the choice of optimal positional encoding challenging.
+
+In our paper, we utilize length generalization in downstream tasks as a mean to assess the expressivity of positional encodings.
+Our setup, in contrast to the I.I.D. evaluation, reveals a clear distinction among approaches of encoding positions.
+We find that NoPE outperforms explicit PEs, and within explicit PEs, commonly used methods lag behind T5's Relative PE.
+In fact, the recent release of LLMs \citep{Touvron2023:LLaMA,Chowdhery2022:PaLM} suggests a shift towards adopting Rotary as a replacement for APE in the Transformer architecture.
+However, our result in \Cref{sec:results_len_extrapolation} clearly demonstrates that Rotary marginally outperforms APE at length generalization. Furthermore, it exhibits similar behavior to APE, as shown in Section \ref{sec:attention_distance}, indicating potential susceptibility to the same limitations.
+
+The disadvantages of explicit PEs over NoPE in length extrapolation contribute to the growing evidence that positional encodings pose challenges for Transformers \citep{Sinha2022:CuriousCaseAPE,Luo2021:PositionalArtefacts}. Our empirical results and theoretical analysis suggest that removing positional encoding holds promise as a modification to the widely used decoder-only Transformer architecture.
+
+
+
+\paragraph{Scaling up to 1B models}
+In order to study the behavior of position embeddings at scale, we trained three 1B variants post-submission -- ALiBi, Rotary and NoPE -- with context length of 1024 tokens on a subset of StarCoder training set \citep{Li2023:Starcoder}.
+For more details, refer to \Cref{sec:scaling_experiments}.
+Our results on language modeling show that at I.I.D all variants have similar perplexity, but at length generalization, Rotary fails to generalize as its perplexity explodes. NoPE and ALiBi generalize similarly to larger context sizes up to almost twice their training context size, and for larger contexts ALiBi is relatively more stable than NoPE (see the discussion on \emph{perplexity vs. downstream performance}).
+Preliminary exploration of fine-tuning the pretrained models, on datasets in \Cref{sec:eval_framework}, yielded to identical performance among PE variants as the training context size of the 1.3B models is much larger than instance lengths in our datasets. A comprehensive downstream evaluation of these models remains a subject for future research. 
+
+
+
+\paragraph{Perplexity vs. downstream Performance}
+Due to human cognitive constraints \citep{Gibson1998:Locality,Kiyono2021:ShiftingAbsolutePositionEmbedding}, language modeling data might encompasses short-range dependencies. The combination of this naturally occurring structure (which can be abundant in internet-based corpora) with the Recency Bias inherent in positional encodings like ALiBi could portray an unrealistic representation of models' length generalization performance. 
+In fact, \citet{Chi2023:DissectingLenGen} recently demonstrated that ALiBi’s length generalization performance could be replicated using a window attention mask, where tokens beyond a window size $w$ are masked out. Interestingly, we also observe that T5's Relative PE, which can be regarded as trainable version of ALiBi, learns to attend both large and short range dependencies (\Cref{fig:t5_head}). 
+This is in line with \citet{Tay2022:PerplexityDontTransfer} observation and underscores the importance of evaluation setups on downstream tasks as compared to solely relying on perplexity.
+
+
+
+
+\section{Related Work}
+\paragraph{Length Generalization Failure In Transformers}
+The length generalization problem has been a topic of interest in the study of neural sequence models for a long time \citep{Graves2014:NTM,Kaiser2015:NeuralGPU,Lake2018:SCAN,Hupkes2020:Compositionality,Yehudai2020:GraphSizeGen}.
+Transformers, being state-of-the-art sequence models, have been no exception.
+A group of studies showed the generalization failure of conventional Transformers with APE on specific datasets such as
+PCFG \citep{Hupkes2020:Compositionality}, LEGO \citep{Zhang2023:LEGO}, or CLUTRR \citep{Sinha2019:CLUTRR,Gontier2020:GPTCLUTRR}.
+The length generalization problem has been reported even in pretrained Transformers such as T5 \citep{Furrer2020:CompGenSM} and LaMDA \citep{Anil2022:LengthFailure}.
+\citet{Csordas2021:DevilInDetail} and \citet{Ontanon2022:MakeTransformerCompositional} study the effect of positional encoding on length generalization but mainly focus on showing relative PE outperforms APEs. \citet{Press2022:ALiBi}, on the other hand, propose a new encoding method, ALiBi, and demonstrate that it outperforms popular PEs on extrapolation but only in the context of human language modeling.
+Most relevant is \citet{Deletang2023:Chomskey}'s recent study on length generalization in various neural sequence models (including RNNs and Stacked-RNNs) for tasks from Chomsky hierarchy. However, they do not focus on the difference among positional encoding or on autoregressive models. Unlike these studies, our work extensively compares length generalization in popular PEs for a wide range of tasks, specifically focusing on autoregressive models, which represent many contemporary LLMs.
+
+
+\paragraph{Positional Encoding}
+A core component of Transformers is the positional encoding mechanism, which helps the model represent the order of the input sequence.
+Self-attention mechanism in the encoder of Transformers is order-invariant and requires PE to avoid becoming a bag-of-word model.
+Many methods have been proposed for this purpose.
+Originally, \citet{Vaswani2017:Transformer} introduced absolute positional encoding sinusoidal functions (a learned variant popularized by \citet{Devlin2019:BERT}).
+Relative approach for encoding positional information was further introduced by \citet{Shaw2018:RelativePosEnc}, which gave rise to a number of pre-trained LM with relative encodings such as TransformerXL \citep{Dai2019:TransformerXL} and T5 \citep{Raffel2020:T5} that perform well in length generalization.
+More recently, \citet{Su2021:Rotary} takes the concept of sinusoidal functions and suggests a new way of encoding positional information by rotating the hidden representations before applying self-attention. This method, referred to as \emph{Rotary}, has become a popular choice in the recent LLMs.
+\citet{Press2022:ALiBi} simplify the T5's Relative encoding and introduced a more efficient variant called ALiBi, while keeping the same or improving extrapolation performance.
+Decoder-only Transformers, due to their causal attention mask, are not order-agnostic and can operate without explicit positional information.
+This was observed early on by \citet{Shen2017:DiSelfAttentionNetwork} and later explained by \citet{Tsai2019:TransformerDissection}. The observation that Transformers without positional encoding can perform on par with explicit PE has been made in various domains such as machine translation \citep{Yang2019:SelfAttentionWordOrder}, language modelling \citep{Irie2019:LMwithDeepTransform, Haviv2022:NoPETransformer}, and even other domains like vision or speech \citep{Likhomanenko2021:CAPE}.
+In our work, not only we demonstrate that Transformers can operate without explicit position information, but also we present an important setup where they outperform explicit PEs. Furthermore, we theoretically show how they are capable of learning both absolute and relative encodings.
+
+\section{Conclusion}
+We studied the robustness of different positional encodings, in decoder-only Transformers, at length generalization on various downstream mathematical and reasoning tasks.
+Our extensive empirical study shows the effectiveness of NoPE, and further demonstrates that widely used explicit PEs are not suited for length generalization.
+We also prove that NoPE can implicitly learn both absolute and relative positions, but uses the latter in practice.
+Finally, we find the effectiveness of scratchpad is task-dependent, and is not a reliable solution for length generalization.
+\section*{Limitations}
+Our work primarily focuses on positional encodings as a design choice in the Transformers decoder architecture.
+We could not study how large-scale pretraining affects different PEs because there are no publicly available large language models trained with various PEs under similar conditions.
+We leave this for future work due to our limited compute budget.
+
+\section*{Acknowledgements}
+We are grateful to our anonymous reviewers, Nicolas Chapados, and Omer Levy for their invaluable suggestions and discussions
+The Mila-IBM grant program provided the funding for this project. SR acknowledges the support provided by the NSERC Discovery Grant program and the Facebook CIFAR AI Chair program.
+This research was enabled in part by compute resources provided by Mila, the Digital Research Alliance of Canada and ServiceNow.
+
+
+\bibliography{custom}
+\bibliographystyle{acl_natbib}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\newpage
+\appendix
+\renewcommand\thefigure{\thesection.\arabic{figure}}
+\setcounter{figure}{0}
+\setcounter{theorem}{0}
+\section{Number of instances decreases rapidly as sequence length grows}
+\begin{figure}[!t]
+  \centering
+  \includegraphics[width=\textwidth]{figures/instance_len_flan_niv2.pdf}
+  \caption{
+    Histogram of instruction lengths in two instruction finetuning datasets:
+    FLAN (CoT subset) \citep{Longpre2023:FLAN} and Super Natural Instructions \citep{Wang2022:SuperNaturalInstructions}.
+    The dotted line indicates the median length of the instructions in each dataset.
+  }
+  \label{fig:drop_of_long_seq}
+\end{figure}
+
+The recent trend of SFT-RLHF pipeline \citep{Ouyang2022:InstructGPT} relies on finetuning LLMs on the instruction following tasks. However, the training data of these datasets is often skewed towards shorter sequences. \Cref{fig:drop_of_long_seq} shows the distribution of instruction lengths in two instruction finetuning datasets: FLAN (CoT subset) \citep{Longpre2023:FLAN} and Super Natural Instructions \citep{Wang2022:SuperNaturalInstructions}. The median length of instructions in these datasets is quite short compared to the maximum length that exists. Such distribution shape highlights the importance of length generalization in these tasks. In fact, the models are supposed to learn from short instructions and generalize to ones during inference that might be much longer.
+
+\section{Background}
+\label{sec:pe-background}
+
+\subsection{Preliminaries}
+\label{sec:preliminaries}
+In this section, we lay the groundwork and introduce the notation we use throughout the paper. We will refer to this in \Cref{sec:sketch-proof-no-pe,sec:nope_relative_encoding_proof}.
+
+Let $f_\theta$ be a decoder-only Transformer model, where $\theta$ denotes the
+full set of model parameters.
+$f_\theta$ processes the input sequence $\vx = \left[x_0, x_1, \ldots, x_T\right]$
+and maps it to the output sequence $\vy = \left[y_0, y_1, \ldots, y_T\right]$ by applying a sequence of Transformer layers. Note that being decoder-only means the attention mechanism in each layer is causal, i.e. the attention weights are computed based on the previous positions only.
+
+The layer $\mathrm{TLayer}^{(l)}(\mH^{(l-1)};\theta_l)$, consisting of self-attention heads and a feed-forward sub-layer, reads the previous hidden state $\mH^{(l-1)}$ and produces the hidden state at layer $l$: $\mH^{l}$, where $l$ is the layer index, and $\theta_l$ is the set of parameters of the $l$-th layer.
+Each hidden state $\mH^{(l)} \in \mathbb{R}^{d \times (T+1)}$ is matrix where column $t$, denoted as $\vh_t^{(l)}$, is the hidden state at position $t$.
+
+A layer $l$ is parameterized by a set of parameters $\theta_l = \{(\mW_Q^m, \mW_K^m, \mW_V^m, \mW_O^m)_m, \mW_1, \mW_2\}$, where $\mW_Q^m, \mW_K^m, \mW_V^m \in \mathbb{R}^{h \times d}$ and $\mW_O^m \in \mathbb{R}^{d \times h}$ are the query, key, value, and output matrices of the $m$-th head, respectively. $\mW_1, \mW_2 \in \mathbb{R}^{d \times k.d}$ are the weight matrices of the feed-forward sub-layer. $d$ denotes the model's hidden state size, $h$ is the attention dimension (where $h = \frac{d}{\text{\# heads}}$), and $k$ is a multiplier of the hidden state size in the feed-forward sub-layer (it is usually set to 4 in common implementations of the Transformer). Note that we drop the layer index $l$ and the attention head index $m$ where it is clear from the context.
+
+The Transformer layer $\mathrm{TLayer}^{(l)}$ processes each column of $\mH^{(l-1)}$ independently and in parallel to produce the output. The computation of the $t$-th column of $\mH^{(l)}$ is as follows:
+
+\begin{align}
+  \vh_t^{(l)} = \mathrm{FF}(\lambda(\va_t + \vh_t^{(l-1)})) + \va_t + \vh_t^{(l-1)}
+\end{align}
+where $\mathrm{FF}$ is the feed-forward sub-layer, $\lambda$ is layer normalization, and $\va_t \in \mathbb{R}^d$ is the output of the multi-head self-attention sub-layer at position $t$. Specifically, $\va_t$ is computed as:
+\begin{align}
+  \label{eq:multi_head_attention}
+  \va_t = \sum_{m} \mathrm{Attn}^{(m)}(\vh_t^{(l-1)}, \mH^{(l-1)})
+\end{align}
+where $\mathrm{Attn}^{(m)}$ is the $m$-th attention head. Let $\vo_t \in \mathbb{R}^d$ denote the output of an attention head at position $t$. Then, $\vo_t$ is computed as:
+\begin{align}
+  \label{eq:attention_head}
+  \vo_t = \mW_O \left(\sum_{i\le t} \hat{\valpha}_i\vv_i \right)
+\end{align}
+
+where $\hat{\valpha} = \softmax(\valpha) \in \mathbb{R}^{(t+1)}$, and $\valpha$ is the attention weight vector such that:
+\begin{align}
+  \label{eq:attention_weight}
+  \valpha = \left[\langle \vq_t, \vk_0 \rangle, \langle \vq_t, \vk_1 \rangle, \ldots, \langle \vq_t, \vk_t \rangle \right]^\intercal
+\end{align}
+where $\vq_t = \mW_Q \vh_t^{(l-1)} \in \mathbb{R}^h$, $\vk_i = \mW_K \vh_i^{(l-1)} \in \mathbb{R}^h$, and $\vv_i = \mW_V \vh_i^{(l-1)} \in \mathbb{R}^h$. $\langle \cdot, \cdot \rangle$ denotes the dot product operation.
+
+The feed-forward sub-layer $\mathrm{FF}(\cdot) \in \mathbb{R}^d$ is a two-layer MLP:
+\begin{align}
+  \label{eq:ff_sublayer}
+  \mathrm{FF}(\vx) = \mW_2 \sigma(\mW_1^\intercal \vx)
+\end{align}
+where $\sigma$ is a non-linear activation function (usually ReLU or GeLU \citep{Hendrycks2020:GeLU}).
+Additionally, $\lambda(\cdot) \in \mathbb{R}^d$ is layer normalization \citep{Ba2016:LayerNorm}.
+Note that we take the \emph{additive} \citep{Elhage2021:TransformerCircuits} view of attention heads in \Cref{eq:multi_head_attention} instead of \emph{concatenate and multiple} view \citep{Vaswani2017:Transformer} as it is easier to understand and analyze. But, they are mathematically equivalent \citep{Elhage2021:TransformerCircuits}.
+
+The hidden state is initialized with a learned embedding of the input sequence $\mH^{(0)} = \mW_E \mX$, where $\mW_E \in \mathbb{R}^{d \times V}$ is the embedding matrix and $\mX \in \mathbb{R}^{V \times (T+1)}$ is the one-hot encoded input sequence. $V$ is the vocabulary size.
+
+\subsection{Positional Encoding}
+
+Almost all positional encoding methods can be explained and formulated as how they implement the dot product operation in \Cref{eq:attention_weight}. So, in this section, we explain how the dot product $\langle \vq_t, \vk_i \rangle$ is implemented in different positional encoding schemes.
+
+
+
+
+\paragraph{Absolute Positional Encoding (APE)}
+The process of Absolute Positional Encoding (APE) involves assigning a position vector $\vp_i$ to each absolute position $i$ and combining them with word embeddings before inputting them into the model. So, APE first modifies how the hidden state is initialized:
+\begin{align}
+  \label{eq:ape_init}
+  \mH^{(0)} = \mW_E \mX + \mW_P \mP
+\end{align}
+where $\mW_P \in \mathbb{R}^{d \times T}$ is the positional embedding matrix and $\mP \in \mathbb{R}^{V_p \times (T+1)}$ is the one-hot encoded absolute position sequence. $V_p$ is the maximum absolute position.
+Therefore, the hidden state at column $j$ is:
+\begin{align}
+  \label{eq:ape_hidden_state}
+  \vh_j^{(0)} = \ve_j + \vp_j
+\end{align}
+where $\ve_j \in \mathbb{R}^d$ is the word embedding of token $x_j$ and $\vp_j \in \mathbb{R}^d$ is the positional embedding for position $j$.
+Then, the dot product for the first layer in \Cref{eq:attention_weight} is computed as:
+\begin{align}
+  \label{eq:ape_dot_product}
+  \langle \vq_t, \vk_i \rangle & = \langle \mW_Q \vh_t^{(0)}, \mW_K \vh_i^{(0)} \rangle \nonumber                                                  \\
+                               & = \langle \mW_Q (\ve_t + \vp_t) , \mW_K (\ve_i + \vp_i) \rangle \nonumber                                         \\
+                               & = \left(\mW_Q (\ve_t + \vp_t)\right)^\intercal \left(\mW_K (\ve_i + \vp_i)\right) \nonumber                       \\
+                               & = \ve_t^\intercal \mW_Q^\intercal \mW_K \ve_i + \ve_t^\intercal \mW_Q^\intercal \mW_K \vp_i \nonumber             \\
+                               & \phantom{=} + \vp_t^\intercal \mW_Q^\intercal \mW_K \ve_i + \vp_t^\intercal \mW_Q^\intercal \mW_K \vp_i \nonumber \\
+\end{align}
+
+In the learned variant of APE, $\vp_j \in \mathbb{R}^d$ is learned during training. In the sinusoidal variant, $\vp_j$ is calculated using a non-parametric function. Specifically, $\vp_j$ is computed as:
+\begin{align}
+  \label{eq:ape_sinusoidal}
+  \vp_j = \left[\sin(\omega_1.j), \cos(\omega_1.j), \sin(\omega_2.j), \cos(\omega_2.j), \ldots, \sin(\omega_{d/2}.j), \cos(\omega_{d/2}.j) \right]^\intercal
+\end{align}
+where $\omega_i = \frac{1}{10000^{2i/d}}$.
+
+\paragraph{T5's Relative PE}
+The Relative bias in T5 is a type of relative positional encoding that initially calculates the relative distance $(t-i)$ between tokens at positions $t$ and $i$. This distance is then transformed into a scalar bias value $b$ and is incorporated into the dot product between the query and key. $b$ is learned during training.
+Thus, the dot product in every layer can be written as:
+\begin{align}
+  \label{eq:t5_relative_bias}
+  \langle \vq_t, \vk_i \rangle & = \vq_t^\intercal \vk_i + b_{\mathrm{bucket}(n-m)}
+\end{align}
+
+where
+\[
+  \mathrm{bucket}(n) =
+  \begin{cases}
+    n                                                                                                                                                                                       & \text{if}\ n < \frac{\mathcal{B}}{2}                  \\
+    \frac{\mathcal{B}}{2} + \left\lfloor \frac{\log{\left(\frac{n}{\mathcal{B}/2}\right)}}{\log{\left(\frac{\mathcal{D}}{\mathcal{B}/2}\right)}} \times \frac{\mathcal{B}}{2} \right\rfloor & \text{if}\ \frac{\mathcal{B}}{2} \leq n < \mathcal{D} \\
+    \mathcal{B} - 1                                                                                                                                                                         & \text{if}\ n \geq \mathcal{D}
+  \end{cases}
+\]
+
+
+This function maps the relative distance $d$ to a bucket index, which will be used to look up the weight corresponding to that bucket. $\mathcal{B}$ is the number of buckets, $\mathcal{D}$ is the maximum distance. It assigns half of the buckets to distances smaller than $\frac{\mathcal{D}}{2}$ with linear spacing and the other half to distances larger than $\frac{\mathcal{D}}{2}$ with logarithmic spacing. The weight for distances larger than $\mathcal{D}$ is the same. This is to facilitate generalization to unseen distances. In the original implementation of T5, $\mathcal{B} = 32$ and $\mathcal{D} = 128$. Following shows an example of the bucket function with $\mathcal{B} = 5$ and $\mathcal{D} = 6$:
+
+\[
+  \mathrm{bucket}(
+  \begin{bmatrix}
+    0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+    1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+    2 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+    3 & 2 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+    4 & 3 & 2 & 1 & 0 & 0 & 0 & 0 & 0 & 0 \\
+    5 & 4 & 3 & 2 & 1 & 0 & 0 & 0 & 0 & 0 \\
+    6 & 5 & 4 & 3 & 2 & 1 & 0 & 0 & 0 & 0 \\
+    7 & 6 & 5 & 4 & 3 & 2 & 1 & 0 & 0 & 0 \\
+    8 & 7 & 6 & 5 & 4 & 3 & 2 & 1 & 0 & 0 \\
+    9 & 8 & 7 & 6 & 5 & 4 & 3 & 2 & 1 & 0 \\
+  \end{bmatrix}
+  )
+  =
+  \begin{bmatrix}
+    0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+    1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+    2 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+    3 & 2 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+    3 & 3 & 2 & 1 & 0 & 0 & 0 & 0 & 0 & 0 \\
+    4 & 3 & 3 & 2 & 1 & 0 & 0 & 0 & 0 & 0 \\
+    4 & 4 & 3 & 3 & 2 & 1 & 0 & 0 & 0 & 0 \\
+    4 & 4 & 4 & 3 & 3 & 2 & 1 & 0 & 0 & 0 \\
+    4 & 4 & 4 & 4 & 3 & 3 & 2 & 1 & 0 & 0 \\
+    4 & 4 & 4 & 4 & 4 & 3 & 3 & 2 & 1 & 0
+  \end{bmatrix}
+\]
+
+
+\paragraph{ALiBi}
+Similar to T5's Relative PE, ALiBi subtracts a scalar bias from the attention score. As the distance between the query and key tokens increases, the bias grows linearly. Specifically, the dot product in every layer can be written as:
+\begin{align}
+  \label{eq:alibi}
+  \langle \vq_t, \vk_i \rangle & = \vq_t^\intercal \vk_i - (t-i).C^{(m+1)}
+\end{align}
+where $m$ is head index and $C$ is a constant defined as:
+$$
+  C = 2^{-2^{-\log _2 (\text{\# heads}+3)}}
+$$
+For example, if the number of heads is 8, then we have $\frac{1}{2}, \frac{1}{2^2}, \dots, \frac{1}{2^8}$ \citep{Press2022:ALiBi}.
+\paragraph{Rotary}
+The Rotary is a relative PE that applies a rotation to the query and key representations based on their absolute positions before dot product attention. Due to this rotation, the attention dot product relies solely on the relative distance between tokens.
+
+First, we formulate Rotary for model dimension $d=2$.
+Rotary positional encoding defines the dot product as:
+
+\begin{align}
+  \label{eq:rotary}
+  \langle \vq_t, \vk_i \rangle = &
+  \langle \mathrm{Rot}(\vq_t, t), \mathrm{Rot}(\vk_i, i) \rangle                                             \nonumber \\
+  =                              & \langle \mR^{t\theta}\vq_t, \mR^{i\theta}\vk_i \rangle          \nonumber               \\
+  =                              & (\mR^{t\theta}\vq_t)^\intercal (\mR^{i\theta}\vk_i)             \nonumber           \\
+  =                              & {\vq_t}^\intercal (\mR^{t\theta}) ^\intercal \mR^{i\theta}\vk_i \nonumber           \\
+  =                              & {\vq_t}^\intercal \mR^{(i-t)\theta} \vk_i                     \nonumber             \\
+\end{align}
+where $\mR^{t\theta}$ is a rotation matrix that rotates $\vx$ by $t\theta$ radians:
+\begin{align}
+  \label{eq:rotary_matrix}
+  \mR^{n\theta} = \begin{bmatrix}
+                    \cos(n\theta) & -\sin(n\theta) \\
+                    \sin(n\theta) & \cos(n\theta)
+                  \end{bmatrix}
+\end{align}
+for $d>2$, Rotary applies the same approach on every two consecutive dimensions of $\vq_t$ and $\vk_i$, but with different $\theta$ angles. Refer to \citet{Su2021:Rotary} for the exact formulation.
+
+\paragraph{NoPE}
+NoPE does not explicitly encode positional encodings. So, the dot product in every layer can be written as:
+\begin{align}
+  \label{eq:nope}
+  \langle \vq_t, \vk_i \rangle & = \vq_t^\intercal \vk_i
+\end{align}
+
+\section{Proofs}
+In this section, we provide proof of why NoPE can implicitly learn both absolute and relative positions.
+We refer the readers to \Cref{sec:preliminaries} for the notation and definitions used in this section.
+\subsection{Absolute Positional Encoding in NoPE}
+\label{sec:sketch-proof-no-pe}
+This section discusses how NoPE can recover absolute positions in the hidden state. Our proof is inspired by \citet{weiss2021thinking,lindner2023tracr} and relies on the causal attention mask in the decoder-only Transformer and the $\softmax$ function to recover absolute positions.
+
+
+\begin{mdframed}[style=MyFrame2]
+  \begin{restatable*}[\textbf{Absolute Encoding}]{thm}{EncodeAbsolute}
+    Let $\vx = \left[\texttt{<bos>}, x_1, \ldots, x_T\right]$ be an input sequence of length $T+1$ to the model.
+    Then, the first layer of $f_\theta$ can recover absolute positions $[1, \ldots, T+1]$ in the hidden state $\mH^{(1)}$.
+    That is, there exist $\mW_Q$, $\mW_K$, $\mW_V$, $\mW_O$, $\mW_1$, and $\mW_2$ such that the self-attention and feedforward operations in the first layer compute absolute positions and write it to the next hidden state.
+  \end{restatable*}
+\end{mdframed}
+\textit{Proof.}
+
+Our proof only specifies the weights of a single attention head in the first layer (and additionally the parameterization of feedforward sub-layer).
+In this parameterization, we only require the first three dimensions of the hidden states.
+The rest of the heads, as long as they do not override the first three dimensions, can be arbitrary. This does not impose any challenges as Transformers used in practice usually have a very large model dimension $d$.
+In the rest, we provide the construction of the weights and then verify that they can recover absolute positions.
+
+First, we construct the word embedding matrix $\mW_E \in \mathbb{R}^{d \times V}$, where each column is the embedding of a token in the vocabulary. We construct $\mW_E$ such that it always sets the first dimension of every embedding vector to be 1. Additionally, it sets the second dimension to 1 if and only if the token is \texttt{<bos>}. Otherwise, it sets it to zero. The third dimension of all embedding vectors is set to zero. Other dimensions can take any arbitrary values. Without loss of generality, assume \texttt{<bos>} is the first token in the vocabulary, i.e. The first column. Then, we have:
+\begin{align}
+  \label{eq:word_embedding}
+  \mW_E = \begin{bmatrix}
+            1       & 1       & 1       & \dots  & 1       \\
+            1       & 0       & 0       & \dots  & 0       \\
+            0       & 0       & 0       & \dots  & 0       \\
+            e_{4,1} & e_{4,2} & e_{4,3} & \dots  & e_{4,V} \\
+            \vdots  & \vdots  & \vdots  & \ddots & \vdots  \\
+            e_{d,1} & e_{d,2} & e_{d,2} & \dots  & e_{d,V}
+          \end{bmatrix}_{d \times V}
+\end{align}
+where $e_{d,i} \in \mathbb{R}$.
+
+Secondly, for head dimensions $h\ge 1$, we construct the weights $\mW_Q, \mW_K, \mW_V, \mW_O$ of the first attention head in the first layer. Specifically,
+
+\begin{align}
+  \label{eq:abs_key_value}
+  \begin{array}{ccc}
+    \mW_K = \begin{bmatrix}
+              1      & 0      & \dots  & 0      \\
+              1      & 0      & \dots  & 0      \\
+              \vdots & \vdots & \ddots & \vdots \\
+              1      & 0      & \dots  & 0
+            \end{bmatrix}_{h \times d} &
+    \mW_V = \begin{bmatrix}
+              0      & 1      & 0      & \dots  & 0      \\
+              0      & 0      & 0      & \dots  & 0      \\
+              \vdots & \vdots & \vdots & \ddots & \vdots \\
+              0      & 0      & 0      & \dots  & 0
+            \end{bmatrix}_{h \times d}
+  \end{array}
+\end{align}
+$\mW_K$ reads from the first dimension of the hidden state, which is initialized with 1 using the embedding matrix. Since all word embeddings have one in their first dimension, this parameterization will result all key vectors to be the same. Moreover, $\mW_V$ reads from the second dimension of the hidden state, which is initialized with 1 if the token is \texttt{<bos>}. So, the value vector will have 1 in its first dimension only if the corresponding token is \texttt{<bos>}.
+
+$\mW_Q$ can be any arbitrary matrix. $\mW_O$ will write the result of the attention to the third dimension of the hidden state and can be constructed as:
+\begin{align}
+  \label{eq:abs_output}
+  \mW_O = \begin{bmatrix}
+            0      & 0      & 0      & 0      & \dots  & 0      \\
+            0      & 0      & 0      & 0      & \dots  & 0      \\
+            1      & 0      & 0      & 0      & \dots  & 0      \\
+            0      & 0      & 0      & 0      & \dots  & 0      \\
+            \vdots & \vdots & \vdots & \vdots & \ddots & \vdots \\
+            0      & 0      & 0      & 0      & \dots  & 0
+          \end{bmatrix}_{d \times h}
+\end{align}
+
+
+Now, we verify that for any input sequence $\vx = \left[\texttt{<bos>}, x_1, \ldots, x_T\right]$, the first layer can recover absolute positions $[1, \ldots, T+1]$ in the hidden state $\mH^{(1)}$. We verify this for column $t$ of $\mH^{(1)}$. That is, we show that absolute position information is available in the third dimension of $\vh_t^{(1)}$.
+
+First, we use the word embedding matrix $\mW_E$ to compute the embedding $\mH^{(0)}$:
+\begin{align}
+  \label{eq:abs_hidden_state_0}
+  \mH^{(0)} = \mW_E \mX = \begin{bmatrix}
+                            1       & 1       & 1       & \dots  & 1       \\
+                            1       & 0       & 0       & \dots  & 0       \\
+                            0       & 0       & 0       & \dots  & 0       \\
+                            e_{4,1} & e_{4,2} & e_{4,3} & \dots  & e_{4,V} \\
+                            \vdots  & \vdots  & \vdots  & \ddots & \vdots  \\
+                            e_{d,1} & e_{d,2} & e_{d,2} & \dots  & e_{d,V}
+                          \end{bmatrix}_{d \times (T+1)}
+\end{align}
+
+We now provide the attention computation at position $1 \le t \le T+1$. First, we use $\mW_Q$ to compute the query vector $\vq_t$ by applying $\vq_t = \mW_Q\vh_t^{(0)}$:
+\begin{align}
+  \label{eq:abs_query}
+  \vq_t = [q_1, q_2, q_3, \dots, q_h]^\intercal
+\end{align}
+Recall that $\mW_Q$ can be any arbitrary matrix. So, $q_j \in \mathbb{R}$ can take any arbitrary value. Next, we compute the key vectors by applying $\vk_i = \mW_K\vh_i^{(0)}$:
+\begin{align}
+  \label{eq:abs_key}
+  \begin{array}{cccc}
+    \vk_1 = \begin{pmatrix} 1 \\ 1 \\ \vdots \\ 1 \end{pmatrix} &
+    \vk_2 = \begin{pmatrix} 1 \\ 1 \\ \vdots \\ 1 \end{pmatrix} &
+    \dots                                                       &
+    \vk_{t} = \begin{pmatrix} 1 \\ 1 \\ \vdots \\ 1 \end{pmatrix}
+  \end{array}
+\end{align}
+Note that all key vectors are the same and we only need to compute them up to position $t$ as the attention mask is causal, i.e query can only look at positions $\le t$. Next, we compute the attention weight vectors $\valpha$:
+\begin{align}
+  \label{eq:abs_attention_weight}
+  \valpha = & \left[\langle \vq_t, \vk_1 \rangle, \langle \vq_t, \vk_2 \rangle, \ldots, \langle \vq_t, \vk_t \rangle \right]^\intercal \\
+  =         & \left[\alpha^*, \alpha^*, \ldots, \alpha^* \right]^\intercal
+\end{align}
+where $\alpha^* = q_1 + q_2 + \ldots + q_h$. Next, we apply $\softmax$ to compute the attention probabilities. Since all $\valpha^i$'s are the same, we have:
+\begin{align}
+  \label{eq:abs_attention_prob}
+  \hat{\valpha} = \softmax(\valpha) = \left[\frac{1}{t}, \frac{1}{t}, \ldots, \frac{1}{t} \right]^\intercal
+\end{align}
+Now, we compute the value vectors by applying $\vv_i = \mW_V\vh_i^{(0)}$:
+\begin{align}
+  \label{eq:abs_value}
+  \begin{array}{cccc}
+    \vv_1 = \begin{pmatrix} 1 \\ 0 \\ \vdots \\ 0 \end{pmatrix} &
+    \vv_2 = \begin{pmatrix} 0 \\ 0 \\ \vdots \\ 0 \end{pmatrix} &
+    \dots                                                       &
+    \vv_{t} = \begin{pmatrix} 0 \\ 0 \\ \vdots \\ 0 \end{pmatrix}
+  \end{array}
+\end{align}
+Finally, we compute the output of the attention head by applying $\mW_O$:
+\begin{align}
+  \label{eq:abs_output2}
+  \vo_t = \mW_O \left(\sum_{i\le t} \hat{\valpha}_i\vv_i \right) = \mW_O \left(\frac{1}{t}\sum_{i\le t} \vv_i \right) = \mW_O \begin{pmatrix} 1/t \\ 0 \\ \vdots \\ 0 \end{pmatrix}_{h} = \begin{pmatrix} 0 \\ 0 \\ 1/t \\ 0 \\ \vdots \\ 0 \end{pmatrix}_{d}
+\end{align}
+Thus, the output of our constructed attention head recovers the absolute position information and writes it to the third dimension of output.
+
+We used the decoder-only property of Transformer implicitly in \Cref{eq:abs_attention_weight}, which helped us to only attend to position $\le t$. So, the lengths of the attended sequence are always $t$. Moreover, the presence of \texttt{<bos>} token in the input sequence helped us to anchor the absolute position information. This is not a problem as in practice models are often prompted with some instructions which can act as \texttt{<bos>} token.
+
+With this information available to the rest of the network, the feedforward sub-layer, with sufficient hidden width, can recover the absolute positions $[1, 2, \dots, T+1]$ from the third dimension of attention output. This is because the feedforward sub-layer is MLP with ReLU activation. So, it can learn any arbitrary function \citep{Park2020:UniversalApproximation}. Note that the layer-norm operation can be bypassed as explained by \citet{Ekin2023:InContetLearning}. \qed
+
+\subsection{Relative Positional Encoding in NoPE}
+\label{sec:nope_relative_encoding_proof}
+In this section, we show if the hidden state contains absolute positional information as explained in the previous section, then the attention mechanism in all subsequent layers can implement a relative positional encoding. We refer the readers to \Cref{sec:preliminaries,sec:sketch-proof-no-pe} for the notation and definitions used in this section.
+\begin{mdframed}[style=MyFrame2]
+  \begin{restatable*}[\textbf{Relative Encoding}]{thm}{EncodeRelative}
+    Suppose that the hidden state $\mH^{(1)}$ contains absolute positional information, as stated in \Cref{thm:encode_absolute}, and assume that it is not overwritten by any subsequent layers.
+    Then, the self-attention in all subsequent layers can implement a relative positional encoding:
+    there exists a parameterization of $f_\theta$ such that, for $l\ge 2$, the attention dot product between query $\vq_t$ and key $\vk_i$ at positions $t$ and $i$ ($t \ge i$) can be expressed as:
+    \begin{equation}
+      \begin{aligned}
+        \langle \vq_t, \vk_i \rangle & = f_\mathrm{cnt}(\vq_t, \vk_i) + f_\mathrm{rel}(t-i) \
+      \end{aligned}
+    \end{equation}
+    where $f_\mathrm{cnt}$ is a function of their content, and $f_\mathrm{rel}$ is a function of their relative distance.
+  \end{restatable*}
+\end{mdframed}
+\textit{Proof.}
+
+Our proof only specifies a few entries of weight matrices for attention heads in layers $l\ge 2$, which does not impose any challenges for Transformers used in practice as they usually have a very large model dimension $d$. Moreover, we require to have absolute positions in the third dimension of the hidden state as explained in \Cref{thm:encode_absolute}. To show NoPE can implement relative encoding, we only need to prove that its attention dot product depends on the relative distance between tokens (See \Cref{sec:preliminaries} for an overview of relative encoding methods). In the rest, we provide the construction of the weights and then verify that they can implement relative position encoding.
+
+For head dimension $h\ge 2$, we construct the weights $\mW_Q, \mW_K$ of the attention heads in the second layers and above. Specifically,
+\begin{align}
+  \label{eq:rel_query}
+  \mW_Q = \begin{bmatrix}
+            1        & 0        & 0        & 0        & \dots  & 0        \\
+            0        & 0        & -1       & 0        & \dots  & 0        \\
+            w_{3, 1} & w_{3, 2} & w_{3, 3} & w_{3, 4} & \dots  & w_{3, d} \\
+            \vdots   & \vdots   & \vdots   & \vdots   & \ddots & \vdots   \\
+            w_{h, 1} & w_{h, 2} & w_{h, 3} & w_{h, 4} & \dots  & w_{h, d}
+          \end{bmatrix}_{h \times d}
+\end{align}
+\begin{align}
+  \label{eq:rel_key}
+  \mW_V = \begin{bmatrix}
+            0               & 0               & 1               & 0               & \dots  & 0               \\
+            1               & 0               & 0               & 0               & \dots  & 0               \\
+            w^\prime_{3, 1} & w^\prime_{3, 2} & w^\prime_{3, 3} & w^\prime_{3, 4} & \dots  & w^\prime_{3, d} \\
+            \vdots          & \vdots          & \vdots          & \vdots          & \ddots & \vdots          \\
+            w^\prime_{h, 1} & w^\prime_{h, 2} & w^\prime_{h, 3} & w^\prime_{h, 4} & \dots  & w^\prime_{h, d}
+          \end{bmatrix}_{h \times d}
+\end{align}
+where $w_{i,j}, w^\prime_{i,j} \in \mathbb{R}$ can take any arbitrary value.
+Their corresponding $\mW_V$ and $\mW_O$ can take any arbitrary values as long as they do not override the first three dimensions of the residual stream.
+
+Now we verify that for any input sequence $\vx = \left[\texttt{<bos>}, x_1, \ldots, x_T\right]$, the attention dot product between query $\vq_t$ and key $\vk_i$ at positions $t$ and $i$ ($t \ge i$) will depend the relative distance between tokens.
+
+First, assume that absolute positions are computed in the hidden state $\mH^{(l)}$ for $l\ge 1$, as stated in \Cref{thm:encode_absolute}. Specifically,
+\begin{align}
+  \label{eq:rel_hidden_state_1}
+  \mH^{(l)} = \begin{bmatrix}
+                1       & 1       & 1       & 1       & \dots  & 1         \\
+                1       & 0       & 0       & 0       & \dots  & 0         \\
+                1       & 2       & 3       & 4       & \dots  & T+1       \\
+                h_{4,1} & h_{4,2} & h_{4,3} & h_{4,4} & \dots  & h_{4,T+1} \\
+                \vdots  & \vdots  & \vdots  & \vdots  & \ddots & \vdots    \\
+                h_{d,1} & h_{d,2} & h_{d,3} & h_{d,4} & \dots  & h_{d,T+1}
+              \end{bmatrix}_{d \times (T+1)}
+\end{align}
+where $h_{i,j} \in \mathbb{R}$ can be any arbitrary value as the first three dimensions of the hidden state are reserved for PE computation. The rest of the dimensions can take any arbitrary values as in regular computation of Transformers.
+
+We now present the attention computations at position $1 \le t \le T+1$. We use $\mW_Q$ to compute the query vector $\vq_t$ by applying $\vq_t = \mW_Q\vh_t^{(l)}$:
+\begin{align}
+  \label{eq:rel_query_vec}
+  \vq_t = [1, -t, q_3, \dots, q_h]^\intercal
+\end{align}
+where $q_j \in \mathbb{R}$ can take any arbitrary value. Next, we compute the key vectors by applying $\vk_i = \mW_K\vh_i^{(l)}$:
+\begin{align}
+  \label{eq:rel_key_vec}
+  \begin{array}{ccccc}
+    \vk_1 = \begin{pmatrix} 1 \\ 1 \\ k_{3, 1} \\ \vdots \\ k_{h, 1} \end{pmatrix} &
+    \vk_2 = \begin{pmatrix} 2 \\ 1 \\ k_{3, 2} \\ \vdots \\ k_{h, 2} \end{pmatrix} &
+    \vk_3 = \begin{pmatrix} 3 \\ 1 \\ k_{3, 3} \\ \vdots \\ k_{h, 3} \end{pmatrix} &
+    \dots                                                                          &
+    \vk_{t} = \begin{pmatrix} t \\ 1 \\ k_{3, t} \\ \vdots \\ k_{h, t} \end{pmatrix}
+  \end{array}
+\end{align}
+where $k_{(\cdot, \cdot)} \in \mathbb{R}$ can have any arbitrary value. So, for $\vk_i$ we have:
+\begin{align}
+  \label{eq:rel_key_vec_2}
+  \vk_i = [i, 1, k_{3,i}, \dots, k_{h, i}]^\intercal
+\end{align}
+
+Next, we let us present the attention dot product between $\vq_t$ and $\vk_i$:
+\begin{align}
+  \label{eq:rel_attention_dot_product}
+  \langle \vq_t, \vk_i \rangle = & 1.i + (-t).1 + q_3.k_{3,i} + \dots + q_h.k_{h,i}   \\
+  =                              & i - t + \sum_{j=3}^{h} q_j.k_{j,i}                 \\
+  =                              & \left(\sum_{j=3}^{h} q_j.k_{j,i}\right) - (t-i)    \\
+  =                              & f_\mathrm{cnt}(\vq_t, \vk_i) + f_\mathrm{rel}(t-i)
+\end{align}
+
+Thus, the dot product between $\vq_t$ and $\vk_i$ depends on the relative distance between tokens (assuming the rest of the terms do not cancel out which can be easily avoided by setting the respective weights in \Cref{eq:rel_query,eq:rel_key}). Note that our proof uses the linear spacing between tokens, but the MLP the first layer can write any arbitrary function of absolute positions to the third dimension of the hidden state, which enables more complex relative encoding schemes.
+\qed
+
+
+\section{Experimental Details}
+\label{sec:exp-details}
+
+\subsection{Tasks}
+\label{sec:exp-details-tasks}
+Here we provide the details and more examples of the tasks and datasets we used in our evaluation. For each task, we sample 100K examples for the training set and 10K for the test. Also, we use 15\% of the train as the validation set.
+
+\paragraph{Addition}
+The addition task \citep{Nye2021:Scratchpad} asks the model to compute the sum of two numbers.
+Each number is represented as a sequence of digits that are separated by space. So, the model has access to the exact digits.
+\[
+  \begin{aligned}
+     & \text{\footnotesize \color{gray} Input}  \\
+     & \texttt{Compute: 5 3 7 2 6 + 1 9 1 7 ?}  \\
+     & \text{\footnotesize \color{gray} Output} \\
+     & \texttt{The answer is 5 5 6 4 3.}        \\
+  \end{aligned}
+\]
+we create each length bucket based on the number of digits in each number, e.g. 6-by-3, 6-by-4, etc.
+For the training set, we use buckets where one of the numbers has at most $L$ digits. For the test set, we use buckets where any of the numbers have at most $L$ digits. The model is evaluated on the correctness of its predicted result.
+
+\paragraph{Polynomial Evaluation}
+The polynomial evaluation task \citep{Nye2021:Scratchpad} asks the model to evaluate a polynomial expression at a given value of $x$. The polynomial terms and digits are separated to make just the tokenizer does not glue symbols together.
+\[
+  \begin{aligned}
+     & \text{\footnotesize \color{gray} Input}                                 \\
+     & \texttt{Evaluate x = 3  in  ( 3 x ** 0 + 1 x ** 1 + 1 x ** 2 ) \% 10 ?} \\
+     & \text{\footnotesize \color{gray} Output}                                \\
+     & \texttt{The answer is 5.}                                               \\
+  \end{aligned}
+\]
+The length bucket is created based on the number of terms in the polynomial expression. We sample $x$ from $\mathcal{U}(-2, 2)$, the degree of each term from $\mathcal{U}(0,3)$, and the coefficient of each term from $\mathcal{U}(-3, 3)$. We take the modulo of the result by 10 to make the task easier for the model and make sure we only measure the generalization of the length of the problem instance not the value of the polynomial. The model is evaluated on the correctness of its predicted result.
+
+\paragraph{Sorting}
+The sorting task \citep{Saxton2018:DeepmindMath} asks the model to sort a sequence of input numbers.
+We use this task in two variants: Single Token and Multi Digit.
+In the Single Token variant, we create an alphabet of 50 tokens from the model's vocabulary and fix some canonical ordering among them through task. Each instance is a sequence of tokens from the alphabet in a random order, and the model is asked to sort them in the canonical order.
+\[
+  \begin{aligned}
+     & \text{\footnotesize \color{gray} Input}          \\
+     & \texttt{Sort the following numbers: 3 1 4 1 5 ?} \\
+     & \text{\footnotesize \color{gray} Output}         \\
+     & \texttt{The answer is 1 1 3 4 5.}                \\
+  \end{aligned}
+\]
+In the Multi Digit variant, we simply present a sequence of multi digit/tokens numbers to the model, and ask it to sort them in ascending order. Each number is represented by its digits and they are separated by a space.
+\[
+  \begin{aligned}
+     & \text{\footnotesize \color{gray} Input}                            \\
+     & \texttt{Sort the following numbers: 3 1, 4 1, 5 9, 1 2 6, 5 3 3 ?} \\
+     & \text{\footnotesize \color{gray} Output}                           \\
+     & \texttt{The answer is 3 1, 4 1, 5 9, 1 2 6, 5 3 3.}                \\
+  \end{aligned}
+\]
+In this case, we sample each number from $\mathcal{U}(0, 10000)$. In both cases, the length bucket is created based on the length of the input sequence. The model is evaluated on the correctness of its predicted result.
+
+\paragraph{Summation}
+In this task \citep{Saxton2018:DeepmindMath}, we ask the model to compute the sum of a sequence of input numbers modulo 10 as we want to specifically measure how the model generalizes to longer sequences not the value of summation result:
+\[
+  \begin{aligned}
+     & \text{\footnotesize \color{gray} Input}          \\
+     & \texttt{Compute: ( 1 + 2 + 3 + 4 + 7 ) \% 10 ?} \\
+     & \text{\footnotesize \color{gray} Output}         \\
+     & \texttt{The answer is 7.}                        \\
+  \end{aligned}
+\]
+Each digit is randomly sampled from $\mathcal{U}(1, 9)$. The length bucket is created based on the length of the input sequence. The model is evaluated on the correctness of its predicted result.
+
+\paragraph{Parity}
+In the parity task \citep{Anil2022:LengthFailure}, we ask the model to compute the parity of a binary sequence.
+\[
+  \begin{aligned}
+     & \text{\footnotesize \color{gray} Input}          \\
+     & \texttt{Is the number of 1's even in [ 1 0 0 1 1] ?}          \\
+     & \text{\footnotesize \color{gray} Output}         \\
+     & \texttt{The answer is No.}                        \\
+  \end{aligned}
+\]
+
+\paragraph{LEGO}
+In the LEGO task \citep{Zhang2023:LEGO}, the model is provided with a simple computation graph (DAG), where each node represents a variable, and variables are connected by simple operations which created the edges in the computation graph. We refer to \citet{Zhang2023:LEGO} for a detailed description.
+\[
+  \begin{aligned}
+     & \text{\footnotesize \color{gray} Input}          \\
+     & \texttt{If a = -1; b = -a; c = +b; d = +c. Then what is c?} \\
+     & \text{\footnotesize \color{gray} Output}         \\
+     & \texttt{The answer is +1.}                        \\
+  \end{aligned}
+\]
+To sample each example, we first sample the list of variables based on the length of the example, and then we uniformly sample the value of each variable to make sure all variables are represented with both -1 and +1. Finally, given the value of variables, we deterministically compute the operation on each edge. For each example, we query all variables from the middle of the computation graph to the end. The model is evaluated on the correctness of its predicted result.
+
+\paragraph{Copy}
+The copy task is straightforward. The model has to repeat the input sequence in the output.
+\[
+  \begin{aligned}
+     & \text{\footnotesize \color{gray} Input}          \\
+     & \texttt{Copy the following words: <w1> <w2> <w3> <w4> <w5> .} \\
+     & \text{\footnotesize \color{gray} Output}         \\
+     & \texttt{<w1> <w2> <w3> <w4> <w5>}                        \\
+  \end{aligned}
+\]
+We create multiple variants of this task to better understand the models' generalization behavior.
+In the first variant, the input tokens are the same, so the model has to basically count the number of input tokens. In the second variant, the model has to replace the input tokens with another token sampled from the vocabulary. In the third variant, we sample the input tokens from the model's vocabulary, and the model has to predict them in the same order. We also create 2x versions of variants 1 and 3 to make the tasks more challenging.
+
+\paragraph{Reverse}
+In this task the model, the model has to reverse the order of input tokens in its output.
+\[
+  \begin{aligned}
+     & \text{\footnotesize \color{gray} Input}          \\
+     & \texttt{Reverse the following words: <w1> <w2> <w3> <w4> <w5> .} \\
+     & \text{\footnotesize \color{gray} Output}         \\
+     & \texttt{<w5> <w4> <w3> <w2> <w1> .}                        \\
+  \end{aligned}
+\]
+As in the copy task, we create multiple variants of this task. In the first variant, the model has to reverse the order of input tokens, where the tokens are randomly sampled from the model's vocabulary. In the second variant, the model has to reverse the order of input tokens, as in the first variant, but also it has to reverse it one more time, recreating the original input.
+
+\subsection{Hyperparameters}
+\label{sec:exp-details-hparams}
+
+\Cref{tab:hyperparam} shows the hyperparameters we used in our experiments. We use the same hyperparameters for all models and positional encoding schemes. In our initial experiment, we tried a few more hyperparameters such as $\mathrm{lr} \in \{0.00001, 0.00003, 0.00005\}$ and $\mathrm{WeightDecay} \in \{0, 0.05, 0.1\}$, but we did not observe any significant difference in the results. So, we decided to use the same hyperparameters throughout our experiments.
+
+\subsection{Compute}
+\label{sec:exp-details-compute}
+In our experiments, we used single-GPU training setup for the models. Specifically, we ran our experiments on a mix of NVIDIA V100 32G, NVIDIA RTX8000 48G, NVIDIA A100 40G, and NVIDIA A100 80G GPUs. Depending on the GPU type and the positional encoding, each of our training runs took 6 to 15 hours, per each seed, on average to complete.
+Considering all the datasets, and positional encoding schemes, in addition to the scratchpad experiments, and three seeds, we ran about 870 individual training runs for the results in this paper.
+
+\subsection{Reproducibility}
+\label{sec:exp-details-reproducibility}
+In this study, all experiments employed open-source libraries, specifically HuggingFace \citep{Wolf2020:Huggingface} from which we utilized their implementation as a foundation for the training loop, optimizer, and the Transformer architecture.
+To ensure reproducibility, we will also release a singularity binary with all dependencies and libraries to enable running our experiments on any machine with NVIDIA GPUs and at any time in the future. Moreover, every reported number in this paper is linked to the source code package that deterministically (up to GPU stochasticity) reproduces the results, which we release publicly on GitHub at 
+\href{https://github.com/McGill-NLP/length-generalization}{\texttt{https://github.com/McGill-NLP/length-generalization}}.
+
+\thyperparam{t}
+
+\section{Full Results}
+\label{sec:full-results}
+
+\subsection{Detailed Model Accuracy}
+We report the detailed results of our experiments in \Cref{fig:app_model_acc_1,fig:app_model_acc_2,fig:app_model_acc_3}. We refer the readers to \Cref{sec:exp-details-tasks} for the description of each task. 
+
+\subsection{Detailed Head Distance}
+\label{sec:full_head_distance}
+
+
+\Cref{fig:similarity_per_layer_full} shows the layer-wise distance of No PE's attention patterns with other positional encoding schemes measured across instances of the SCAN dataset. We refer the readers to \Cref{sec:analysis} for the details and analysis of these results.
+
+\subsection{Detailed Model Accuracy On Various Scratchpad Formats}
+
+
+\Cref{fig:scratchpad_formats_per_model} shows the generalization of various scratchpad formats for each model aggregated across all datasets. 
+\Cref{fig:scratchpad_formats_per_model:addition,fig:scratchpad_formats_per_model:summation,fig:scratchpad_formats_per_model:parity,fig:scratchpad_formats_per_model:sorting:single_digit,fig:scratchpad_formats_per_model:sorting:multi_digit,fig:scratchpad_formats_per_model:polynomial_evaluation,fig:scratchpad_formats_per_model:lego} show the generalization of various scratchpad formats for each model on each dataset.
+We refer the readers to \Cref{sec:scratchpad} for the details and analysis of these results.
+
+\section{Pretraining at 1.3B Scale}
+\label{sec:scaling_experiments}
+
+In this section, we elucidate our preliminary assessment of length generalization on a pretrained LLM scaled to 1.3B. Ensuring a fair evaluation, we pretrain models across varied positional encodings, all on identical data with consistent parameters. Given the intrinsic significance of element positions to the semantics in code data, our choice leaned towards code-based pretraining. 
+
+\subsection{Model Architecture}
+
+Our approach remains consistent with the original codebase, merely increasing the model dimensions. Specifically, we adopt a decoder-only Transformer structure encompassing 24 layers. The configuration details are as follows: $d_\mathrm{model}=1024$, $d_\mathrm{kv}=128$, $d_\mathrm{ff}=16,384$, and 32 attention heads. Consequently, this amounts to a Transformer model with 1.3B parameters. We train the models with a context size of $1024$ tokens. 
+For the rest of training hyperparameters, we follow \citet{Allal2023:SantaCoder}. Specifially, we use a global batch size of $256$ and AdamW optimizer with $\beta_1=0.9$, $\beta_2=0.95$, $\epsilon = 10^{-8}$, and weight decay $0.1$. Also, the learning rate of $2\times 10^{-4}$ with cosine decay and 2\% warm-up is used.
+
+\subsection{Dataset Selection}
+We utilize a subset of 30M documents from the StarCoder dataset \citep{Li2023:Starcoder}, constituting a blend of 40\% Python, 25\% Java, 25\% JavaScript, 5\% GitHub issues, and 5\% GitHub commits. Processed through the StarCoder tokenizer with a vocab size of $49,152$, the dataset results in 30B tokens. We have trained the model for a single epoch. For comprehensive details on the remaining hyperparameters, we direct readers to \citet{Allal2023:SantaCoder}.
+
+\subsection{Generalization Evaluation}
+Our evaluation aims to assess how the model's performance in predicting a given token varies with changes in context size, especially when the context size exceeds the training context size. Ideally, we expect the perplexity to generally improve as the context size increases since the model has access to more information. 
+In this experiment, we select a sample of $1500$ validation documents, each representing a single source code file. For each document, we calculate the perplexity of the last tokens, considering various context sizes ranging from $512$ to $2560$ (Note the model itself is pretrained with a context size of $1024$)
+This approach allows us to evaluate the model's perplexity under both in-distribution and out-of-distribution conditions.
+To keep the computation and number of inferences tractable, we measure the perplexity on a maximum of last 200 tokens in the document and ensure exactly the same set of tokens are evaluated per each context size.
+
+To obtain a comprehensive understanding of the model's performance, we also categorize documents into buckets based on their lengths and calculate the average perplexity within each bucket. This categorization enables us to examine the nature of dependencies within each bucket, recognizing that longer documents do not always imply longer dependencies.
+
+We present the results in \Cref{fig:pretraining:ppl} and \Cref{tab:pretraining:ppl,tab:pretraining:ppl2}. First, it is observed that all models benefit from a larger context up to the training size of \(1024\). In the I.I.D. case (context length \( \leq 1024\)), no significant differences among the models are discernible across all length buckets. Conversely, in the O.O.D. case (context length \(> 1024\)), the model trained with Rotary fails to generalize as its perplexity explodes in all cases, aligning with our findings in \Cref{sec:results_len_extrapolation}. NoPE and ALiBi effectively generalize to larger context sizes up to \(1800\). However, as context sizes grow beyond that, ALiBi exhibits relative stability compared to NoPE, though both models show a pattern of increasing perplexity, potentially indicating inefficiencies to capture longer dependencies.
+
+
+
+
+
+
+
+
+\begin{figure}[ht]
+  \begin{minipage}{\linewidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/ppl_agg.pdf}
+    \caption{
+      Perplexity of the three pretrained models on examples from various length buckets. Each model is trained with different positional encoding schemes on identical training data and hyperparameters.
+    }
+    \label{fig:pretraining:ppl}
+  \end{minipage}
+\end{figure}
+
+\tbpretrainingppl{ht}
+\tbpretrainingpplparttwo{ht}
+
+\begin{figure}[ht]
+  \begin{minipage}{\linewidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/t5_1b_head.png}
+    \caption{
+      The learnt bias value $b_{\mathrm{bucket}(.)}$ (taken from the pretrained T5-3b model) visualized for relative distance bucket $\mathrm{bucket}(.) \in [0, 31]$) and 12 heads. Bucket 31 is exclusively used for all distances larger than 128 tokens. These results demonstrate that while T5 has heads that mask distant tokens, other heads attend to distant tokens when required.
+    }
+    \label{fig:t5_head}
+  \end{minipage}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\textwidth]{figures/appendix_showcase_2.pdf}
+  \caption{Generalization behavior of positional encoding schemes on Primitive tasks.}
+  \label{fig:app_model_acc_1}
+\end{figure}
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\textwidth]{figures/appendix_showcase_1.pdf}
+  \caption{Generalization behavior of positional encoding schemes on Mathematical \& Reasoning tasks.}
+  \label{fig:app_model_acc_2}
+\end{figure}
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\textwidth]{figures/appendix_showcase_3.pdf}
+  \caption{Generalization behavior of positional encoding schemes on Classic Length Generalization tasks.}
+  \label{fig:app_model_acc_3}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\textwidth]{figures/per_layer__scan__mdlen_tr25_ts48.pdf}
+  \caption{Layer-wise distance of No PE's attention patterns with other positional encoding schemes measured across instances of SCAN dataset.}
+  \label{fig:similarity_per_layer_full}
+\end{figure}
+
+\begin{figure}[ht]
+  \begin{minipage}{\linewidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/scratchpad_mrr_per_model.pdf}
+    \caption{
+      The optimal scratchpad format is aggregated across all datasets per each model.
+      The optimal scratchpad format is different for each model.
+    }
+    \label{fig:scratchpad_formats_per_model}
+  \end{minipage}
+\end{figure}
+
+\begin{figure}[ht]
+  \begin{minipage}{\linewidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/avg_acc_per_scrhConfig2__s2s_addition_len_tr8_ts16.pdf}
+    \caption{
+      Generalization of various scratchpad formats for each model on the \textbf{Addition} task.
+    }
+    \label{fig:scratchpad_formats_per_model:addition}
+  \end{minipage}
+\end{figure}
+\begin{figure}[ht]
+  \begin{minipage}{\linewidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/avg_acc_per_scrhConfig2__s2s_sum_len_tr8_ts16.pdf}
+    \caption{
+      Generalization of various scratchpad formats for each model on the \textbf{Summation} task.
+    }
+    \label{fig:scratchpad_formats_per_model:summation}
+  \end{minipage}
+\end{figure}
+\begin{figure}[ht]
+  \begin{minipage}{\linewidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/avg_acc_per_scrhConfig2__s2s_parity_len_tr8_ts16.pdf}
+    \caption{
+      Generalization of various scratchpad formats for each model on the \textbf{Parity} task.
+    }
+    \label{fig:scratchpad_formats_per_model:parity}
+  \end{minipage}
+\end{figure}
+\begin{figure}[ht]
+  \begin{minipage}{\linewidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/avg_acc_per_scrhConfig2__s2s_sort_len_sngd_tr8_ts16.pdf}
+    \caption{
+      Generalization of various scratchpad formats for each model on the \textbf{Sorting} task (Single Digit).
+    }
+    \label{fig:scratchpad_formats_per_model:sorting:single_digit}
+  \end{minipage}
+\end{figure}
+\begin{figure}[ht]
+  \begin{minipage}{\linewidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/avg_acc_per_scrhConfig2__s2s_sort_len_mltd_tr8_ts16.pdf}
+    \caption{
+      Generalization of various scratchpad formats for each model on the \textbf{Sorting} task (Multi Digit).
+    }
+    \label{fig:scratchpad_formats_per_model:sorting:multi_digit}
+  \end{minipage}
+\end{figure}
+\begin{figure}[ht]
+  \begin{minipage}{\linewidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/avg_acc_per_scrhConfig2__s2s_poly_n_terms_tr8_ts16.pdf}
+    \caption{
+      Generalization of various scratchpad formats for each model on the \textbf{Polynomial Evaluation} task.
+    }
+    \label{fig:scratchpad_formats_per_model:polynomial_evaluation}
+  \end{minipage}
+\end{figure}
+\begin{figure}[ht]
+  \begin{minipage}{\linewidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/avg_acc_per_scrhConfig2__s2s_lego_len_tr8_ts16.pdf}
+    \caption{
+      Generalization of various scratchpad formats for each model on the \textbf{LEGO} task.
+    }
+    \label{fig:scratchpad_formats_per_model:lego}
+  \end{minipage}
+\end{figure}
+
+\end{document}
