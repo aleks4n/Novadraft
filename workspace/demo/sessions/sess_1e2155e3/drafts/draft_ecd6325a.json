@@ -1,0 +1,146 @@
+{
+ "idea_id": "idea_demo0001",
+ "title": "Leaf-photo plant disease check for home gardeners",
+ "state": "root",
+ "one_liner": "Let a gardener photograph a sick leaf with their phone and get told which disease it probably is.",
+ "description": "A phone app that runs entirely on the device \u2014 no server and no network connection needed \u2014 where the gardener photographs a leaf that looks wrong. An image classifier, fine-tuned on labelled photographs of diseased leaves and quantized to run on the phone, returns the three most likely diseases with a confidence for each, plus a short description of what to do about the top one. Because the app never uploads photos, it cannot learn from real usage after release; instead the model is trained before release with photorealistic augmentation (cluttered backgrounds, lighting and white-balance shifts, motion blur, rotation, perspective) so it is robust to the photos gardeners actually take. The claim is that most common garden diseases are visually distinctive enough that a phone photo is sufficient, so no lab test or expert is needed for the everyday cases.",
+ "problem": "Home gardeners cannot tell plant diseases apart, so they either do nothing or spray the wrong treatment.",
+ "addresses": [
+  "gap_demo01"
+ ],
+ "relations": [],
+ "inherited_from": null,
+ "sections": {
+  "technique": "Fine-tune an off-the-shelf image classifier on a public dataset of labelled diseased-leaf photographs, then quantize and compress it so inference runs entirely on the phone. The photo never leaves the device and the app works offline. The trade-off of dropping the server is that there is no post-deployment learning loop \u2014 user photos can never be collected for later model improvement \u2014 so the real-garden gap must be closed before release: train with photorealistic augmentation (random cluttered backgrounds, lighting and white-balance shifts, motion blur, leaf rotation and perspective). The app runs a lightweight on-device sanity check before classification (is this a leaf, and is the damage disease-like?) that gates the top-three output and feeds the 'unsure about all three' fallback. Show the top three, not just the best guess, so the gardener can tell when the model is unsure.",
+  "open_questions": [
+   "Does photorealistic augmentation during training make the shipped on-device model robust enough to real garden photos, given there is no post-deployment learning loop?",
+   "When the sanity check fails or all three confidences are low, what exactly should the app say and do for the gardener?"
+  ]
+ },
+ "section_order": [
+  "technique",
+  "open_questions"
+ ],
+ "evaluation": {
+  "novelty": null,
+  "feasibility": null,
+  "significance": null
+ },
+ "provenance": [],
+ "origin": null,
+ "runs": [
+  {
+   "run_id": "run_3c0316b8",
+   "session_id": null,
+   "timestamp": "2026-08-23T12:49:50Z",
+   "header": {
+    "mode": "refinement",
+    "width": 2,
+    "depth": 1,
+    "model": "reasoner",
+    "agent_styles": [
+     "neutral"
+    ],
+    "context_ids": [
+     "user_input"
+    ],
+    "triggering_action": "session sess_1e2155e3",
+    "tool_use": false,
+    "task": "Change the idea so the app runs entirely on the phone with no server. Rewrite it around that."
+   },
+   "nodes": [
+    {
+     "node_id": "run_3c0316b8:n0",
+     "parent_id": null,
+     "text": "# Leaf-photo plant disease check for home gardeners\n_Let a gardener photograph a sick leaf with their phone and get told which disease it probably is._\n\n## the problem it addresses\nHome gardeners cannot tell plant diseases apart, so they either do nothing or spray the wrong treatment.\n\n## description\nA phone app where the gardener photographs a leaf that looks wrong. An image classifier trained on labelled photographs of diseased leaves returns the three most likely diseases with a confidence for each, plus a short description of what to do about the top one. The claim is that most common garden diseases are visually distinctive enough that a phone photo is sufficient, so no lab test or expert is needed for the everyday cases.\n\n## addresses gaps\ngap_demo01\n\n## technique\nFine-tune an off-the-shelf image classifier on a public dataset of labelled diseased-leaf photographs. The app sends the photo to a server, the server returns the top three labels with confidences. Show the top three, not just the best guess, so the gardener can tell when the model is unsure.\n\n## open_questions\n- Do photos taken in a real garden work as well as the clean dataset photos taken against a plain background?\n- How should the app behave when the model is unsure about all three guesses?",
+     "style": "-",
+     "score": null,
+     "status": "kept",
+     "depth": 0,
+     "kind": "root",
+     "title": "Leaf-photo plant disease check for home gardeners",
+     "comparison": "",
+     "question": null,
+     "sources": []
+    },
+    {
+     "node_id": "run_3c0316b8:n1",
+     "parent_id": "run_3c0316b8:n0",
+     "text": "Swap the fine-tune target from a server-grade classifier to a mobile-optimized one (e.g. MobileNet or EfficientNet-Lite) distilled from the original, quantized to int8/fp16, and converted to CoreML/TFLite so inference runs fully offline. The disease descriptions and treatment texts become a static JSON asset shipped in the app bundle, so nothing about the answer pipeline needs a network. The uncertainty behavior stays 'show the top three with confidences', but since the model is frozen at install time, the honest fallback when all confidences are low is local: general leaf-health advice plus a pointer to a local extension service \u2014 no server round-trip. This is the minimal faithful rewrite: same mechanism, moved wholesale onto the phone.",
+     "style": "neutral",
+     "score": null,
+     "status": "pruned",
+     "depth": 1,
+     "kind": "branch",
+     "title": "Rewrite around a bundled, quantized mobile model with a local knowledge base; the app-store release is the only update path.",
+     "comparison": "Faithful, concrete rewrite of the same mechanism onto the phone (quantized MobileNet/EfficientNet-Lite, local JSON knowledge base, local fallback), but it restates the no-server requirement with standard tooling and leaves the real-garden-photo open question unresolved.",
+     "question": null,
+     "sources": []
+    },
+    {
+     "node_id": "run_3c0316b8:n2",
+     "parent_id": "run_3c0316b8:n0",
+     "text": "Because the phone can never upload photos for later model improvement, the real-garden gap must be closed before release: train the mobile classifier with photorealistic augmentation \u2014 random cluttered backgrounds, lighting and white-balance shifts, motion blur, leaf rotation and perspective \u2014 so the shipped model is robust to the photos gardeners actually take. The app itself gains a lightweight on-device sanity check before classification (is this a leaf, and is the damage disease-like?) that gates the top-three output and feeds the 'unsure about all three' fallback. This keeps the single image-classifier mechanism but makes the training set, not a server, carry the responsibility for real-world accuracy.",
+     "style": "neutral",
+     "score": 1.0,
+     "status": "accepted",
+     "depth": 1,
+     "kind": "branch",
+     "title": "Rewrite so the on-device model is trained for phone-photo conditions, since a no-server app has no post-deployment learning loop.",
+     "comparison": "Rewrote the description and technique so the app is fully on-device: no server, offline inference, quantized classifier. Since there is no post-deployment learning loop, training now bakes in phone-photo robustness via photorealistic augmentation, and a lightweight on-device sanity check gates the top-three output and feeds the unsure fallback. Open questions reframed to match; problem statement, gaps, and core mechanism unchanged.",
+     "question": "Does photorealistic augmentation close the phone-photo accuracy gap for the mobile classifier within, say, 5 percentage points of clean-dataset accuracy?",
+     "sources": []
+    }
+   ],
+   "edges": [
+    {
+     "from": "run_3c0316b8:n0",
+     "to": "run_3c0316b8:n1",
+     "type": "expanded-into"
+    },
+    {
+     "from": "run_3c0316b8:n0",
+     "to": "run_3c0316b8:n2",
+     "type": "expanded-into"
+    }
+   ],
+   "outcome": {
+    "accepted_node": "run_3c0316b8:n2",
+    "escalation": null,
+    "truncated": false,
+    "escalation_node": null,
+    "escalation_diagnosis": "",
+    "status": "completed",
+    "reason": "reached the requested depth 1",
+    "limit": null,
+    "accepted_nodes": [
+     "run_3c0316b8:n2"
+    ],
+    "summary": {
+     "objective": "Change the idea so the app runs entirely on the phone with no server. Rewrite it around that.",
+     "accepted": "Rewrote the description and technique so the app is fully on-device: no server, offline inference, quantized classifier. Since there is no post-deployment learning loop, training now bakes in phone-photo robustness via photorealistic augmentation, and a lightweight on-device sanity check gates the top-three output and feeds the unsure fallback. Open questions reframed to match; problem statement, gaps, and core mechanism unchanged.",
+     "rejected": "Rewrite around a bundled, quantized mobile model with a local knowledge base; the app-store release is the only update path.: Faithful, concrete rewrite of the same mechanism onto the phone (quantized MobileNet/EfficientNet-Lite, local JSON knowledge base, local fallback), but it restates the no-server requirement with standard tooling and leaves the real-garden-photo open question unresolved.",
+     "open": [
+      "Does photorealistic augmentation during training make the shipped on-device model robust enough to real garden photos, given there is no post-deployment learning loop?",
+      "When the sanity check fails or all three confidences are low, what exactly should the app say and do for the gardener?"
+     ]
+    },
+    "answer": "Rewritten: the app now runs entirely on the phone. All inference is on-device \u2014 the classifier is quantized to run locally, the photo never leaves the device, and the app works with no server and no network connection. The key consequence is that there is no post-deployment learning loop, so the real-garden gap has to be closed before release; I rewrote the training story to bake in phone-photo robustness with photorealistic augmentation, and added a lightweight on-device sanity check that gates the top-three output and feeds the unsure fallback. The problem it addresses and the core classifier mechanism are unchanged.",
+    "proposed_changes": []
+   }
+  }
+ ],
+ "created_at": "2026-08-23T09:00:00Z",
+ "updated_at": "2026-08-23T09:00:00Z",
+ "_session": {
+  "draft_id": "draft_ecd6325a",
+  "session_id": "sess_1e2155e3",
+  "kind": "update",
+  "run_id": "20260823_144950_change-the-idea-so-the-app-runs-entirely",
+  "source_index": null,
+  "target_idea_id": "idea_demo0001",
+  "label": "Leaf-photo plant disease check for home gardeners",
+  "status": "open",
+  "created_at": "2026-08-23T12:51:09Z"
+ }
+}

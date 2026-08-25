@@ -1,0 +1,64 @@
+{
+ "idea_id": null,
+ "title": "SlowCritic-WGAN: an EMA-gated temporal damper on a Wasserstein critic",
+ "state": "provisional",
+ "one_liner": "Fuse WGAN-GP with a Mean-Teacher-style EMA critic as a gated temporal damper, so the Wasserstein loss fixes the disjoint-support geometry while a slow target suppresses the long-horizon oscillation that collapses critic filters.",
+ "description": "The two methods are WGAN-GP (Gulrajani et al. 2017) and Mean-Teacher-style EMA targets (Tarvainen & Valpola 2017). WGAN-GP contributes a loss that is finite and continuous on disjoint low-dimensional supports \u2014 fixing gap 2 \u2014 but it constrains the critic only pointwise in time, so over long training the critic develops an oscillating mode and its filters collapse (gap 1). The EMA critic contributes a slow-moving target that penalizes fast oscillation \u2014 fixing gap 1 \u2014 but it has no metric of its own on disjoint supports, so alone it cannot train a generator. The composition is a gate: a temporal-consistency term ||(f_t(x) \u2212 \u03bc_t) \u2212 (f\u0304(x) \u2212 \u03bc\u0304)||\u00b2 is added to the WGAN-GP objective but fires only on filters whose running activation autocorrelation is negative (period-2 oscillation) or whose pairwise similarity is high (collapse); when nothing is detected, the only cost is EMA bookkeeping. Naive stacking breaks twice, and the fixes are the contribution: the KR-dual critic is invariant to a constant shift, so the consistency term must be centered on running means, and the fake-data distribution drifts as the generator improves, so the EMA target must be evaluated on a fixed real anchor batch rather than on live fake samples.",
+ "problem": "",
+ "addresses": [
+  "gap_4ec20593",
+  "gap_09d1e3fa"
+ ],
+ "relations": [],
+ "inherited_from": null,
+ "sections": {
+  "technique": "Build a standard WGAN-GP conv critic plus a weight-EMA copy f\u0304 (momentum \u22480.999), like Mean Teacher. Train with L = L_WGAN-GP + \u03bb_t \u03a3_i g_i ||(f_t(x) \u2212 \u03bc_t) \u2212 (f\u0304(x) \u2212 \u03bc\u0304)||\u00b2, where g_i is a per-filter 0/1 gate. Gate detection: maintain a running buffer of each critic filter's activations over the last K steps; turn g_i on if the lag-1 autocorrelation is strongly negative or if the cosine similarity between filters in the layer exceeds a threshold. Evaluate the consistency term on a held-out real anchor batch plus the current real batch \u2014 not on fake samples \u2014 to avoid penalizing the generator's legitimate drift, and center by subtracting running means to respect KR shift invariance. Measure the gap's own metric (count of collapsed/oscillating filters per layer over training time) alongside the Wasserstein estimate and FID; ablate WGAN-GP alone, ungated temporal penalty, gated SlowCritic-WGAN, and SN-GAN as the obvious alternative pairing.",
+  "open_questions": [
+   "Which side's filters collapse \u2014 the gap says 'a subset of filters' without naming the model; if the collapse is in the generator, the damper must move into the generator update and the composition changes.",
+   "Does damping the critic make it lag behind a fast-improving generator, and is a lag-1 autocorrelation detector sufficient to catch slower or aperiodic oscillatory modes?",
+   "Is a weight-EMA copy the right slow target, or should the target be an EMA of critic outputs on fixed anchors, since weight-space averaging across modes is not obviously equivalent to output-space smoothing?",
+   "How sensitive is the result to \u03bb_t and gate hysteresis \u2014 too strong a damper could drive the critic toward a constant function and destroy the Wasserstein signal.",
+   "Are the original GAN paper's 'oscillating mode' failure and WGAN-GP's known oscillatory training the same phenomenon, or two different instabilities?"
+  ],
+  "rationale": "Combiner stance: I name two methods explicitly and each supplies what the other lacks \u2014 WGAN-GP gives a defined, continuous geometry on disjoint low-dim supports (gap 2) but is pointwise in time, and EMA/temporal ensembling damps temporal oscillation (gap 1) but has no intrinsic metric. The composition is one-as-a-gate: the temporal damper engages only on detected oscillatory/collapsed filters, which is the efficiency argument \u2014 no per-layer SVD as in spectral normalization, no extra network, near-zero cost during healthy training. The interface is where naive stacking fails (KR shift invariance and drifting fake distribution), and fixing that interface is the actual contribution, not the stacking itself. Unverified claims: that no one has applied EMA-discriminator temporal consistency, gated on detected oscillating filters, on top of WGAN (CR-GAN's consistency is spatial/augmentation-based, and StyleGAN's EMA is generator-side and evaluation-only); and that the gap's oscillating-mode collapse is critic-side rather than generator-side."
+ },
+ "section_order": [
+  "technique",
+  "open_questions",
+  "rationale"
+ ],
+ "evaluation": {
+  "novelty": null,
+  "feasibility": null,
+  "significance": null
+ },
+ "provenance": [],
+ "origin": {
+  "run_id": "run_9472281b",
+  "node_id": "run_9472281b:n2",
+  "node_path": [
+   "run_9472281b:n0",
+   "run_9472281b:n2"
+  ],
+  "style": "combiner",
+  "mode": "generation",
+  "parent_idea_id": null,
+  "suggested": null,
+  "inherited_from": null,
+  "inherited_upto_run": null
+ },
+ "runs": [],
+ "created_at": "",
+ "updated_at": "",
+ "_session": {
+  "draft_id": "draft_4cd3c223",
+  "session_id": "sess_ead7d351",
+  "kind": "create",
+  "run_id": "20260821_105004_propose-3-ideas-to-solve-both-gaps-probl",
+  "source_index": 0,
+  "target_idea_id": null,
+  "label": "SlowCritic-WGAN: an EMA-gated temporal damper on a Wasserstein critic",
+  "status": "open",
+  "created_at": "2026-08-21T08:56:37Z"
+ }
+}

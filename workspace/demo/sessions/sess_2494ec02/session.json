@@ -1,0 +1,198 @@
+{
+ "session_id": "sess_2494ec02",
+ "category_slug": "demo",
+ "title": "A \u00b7 a plain question",
+ "created_at": "2026-08-23T12:47:35Z",
+ "updated_at": "2026-08-23T12:48:53Z",
+ "messages": [
+  {
+   "id": "msg_b9da11b2",
+   "role": "user",
+   "text": "Does this still work if the gardener takes the photo in the evening, in bad light?",
+   "at": "2026-08-23T12:47:35Z",
+   "context": [],
+   "run_id": "20260823_144735_does-this-still-work-if-the-gardener-tak",
+   "settings": {
+    "mode": "refinement",
+    "ideaId": "idea_demo0001",
+    "width": 2,
+    "depth": 1,
+    "styles": [
+     "neutral"
+    ],
+    "toolUse": false
+   }
+  },
+  {
+   "id": "msg_fa5ed193",
+   "role": "agent",
+   "text": "No \u2014 in bad light the pipeline as described would fail: a photo too dark to contain visible leaf texture carries no usable signal for any classifier, so the output would be an arbitrary guess presented as a diagnosis. The surviving reasoning moves the fix to capture rather than inference: an app-side brightness gate (from the phone's exposure meter or a quick on-device estimate) blocks submission below a threshold and prompts \"too dark \u2014 turn on flash or move to brighter light\", and if the user overrides the block, the result is flagged \"photo too dark, results unreliable\" instead of being presented as a diagnosis. That also supplies the dark-photo half of the \"unsure\" open question \u2014 dark photos are refused with an instruction rather than guessed at. This is a proposal, not a tested result: whether flash actually recovers enough leaf texture, and how the threshold should be calibrated across phones, still needs verification.",
+   "at": "2026-08-23T12:48:53Z",
+   "run_id": "20260823_144735_does-this-still-work-if-the-gardener-tak",
+   "envelope": {
+    "idea": {
+     "idea_id": "idea_demo0001",
+     "title": "Leaf-photo plant disease check for home gardeners",
+     "state": "root",
+     "one_liner": "Let a gardener photograph a sick leaf with their phone and get told which disease it probably is.",
+     "description": "A phone app where the gardener photographs a leaf that looks wrong. An image classifier trained on labelled photographs of diseased leaves returns the three most likely diseases with a confidence for each, plus a short description of what to do about the top one. The claim is that most common garden diseases are visually distinctive enough that a phone photo is sufficient, so no lab test or expert is needed for the everyday cases.",
+     "problem": "Home gardeners cannot tell plant diseases apart, so they either do nothing or spray the wrong treatment.",
+     "addresses": [
+      "gap_demo01"
+     ],
+     "relations": [],
+     "inherited_from": null,
+     "sections": {
+      "technique": "Fine-tune an off-the-shelf image classifier on a public dataset of labelled diseased-leaf photographs. The app sends the photo to a server, the server returns the top three labels with confidences. Show the top three, not just the best guess, so the gardener can tell when the model is unsure.",
+      "open_questions": [
+       "Do photos taken in a real garden work as well as the clean dataset photos taken against a plain background?",
+       "How should the app behave when the model is unsure about all three guesses?"
+      ],
+      "bad_light_capture": "Evening/low-light photos fail the pipeline as described: a photo too dark to contain visible leaf texture carries no usable signal for any classifier, so the model has nothing to distinguish diseases on and its output would be an arbitrary guess. The fix belongs at capture, not inference:\n\n- Add a luminance check from the phone's exposure meter (or a quick on-device brightness estimate) before upload. Below threshold, block submission with the prompt \"too dark \u2014 turn on flash or move to brighter light\".\n- If the user overrides the block, flag the returned response as \"photo too dark, results unreliable\" rather than presenting it as a diagnosis.\n\nThis also supplies the dark-photo half of the \"unsure\" open question \u2014 dark photos are refused with an instruction instead of guessed at. It does not settle how the app should behave when the model is genuinely uncertain in adequate light. The gate is a proposal, not a tested result: whether flash actually recovers enough leaf texture for classification, and how the threshold should be calibrated across phones, still needs verification."
+     },
+     "section_order": [
+      "technique",
+      "open_questions",
+      "bad_light_capture"
+     ],
+     "evaluation": {
+      "novelty": null,
+      "feasibility": null,
+      "significance": null
+     },
+     "provenance": [],
+     "origin": null,
+     "runs": [
+      {
+       "run_id": "run_93303cec",
+       "session_id": null,
+       "timestamp": "2026-08-23T12:47:35Z",
+       "header": {
+        "mode": "refinement",
+        "width": 2,
+        "depth": 1,
+        "model": "reasoner",
+        "agent_styles": [
+         "neutral"
+        ],
+        "context_ids": [
+         "user_input"
+        ],
+        "triggering_action": "session sess_2494ec02",
+        "tool_use": false,
+        "task": "Does this still work if the gardener takes the photo in the evening, in bad light?"
+       },
+       "nodes": [
+        {
+         "node_id": "run_93303cec:n0",
+         "parent_id": null,
+         "text": "# Leaf-photo plant disease check for home gardeners\n_Let a gardener photograph a sick leaf with their phone and get told which disease it probably is._\n\n## the problem it addresses\nHome gardeners cannot tell plant diseases apart, so they either do nothing or spray the wrong treatment.\n\n## description\nA phone app where the gardener photographs a leaf that looks wrong. An image classifier trained on labelled photographs of diseased leaves returns the three most likely diseases with a confidence for each, plus a short description of what to do about the top one. The claim is that most common garden diseases are visually distinctive enough that a phone photo is sufficient, so no lab test or expert is needed for the everyday cases.\n\n## addresses gaps\ngap_demo01\n\n## technique\nFine-tune an off-the-shelf image classifier on a public dataset of labelled diseased-leaf photographs. The app sends the photo to a server, the server returns the top three labels with confidences. Show the top three, not just the best guess, so the gardener can tell when the model is unsure.\n\n## open_questions\n- Do photos taken in a real garden work as well as the clean dataset photos taken against a plain background?\n- How should the app behave when the model is unsure about all three guesses?",
+         "style": "-",
+         "score": null,
+         "status": "kept",
+         "depth": 0,
+         "kind": "root",
+         "title": "Leaf-photo plant disease check for home gardeners",
+         "comparison": "",
+         "question": null,
+         "sources": []
+        },
+        {
+         "node_id": "run_93303cec:n1",
+         "parent_id": "run_93303cec:n0",
+         "text": "The classifier is fine-tuned on clean, bright dataset photos, so evening light is a distribution shift that the model has never seen. Extend the existing fine-tune pipeline \u2014 no mechanism change \u2014 by adding synthetic low-light augmentation (reduced brightness, ISO-like noise, warm evening colour cast) and prepend a fixed enhancement step such as CLAHE before classification on the server. Evaluate against a held-out set of genuinely dark photos and keep the branch only if the accuracy gap versus daylight stays small; otherwise the honest answer to the question is that evening photos need a capture-side fix.",
+         "style": "neutral",
+         "score": null,
+         "status": "pruned",
+         "depth": 1,
+         "kind": "branch",
+         "title": "Make low light a training-time distribution shift: augment with synthetic dim-light transforms and add a fixed illumination-enhancement preprocessing step.",
+         "comparison": "Loses because it is contingent on an evaluation outcome and explicitly hands the answer to a capture-side fix if the augmentation does not close the accuracy gap \u2014 the branch it should have picked is branch 1.",
+         "question": "Is there any public subset of diseased-leaf photos taken in genuinely low/evening light (or a brightness range broad enough to hold out) on which the augmented model can be measured?",
+         "sources": []
+        },
+        {
+         "node_id": "run_93303cec:n2",
+         "parent_id": "run_93303cec:n0",
+         "text": "A photo too dark to contain visible leaf texture carries no usable signal for any classifier, so the failure belongs at capture, not at inference. Add a luminance check from the phone's exposure meter (or a quick brightness estimate on-device) before upload: below threshold, the app blocks submission and prompts 'too dark \u2014 turn on flash or move to brighter light'. This also supplies the missing behavior for the 'unsure' open question: dark photos are refused with an instruction rather than guessed at, and if the user overrides the block the response is flagged 'photo too dark, results unreliable' instead of presented as a diagnosis.",
+         "style": "neutral",
+         "score": 1.0,
+         "status": "accepted",
+         "depth": 1,
+         "kind": "branch",
+         "title": "Move the fix to capture: an app-side brightness gate and flash guidance, so bad light is prevented before the photo ever reaches the classifier.",
+         "comparison": "Recorded the answer to the low-light question in a new bad_light_capture section (bad-light photos carry no usable signal; the surviving fix is a capture-side brightness gate that blocks or flags dark photos). This was a question, so the spine was left untouched and the gate is recorded as a recommendation in proposed_changes rather than adopted.",
+         "question": "Does the phone camera API expose a reliable exposure/luminance value on-device without adding an extra brightness-estimation model?",
+         "sources": []
+        }
+       ],
+       "edges": [
+        {
+         "from": "run_93303cec:n0",
+         "to": "run_93303cec:n1",
+         "type": "expanded-into"
+        },
+        {
+         "from": "run_93303cec:n0",
+         "to": "run_93303cec:n2",
+         "type": "expanded-into"
+        }
+       ],
+       "outcome": {
+        "accepted_node": "run_93303cec:n2",
+        "escalation": null,
+        "truncated": false,
+        "escalation_node": null,
+        "escalation_diagnosis": "",
+        "status": "completed",
+        "reason": "reached the requested depth 1",
+        "limit": null,
+        "accepted_nodes": [
+         "run_93303cec:n2"
+        ],
+        "summary": {
+         "objective": "Does this still work if the gardener takes the photo in the evening, in bad light?",
+         "accepted": "Recorded the answer to the low-light question in a new bad_light_capture section (bad-light photos carry no usable signal; the surviving fix is a capture-side brightness gate that blocks or flags dark photos). This was a question, so the spine was left untouched and the gate is recorded as a recommendation in proposed_changes rather than adopted.",
+         "rejected": "Make low light a training-time distribution shift: augment with synthetic dim-light transforms and add a fixed illumination-enhancement preprocessing step.: Loses because it is contingent on an evaluation outcome and explicitly hands the answer to a capture-side fix if the augmentation does not close the accuracy gap \u2014 the branch it should have picked is branch 1.",
+         "open": []
+        },
+        "answer": "No \u2014 in bad light the pipeline as described would fail: a photo too dark to contain visible leaf texture carries no usable signal for any classifier, so the output would be an arbitrary guess presented as a diagnosis. The surviving reasoning moves the fix to capture rather than inference: an app-side brightness gate (from the phone's exposure meter or a quick on-device estimate) blocks submission below a threshold and prompts \"too dark \u2014 turn on flash or move to brighter light\", and if the user overrides the block, the result is flagged \"photo too dark, results unreliable\" instead of being presented as a diagnosis. That also supplies the dark-photo half of the \"unsure\" open question \u2014 dark photos are refused with an instruction rather than guessed at. This is a proposal, not a tested result: whether flash actually recovers enough leaf texture, and how the threshold should be calibrated across phones, still needs verification.",
+        "proposed_changes": [
+         "technique: Add a capture-side brightness gate before upload: check luminance from the phone's exposure meter (or a quick on-device brightness estimate); below threshold, block submission with the prompt \"too dark \u2014 turn on flash or move to brighter light\", and if the user overrides the block, flag the response as \"photo too dark, results unreliable\" instead of presenting it as a diagnosis."
+        ]
+       }
+      }
+     ],
+     "created_at": "2026-08-23T09:00:00Z",
+     "updated_at": "2026-08-23T09:00:00Z"
+    },
+    "answer": "No \u2014 in bad light the pipeline as described would fail: a photo too dark to contain visible leaf texture carries no usable signal for any classifier, so the output would be an arbitrary guess presented as a diagnosis. The surviving reasoning moves the fix to capture rather than inference: an app-side brightness gate (from the phone's exposure meter or a quick on-device estimate) blocks submission below a threshold and prompts \"too dark \u2014 turn on flash or move to brighter light\", and if the user overrides the block, the result is flagged \"photo too dark, results unreliable\" instead of being presented as a diagnosis. That also supplies the dark-photo half of the \"unsure\" open question \u2014 dark photos are refused with an instruction rather than guessed at. This is a proposal, not a tested result: whether flash actually recovers enough leaf texture, and how the threshold should be calibrated across phones, still needs verification.",
+    "drafts": [],
+    "suggested_operations": [],
+    "proposed_changes": [
+     {
+      "target": "technique",
+      "change": "Add a capture-side brightness gate before upload: check luminance from the phone's exposure meter (or a quick on-device brightness estimate); below threshold, block submission with the prompt \"too dark \u2014 turn on flash or move to brighter light\", and if the user overrides the block, flag the response as \"photo too dark, results unreliable\" instead of presenting it as a diagnosis.",
+      "reason": "The run found that low-light photos carry no usable texture signal for the classifier, so bad-light failures belong at capture; the gate also supplies the dark-photo half of the \"unsure\" open question."
+     }
+    ],
+    "questions": [],
+    "status": "completed",
+    "status_reason": "reached the requested depth 1",
+    "limit": null,
+    "metrics": {
+     "llm_calls": 3,
+     "investigations": 0,
+     "tokens": 0,
+     "duration_s": 77.652,
+     "nodes": 3,
+     "mean_pairwise_distance": 0.9206,
+     "cluster_count": 3
+    },
+    "run_id": "run_93303cec"
+   }
+  }
+ ],
+ "context": [],
+ "touched": []
+}

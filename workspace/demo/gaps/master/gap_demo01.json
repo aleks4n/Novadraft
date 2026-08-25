@@ -1,0 +1,10 @@
+{
+  "gap_id": "gap_demo01",
+  "status": "validated",
+  "title": "Home gardeners have no way to identify plant diseases",
+  "description": "Identifying a plant disease normally needs an expert or a lab test. Home gardeners have neither, so they guess, and a wrong guess means the wrong treatment or none at all.",
+  "type": "limitation",
+  "canonical_description": "home gardeners cannot identify plant diseases without an expert",
+  "evidence": [],
+  "extracted_at": "2026-08-23T14:00:00Z"
+}

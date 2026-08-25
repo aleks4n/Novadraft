@@ -8,10 +8,12 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import type { ReactNode } from "react";
 import {
   api, cancelRun as apiCancel, deleteRun as apiDelete, restartRun as apiRestart,
-  followRun, listRuns, resumeGap, resumePaperGaps, runIdeaAgent, runPaperAgent,
-  uploadPaperSource,
+  followRun, listRuns, patchIdea, resumeGap, resumePaperGaps, runIdeaAgent,
+  runPaperAgent, sessionApi, uploadPaperSource,
 } from "./api";
-import type { Nav, RunEvent, RunMeta, RunState, TopicBundle, TopicMeta } from "./types";
+import type {
+  Idea, Nav, RunEvent, RunMeta, RunState, SessionSummary, TopicBundle, TopicMeta,
+} from "./types";
 
 interface WorkspaceCtx {
   topics: TopicMeta[];
@@ -22,6 +24,9 @@ interface WorkspaceCtx {
   nav: Nav;
   // Every tracked run of this topic, oldest first. Multiple can be "running".
   runs: RunState[];
+  // The topic's ideation sessions, newest first (list rows only — a session's
+  // transcript is loaded by the session view itself).
+  sessions: SessionSummary[];
   setActiveSlug: (slug: string) => void;
   setNav: (nav: Nav) => void;
   refresh: () => Promise<void>;
@@ -43,6 +48,20 @@ interface WorkspaceCtx {
   isCancelling: (runId: string) => boolean;
   // Attach a user-supplied source to a stalled paper, then resume its pipeline.
   uploadSource: (paperId: string, file: File, resumeQuery: string) => Promise<void>;
+
+  // --- sessions ---------------------------------------------------------------
+  refreshSessions: () => Promise<void>;
+  // Resolves with the new session's id so the caller can navigate into it.
+  createSession: (title?: string, context?: { kind: string; id: string }[]) => Promise<string | null>;
+  renameSession: (id: string, title: string) => Promise<void>;
+  deleteSession: (id: string) => Promise<void>;
+  // Follow one run and resolve when its stream closes — the session chat awaits
+  // this to land the envelope on the transcript.
+  attachRun: (runId: string) => void;
+  // A hand edit to an idea (spine + open sections); refreshes the bundle.
+  updateIdea: (ideaId: string, patch: Parameters<typeof patchIdea>[2]) => Promise<Idea | null>;
+  // One idea with its `runs[]` — the bundle carries the spine only.
+  loadIdea: (ideaId: string) => Promise<Idea | null>;
 }
 
 const Ctx = createContext<WorkspaceCtx | null>(null);
@@ -69,6 +88,8 @@ function metaToState(meta: RunMeta, events: RunEvent[] = []): RunState {
     resultIdeaIds: meta.result_idea_ids ?? [],
     candidates: meta.candidates ?? [],
     target: meta.target ?? null,
+    sessionId: meta.session_id ?? null,
+    envelope: meta.envelope ?? null,
     note: meta.note ?? null,
   };
 }
@@ -80,6 +101,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [nav, setNav] = useState<Nav>({ view: "topic", id: null });
   const [runs, setRuns] = useState<RunState[]>([]);
+  const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [cancelling, setCancelling] = useState<Set<string>>(new Set());
   const slugRef = useRef<string | null>(null);
   const attachedRef = useRef<Set<string>>(new Set());   // run ids with a live event stream
@@ -189,12 +211,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     for (const m of metas) if (m.status === "running") attach(slug, m.run_id);
   }, [attach]);
 
-  // Load bundle + runs whenever the active topic changes.
+  const refreshSessions = useCallback(async () => {
+    const slug = slugRef.current;
+    if (!slug) return;
+    try { setSessions(await sessionApi.list(slug)); } catch { setSessions([]); }
+  }, []);
+
+  // Load bundle + runs + sessions whenever the active topic changes.
   useEffect(() => {
     if (!activeSlug) return;
     loadBundle(activeSlug);
     syncRuns(activeSlug);
-  }, [activeSlug, loadBundle, syncRuns]);
+    refreshSessions();
+  }, [activeSlug, loadBundle, syncRuns, refreshSessions]);
 
   // While any run is live, poll the KB (intermediate results appear as they
   // land) and the runs list (statuses flip, streams re-attach after hiccups).
@@ -203,16 +232,18 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (!anyRunning) return;
     const id = setInterval(() => {
       reloadBundle();
+      refreshSessions();
       if (slugRef.current) syncRuns(slugRef.current);
     }, 2500);
     return () => clearInterval(id);
-  }, [anyRunning, reloadBundle, syncRuns]);
+  }, [anyRunning, reloadBundle, refreshSessions, syncRuns]);
 
   const setActiveSlug = useCallback((slug: string) => {
     slugRef.current = slug;
     _setActiveSlug(slug);
     setNav({ view: "topic", id: null });
     setRuns([]);
+    setSessions([]);
   }, []);
 
   // Create a category (the category agent writes its meta.json), add it to the
@@ -336,15 +367,83 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [startPaperRun],
   );
 
+  // --- sessions ---------------------------------------------------------------
+
+  const createSession = useCallback(
+    async (title = "", context: { kind: string; id: string }[] = []): Promise<string | null> => {
+      const slug = slugRef.current;
+      if (!slug) return null;
+      try {
+        const rec = await sessionApi.create(slug, title, context);
+        await refreshSessions();
+        return rec.session_id;
+      } catch (e) {
+        console.error("create session failed:", e);
+        return null;
+      }
+    },
+    [refreshSessions],
+  );
+
+  const renameSession = useCallback(async (id: string, title: string) => {
+    const slug = slugRef.current;
+    if (!slug) return;
+    try { await sessionApi.rename(slug, id, title); } catch (e) { console.error(e); }
+    await refreshSessions();
+  }, [refreshSessions]);
+
+  const deleteSession = useCallback(async (id: string) => {
+    const slug = slugRef.current;
+    if (!slug) return;
+    try { await sessionApi.remove(slug, id); } catch (e) { console.error(e); }
+    await refreshSessions();
+    setNav((n) => (n.view === "session" && n.id === id ? { view: "sessions", id: null } : n));
+  }, [refreshSessions]);
+
+  // Public wrapper over the internal `attach` — the session chat starts its run
+  // through the REST endpoint (which records the turn), then asks the store to
+  // follow it so the run joins the same queue every other run lives in.
+  const attachRun = useCallback((runId: string) => {
+    const slug = slugRef.current;
+    if (!slug) return;
+    syncRuns(slug);
+    attach(slug, runId);
+  }, [attach, syncRuns]);
+
+  // --- ideas ------------------------------------------------------------------
+
+  const updateIdea = useCallback(
+    async (ideaId: string, patch: Parameters<typeof patchIdea>[2]) => {
+      const slug = slugRef.current;
+      if (!slug) return null;
+      try {
+        const idea = await patchIdea(slug, ideaId, patch);
+        await reloadBundle();
+        return idea;
+      } catch (e) {
+        console.error("idea patch failed:", e);
+        return null;
+      }
+    },
+    [reloadBundle],
+  );
+
+  const loadIdea = useCallback(async (ideaId: string) => {
+    const slug = slugRef.current;
+    if (!slug) return null;
+    try { return await api.idea(slug, ideaId); } catch { return null; }
+  }, []);
+
   const active = topics.find((t) => t.slug === activeSlug) || bundle?.meta || null;
 
   return (
     <Ctx.Provider
       value={{
-        topics, activeSlug, active, bundle, loading, nav, runs,
+        topics, activeSlug, active, bundle, loading, nav, runs, sessions,
         setActiveSlug, setNav, refresh, createTopic, startPaperRun, startIdeaRun,
         uploadSource, startGapResume, startPaperGapsResume, cancelRun, restartRun,
-        deleteRun, isCancelling,
+        deleteRun, isCancelling, refreshSessions, createSession, renameSession,
+        deleteSession, attachRun, updateIdea, loadIdea,
       }}
     >
       {children}

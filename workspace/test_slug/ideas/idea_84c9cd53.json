@@ -1,0 +1,192 @@
+{
+  "idea_id": "idea_84c9cd53",
+  "title": "Candidate spectral kernels",
+  "state": "derived",
+  "one_liner": "Apply spectral kernels here.",
+  "description": "Orthogonal random features approximate the compatibility.",
+  "problem": "Apply spectral kernels here.",
+  "addresses": [],
+  "relations": [
+    {
+      "type": "variant-of",
+      "target": "idea_test0001",
+      "rationale": "generated as a variant of Learned corruption schedules for parallel decoding",
+      "run": "run_484021b8"
+    }
+  ],
+  "inherited_from": {
+    "idea_id": "idea_test0001",
+    "upto_run_id": "run_prior"
+  },
+  "sections": {
+    "open_questions": [
+      "Does spectral kernels survive longer outputs?"
+    ],
+    "technique": "Implement spectral kernels; orthogonal random features approximate the compatibility.",
+    "rationale": ""
+  },
+  "section_order": [
+    "open_questions",
+    "technique",
+    "rationale"
+  ],
+  "evaluation": {
+    "novelty": null,
+    "feasibility": null,
+    "significance": null
+  },
+  "provenance": [],
+  "origin": {
+    "run_id": "run_484021b8",
+    "node_id": "run_484021b8:n1",
+    "node_path": [
+      "run_484021b8:n0",
+      "run_484021b8:n1"
+    ],
+    "style": "optimizer",
+    "mode": "generation",
+    "parent_idea_id": "idea_test0001",
+    "suggested": "create-variant",
+    "inherited_from": "idea_test0001",
+    "inherited_upto_run": "run_prior"
+  },
+  "runs": [
+    {
+      "run_id": "run_prior",
+      "session_id": "s_001",
+      "timestamp": "2026-07-02T09:15:00Z",
+      "header": {
+        "mode": "refinement",
+        "width": 3,
+        "depth": 2,
+        "model": "",
+        "agent_styles": [
+          "neutral"
+        ],
+        "context_ids": [],
+        "triggering_action": "",
+        "tool_use": false,
+        "task": ""
+      },
+      "nodes": [
+        {
+          "node_id": "run_prior:n0",
+          "parent_id": null,
+          "text": "an earlier pruned branch",
+          "style": "neutral",
+          "score": null,
+          "status": "pruned",
+          "depth": 0,
+          "kind": "branch",
+          "title": "",
+          "comparison": "",
+          "question": null,
+          "sources": []
+        }
+      ],
+      "edges": [],
+      "outcome": {
+        "accepted_node": null,
+        "escalation": null,
+        "truncated": false,
+        "escalation_node": null,
+        "escalation_diagnosis": "",
+        "status": "completed",
+        "reason": "",
+        "limit": null,
+        "accepted_nodes": [],
+        "summary": {
+          "objective": "",
+          "accepted": "",
+          "rejected": "",
+          "open": []
+        },
+        "answer": ""
+      }
+    },
+    {
+      "run_id": "run_484021b8",
+      "session_id": null,
+      "timestamp": "2026-08-23T11:13:09Z",
+      "header": {
+        "mode": "generation",
+        "width": 2,
+        "depth": 1,
+        "model": "reasoner",
+        "agent_styles": [
+          "optimizer",
+          "combiner"
+        ],
+        "context_ids": [
+          "gap_0c5b557e",
+          "idea_other"
+        ],
+        "triggering_action": "plan: Variant & Child Split",
+        "tool_use": false,
+        "task": ""
+      },
+      "nodes": [
+        {
+          "node_id": "run_484021b8:n0",
+          "parent_id": null,
+          "text": "# Learned corruption schedules for parallel decoding\n_Learn the masking schedule instead of fixing it._\n\n## description\nAn existing idea with one earlier run on record.\n\n**addresses gaps:** gap_0c5b557e\n\n## open_questions\n- Does the learned schedule beat a fixed one?",
+          "style": "-",
+          "score": null,
+          "status": "kept",
+          "depth": 0,
+          "kind": "root",
+          "title": "Learned corruption schedules for parallel decoding",
+          "comparison": "",
+          "question": null,
+          "sources": []
+        },
+        {
+          "node_id": "run_484021b8:n1",
+          "parent_id": "run_484021b8:n0",
+          "text": "Candidate spectral kernels\nApply spectral kernels here.\nOrthogonal random features approximate the compatibility.\nImplement spectral kernels; orthogonal random features approximate the compatibility.",
+          "style": "optimizer",
+          "score": 0.6737,
+          "status": "accepted",
+          "depth": 1,
+          "kind": "candidate",
+          "title": "Candidate spectral kernels",
+          "comparison": "rank 1/2",
+          "question": null,
+          "sources": []
+        }
+      ],
+      "edges": [
+        {
+          "from": "run_484021b8:n0",
+          "to": "run_484021b8:n1",
+          "type": "expanded-into"
+        }
+      ],
+      "outcome": {
+        "accepted_node": "run_484021b8:n1",
+        "escalation": null,
+        "truncated": false,
+        "escalation_node": null,
+        "escalation_diagnosis": "",
+        "status": "completed",
+        "reason": "2 candidates survived deduplication",
+        "limit": null,
+        "accepted_nodes": [
+          "run_484021b8:n1"
+        ],
+        "summary": {
+          "objective": "generate candidate variants of Learned corruption schedules for parallel decoding",
+          "accepted": "carved from run_484021b8 on acceptance: Candidate spectral kernels; Candidate curriculum masking",
+          "rejected": "",
+          "open": [
+            "Does spectral kernels survive longer outputs?",
+            "Does curriculum masking survive longer outputs?"
+          ]
+        },
+        "answer": ""
+      }
+    }
+  ],
+  "created_at": "2026-08-23T11:13:09Z",
+  "updated_at": "2026-08-23T11:13:09Z"
+}

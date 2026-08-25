@@ -29,3 +29,9 @@ packages = ["src"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+# `live` tests hit a real model over the network. They are deselected by default
+# so the suite runs offline; run them with `pytest -m live`.
+addopts = "-m 'not live'"
+markers = [
+    "live: makes real LLM/network calls (deselected by default)",
+]

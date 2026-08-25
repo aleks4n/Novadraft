@@ -1,0 +1,394 @@
+{
+ "session_id": "sess_ead7d351",
+ "category_slug": "generative_adversarial_network",
+ "title": "Propose 3 ideas to solve both gaps/problems",
+ "created_at": "2026-08-21T08:50:04Z",
+ "updated_at": "2026-08-21T08:55:34Z",
+ "messages": [
+  {
+   "id": "msg_4be1fd00",
+   "role": "user",
+   "text": "Propose 3 ideas to solve both gaps/problems",
+   "at": "2026-08-21T08:50:04Z",
+   "context": [
+    {
+     "kind": "gap",
+     "id": "gap_4ec20593",
+     "label": "Remaining model instability causes filter collapse",
+     "digest": "The paper states there are still some forms of model instability remaining: as models are trained longer they sometimes collapse a subset of filters to a single oscillating mode. Further work is needed.",
+     "at": "2026-08-21T08:50:04Z"
+    },
+    {
+     "kind": "gap",
+     "id": "gap_09d1e3fa",
+     "label": "KL and JS divergences unsuitable for low-dimensional manifolds",
+     "digest": "The paper states that KL, JS, and TV distances are not sensible cost functions when learning distributions supported by low-dimensional manifolds, as they are not defined or are infinite when supports do not have a non-negligible intersection.",
+     "at": "2026-08-21T08:50:04Z"
+    }
+   ],
+   "run_id": "20260821_105004_propose-3-ideas-to-solve-both-gaps-probl",
+   "settings": {
+    "mode": "generation",
+    "ideaId": null,
+    "width": 3,
+    "depth": 3,
+    "styles": [
+     "skeptic",
+     "combiner",
+     "neutral"
+    ],
+    "toolUse": false
+   }
+  },
+  {
+   "id": "msg_92f474c5",
+   "role": "agent",
+   "text": "",
+   "at": "2026-08-21T08:51:32Z",
+   "run_id": "20260821_105004_propose-3-ideas-to-solve-both-gaps-probl",
+   "envelope": {
+    "idea": {
+     "idea_id": null,
+     "title": "",
+     "state": "provisional",
+     "one_liner": "",
+     "description": "",
+     "problem": "",
+     "addresses": [],
+     "relations": [],
+     "inherited_from": null,
+     "sections": {},
+     "section_order": [],
+     "evaluation": {
+      "novelty": null,
+      "feasibility": null,
+      "significance": null
+     },
+     "provenance": [],
+     "origin": null,
+     "runs": [
+      {
+       "run_id": "run_9472281b",
+       "session_id": null,
+       "timestamp": "2026-08-21T08:50:04Z",
+       "header": {
+        "mode": "generation",
+        "width": 3,
+        "depth": 1,
+        "model": "reasoner",
+        "agent_styles": [
+         "skeptic",
+         "combiner",
+         "neutral"
+        ],
+        "context_ids": [
+         "gap_4ec20593",
+         "gap_09d1e3fa",
+         "user_input"
+        ],
+        "triggering_action": "session sess_ead7d351",
+        "tool_use": false,
+        "task": "Propose 3 ideas to solve both gaps/problems"
+       },
+       "nodes": [
+        {
+         "node_id": "run_9472281b:n0",
+         "parent_id": null,
+         "text": "# (untitled idea)",
+         "style": "-",
+         "score": null,
+         "status": "kept",
+         "depth": 0,
+         "kind": "root",
+         "title": "(brief)",
+         "comparison": "",
+         "question": null,
+         "sources": []
+        },
+        {
+         "node_id": "run_9472281b:n1",
+         "parent_id": "run_9472281b:n0",
+         "text": "The oscillation is the message: per-filter support tracking instead of a global divergence\nFilter collapse is not a leftover dynamics bug to regularize after fixing the loss \u2014 it is the generator discovering the region where the global JS/KL objective degenerates on low-dimensional supports, so the fix is per-filter, empirically finite training signals, not another divergence.\nThe paper's two gaps are one gap. The load-bearing assumption is that the right training signal is a single global divergence between two full distributions, and that the remaining collapse is an independent dynamics problem to be regularized away once the divergence is fixed. But the remaining collapse appears exactly where the global divergence goes degenerate on low-dimensional supports: a subset of filters stops receiving informative gradient, and their dynamics are then governed by residual optimizer noise, which shows up as oscillation. Instead of swapping in yet another globally-defined distance, drop the global scalar: give each filter a training signal that is locally defined and always finite because it is computed on the actual samples (k-NN style) rather than on assumed densities. The inversion is that oscillation is not a failure to suppress \u2014 it is the per-filter signature of support non-overlap, so the same mechanism that addresses gap B also diagnoses and stops gap A. Validation stops where the paper's method still collapses after long training; that is precisely the regime where the assumption must be dropped.\nFor each discriminator filter f, collect activation vectors on the real batch and the fake batch, and define a per-filter cost as the mean k-th-nearest-neighbor distance from fake activations to real activations \u2014 an empirical quantity that is finite even when the two supports are disjoint low-dimensional manifolds. The discriminator maximizes the sum of per-filter costs and the generator minimizes it, replacing the single global divergence. A support-collapse monitor tracks, per filter, the nearest-neighbor cost over time together with the periodicity of the filter's activations (autocorrelation peak at lag > 1); a filter whose cost is growing while its activations become periodic is flagged as collapsed, and its input weights are frozen or re-seeded instead of being left to oscillate. Compare against a WGAN-GP / spectral-normalization baseline on a setup where partial filter collapse is observed only after long training, and test whether per-filter costs stop the collapse earlier.",
+         "style": "skeptic",
+         "score": 0.678,
+         "status": "kept",
+         "depth": 1,
+         "kind": "candidate",
+         "title": "The oscillation is the message: per-filter support tracking instead of a global divergence",
+         "comparison": "rank 2/3",
+         "question": null,
+         "sources": []
+        },
+        {
+         "node_id": "run_9472281b:n2",
+         "parent_id": "run_9472281b:n0",
+         "text": "SlowCritic-WGAN: an EMA-gated temporal damper on a Wasserstein critic\nFuse WGAN-GP with a Mean-Teacher-style EMA critic as a gated temporal damper, so the Wasserstein loss fixes the disjoint-support geometry while a slow target suppresses the long-horizon oscillation that collapses critic filters.\nThe two methods are WGAN-GP (Gulrajani et al. 2017) and Mean-Teacher-style EMA targets (Tarvainen & Valpola 2017). WGAN-GP contributes a loss that is finite and continuous on disjoint low-dimensional supports \u2014 fixing gap 2 \u2014 but it constrains the critic only pointwise in time, so over long training the critic develops an oscillating mode and its filters collapse (gap 1). The EMA critic contributes a slow-moving target that penalizes fast oscillation \u2014 fixing gap 1 \u2014 but it has no metric of its own on disjoint supports, so alone it cannot train a generator. The composition is a gate: a temporal-consistency term ||(f_t(x) \u2212 \u03bc_t) \u2212 (f\u0304(x) \u2212 \u03bc\u0304)||\u00b2 is added to the WGAN-GP objective but fires only on filters whose running activation autocorrelation is negative (period-2 oscillation) or whose pairwise similarity is high (collapse); when nothing is detected, the only cost is EMA bookkeeping. Naive stacking breaks twice, and the fixes are the contribution: the KR-dual critic is invariant to a constant shift, so the consistency term must be centered on running means, and the fake-data distribution drifts as the generator improves, so the EMA target must be evaluated on a fixed real anchor batch rather than on live fake samples.\nBuild a standard WGAN-GP conv critic plus a weight-EMA copy f\u0304 (momentum \u22480.999), like Mean Teacher. Train with L = L_WGAN-GP + \u03bb_t \u03a3_i g_i ||(f_t(x) \u2212 \u03bc_t) \u2212 (f\u0304(x) \u2212 \u03bc\u0304)||\u00b2, where g_i is a per-filter 0/1 gate. Gate detection: maintain a running buffer of each critic filter's activations over the last K steps; turn g_i on if the lag-1 autocorrelation is strongly negative or if the cosine similarity between filters in the layer exceeds a threshold. Evaluate the consistency term on a held-out real anchor batch plus the current real batch \u2014 not on fake samples \u2014 to avoid penalizing the generator's legitimate drift, and center by subtracting running means to respect KR shift invariance. Measure the gap's own metric (count of collapsed/oscillating filters per layer over training time) alongside the Wasserstein estimate and FID; ablate WGAN-GP alone, ungated temporal penalty, gated SlowCritic-WGAN, and SN-GAN as the obvious alternative pairing.",
+         "style": "combiner",
+         "score": 0.7,
+         "status": "kept",
+         "depth": 1,
+         "kind": "candidate",
+         "title": "SlowCritic-WGAN: an EMA-gated temporal damper on a Wasserstein critic",
+         "comparison": "rank 1/3",
+         "question": null,
+         "sources": []
+        },
+        {
+         "node_id": "run_9472281b:n3",
+         "parent_id": "run_9472281b:n0",
+         "text": "FilterBank Sinkhorn: entropic OT over the joint (image, activation) distribution\nTrain with Sinkhorn divergence on the joint distribution of images and per-layer filter activations, so the cost stays finite on low-dimensional manifolds and directly penalizes a subset of filters collapsing into one oscillating mode.\nAugment every sample with its per-layer, per-channel activation statistics and define the training cost as the Sinkhorn (entropy-regularized optimal transport) divergence between the generator's and target's distributions over this joint (image, activation) space. Sinkhorn divergence is defined and differentiable for any pair of measures \u2014 including distributions supported on low-dimensional manifolds with negligible intersection \u2014 so it removes the KL/JS/TV blow-up named in the gap, and its entropy blur keeps gradients non-vanishing as supports separate. Because the cost is a function of the joint activation distribution, a filter that collapses to a single oscillating mode creates a degenerate low-rank direction in the generator's feature distribution that the target does not have; the divergence then increases and its gradient flows specifically to that filter to re-diversify it. This differs from existing feature matching, which compares only means and cannot see subset collapse, and from image-only divergences, which cannot attribute collapse to particular filters; it extends rather than replaces the paper's own divergence by evaluating the same cost in activation space.\nKeep the existing generator/discriminator. Add a feature extractor \u2014 either the discriminator's conv blocks or a frozen pre-trained net \u2014 and per layer global-average-pool each channel so every sample x maps to a fixed-length vector f(x) = (f_1(x), \u2026, f_L(x)). Train with L = Sinkhorn_\u03b5(P_gen^(joint), P_target^(joint)) on minibatches using debiased Sinkhorn iterations with a Gaussian kernel and an annealed entropy \u03b5 (optionally adding the paper's image-level cost). To test the gap-1 claim, run long training schedules and log per-filter oscillation amplitude across checkpoints, counting collapsed filters via clustering / effective rank of the activation covariance; compare against image-only divergence, mean-only feature matching, WGAN-GP, and MMD-GAN on FID, mode coverage, and # collapsed filters vs. training time. Validate the gap-2 claim on a toy task with two low-dim manifolds of negligible intersection where KL/JS/TV fail but the cost stays finite and gradients remain informative.",
+         "style": "neutral",
+         "score": 0.678,
+         "status": "kept",
+         "depth": 1,
+         "kind": "candidate",
+         "title": "FilterBank Sinkhorn: entropic OT over the joint (image, activation) distribution",
+         "comparison": "rank 3/3",
+         "question": null,
+         "sources": []
+        }
+       ],
+       "edges": [
+        {
+         "from": "run_9472281b:n0",
+         "to": "run_9472281b:n1",
+         "type": "expanded-into"
+        },
+        {
+         "from": "run_9472281b:n0",
+         "to": "run_9472281b:n2",
+         "type": "expanded-into"
+        },
+        {
+         "from": "run_9472281b:n0",
+         "to": "run_9472281b:n3",
+         "type": "expanded-into"
+        }
+       ],
+       "outcome": {
+        "accepted_node": null,
+        "escalation": null,
+        "truncated": false,
+        "escalation_node": null,
+        "escalation_diagnosis": "",
+        "status": "completed",
+        "reason": "3 candidates survived deduplication",
+        "limit": null,
+        "accepted_nodes": [],
+        "summary": {
+         "objective": "Propose 3 ideas to solve both gaps/problems",
+         "accepted": "SlowCritic-WGAN: an EMA-gated temporal damper on a Wasserstein critic; The oscillation is the message: per-filter support tracking instead of a global divergence; FilterBank Sinkhorn: entropic OT over the joint (image, activation) distribution",
+         "rejected": "",
+         "open": [
+          "Which side's filters collapse \u2014 the gap says 'a subset of filters' without naming the model; if the collapse is in the generator, the damper must move into the generator update and the composition changes.",
+          "Does damping the critic make it lag behind a fast-improving generator, and is a lag-1 autocorrelation detector sufficient to catch slower or aperiodic oscillatory modes?",
+          "Is a weight-EMA copy the right slow target, or should the target be an EMA of critic outputs on fixed anchors, since weight-space averaging across modes is not obviously equivalent to output-space smoothing?",
+          "How sensitive is the result to \u03bb_t and gate hysteresis \u2014 too strong a damper could drive the critic toward a constant function and destroy the Wasserstein signal.",
+          "Are the original GAN paper's 'oscillating mode' failure and WGAN-GP's known oscillatory training the same phenomenon, or two different instabilities?"
+         ]
+        },
+        "answer": ""
+       }
+      }
+     ],
+     "created_at": "",
+     "updated_at": ""
+    },
+    "answer": "",
+    "drafts": [
+     {
+      "idea_id": null,
+      "title": "SlowCritic-WGAN: an EMA-gated temporal damper on a Wasserstein critic",
+      "state": "provisional",
+      "one_liner": "Fuse WGAN-GP with a Mean-Teacher-style EMA critic as a gated temporal damper, so the Wasserstein loss fixes the disjoint-support geometry while a slow target suppresses the long-horizon oscillation that collapses critic filters.",
+      "description": "The two methods are WGAN-GP (Gulrajani et al. 2017) and Mean-Teacher-style EMA targets (Tarvainen & Valpola 2017). WGAN-GP contributes a loss that is finite and continuous on disjoint low-dimensional supports \u2014 fixing gap 2 \u2014 but it constrains the critic only pointwise in time, so over long training the critic develops an oscillating mode and its filters collapse (gap 1). The EMA critic contributes a slow-moving target that penalizes fast oscillation \u2014 fixing gap 1 \u2014 but it has no metric of its own on disjoint supports, so alone it cannot train a generator. The composition is a gate: a temporal-consistency term ||(f_t(x) \u2212 \u03bc_t) \u2212 (f\u0304(x) \u2212 \u03bc\u0304)||\u00b2 is added to the WGAN-GP objective but fires only on filters whose running activation autocorrelation is negative (period-2 oscillation) or whose pairwise similarity is high (collapse); when nothing is detected, the only cost is EMA bookkeeping. Naive stacking breaks twice, and the fixes are the contribution: the KR-dual critic is invariant to a constant shift, so the consistency term must be centered on running means, and the fake-data distribution drifts as the generator improves, so the EMA target must be evaluated on a fixed real anchor batch rather than on live fake samples.",
+      "problem": "",
+      "addresses": [
+       "gap_4ec20593",
+       "gap_09d1e3fa"
+      ],
+      "relations": [],
+      "inherited_from": null,
+      "sections": {
+       "technique": "Build a standard WGAN-GP conv critic plus a weight-EMA copy f\u0304 (momentum \u22480.999), like Mean Teacher. Train with L = L_WGAN-GP + \u03bb_t \u03a3_i g_i ||(f_t(x) \u2212 \u03bc_t) \u2212 (f\u0304(x) \u2212 \u03bc\u0304)||\u00b2, where g_i is a per-filter 0/1 gate. Gate detection: maintain a running buffer of each critic filter's activations over the last K steps; turn g_i on if the lag-1 autocorrelation is strongly negative or if the cosine similarity between filters in the layer exceeds a threshold. Evaluate the consistency term on a held-out real anchor batch plus the current real batch \u2014 not on fake samples \u2014 to avoid penalizing the generator's legitimate drift, and center by subtracting running means to respect KR shift invariance. Measure the gap's own metric (count of collapsed/oscillating filters per layer over training time) alongside the Wasserstein estimate and FID; ablate WGAN-GP alone, ungated temporal penalty, gated SlowCritic-WGAN, and SN-GAN as the obvious alternative pairing.",
+       "open_questions": [
+        "Which side's filters collapse \u2014 the gap says 'a subset of filters' without naming the model; if the collapse is in the generator, the damper must move into the generator update and the composition changes.",
+        "Does damping the critic make it lag behind a fast-improving generator, and is a lag-1 autocorrelation detector sufficient to catch slower or aperiodic oscillatory modes?",
+        "Is a weight-EMA copy the right slow target, or should the target be an EMA of critic outputs on fixed anchors, since weight-space averaging across modes is not obviously equivalent to output-space smoothing?",
+        "How sensitive is the result to \u03bb_t and gate hysteresis \u2014 too strong a damper could drive the critic toward a constant function and destroy the Wasserstein signal.",
+        "Are the original GAN paper's 'oscillating mode' failure and WGAN-GP's known oscillatory training the same phenomenon, or two different instabilities?"
+       ],
+       "rationale": "Combiner stance: I name two methods explicitly and each supplies what the other lacks \u2014 WGAN-GP gives a defined, continuous geometry on disjoint low-dim supports (gap 2) but is pointwise in time, and EMA/temporal ensembling damps temporal oscillation (gap 1) but has no intrinsic metric. The composition is one-as-a-gate: the temporal damper engages only on detected oscillatory/collapsed filters, which is the efficiency argument \u2014 no per-layer SVD as in spectral normalization, no extra network, near-zero cost during healthy training. The interface is where naive stacking fails (KR shift invariance and drifting fake distribution), and fixing that interface is the actual contribution, not the stacking itself. Unverified claims: that no one has applied EMA-discriminator temporal consistency, gated on detected oscillating filters, on top of WGAN (CR-GAN's consistency is spatial/augmentation-based, and StyleGAN's EMA is generator-side and evaluation-only); and that the gap's oscillating-mode collapse is critic-side rather than generator-side."
+      },
+      "section_order": [
+       "technique",
+       "open_questions",
+       "rationale"
+      ],
+      "evaluation": {
+       "novelty": null,
+       "feasibility": null,
+       "significance": null
+      },
+      "provenance": [],
+      "origin": {
+       "run_id": "run_9472281b",
+       "node_id": "run_9472281b:n2",
+       "node_path": [
+        "run_9472281b:n0",
+        "run_9472281b:n2"
+       ],
+       "style": "combiner",
+       "mode": "generation",
+       "parent_idea_id": null,
+       "suggested": null,
+       "inherited_from": null,
+       "inherited_upto_run": null
+      },
+      "runs": [],
+      "created_at": "",
+      "updated_at": ""
+     },
+     {
+      "idea_id": null,
+      "title": "The oscillation is the message: per-filter support tracking instead of a global divergence",
+      "state": "provisional",
+      "one_liner": "Filter collapse is not a leftover dynamics bug to regularize after fixing the loss \u2014 it is the generator discovering the region where the global JS/KL objective degenerates on low-dimensional supports, so the fix is per-filter, empirically finite training signals, not another divergence.",
+      "description": "The paper's two gaps are one gap. The load-bearing assumption is that the right training signal is a single global divergence between two full distributions, and that the remaining collapse is an independent dynamics problem to be regularized away once the divergence is fixed. But the remaining collapse appears exactly where the global divergence goes degenerate on low-dimensional supports: a subset of filters stops receiving informative gradient, and their dynamics are then governed by residual optimizer noise, which shows up as oscillation. Instead of swapping in yet another globally-defined distance, drop the global scalar: give each filter a training signal that is locally defined and always finite because it is computed on the actual samples (k-NN style) rather than on assumed densities. The inversion is that oscillation is not a failure to suppress \u2014 it is the per-filter signature of support non-overlap, so the same mechanism that addresses gap B also diagnoses and stops gap A. Validation stops where the paper's method still collapses after long training; that is precisely the regime where the assumption must be dropped.",
+      "problem": "",
+      "addresses": [
+       "gap_4ec20593",
+       "gap_09d1e3fa"
+      ],
+      "relations": [],
+      "inherited_from": null,
+      "sections": {
+       "technique": "For each discriminator filter f, collect activation vectors on the real batch and the fake batch, and define a per-filter cost as the mean k-th-nearest-neighbor distance from fake activations to real activations \u2014 an empirical quantity that is finite even when the two supports are disjoint low-dimensional manifolds. The discriminator maximizes the sum of per-filter costs and the generator minimizes it, replacing the single global divergence. A support-collapse monitor tracks, per filter, the nearest-neighbor cost over time together with the periodicity of the filter's activations (autocorrelation peak at lag > 1); a filter whose cost is growing while its activations become periodic is flagged as collapsed, and its input weights are frozen or re-seeded instead of being left to oscillate. Compare against a WGAN-GP / spectral-normalization baseline on a setup where partial filter collapse is observed only after long training, and test whether per-filter costs stop the collapse earlier.",
+       "open_questions": [
+        "Is the oscillation actually driven by degenerate/vanishing gradient in non-overlapping regions, or by adversarial feedback loops that produce limit cycles even with fully informative gradients \u2014 if the latter, the per-filter fix will not stop it. k-NN is not differentiable; does a soft nearest-neighbor surrogate preserve the finite-on-low-dimensional-manifolds property while training stably? Which network's filters collapse \u2014 the discriminator's, the generator's, or both \u2014 and does the monitor need to be placed differently depending on which? Does freezing or re-seeding a collapsed filter destabilize the surviving filters, i.e., is collapse contagious?"
+       ],
+       "rationale": "My stance: the field treats gap B as a loss-design problem (pick a divergence defined on disjoint supports, e.g. Wasserstein) and gap A as a leftover dynamics problem (regularize or renormalize), and the load-bearing premise is that a single global scalar divergence is the right unit of training signal. I relax that premise by making the signal per-filter and empirically finite, and I invert the direction of explanation: oscillation is not the thing to suppress, it is the observable signature of the low-dimensional-support degeneracy, so one mechanism addresses both gaps. This is not a dismissal of WGAN \u2014 it identifies the one premise (global scalar loss) doing the work and shows what becomes possible once it is dropped: collapse can be detected and stopped per filter before it spreads, using the instability itself as signal. Unverified claims: that the observed oscillating collapse is specifically caused by degenerate gradients in non-overlapping regions, and that per-filter k-NN costs remain trainable at scale; both are hypotheses the experiment would test, not facts I have established."
+      },
+      "section_order": [
+       "technique",
+       "open_questions",
+       "rationale"
+      ],
+      "evaluation": {
+       "novelty": null,
+       "feasibility": null,
+       "significance": null
+      },
+      "provenance": [],
+      "origin": {
+       "run_id": "run_9472281b",
+       "node_id": "run_9472281b:n1",
+       "node_path": [
+        "run_9472281b:n0",
+        "run_9472281b:n1"
+       ],
+       "style": "skeptic",
+       "mode": "generation",
+       "parent_idea_id": null,
+       "suggested": null,
+       "inherited_from": null,
+       "inherited_upto_run": null
+      },
+      "runs": [],
+      "created_at": "",
+      "updated_at": ""
+     },
+     {
+      "idea_id": null,
+      "title": "FilterBank Sinkhorn: entropic OT over the joint (image, activation) distribution",
+      "state": "provisional",
+      "one_liner": "Train with Sinkhorn divergence on the joint distribution of images and per-layer filter activations, so the cost stays finite on low-dimensional manifolds and directly penalizes a subset of filters collapsing into one oscillating mode.",
+      "description": "Augment every sample with its per-layer, per-channel activation statistics and define the training cost as the Sinkhorn (entropy-regularized optimal transport) divergence between the generator's and target's distributions over this joint (image, activation) space. Sinkhorn divergence is defined and differentiable for any pair of measures \u2014 including distributions supported on low-dimensional manifolds with negligible intersection \u2014 so it removes the KL/JS/TV blow-up named in the gap, and its entropy blur keeps gradients non-vanishing as supports separate. Because the cost is a function of the joint activation distribution, a filter that collapses to a single oscillating mode creates a degenerate low-rank direction in the generator's feature distribution that the target does not have; the divergence then increases and its gradient flows specifically to that filter to re-diversify it. This differs from existing feature matching, which compares only means and cannot see subset collapse, and from image-only divergences, which cannot attribute collapse to particular filters; it extends rather than replaces the paper's own divergence by evaluating the same cost in activation space.",
+      "problem": "",
+      "addresses": [
+       "gap_4ec20593",
+       "gap_09d1e3fa"
+      ],
+      "relations": [],
+      "inherited_from": null,
+      "sections": {
+       "technique": "Keep the existing generator/discriminator. Add a feature extractor \u2014 either the discriminator's conv blocks or a frozen pre-trained net \u2014 and per layer global-average-pool each channel so every sample x maps to a fixed-length vector f(x) = (f_1(x), \u2026, f_L(x)). Train with L = Sinkhorn_\u03b5(P_gen^(joint), P_target^(joint)) on minibatches using debiased Sinkhorn iterations with a Gaussian kernel and an annealed entropy \u03b5 (optionally adding the paper's image-level cost). To test the gap-1 claim, run long training schedules and log per-filter oscillation amplitude across checkpoints, counting collapsed filters via clustering / effective rank of the activation covariance; compare against image-only divergence, mean-only feature matching, WGAN-GP, and MMD-GAN on FID, mode coverage, and # collapsed filters vs. training time. Validate the gap-2 claim on a toy task with two low-dim manifolds of negligible intersection where KL/JS/TV fail but the cost stays finite and gradients remain informative.",
+       "open_questions": [
+        "Which extractor: the jointly-trained discriminator's filters (they can themselves drift or collapse, corrupting the feature coordinates) or a frozen net (whose features may not align with the generator's internal filter decomposition)?",
+        "Minibatch Sinkhorn is a biased estimator of the population divergence; does the bias grow with training length, i.e., exactly in the regime where the late-training instability appears, and does debiasing fix it?",
+        "Is the target's activation distribution genuinely non-degenerate in the coordinates that collapse? If real data is also degenerate there, the penalty would force spurious diversity.",
+        "Is the observed 'oscillating mode' really a per-sample feature-space degeneracy, or a temporal training-dynamics phenomenon that per-sample activation statistics cannot see at all?",
+        "If the paper's own divergence is not an OT-type distance, this extension may not apply \u2014 is keeping the image-level cost alongside the joint cost a second mechanism, and should it be dropped instead?",
+        "What \u03b5 schedule makes the entropy blur small enough to preserve fine-grained image structure but large enough to keep gradients on near-disjoint manifolds?"
+       ],
+       "rationale": "Neutral stance: I took the gaps in the order that blocks progress \u2014 first a cost that is sensible on low-dim manifolds (gap 2), then used that same cost, made filter-aware, to make the remaining instability (gap 1) visible and penalizable. I did not swap the divergence or add a separate regularizer; the proposal deepens the cost by moving it into the space where the instability lives (filter activations), keeping the identity fixed. Unverified: that the underlying model is a divergence-trained convolutional GAN (the context only says 'the paper'); the finiteness and non-vanishing-gradient properties of Sinkhorn divergence for disjoint low-dim supports (standard from Genevay et al. 2018, not in context); that filter collapse to an oscillating mode is detectable as a degeneracy in per-sample activation statistics; and that the target's activation distribution is non-degenerate in the coordinates that collapse."
+      },
+      "section_order": [
+       "technique",
+       "open_questions",
+       "rationale"
+      ],
+      "evaluation": {
+       "novelty": null,
+       "feasibility": null,
+       "significance": null
+      },
+      "provenance": [],
+      "origin": {
+       "run_id": "run_9472281b",
+       "node_id": "run_9472281b:n3",
+       "node_path": [
+        "run_9472281b:n0",
+        "run_9472281b:n3"
+       ],
+       "style": "neutral",
+       "mode": "generation",
+       "parent_idea_id": null,
+       "suggested": null,
+       "inherited_from": null,
+       "inherited_upto_run": null
+      },
+      "runs": [],
+      "created_at": "",
+      "updated_at": ""
+     }
+    ],
+    "suggested_operations": [],
+    "questions": [],
+    "status": "completed",
+    "status_reason": "3 candidates survived deduplication",
+    "limit": null,
+    "metrics": {
+     "llm_calls": 3,
+     "investigations": 0,
+     "tokens": 0,
+     "duration_s": 87.996,
+     "nodes": 4,
+     "mean_pairwise_distance": 0.912,
+     "cluster_count": 4
+    },
+    "run_id": "run_9472281b"
+   }
+  }
+ ],
+ "context": [
+  {
+   "kind": "gap",
+   "id": "gap_4ec20593",
+   "label": "Remaining model instability causes filter collapse",
+   "digest": "The paper states there are still some forms of model instability remaining: as models are trained longer they sometimes collapse a subset of filters to a single oscillating mode. Further work is needed.",
+   "at": "2026-08-21T08:50:04Z"
+  },
+  {
+   "kind": "gap",
+   "id": "gap_09d1e3fa",
+   "label": "KL and JS divergences unsuitable for low-dimensional manifolds",
+   "digest": "The paper states that KL, JS, and TV distances are not sensible cost functions when learning distributions supported by low-dimensional manifolds, as they are not defined or are infinite when supports do not have a non-negligible intersection.",
+   "at": "2026-08-21T08:50:04Z"
+  }
+ ],
+ "touched": [
+  "idea_268d62da",
+  "idea_1272b28c"
+ ]
+}

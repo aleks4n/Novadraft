@@ -1,0 +1,22 @@
+{
+  "idea_id": "idea_demo0001",
+  "title": "Leaf-photo plant disease check for home gardeners",
+  "state": "root",
+  "one_liner": "Let a gardener photograph a sick leaf with their phone and get told which disease it probably is.",
+  "problem": "Home gardeners cannot tell plant diseases apart, so they either do nothing or spray the wrong treatment.",
+  "description": "A phone app where the gardener photographs a leaf that looks wrong. An image classifier trained on labelled photographs of diseased leaves returns the three most likely diseases with a confidence for each, plus a short description of what to do about the top one. The claim is that most common garden diseases are visually distinctive enough that a phone photo is sufficient, so no lab test or expert is needed for the everyday cases.",
+  "addresses": ["gap_demo01"],
+  "relations": [],
+  "sections": {
+    "technique": "Fine-tune an off-the-shelf image classifier on a public dataset of labelled diseased-leaf photographs. The app sends the photo to a server, the server returns the top three labels with confidences. Show the top three, not just the best guess, so the gardener can tell when the model is unsure.",
+    "open_questions": [
+      "Do photos taken in a real garden work as well as the clean dataset photos taken against a plain background?",
+      "How should the app behave when the model is unsure about all three guesses?"
+    ]
+  },
+  "evaluation": {"novelty": null, "feasibility": null, "significance": null},
+  "provenance": [],
+  "runs": [],
+  "created_at": "2026-08-23T09:00:00Z",
+  "updated_at": "2026-08-23T09:00:00Z"
+}

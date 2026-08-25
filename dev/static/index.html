@@ -56,6 +56,53 @@
   #log { overflow: auto; }
   @media (max-width: 900px) { .run-cols { grid-template-columns: 1fr; } }
 
+  /* --- idea panel: thinking tree ---
+     Colour by status and a badge per style are what make a multi-run graph readable;
+     without them run 8 of an idea is a wall of text. */
+  .run-band { border: 1px solid var(--bd); border-radius: 5px; margin-bottom: 10px; }
+  .run-band > header { padding: 6px 8px; background: var(--bg); border-bottom: 1px solid var(--bd);
+                       font-family: var(--mono); font-size: 11px; color: #444; display:block; }
+  .tnode { display: flex; gap: 6px; align-items: baseline; padding: 3px 8px; cursor: pointer;
+           border-left: 3px solid transparent; font-size: 12.5px; }
+  .tnode:hover { background: #f4f7ff; }
+  .tnode.sel { background: #eef3ff; }
+  .tnode .tt { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tnode.kept      { border-left-color: #2f7d32; }
+  .tnode.accepted  { border-left-color: #1565c0; background: #f2f7ff; }
+  .tnode.pruned    { border-left-color: #b0b0b0; color: #888; }
+  .tnode.rejected  { border-left-color: #c62828; color: #955; }
+  .badge { font-family: var(--mono); font-size: 10px; padding: 0 4px; border-radius: 3px;
+           background: #eceff4; color: #445; white-space: nowrap; }
+  .badge.score { background: #e8f0e9; }
+  .badge.q { background: #fff3cd; color: #7a5c00; }
+  .cutoff { padding: 4px 8px; font-family: var(--mono); font-size: 11px; color: #b26a00;
+            border-top: 1px dashed #e0a800; }
+  .escalation { margin: 6px 8px; padding: 6px 8px; border: 1px solid #7a5cff33;
+                border-left: 3px solid #7a5cff; border-radius: 4px; background: #f8f7ff;
+                font-size: 12px; }
+  /* --- review panel: the accept/dismiss demo --- */
+  .cand { display: flex; gap: 8px; align-items: flex-start; padding: 5px 8px; border-radius: 4px;
+          border-left: 3px solid transparent; }
+  .cand:hover { background: #f4f7ff; }
+  .cand.picked { background: #eef7ee; border-left-color: #2f7d32; }
+  .cand.kept { border-left-color: #2f7d32; }
+  .cand.rejected { border-left-color: #c62828; color: #955; }
+  .cand.accepted { border-left-color: #1565c0; }
+  .cand input { width: auto; margin-top: 3px; }
+  .cand .ct { flex: 1; min-width: 0; }
+  .cand .ct b { font-weight: 600; }
+  .cand .cl { font-size: 12px; color: var(--muted); }
+  .card { border: 1px solid var(--bd); border-left: 3px solid #7a5cff; border-radius: 4px;
+          padding: 8px 10px; margin-bottom: 8px; background: #fbfaff; }
+  .card.q { border-left-color: #e0a800; background: #fffdf5; }
+  .card.picked { background: #f2f7ff; border-color: #1565c0; }
+  .card h4 { margin: 0 0 4px; font-size: 12.5px; }
+  .card .why { font-size: 12px; color: #444; }
+  .card .acts { margin-top: 6px; display: flex; gap: 6px; }
+  #node-inspector { margin-top: 10px; border: 1px solid var(--bd); border-radius: 5px; padding: 10px; }
+  #node-inspector dt { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 6px; }
+  #node-inspector dd { margin: 2px 0 0; }
+
   /* --- agent graph (mermaid) with live current-step highlight --- */
   #graph { overflow: auto; border: 1px solid var(--bd); border-radius: 5px; padding: 10px; background: white; }
   #graph svg { max-width: 100%; height: auto; }
@@ -132,6 +179,16 @@
       <select id="name" style="flex:2"></select>
     </div>
 
+    <!-- Ready-made showcase runs, declared in the agent's MANIFEST["examples"].
+         Picking one fetches its dev/fixtures/ file and fills the form below, so
+         the dropdown and `python -m dev.run … --fixture <same file>` are the
+         same run. Hidden for agents that declare no examples. -->
+    <div class="panel" id="examples-panel" style="margin-top:14px; display:none">
+      <h2>Examples</h2>
+      <select id="example" style="width:100%"></select>
+      <div id="example-note" class="meta" style="margin-top:8px; line-height:1.45"></div>
+    </div>
+
     <div class="panel" style="margin-top:14px">
       <h2>Inputs <span id="schema-tag" class="meta"></span></h2>
       <div id="form"></div>
@@ -169,6 +226,58 @@
       <div id="eval-raw-json" class="json-tree">—</div>
     </div>
 
+    <!-- Demo surface: what the user would be shown after a creative-thinker run, and the
+         accept/dismiss decision they would make. The agent proposes; nothing is written
+         until something is ticked here. This stands in for the *user's* half of the
+         interaction, not for the orchestrator. -->
+    <div class="panel" id="review-panel" style="display:none">
+      <h2>Result &amp; suggestions <span id="review-status" class="meta"></span></h2>
+      <div class="run-cols">
+        <div class="run-col">
+          <h3>Candidates <span id="review-count" class="meta"></span></h3>
+          <div id="review-tree"></div>
+        </div>
+        <div class="run-col">
+          <h3>Proposals</h3>
+          <div id="review-cards"></div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px; gap:8px; flex-wrap:wrap">
+        <label style="margin:0; display:flex; align-items:center; gap:4px; white-space:nowrap">
+          <input type="checkbox" id="review-persist" checked style="width:auto" />
+          persist the idea itself
+        </label>
+        <select id="review-workspace" style="flex:1; min-width:140px"></select>
+        <button class="primary" id="review-apply">✓ Write selected to knowledge base</button>
+        <button class="small" id="review-discard">discard run</button>
+      </div>
+      <div class="meta" id="review-result"></div>
+    </div>
+
+    <!-- The two graphs of an idea, deliberately kept apart: the idea graph is what was
+         kept (accepted ideas + typed edges), the thinking tree is how it was found
+         (each run's nodes/edges inside idea.json's runs[]). Read-only. -->
+    <div class="panel" id="idea-panel">
+      <h2>Idea <span id="idea-badge" class="meta"></span></h2>
+      <div class="row" style="gap:8px; align-items:center">
+        <select id="idea-source" style="flex:2"></select>
+        <label style="margin:0; display:flex; align-items:center; gap:4px; white-space:nowrap">
+          <input type="checkbox" id="show-pruned" checked style="width:auto" /> show pruned
+        </label>
+      </div>
+      <div class="run-cols" style="margin-top:10px">
+        <div class="run-col">
+          <h3>Idea graph</h3>
+          <div id="idea-graph" class="meta">—</div>
+        </div>
+        <div class="run-col">
+          <h3>Thinking tree <span id="tree-badge" class="meta"></span></h3>
+          <div id="thinking-tree" class="meta">—</div>
+        </div>
+      </div>
+      <div id="node-inspector" style="display:none"></div>
+    </div>
+
     <div class="panel">
       <h2>JSON input <span id="vis-badge"></span></h2>
       <div class="panel-actions" style="margin-bottom:6px">
@@ -191,7 +300,7 @@
 </main>
 
 <script>
-let CATALOG = { agents: [], subagents: [], flows: [], schemas: { agent: {}, subagent: {}, flow: {} }, agent_steps: {}, logged_agents: {} };
+let CATALOG = { agents: [], subagents: [], flows: [], schemas: { agent: {}, subagent: {}, flow: {} }, agent_steps: {}, logged_agents: {}, examples: {} };
 let WORKSPACE_CACHE = null;
 
 const WORKSPACE_FIELD_NAMES = new Set(["category_slug", "workspace"]);
@@ -434,6 +543,7 @@ function renderForm() {
   const kind = $("kind").value;
   $("steps-panel").style.display = "none";
   $("log").innerHTML = "";
+  renderExamples();
   if (kind === "evaluation") {
     renderEvalForm();
     return;
@@ -467,6 +577,410 @@ function renderForm() {
       form.append(wrap);
       addListItem(wrap);
     }
+  }
+}
+
+// --- review panel: results, suggestions, and the accept decision -------------
+// A finished run proposes; a human ticks; only then is anything written. This is the
+// user-facing half of the interaction, mocked up — the orchestrator that would normally
+// batch questions and drive the loop is not here. What runs on apply is one call to
+// /api/idea/apply, which is the same persist step an orchestrator would make.
+
+let REVIEW = null;                    // the envelope currently under review
+const PICKED_DRAFTS = new Set();      // indices into envelope.drafts
+const PICKED_OPS = new Set();         // indices into envelope.suggested_operations
+
+// Which thought node a draft came from. Envelopes recorded before the `origin` pointer
+// existed kept the same fields under provenance, and those runs are still in dev/runs/.
+function draftNode(draft) {
+  return draft?.origin?.node_id || draft?.provenance?.creative_thinker?.node_id || null;
+}
+
+function isEnvelope(output) {
+  return !!output && typeof output === "object" && "idea" in output && "status" in output
+         && Array.isArray(output.drafts);
+}
+
+function renderReview(record) {
+  const panel = $("review-panel");
+  const envelope = record?.output;
+  if (!isEnvelope(envelope)) { panel.style.display = "none"; REVIEW = null; return; }
+
+  REVIEW = envelope;
+  PICKED_DRAFTS.clear();
+  PICKED_OPS.clear();
+  panel.style.display = "";
+  $("review-result").textContent = "";
+
+  const m = envelope.metrics || {};
+  $("review-status").textContent =
+    `· ${envelope.status}${envelope.limit ? ` (${envelope.limit})` : ""}` +
+    ` · ${envelope.status_reason || ""} · ${m.llm_calls || 0} calls`;
+  populateWorkspaceSelect($("review-workspace"));
+  renderReviewTree();
+  renderReviewCards();
+}
+
+// The n candidates as the tree they were produced in, each selectable. Multi-select is
+// the point: accepting three candidates creates three separate ideas, each with its own
+// node and its own `addresses` edge.
+function renderReviewTree() {
+  const box = $("review-tree");
+  box.innerHTML = "";
+  const run = (REVIEW.idea.runs || []).slice(-1)[0];
+  const drafts = REVIEW.drafts || [];
+  $("review-count").textContent = drafts.length
+    ? `· ${drafts.length} selectable` : "· nothing to promote";
+  if (!run) { box.append(el("div", { class: "meta" }, "no run recorded")); return; }
+
+  const draftFor = new Map();
+  drafts.forEach((d, i) => { const node = draftNode(d); if (node) draftFor.set(node, i); });
+
+  const children = new Map();
+  for (const node of run.nodes || []) {
+    const key = node.parent_id || "__root__";
+    if (!children.has(key)) children.set(key, []);
+    children.get(key).push(node);
+  }
+  const walk = (parent, depth) => {
+    for (const node of children.get(parent) || []) {
+      box.append(candidateRow(node, depth, draftFor.get(node.node_id)));
+      walk(node.node_id, depth + 1);
+    }
+  };
+  walk("__root__", 0);
+}
+
+function candidateRow(node, depth, draftIndex) {
+  const row = el("div", {
+    class: `cand ${node.status || "kept"}`,
+    style: `margin-left:${depth * 14}px`,
+  });
+  if (draftIndex === undefined) {
+    // Not every node is promotable: the root, and any branch the run pruned or
+    // deduplicated away, is shown for context but cannot be turned into an idea.
+    row.append(el("span", { style: "width:13px" }, ""));
+  } else {
+    const box = el("input", { type: "checkbox", onchange: (e) => {
+      e.target.checked ? PICKED_DRAFTS.add(draftIndex) : PICKED_DRAFTS.delete(draftIndex);
+      row.classList.toggle("picked", e.target.checked);
+      syncCardSelection();
+    }});
+    box.dataset.draft = draftIndex;
+    row.append(box);
+  }
+  const body = el("div", { class: "ct" });
+  body.append(el("div", {}, el("b", {}, node.title || node.node_id),
+    el("span", { class: "badge", style: "margin-left:6px" }, node.style || "-"),
+    node.score === null || node.score === undefined ? ""
+      : el("span", { class: "badge score", style: "margin-left:4px" }, String(node.score))));
+  body.append(el("div", { class: "cl" },
+    (node.text || "").slice(0, 180) + ((node.text || "").length > 180 ? "…" : "")));
+  if (node.comparison) body.append(el("div", { class: "cl" }, `↳ ${node.comparison}`));
+  row.append(body);
+  return row;
+}
+
+function renderReviewCards() {
+  const box = $("review-cards");
+  box.innerHTML = "";
+
+  for (const [i, op] of (REVIEW.suggested_operations || []).entries()) {
+    const card = el("div", { class: "card" });
+    card.append(el("h4", {}, `${op.type}${op.node_id ? ` · ${op.node_id}` : ""}`));
+    if (op.diagnosis) card.append(el("div", { class: "why" }, op.diagnosis));
+    if (op.rationale) card.append(el("div", { class: "cl" }, op.rationale));
+    if (op.payload?.question) card.append(el("div", { class: "cl" }, `Q: ${op.payload.question}`));
+    const acts = el("div", { class: "acts" });
+    const accept = el("button", { class: "small", onclick: () => {
+      const on = !PICKED_OPS.has(i);
+      on ? PICKED_OPS.add(i) : PICKED_OPS.delete(i);
+      card.classList.toggle("picked", on);
+      accept.textContent = on ? "✓ accepted" : "accept";
+      syncTreeSelection();
+    }}, "accept");
+    acts.append(accept, el("span", { class: "cl" },
+      "unaccepted proposals are recorded as rejected, not dropped"));
+    card.append(acts);
+    box.append(card);
+  }
+
+  for (const q of REVIEW.questions || []) {
+    const card = el("div", { class: "card q" });
+    card.append(el("h4", {}, `question · ${q.node_id}`));
+    card.append(el("div", { class: "why" }, q.question));
+    if (q.options?.length) {
+      card.append(el("div", { class: "cl" }, q.options.map((o, i) => `${i + 1}. ${o}`).join("  ")));
+    }
+    box.append(card);
+  }
+
+  if (!box.children.length) {
+    box.append(el("div", { class: "meta" }, "no suggestions or questions from this run"));
+  }
+}
+
+// Accepting a split implies keeping the draft it carved out, and vice versa — the two
+// halves of one decision, so ticking either ticks the other. Only splits: an
+// `investigate` proposal that happens to hang off the same node is a separate question
+// ("spend a lookup?"), and answering it is not implied by keeping the idea.
+const SPLIT_OPS = new Set(["create-child", "create-variant", "merge"]);
+
+function pairedDraft(op) {
+  if (!SPLIT_OPS.has(op.type)) return -1;
+  return (REVIEW.drafts || []).findIndex(d => draftNode(d) === op.node_id);
+}
+
+function syncCardSelection() {
+  (REVIEW.suggested_operations || []).forEach((op, i) => {
+    const draftIndex = pairedDraft(op);
+    if (draftIndex < 0) return;
+    const on = PICKED_DRAFTS.has(draftIndex);
+    on ? PICKED_OPS.add(i) : PICKED_OPS.delete(i);
+    const card = $("review-cards").children[i];
+    if (card) { card.classList.toggle("picked", on);
+                card.querySelector("button").textContent = on ? "✓ accepted" : "accept"; }
+  });
+}
+
+function syncTreeSelection() {
+  (REVIEW.suggested_operations || []).forEach((op, i) => {
+    const draftIndex = pairedDraft(op);
+    if (draftIndex < 0) return;
+    const box = $("review-tree").querySelector(`input[data-draft="${draftIndex}"]`);
+    const on = PICKED_OPS.has(i);
+    on ? PICKED_DRAFTS.add(draftIndex) : PICKED_DRAFTS.delete(draftIndex);
+    if (box) { box.checked = on; box.closest(".cand").classList.toggle("picked", on); }
+  });
+}
+
+async function applyReview() {
+  if (!REVIEW) return;
+  const workspace = $("review-workspace").value;
+  if (!workspace) { $("review-result").textContent = "pick a workspace first"; return; }
+  const btn = $("review-apply");
+  btn.disabled = true;
+  try {
+    const res = await fetch("/api/idea/apply", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        workspace, envelope: REVIEW,
+        accept_drafts: [...PICKED_DRAFTS], accept_operations: [...PICKED_OPS],
+        persist_idea: $("review-persist").checked,
+      }),
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+    const out = await res.json();
+    $("review-result").textContent =
+      `written: ${out.written.join(", ") || "—"} · created: ${out.created.join(", ") || "—"}` +
+      ` · recorded as rejected: ${out.rejected.length}` +
+      (out.questions.length ? ` · ${out.questions.length} question(s) still open` : "");
+    await loadIdeaSources();  // the new ideas are immediately inspectable
+  } catch (e) {
+    // Envelopes recorded before the idea.json format was fixed fail validation here,
+    // with one error per field. Show the shape of the problem, not the whole wall.
+    const msg = String(e.message || e);
+    const [head, ...rest] = msg.split("\n");
+    $("review-result").textContent = rest.length
+      ? `${head} (+${rest.length} more validation errors — this run predates the current idea.json format)`
+      : `error: ${head}`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// --- the idea panel: idea graph + thinking tree ------------------------------
+// Two graphs, deliberately not merged (see the Reasoning-Graph-vs-Idea-Graph note):
+//   · idea graph    — accepted ideas and their typed edges. What was kept.
+//   · thinking tree — the nodes/edges inside idea.json's runs[]. How it was found.
+// The tree never leaks into the graph; the graph never shows a pruned branch.
+
+let IDEA_SOURCES = [];
+let CURRENT_IDEA = null;
+
+async function loadIdeaSources() {
+  const res = await fetch("/api/ideas");
+  IDEA_SOURCES = (await res.json()).ideas || [];
+  const label = (s) => {
+    const where = s.workspace === "_fixtures" ? "fixture" : s.workspace;
+    const trace = s.runs ? `${s.runs} run${s.runs > 1 ? "s" : ""}, ${s.nodes} nodes`
+                         : "no thinking tree";
+    return `[${where}] ${s.title.slice(0, 60)} — ${trace}`;
+  };
+  $("idea-source").innerHTML =
+    `<option value="">— pick an idea —</option>` +
+    IDEA_SOURCES.map(s => `<option value="${s.workspace}/${s.ident}">${label(s)}</option>`).join("");
+}
+
+async function showIdea(key) {
+  $("node-inspector").style.display = "none";
+  if (!key) { CURRENT_IDEA = null; $("idea-graph").textContent = "—";
+              $("thinking-tree").textContent = "—"; $("idea-badge").textContent = ""; return; }
+  const [slug, ident] = key.split("/");
+  CURRENT_IDEA = await (await fetch(`/api/ideas/${slug}/${encodeURIComponent(ident)}`)).json();
+  $("idea-badge").textContent = `· ${CURRENT_IDEA.idea_id || "(no id)"} · ${CURRENT_IDEA.state}`;
+  renderIdeaGraph(slug, CURRENT_IDEA);
+  renderThinkingTree(CURRENT_IDEA);
+}
+
+async function renderIdeaGraph(slug, idea) {
+  const box = $("idea-graph");
+  const graph = await (await fetch(`/api/idea-graph/${slug}`)).json();
+  if (!graph.nodes.length) { box.textContent = "no ideas in this source"; return; }
+
+  const id = (s) => s.replace(/[^A-Za-z0-9_]/g, "_");
+  const clip = (s, n = 38) => (s || "").replace(/["`]/g, "'").slice(0, n);
+  const lines = ["graph LR;"];
+  for (const node of graph.nodes) {
+    lines.push(node.type === "gap"
+      ? `  ${id(node.id)}[/"${clip(node.label)}"/]`          // gap: skewed
+      : `  ${id(node.id)}("${clip(node.label)}")`);           // idea: rounded
+  }
+  for (const edge of graph.edges) {
+    if (!edge.to) continue;
+    lines.push(`  ${id(edge.from)} -->|${edge.type}| ${id(edge.to)}`);
+  }
+  // The idea being inspected is highlighted; nothing else about the graph changes.
+  const self = idea.idea_id && graph.nodes.some(n => n.id === idea.idea_id);
+  if (self) lines.push(`  style ${id(idea.idea_id)} fill:#eef3ff,stroke:#1565c0,stroke-width:2px`);
+
+  const src = lines.join("\n");
+  if (!window.mermaid) { box.innerHTML = ""; box.append(el("pre", {}, src)); return; }
+  try {
+    const { svg } = await window.mermaid.render("ideagraph" + Date.now(), src);
+    box.innerHTML = svg;
+  } catch (e) { box.innerHTML = ""; box.append(el("pre", {}, src)); }
+}
+
+function renderThinkingTree(idea) {
+  const box = $("thinking-tree");
+  box.innerHTML = "";
+  const runs = idea.runs || [];
+  $("tree-badge").textContent = runs.length
+    ? `· ${runs.length} run${runs.length > 1 ? "s" : ""}`
+    : "";
+  if (!runs.length) {
+    // Worth saying plainly: a record with no runs[] was never thought about by the
+    // creative thinker (or its envelope was never persisted).
+    box.append(el("div", { class: "meta" },
+      "No runs[] on this idea — nothing has thought about it yet."));
+    return;
+  }
+  const showPruned = $("show-pruned").checked;
+
+  for (const run of runs) {
+    const h = run.header || {};
+    const band = el("div", { class: "run-band" });
+    band.append(el("header", {},
+      `${run.run_id} · ${h.mode} · n=${h.n} · ${h.model || "?"} · ` +
+      `[${(h.agent_styles || []).join(", ")}]` +
+      (h.context_ids?.length ? ` · context: ${h.context_ids.join(", ")}` : "") +
+      (run.timestamp ? ` · ${run.timestamp}` : "")));
+
+    const children = new Map();
+    for (const node of run.nodes || []) {
+      const key = node.parent_id || "__root__";
+      if (!children.has(key)) children.set(key, []);
+      children.get(key).push(node);
+    }
+    const walk = (parent, depth) => {
+      for (const node of children.get(parent) || []) {
+        const hidden = !showPruned && (node.status === "pruned" || node.status === "rejected");
+        if (!hidden) band.append(nodeRow(node, depth, run));
+        walk(node.node_id, depth + 1);
+      }
+    };
+    walk("__root__", 0);
+
+    const outcome = run.outcome || {};
+    if (outcome.escalation) {
+      band.append(el("div", { class: "escalation" },
+        el("b", {}, `escalation · ${outcome.escalation}` +
+                    (outcome.escalation_node ? ` · ${outcome.escalation_node}` : "")),
+        el("div", {}, outcome.escalation_diagnosis || outcome.summary || "")));
+    }
+    // Truncation must be visible: a partial exploration must never look complete.
+    if (outcome.truncated || outcome.status === "stopped-uncertain") {
+      band.append(el("div", { class: "cutoff" },
+        outcome.truncated
+          ? `✂ truncated — ${outcome.limit || "limit"} · ${outcome.reason || ""}`
+          : `⏸ stopped-uncertain — ${outcome.reason || ""}`));
+    }
+    box.append(band);
+  }
+}
+
+function nodeRow(node, depth, run) {
+  const row = el("div", {
+    class: `tnode ${node.status || "kept"}`,
+    style: `padding-left:${8 + depth * 16}px`,
+    onclick: () => selectNode(node, run, row),
+  });
+  row.append(el("span", { class: "badge" }, node.style || "-"));
+  if (node.score !== null && node.score !== undefined) {
+    row.append(el("span", { class: "badge score" }, String(node.score)));
+  }
+  row.append(el("span", { class: "tt" }, node.title || node.text || node.node_id));
+  if (node.question) row.append(el("span", { class: "badge q", title: node.question }, "?"));
+  return row;
+}
+
+function selectNode(node, run, row) {
+  document.querySelectorAll(".tnode.sel").forEach(n => n.classList.remove("sel"));
+  row.classList.add("sel");
+  const box = $("node-inspector");
+  box.style.display = "";
+  box.innerHTML = "";
+  const dl = el("dl", {});
+  const add = (k, v) => { if (v || v === 0) { dl.append(el("dt", {}, k), el("dd", {}, String(v))); } };
+  add("node", `${node.node_id} · ${node.status} · depth ${node.depth ?? "?"} · ${node.kind || ""}`);
+  add("style", node.style);
+  add("thought", node.text);
+  add("score", node.score);
+  add("comparison", node.comparison);   // why it survived, or why it was pruned
+  add("question", node.question);
+  add("sources", (node.sources || []).join(", "));
+  add("run settings", `${run.header?.mode} · n=${run.header?.n} · ${run.header?.model} · ` +
+                      `styles [${(run.header?.agent_styles || []).join(", ")}] · ` +
+                      `tool_use=${run.header?.tool_use}`);
+  add("triggering action", run.header?.triggering_action);
+  box.append(dl);
+}
+
+// --- examples ---------------------------------------------------------------
+// An agent's MANIFEST may declare showcase runs. Each entry names a file in
+// dev/fixtures/, so picking one here and running `--fixture <that file>` from the
+// CLI are the same run. Selecting an example fills the Inputs form; the fields
+// stay editable, so an example is a starting point, not a locked preset.
+
+function currentExamples() {
+  return ($("kind").value === "agent" && CATALOG.examples?.[$("name").value]) || [];
+}
+
+function renderExamples() {
+  const examples = currentExamples();
+  const panel = $("examples-panel");
+  panel.style.display = examples.length ? "" : "none";
+  $("example-note").textContent = "";
+  if (!examples.length) return;
+  $("example").innerHTML =
+    `<option value="">— pick an example to fill the form —</option>` +
+    examples.map(e => `<option value="${e.name}">${e.label || e.name}</option>`).join("");
+}
+
+async function applyExample(name) {
+  const example = currentExamples().find(e => e.name === name);
+  $("example-note").textContent = example?.description || "";
+  if (!name) return;
+  const res = await fetch(`/api/fixture/${encodeURIComponent(name)}`);
+  if (!res.ok) { $("example-note").textContent = `could not load ${name}`; return; }
+  fillForm(await res.json());
+}
+
+function fillForm(inputs) {
+  for (const [key, value] of Object.entries(inputs || {})) {
+    const field = document.querySelector(`#form [data-name="${key}"]`);
+    if (field) field.value = typeof value === "object" ? JSON.stringify(value) : String(value);
   }
 }
 
@@ -649,6 +1163,8 @@ function wireExpandCollapse(containerId, expandBtnId, collapseBtnId) {
 function render(rec) {
   renderJsonTree("json-input", rec.inputs ?? {});
   renderJsonTree("json-output", rec);
+  // A creative-thinker record carries a result envelope; anything else hides the panel.
+  renderReview(rec);
   $("output-meta").textContent =
     `${rec.kind}:${rec.name} · ${rec.duration_s}s · ${rec.timestamp}`;
   $("vis-badge").innerHTML = rec.error
@@ -660,10 +1176,23 @@ async function init() {
   CATALOG = await api("/api/list");
   refreshNameOptions();
   await refreshRuns();
+  await loadIdeaSources();
 }
 
 $("kind").onchange = refreshNameOptions;
 $("name").onchange = renderForm;
+$("example").onchange = (e) => applyExample(e.target.value);
+$("idea-source").onchange = (e) => showIdea(e.target.value);
+$("review-apply").onclick = applyReview;
+$("review-discard").onclick = () => {
+  // Discarding is a real outcome, not a no-op: the run stays in its .jsonl and nothing
+  // reaches the workspace.
+  $("review-panel").style.display = "none";
+  REVIEW = null;
+  $("status").textContent = "run discarded — nothing written";
+};
+// Re-render rather than reload: the toggle only changes what is drawn.
+$("show-pruned").onchange = () => CURRENT_IDEA && renderThinkingTree(CURRENT_IDEA);
 
 async function runStreaming(body, handlers) {
   const resp = await fetch("/api/run/stream", {
@@ -716,6 +1245,7 @@ $("run").onclick = async () => {
     // one finishes, which reads as if nothing happened yet.
     renderJsonTree("json-input", inputs);
     renderJsonTree("json-output", {});
+    $("review-panel").style.display = "none";
     $("output-meta").textContent = "running…";
     $("vis-badge").innerHTML = "";
     const rec = await runStreaming(

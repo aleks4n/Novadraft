@@ -26,12 +26,14 @@ from fastapi import FastAPI, HTTPException  # noqa: E402
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
-from dev.registry import GRAPH_BUILDERS, INPUT_ADAPTERS, LOGGED_AGENTS, _truthy, list_all
+from dev.registry import (GRAPH_BUILDERS, INPUT_ADAPTERS, LOGGED_AGENTS, POST_RUN,
+                          _truthy, list_all)
 from dev.run import _log, _run, FIXTURES_DIR, RUNS_DIR, TABLES
 from dev.runlog import GraphRunLog, read_run
 from dev.eval_paper_pipeline import (
     ensure_papers_fetched, list_workspaces, run_pipeline, write_report,
 )
+from src.common.schemas.idea_compat import normalize as normalize_idea
 from src.common.utils import storage
 
 HERE = Path(__file__).resolve().parent
@@ -162,10 +164,14 @@ def api_run_stream(req: RunRequest):
         for ev in rl.stream(graph, graph_inputs, log_inputs=inputs):
             yield _sse({"type": _sse_type(ev), "event": ev})
 
+        # A caller-side step the graph must not do itself (see POST_RUN).
+        hook = POST_RUN.get(req.name)
+        output = hook(inputs, rl.output) if hook and not rl.error else rl.output
+
         record = {
             "name": req.name, "kind": req.kind, "inputs": inputs,
             "timestamp": datetime.now().isoformat(),
-            "output": rl.output, "error": rl.error,
+            "output": output, "error": rl.error,
             "duration_s": round(time.time() - t0, 3),
             "run_log": rl.log_path.name,
         }
@@ -213,6 +219,148 @@ def api_workspace_agent_log(slug: str, agent: str, run_id: str):
     if not path.exists():
         raise HTTPException(404, "run log not found")
     return read_run(path)
+
+
+# --- ideas: the idea graph and the thinking tree -----------------------------
+# Two different graphs, deliberately not merged: the **idea graph** is what was kept
+# (accepted ideas + typed edges), the **thinking tree** inside each idea's runs[] is how
+# it was found. Both are read-only here — the viewer never writes an idea.
+
+def _load_idea(slug: str, idea_id: str) -> dict | None:
+    """One idea record, normalized. Phase-1 records are adapted on read (they have no
+    runs[]); ``slug == "_fixtures"`` reads ``dev/fixtures/<idea_id>.json`` instead, so a
+    fixture idea and a workspace idea render through the same path."""
+    if slug == "_fixtures":
+        path = FIXTURES_DIR / f"{idea_id}.json"
+        raw = json.loads(path.read_text()) if path.exists() else None
+    else:
+        raw = storage.read_idea_json(slug, idea_id)
+    if raw is None:
+        return None
+    return normalize_idea(raw).model_dump(mode="json")
+
+
+def _fixture_idea_names() -> list[str]:
+    """Fixture files that are idea records (as opposed to agent-input fixtures)."""
+    names = []
+    for path in sorted(FIXTURES_DIR.glob("*.json")):
+        try:
+            raw = json.loads(path.read_text())
+        except Exception:  # noqa: BLE001 — a malformed fixture shouldn't kill the list
+            continue
+        if isinstance(raw, dict) and "idea_id" in raw:
+            names.append(path.stem)
+    return names
+
+
+@app.get("/api/ideas")
+def api_ideas():
+    """Every idea the harness can show, by source, with how much thinking each carries."""
+    sources: list[dict] = []
+    for slug in (w["category_slug"] for w in list_workspaces()):
+        for idea_id in storage.list_idea_ids(slug):
+            record = _load_idea(slug, idea_id)
+            if record is None:
+                continue
+            sources.append(_idea_summary(slug, idea_id, record))
+    for name in _fixture_idea_names():
+        record = _load_idea("_fixtures", name)
+        if record is not None:
+            sources.append(_idea_summary("_fixtures", name, record))
+    return {"ideas": sources}
+
+
+def _idea_summary(slug: str, ident: str, record: dict) -> dict:
+    runs = record.get("runs") or []
+    return {
+        "workspace": slug,
+        "ident": ident,
+        "idea_id": record.get("idea_id"),
+        "title": record.get("title") or ident,
+        "state": record.get("state"),
+        "runs": len(runs),
+        "nodes": sum(len(r.get("nodes") or []) for r in runs),
+    }
+
+
+@app.get("/api/ideas/{slug}/{idea_id}")
+def api_idea(slug: str, idea_id: str):
+    record = _load_idea(slug, idea_id)
+    if record is None:
+        raise HTTPException(404, "idea not found")
+    return record
+
+
+class ApplyRequest(BaseModel):
+    """A demo stand-in for the user's decision, not for the orchestrator.
+
+    The dev UI shows a finished envelope and lets you tick which drafts and which
+    suggestions to keep; this carries that choice. The planner/executor/reflector loop
+    that would normally make the call does not exist yet — what runs underneath is only
+    the apply step, the same one an orchestrator would use.
+    """
+
+    workspace: str
+    envelope: dict
+    accept_drafts: list[int] = []
+    accept_operations: list[int] = []
+    persist_idea: bool = True
+
+
+@app.post("/api/idea/apply")
+def api_idea_apply(req: ApplyRequest):
+    """Write the ticked parts of an envelope into the workspace.
+
+    Nothing here decides anything: every id that gets created was ticked by a human in
+    the panel, and everything left unticked is recorded as rejected on the run that
+    proposed it rather than dropped.
+    """
+    from src.agents.creative_thinker.schemas import Envelope
+    from src.agents.idea_agent import apply_envelope
+
+    try:
+        envelope = Envelope.model_validate(req.envelope)
+    except Exception as exc:  # noqa: BLE001 — a malformed envelope is a user error here
+        raise HTTPException(400, f"not a result envelope: {exc}") from exc
+
+    return apply_envelope(
+        req.workspace, envelope,
+        accept_drafts=req.accept_drafts,
+        accept_operations=req.accept_operations,
+        persist_idea=req.persist_idea,
+    )
+
+
+@app.get("/api/idea-graph/{slug}")
+def api_idea_graph(slug: str):
+    """The idea graph for one workspace: `gap` and `idea` nodes joined by `addresses`
+    and the typed idea-to-idea edges. **Accepted ideas only** — no reasoning node ever
+    appears here; that separation is the point of the two-graph split."""
+    if slug == "_fixtures":
+        records = [(name, _load_idea("_fixtures", name)) for name in _fixture_idea_names()]
+    else:
+        records = [(i, _load_idea(slug, i)) for i in storage.list_idea_ids(slug)]
+
+    nodes: dict[str, dict] = {}
+    edges: list[dict] = []
+    for ident, record in records:
+        if record is None:
+            continue
+        idea_key = record.get("idea_id") or ident
+        nodes[idea_key] = {"id": idea_key, "type": "idea", "ident": ident,
+                           "workspace": slug, "label": record.get("title") or ident,
+                           "state": record.get("state"),
+                           "runs": len(record.get("runs") or [])}
+        for gap_id in record.get("addresses") or []:
+            nodes.setdefault(gap_id, {"id": gap_id, "type": "gap", "label": gap_id})
+            edges.append({"from": idea_key, "to": gap_id, "type": "addresses",
+                          "rationale": ""})
+        for relation in record.get("relations") or []:
+            edges.append({"from": idea_key, "to": relation.get("target"),
+                          "type": relation.get("type"),
+                          "rationale": relation.get("rationale") or "",
+                          "run": relation.get("run")})
+    return {"nodes": list(nodes.values()), "edges": edges}
 
 
 @app.get("/api/workspaces/{slug}/papers")

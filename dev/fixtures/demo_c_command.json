@@ -1,0 +1,7 @@
+{
+  "idea": "demo_idea.json", "context": "demo_context.json",
+  "mode": "refinement", "width": 2, "depth": 1, "styles": "neutral",
+  "task": "Change the idea so the app runs entirely on the phone with no server. Rewrite it around that.",
+  "tool_use": false, "max_llm_calls": 12,
+  "triggering_action": "DEMO C - a direct command"
+}

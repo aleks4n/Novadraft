@@ -1,0 +1,29 @@
+{
+ "session_id": "sess_f83967f1",
+ "category_slug": "demo",
+ "title": "D \u00b7 an addition",
+ "created_at": "2026-08-23T12:51:09Z",
+ "updated_at": "2026-08-23T12:51:09Z",
+ "messages": [
+  {
+   "id": "msg_ad3dc2a2",
+   "role": "user",
+   "text": "Add a section listing what we would have to measure to know whether this actually works.",
+   "at": "2026-08-23T12:51:09Z",
+   "context": [],
+   "run_id": "20260823_145109_add-a-section-listing-what-we-would-have",
+   "settings": {
+    "mode": "refinement",
+    "ideaId": "idea_demo0001",
+    "width": 2,
+    "depth": 1,
+    "styles": [
+     "neutral"
+    ],
+    "toolUse": false
+   }
+  }
+ ],
+ "context": [],
+ "touched": []
+}
