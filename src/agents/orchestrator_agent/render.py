@@ -192,6 +192,13 @@ def _block(result: ToolResult, step: ToolCall | None, label: str) -> list[str]:
     if not result.ok:
         lines.append(f"    FAILED — {result.error}")
         return lines
+    # A run that stops at a compute ceiling returns the survivors of its last completed
+    # round. Saying so is what keeps reflect from reading a short result as poor thinking
+    # and replanning into a budget that is already spent.
+    if result.status and result.status != "completed":
+        lines.append(f"    {result.status.upper()}"
+                     + (f" — stopped by {result.limit}" if result.limit else "")
+                     + ". This is what the step could afford, not all it had to say.")
     lines.append(f"    returned {len(result.ideas)} idea(s)")
     for idea in result.ideas:
         lines.extend(_idea_block(idea))

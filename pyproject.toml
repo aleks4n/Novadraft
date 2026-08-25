@@ -35,3 +35,8 @@ addopts = "-m 'not live'"
 markers = [
     "live: makes real LLM/network calls (deselected by default)",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]

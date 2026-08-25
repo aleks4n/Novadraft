@@ -29,6 +29,16 @@ MAX_ITERATIONS = 3
 """Reflect loops before `finish` is forced. Lives here rather than in `agent.py` because
 reflect is told which round it is on, and importing the graph module would be circular."""
 
+MAX_LLM_CALLS_PER_TURN = 120
+"""What one user turn may spend across every subagent it calls.
+
+A subagent's own ceiling is per call — the right unit for it, the wrong one for a turn: a
+two-step plan over three reflect rounds multiplies it six times over, and neither component
+is wrong about its own limit. This is the number nobody owned, so the orchestrator owns it
+and hands each step a slice of what is left.
+
+Provisional. Pick it properly once there are real runs to look at."""
+
 
 class OrchestratorState(TypedDict, total=False):
     # --- inputs, set at the boundary (run()) ---
@@ -48,6 +58,7 @@ class OrchestratorState(TypedDict, total=False):
     # --- after execute (deterministic dispatch) ---
     results: List[ToolResult]
     carried: int  # how many of `results` predate this plan, so they aren't paired by index
+    spent: int  # LLM calls this turn has used, across every subagent it called
 
     # --- after reflect (LLM) ---
     judgment: ReflectJudgment

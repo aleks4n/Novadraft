@@ -102,6 +102,9 @@ def read_runs(category_slug: str, session_id: str, limit: int = 3,
     d = session_dir(category_slug, session_id)
     if not d.exists():
         return []
+    # The `run_` prefix is load-bearing, not decoration: the session folder also holds
+    # `session.json` (the transcript) and the drafts folder, so a run file has to be
+    # distinguishable from them by name alone.
     runs = []
     for path in d.glob("run_*.json"):
         if path.stem == before:

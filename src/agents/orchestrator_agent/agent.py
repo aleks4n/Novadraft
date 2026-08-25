@@ -46,7 +46,11 @@ from src.agents.orchestrator_agent.schemas import (
     ToolCall,
     ToolResult,
 )
-from src.agents.orchestrator_agent.state import MAX_ITERATIONS, OrchestratorState
+from src.agents.orchestrator_agent.state import (
+    MAX_ITERATIONS,
+    MAX_LLM_CALLS_PER_TURN,
+    OrchestratorState,
+)
 from src.agents.orchestrator_agent.subagents.plan.agent import plan
 from src.agents.orchestrator_agent.subagents.reflect.agent import reflect
 from src.agents.orchestrator_agent.tools.commit import commit_selection  # noqa: F401 — public API
@@ -102,21 +106,35 @@ def execute(state: OrchestratorState) -> dict:
     """
     plan_: Plan = state.get("plan") or Plan()
     ctx: Context = state.get("context") or Context()
-    env = ToolEnv(
-        category_slug=state.get("category_slug", ""),
-        session_id=state.get("session_id", ""),
-        run_id=state.get("run_id", ""),
-    )
     results = list(state.get("results") or [])  # rounds reflect chose to keep
     produced: dict[int, ToolResult] = {}  # this pass only, by 1-based step number
+    spent = state.get("spent", 0)
 
     for i, step in enumerate(plan_.steps, 1):
+        # Each step gets an equal share of what the turn has left, recomputed as it goes:
+        # a step that came in under its slice leaves the rest for the ones after it, and a
+        # replan inherits whatever the earlier rounds did not use.
+        remaining = max(0, MAX_LLM_CALLS_PER_TURN - spent)
+        steps_left = len(plan_.steps) - i + 1
+        granted = max(1, remaining // steps_left)
+        env = ToolEnv(
+            category_slug=state.get("category_slug", ""),
+            session_id=state.get("session_id", ""),
+            run_id=state.get("run_id", ""),
+            max_llm_calls=granted,
+        )
         step_ctx, skip = _context_for(step, ctx, produced)
         result = (ToolResult(tool=step.tool, ok=False, error=f"skipped — {skip}")
                   if skip else dispatch(step, step_ctx, env))
+        # Charge what it reported, or its whole slice when it reported nothing. A subagent
+        # that keeps no ledger — the investigator keeps none — would otherwise be free, and
+        # a ceiling that only binds the components honest enough to count is not a ceiling.
+        # A skipped step ran nothing and is charged nothing.
+        reported = int(((result.envelope.get("metrics") or {}).get("llm_calls")) or 0)
+        spent += 0 if skip else (reported or granted)
         produced[i] = result
         results.append(result)
-    return {"results": results}
+    return {"results": results, "spent": spent}
 
 
 def _fallback_answer(state: OrchestratorState) -> str:
@@ -209,6 +227,11 @@ def _route(state: OrchestratorState) -> str:
     reachable only from `plan`, so every wave of tool calls has a plan that asked for it.
     """
     if state.get("iteration", 0) >= MAX_ITERATIONS:
+        return "finish"
+    # Nothing left to spend is as good a reason to stop as too many rounds. Replanning
+    # here would cost a planning call to produce a step that can only truncate, and hand
+    # the user less than the round that was already in hand.
+    if state.get("spent", 0) >= MAX_LLM_CALLS_PER_TURN:
         return "finish"
     judgment = state.get("judgment") or ReflectJudgment()
     return "plan" if judgment.route == "replan" else "finish"
