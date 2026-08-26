@@ -13,6 +13,8 @@ What goes in:
     refined.
   - every paper the investigator fetched into this session, so the next turn sees what the
     last one found
+  - the notes the user pasted and the documents they dropped into this session — the only
+    context entries that are payload rather than a reference to a workspace record
   - the drafts the previous turn offered, and the last few turns of the exchange, so a
     follow-up can refer to what just happened
 
@@ -33,10 +35,11 @@ reflect then see of it, which is deliberately less; the creative thinker gets th
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from pydantic import ValidationError
 
-from src.common.schemas.context import Context
+from src.common.schemas.context import Context, UserInput
 from src.common.schemas.gap import GapRecord
 from src.common.schemas.idea import IdeaRecord
 from src.common.schemas.idea_compat import normalize
@@ -47,6 +50,11 @@ from src.agents.orchestrator_agent.schemas import FocusSelection
 from src.agents.orchestrator_agent.state import OrchestratorState
 
 _HISTORY_TURNS = 3  # earlier turns fed back; more costs plan accuracy for little gain
+
+# Suffixes a dropped file can be read as text without an extractor. A `.pdf` is the one
+# that matters and is deliberately absent — extraction is not wired, and decoding its
+# bytes as utf-8 yields binary noise, which is worse than knowing the text is missing.
+_TEXT_SUFFIXES = {".txt", ".md", ".markdown", ".rst", ".json", ".csv", ".tex", ".bib"}
 
 # --- loading ------------------------------------------------------------------
 
@@ -91,6 +99,48 @@ def _paper_brief(category: str, paper_id: str) -> dict | None:
         # text, ~60k chars) is deliberately left out.
         "summary": record.summary or None,
     }
+
+
+def _user_input(category: str, session_id: str) -> list[UserInput]:
+    """The notes and documents the user put into this session.
+
+    Every other kind of context entry names a workspace record and is loaded by id; these
+    two are payload the workspace has no copy of, so if they are not read here they reach
+    no step at all.
+
+    A file's text is re-read from the file rather than taken from the stored entry, whose
+    `digest` is a 400-char preview meant for the UI — a step handed the preview would be
+    reasoning about a first paragraph while believing it had the document.
+
+    A document nobody can extract text from — a PDF, today — comes back with
+    `extracted=False` and a sentence saying so. Not an empty string: a step that reads one
+    as the other treats an unread document as an empty one, and writes about a file it
+    never saw.
+    """
+    files_dir = session.session_files_dir(category, session_id)
+    out: list[UserInput] = []
+    for entry in session.read_context_refs(category, session_id):
+        kind = entry.get("kind")
+        if kind not in ("note", "file"):
+            continue
+        ident = str(entry.get("id") or "")
+        text, extracted = str(entry.get("digest") or ""), True
+        if kind == "file":
+            path = files_dir / Path(ident).name
+            if path.suffix.lower() in _TEXT_SUFFIXES and path.exists():
+                try:
+                    text = path.read_text(encoding="utf-8", errors="ignore")
+                except OSError:
+                    extracted = False
+            else:
+                extracted = False
+            if not extracted:
+                text = (f"The user dropped this document into the session, but its text "
+                        f"cannot be read — nothing extracts {path.suffix or 'this format'} "
+                        f"yet. You know it is here and nothing about what it says.")
+        out.append(UserInput(id=ident, title=str(entry.get("label") or ident),
+                             kind=kind, text=text, extracted=extracted))
+    return out
 
 
 def _session_papers(category: str, session_id: str) -> list[dict]:
@@ -185,6 +235,7 @@ def assemble_context(state: OrchestratorState) -> dict:
             gaps=list(gaps.values()),
             ideas=list(ideas.values()),
             papers=list(papers.values()),
+            user_input=_user_input(category, session_id),
             missing_ids=missing,
         ),
         "history": [{"message": r.get("message", ""), "answer": r.get("answer", "")}

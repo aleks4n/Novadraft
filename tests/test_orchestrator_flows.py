@@ -138,6 +138,12 @@ def rec(monkeypatch) -> Recorder:
             "context_gaps": [g.get("gap_id") for g in call.context.get("gaps") or []],
             "context_ideas": [i.get("idea_id") for i in call.context.get("ideas") or []],
             "context_findings": list(call.context.get("findings") or []),
+            "context_user_input": [d.get("id")
+                                   for d in call.context.get("user_input") or []],
+            # The whole context dict as well, so a test can assert on what was actually
+            # handed over rather than on the summary above. Not listed in the flows
+            # document's `_SHOW`, so it stays out of the depiction.
+            "context": call.context,
         }))
         return recorder._next(recorder.envelopes, "creative_thinker")
 
@@ -205,6 +211,28 @@ def turn(workspace, message: str, *, gaps=(), ideas=(), session_id="s1", run_id=
 
 def stored(session_id="s1", run_id="run_1") -> dict:
     return session.read_result(CATEGORY, session_id, run_id)
+
+
+def drop(session_id="s1", *, notes=(), files=()) -> None:
+    """Seed a session the way the chat surface does: notes pasted, documents dropped.
+
+    The stored entry keeps a 400-char digest for the UI; a file's real text lives in the
+    session's `files/` folder, which is what makes "the digest is not the document" a
+    thing a test can tell apart.
+    """
+    directory = session.session_dir(CATEGORY, session_id)
+    session.session_files_dir(CATEGORY, session_id).mkdir(parents=True, exist_ok=True)
+    entries = []
+    for index, text in enumerate(notes):
+        entries.append({"kind": "note", "id": f"note_{index}", "label": "Pasted note",
+                        "digest": text[:400]})
+    for name, text in files:
+        (session.session_files_dir(CATEGORY, session_id) / name).write_bytes(
+            text.encode("utf-8") if isinstance(text, str) else text)
+        entries.append({"kind": "file", "id": name, "label": name,
+                        "digest": str(text)[:400]})
+    (directory / "session.json").write_text(json.dumps(
+        {"session_id": session_id, "category_slug": CATEGORY, "context": entries}))
 
 
 # --- scenarios ----------------------------------------------------------------
@@ -500,6 +528,53 @@ def test_accepting_something_the_run_never_offered_writes_nothing(workspace, rec
 
     assert commit_selection(CATEGORY, "s1", "run_1", ["idea_never_offered"]) == []
     assert set(storage.list_idea_ids(CATEGORY)) == before
+
+
+def test_a_pasted_note_and_a_dropped_document_reach_the_thinker(workspace, rec):
+    """The user pasted a constraint and dropped a file into the session earlier.
+
+    Neither is a workspace record, so neither can be loaded by id — they exist only in the
+    session — and without reading them the turn would think about the gap while ignoring
+    what the user actually put in front of it.
+
+    The two are shown differently on purpose. The note reaches the planner in full, because
+    "one GPU" is an instruction that changes what a good plan is. The document does not:
+    its text goes to the thinker through the context object, while the planner is told only
+    that it is there. A document pasted into a planning prompt buries the rules the planner
+    is following.
+
+    A PDF is a third case: nothing extracts its text yet, so it arrives saying so rather
+    than arriving empty, and no step can mistake an unread document for an empty one.
+    """
+    drop(notes=["Only ideas that train on one GPU."],
+         files=[("constraints.md", "Hardware budget\n" + "detail line\n" * 400),
+                ("chen2024.pdf", "%PDF-1.7 binary bytes")])
+
+    rec.plans = [Plan(goal="Generate within the user's constraint.",
+                      done_criteria=["1 candidate"],
+                      steps=[ToolCall(tool="creative_thinker", args={
+                          "thinking_mode": "generation", "width": 1,
+                          "instruction": "Respect the single-GPU constraint."})])]
+    rec.envelopes = [envelope(drafts=[candidate("Sparse kernel attention")])]
+    rec.judgments = [ReflectJudgment(route="finish", answer="One candidate, single-GPU.")]
+
+    turn(workspace, "ideas for this gap", gaps=[GAP_ID])
+
+    sent = rec.to("creative_thinker")[0].args
+    assert sent["context_user_input"] == ["note_0", "constraints.md", "chen2024.pdf"]
+    given = {d["id"]: d for d in sent["context"]["user_input"]}
+    assert given["constraints.md"]["text"].count("detail line") == 400, (
+        "the thinker gets the file, not the 400-char digest the UI stores")
+    assert given["note_0"]["kind"] == "note"
+    assert given["chen2024.pdf"]["extracted"] is False
+    assert "cannot be read" in given["chen2024.pdf"]["text"], (
+        "an unread document says so; it does not arrive as an empty one")
+
+    prompt = rec.to("plan.llm")[0].args["prompt"]
+    assert "Only ideas that train on one GPU." in prompt, "a note is steering"
+    assert "constraints.md" in prompt, "the planner knows the document is in scope"
+    assert "detail line" not in prompt, "but its body is not pasted into the plan prompt"
+    assert "chen2024.pdf (its text cannot be read" in prompt
 
 
 def test_a_second_turn_sees_the_first_turns_drafts_and_transcript(workspace, rec):

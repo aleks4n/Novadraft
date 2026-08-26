@@ -38,6 +38,35 @@ def session_papers_dir(category_slug: str, session_id: str) -> Path:
     return session_dir(category_slug, session_id) / "papers"
 
 
+def session_files_dir(category_slug: str, session_id: str) -> Path:
+    """Documents dropped onto the chat, stored under their own names."""
+    return session_dir(category_slug, session_id) / "files"
+
+
+def read_context_refs(category_slug: str, session_id: str) -> list[dict]:
+    """The session's loaded context, as `{kind, id, label, digest}` references.
+
+    Written by the chat surface as the user clicks items in and drops files on it, and
+    read here because two of those kinds — a pasted note and a dropped document — exist
+    nowhere else. Everything else the session loads is a workspace record that can be
+    looked up by id.
+
+    Read rather than imported from `app.backend.sessions`, which owns the file: `src/`
+    is what the backend is built on and importing back the other way would invert that.
+    """
+    path = session_dir(category_slug, session_id) / "session.json"
+    if not path.exists():
+        return []
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    entries = record.get("context")
+    if not isinstance(entries, list):
+        return []
+    return [entry for entry in entries if isinstance(entry, dict)]
+
+
 def _path(category_slug: str, session_id: str, run_id: str) -> Path:
     return session_dir(category_slug, session_id) / f"{run_id}.json"
 

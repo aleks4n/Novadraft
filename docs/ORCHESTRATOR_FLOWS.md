@@ -267,6 +267,29 @@ A draft has no `idea_id` until this call; the thinking graph lives on the envelo
 3. orchestrator → **reflect** (LLM)
 ```
 
+## A pasted note and a dropped document reach the thinker
+
+*The user pasted a constraint and dropped a file into the session earlier.*
+
+Neither is a workspace record, so neither can be loaded by id — they exist only in the session — and without reading them the turn would think about the gap while ignoring what the user actually put in front of it.
+
+The two are shown differently on purpose. The note reaches the planner in full, because "one GPU" is an instruction that changes what a good plan is. The document does not: its text goes to the thinker through the context object, while the planner is told only that it is there. A document pasted into a planning prompt buries the rules the planner is following.
+
+A PDF is a third case: nothing extracts its text yet, so it arrives saying so rather than arriving empty, and no step can mistake an unread document for an empty one.
+
+```
+1. orchestrator → **plan** (LLM)
+2. orchestrator → **creative thinker**
+      mode: 'generation'
+      width: 1
+      depth: 3
+      budget_llm_calls: 120
+      context_gaps: ['gap_testflow']
+      context_user_input: ['note_0', 'constraints.md', 'chen2024.pdf']
+      task: 'Respect the single-GPU constraint.'
+3. orchestrator → **reflect** (LLM)
+```
+
 ## A second turn sees the first turns drafts and transcript
 
 *A session remembers, so a follow-up can refer to what just happened.*

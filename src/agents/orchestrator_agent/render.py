@@ -17,7 +17,7 @@ left out here is withheld from the step that thinks about it.
 
 from __future__ import annotations
 
-from src.common.schemas.context import Context
+from src.common.schemas.context import Context, UserInput
 from src.common.schemas.gap import GapRecord
 from src.common.schemas.idea import IdeaRecord
 from src.agents.orchestrator_agent.schemas import ToolCall, ToolResult
@@ -133,6 +133,24 @@ def _paper_block(paper: dict) -> list[str]:
     return lines
 
 
+def _user_input_block(item: UserInput) -> list[str]:
+    """Something the user contributed: a note in full, a document by name only.
+
+    The asymmetry is deliberate. A note is short by construction and usually carries
+    steering the plan has to respect — "nothing that needs more than one GPU" changes
+    which tool is right — so dropping it would lose an instruction. A dropped document is
+    a document: it reaches the thinker in full through the `Context` object, and pasting
+    it here would bury the rules the planner is following, the same way a paper summary
+    does.
+    """
+    if item.kind == "note":
+        return [f"- note from the user: {item.text or item.title}"]
+    line = f"- document the user dropped: {item.title or item.id}"
+    if not item.extracted:
+        line += " (its text cannot be read — you have the file name and no more)"
+    return [line]
+
+
 def context_view(ctx: Context) -> str:
     """What was loaded for this turn, for the planner and for reflect."""
     lines: list[str] = []
@@ -150,6 +168,8 @@ def context_view(ctx: Context) -> str:
         ids = ", ".join(p.get("paper_id", "?") for p in rest)
         lines.append(f"- ({len(rest)} further paper(s) in context, not shown here: {ids}. "
                      f"Ask the investigator about one by id if it matters.)")
+    for item in ctx.user_input:
+        lines.extend(_user_input_block(item))
     for finding in ctx.findings:
         lines.append(f"- findings from an earlier step this turn:\n    {finding}")
     if ctx.missing_ids:
