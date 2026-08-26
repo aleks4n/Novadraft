@@ -132,6 +132,9 @@ def test_a_planned_turn_offers_cards_and_accepting_one_writes_it(client, rec):  
     assert landed["message"]["text"] == "I drafted two candidates."
     titles = [d["_session"]["label"] for d in landed["drafts"]]
     assert titles == ["Kernel mixture", "Poly kernel"]
+    manager_run = started["run"]["run_id"]
+    assert all(d["_session"]["run_id"] == manager_run for d in landed["drafts"])
+    assert all(d["_session"]["offer_run"] != manager_run for d in landed["drafts"])
     before = set(storage.list_idea_ids(CATEGORY))
 
     draft_id = landed["drafts"][0]["_session"]["draft_id"]
@@ -172,19 +175,25 @@ def test_landing_twice_does_not_duplicate_the_cards(client, rec):  # noqa: F811
     assert len(agent_messages) == 1
 
 
-def test_the_thinker_path_still_works_untouched(client, rec):  # noqa: F811
-    """The default is unchanged: a request that names no agent runs the thinker directly.
+def test_the_thinker_path_still_works_untouched(client, rec, monkeypatch):  # noqa: F811
+    """The direct thinker path remains available when explicitly requested.
 
     The bridge is additive on purpose — the existing surface has to keep working while
     the frontend is still built around it.
     """
     from app.backend.runs import MANAGER
 
+    # This scenario checks routing and input compatibility, not the thinker's graph
+    # (covered by its own suite). Finish the detached worker immediately so the test
+    # never starts real LLM work after its temporary workspace is torn down.
+    monkeypatch.setattr(MANAGER, "_execute",
+                        lambda run_id: MANAGER._update(run_id, status="done"))
     session_id = _session(client)
     response = client.post(f"/api/topics/{CATEGORY}/sessions/{session_id}/send",
-                           json={"text": "ideas please", "width": 2})
+                           json={"text": "ideas please", "agent": "creative_thinker", "width": 2})
     assert response.status_code == 200, response.text
 
     meta = MANAGER.get(response.json()["run"]["run_id"])
     assert meta["agent"] == "creative_thinker"
     assert meta["inputs"]["width"] == 2, "the composer's knobs still reach the thinker"
+    _finished(client, response.json()["run"]["run_id"])

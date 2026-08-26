@@ -348,7 +348,7 @@ def _draft_path(slug: str, session_id: str, draft_id: str) -> Path:
 def save_draft(slug: str, session_id: str, *, record: dict, kind: DraftKind,
                run_id: str, source_index: int | None = None,
                target_idea_id: str | None = None, label: str = "",
-               handle: str = "") -> dict:
+               handle: str = "", offer_run: str = "") -> dict:
     """Write one working copy into the session folder.
 
     The stored file is the `idea.json` **plus** a small `_session` block naming
@@ -357,10 +357,9 @@ def save_draft(slug: str, session_id: str, *, record: dict, kind: DraftKind,
     an accept happen days later, from a reloaded page, without the envelope still
     being in anyone's memory.
 
-    `handle` is set for a copy a *planned* turn offered. Such a turn may have thought
-    several times, so "index into the envelope" is not enough to say which record this
-    is — the handle names it across the whole turn, and accepting hands it straight back
-    to the orchestrator rather than re-deriving the write here.
+    `handle` and `offer_run` are set for a copy a planned turn offered. `run_id`
+    names the backend run shown in the transcript; `offer_run` names the result file
+    the orchestrator replays when the copy is accepted.
     """
     draft_id = new_draft_id()
     payload = dict(record)
@@ -371,6 +370,7 @@ def save_draft(slug: str, session_id: str, *, record: dict, kind: DraftKind,
         "run_id": run_id,
         "source_index": source_index,      # index into envelope.drafts, for "create"
         "handle": handle,                  # what a planned turn offered it as
+        "offer_run": offer_run,            # orchestrator result containing the offer
         "target_idea_id": target_idea_id,  # the record an "update" would overwrite
         "label": label or record.get("title", ""),
         "status": "open",                  # open | accepted | dismissed

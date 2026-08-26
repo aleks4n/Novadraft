@@ -23,11 +23,34 @@ import type { Envelope, Idea, SessionDraft, SuggestedOperation } from "../../lib
 // under another's message.
 export interface DraftActions {
   find: (runId: string, kind: "create" | "update", index: number | null) => SessionDraft | undefined;
+  forRun: (runId: string) => SessionDraft[];
   // `as` applies to an `update` copy: overwrite the record it was refined from, or
   // keep both by landing it as a variant.
   accept: (draftId: string, as_?: "overwrite" | "variant") => Promise<void>;
   dismiss: (draftId: string) => Promise<void>;
   busy: string | null;
+}
+
+/** Planned turns have one reply but may contain offers from several thinker calls,
+ * so there is no single Envelope to render. Their working copies are already the
+ * exact records the user must decide on; render those under the turn's reply. */
+export function OfferedDrafts({ runId, drafts }: { runId: string; drafts: DraftActions }) {
+  const copies = drafts.forRun(runId);
+  if (!copies.length) return null;
+  return (
+    <div className="envelope">
+      <div className="env-block-label">
+        Proposals · {copies.length}
+        <span className="env-block-note">nothing is written until you accept it</span>
+      </div>
+      <div className="env-drafts">
+        {copies.map((copy) => (
+          <DraftCard key={copy._session.draft_id}
+            draft={recordToIdea(copy, copy._session.draft_id)} copy={copy} actions={drafts} />
+        ))}
+      </div>
+    </div>
+  );
 }
 
 /** A decided working copy renders its decision, never the buttons again. The
@@ -282,8 +305,10 @@ function DraftCard({
         <AcceptBar
           actions={actions}
           draft={copy}
-          acceptLabel="Save as an idea"
-          note="Mints an id and writes it into the workspace, with its edge back to the parent."
+          acceptLabel={copy._session.kind === "update" ? "Accept into the idea" : "Save as an idea"}
+          note={copy._session.kind === "update"
+            ? "Overwrites the stored idea with this proposed version."
+            : "Mints an id and writes it into the workspace, with its edge back to the parent."}
         />
       )}
     </div>

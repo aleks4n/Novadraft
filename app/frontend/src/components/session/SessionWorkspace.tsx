@@ -8,7 +8,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../Icon";
 import { Chat } from "./Chat";
-import type { ComposerSettings } from "./Chat";
 import { PanelColumn } from "./Panels";
 import type { DraftActions } from "./EnvelopeResult";
 import type { Mark } from "../IdeaGraph";
@@ -38,9 +37,6 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
   // one per draft the runs produced plus one per idea a run modified.
   const [drafts, setDrafts] = useState<SessionDraft[]>([]);
   const [deciding, setDeciding] = useState<string | null>(null);
-  const [settings, setSettings] = useState<ComposerSettings>({
-    mode: "generation", ideaId: null, width: 3, depth: 3, styles: [], toolUse: false,
-  });
 
   const shellRef = useRef<HTMLDivElement>(null);
   const ideas = bundle?.ideas ?? [];
@@ -154,12 +150,7 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
       const res = await sessionApi.send(activeSlug, id!, {
         text,
         context: staged.map((c) => ({ kind: c.kind, id: c.id })),
-        mode: settings.mode,
-        ideaId: settings.mode === "refinement" ? settings.ideaId : null,
-        width: settings.width,
-        depth: settings.depth,
-        styles: settings.styles,
-        toolUse: settings.toolUse,
+        agent: "orchestrator",
       });
       setSession(res.session);
       setStaged([]);
@@ -185,6 +176,7 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
     find: (runId, kind, index) => drafts.find(
       (d) => d._session.run_id === runId && d._session.kind === kind
         && d._session.source_index === index),
+    forRun: (runId) => drafts.filter((d) => d._session.run_id === runId),
     accept: async (draftId, as_ = "overwrite") => {
       if (!activeSlug || !sessionId) return;
       setDeciding(draftId);
@@ -268,13 +260,11 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
             staged={staged}
             runs={sessionRuns}
             ideas={ideas}
-            settings={settings}
             sending={sending}
             onStage={stage}
             onUnstage={unstage}
             onUploadFile={uploadFile}
             onSend={send}
-            onSettings={(p) => setSettings((s) => ({ ...s, ...p }))}
             onOpenIdea={(id) => openPanel("idea", id)}
             drafts={draftActions}
             onShowThoughts={() => openPanel("thoughts", null)}

@@ -327,12 +327,12 @@ class SessionSendRequest(BaseModel):
     ignored on that path** — choosing them is what the planner is for. They stay in this
     model because the thinker path still uses them.
 
-    The default is the thinker so the existing surface is unchanged. Switching it here is
-    what makes the orchestrator the default for everyone.
+    The web session uses the orchestrator. The direct thinker path remains available for
+    development and for callers that explicitly request it.
     """
     text: str = ""
     context: list[dict] = []          # items staged above the composer this turn
-    agent: str = "creative_thinker"   # creative_thinker | orchestrator
+    agent: str = "orchestrator"       # orchestrator | creative_thinker
     mode: str = "generation"          # generation | refinement
     ideaId: str | None = None         # refinement: the idea under work
     width: int = 3
@@ -568,26 +568,32 @@ def _orchestrator_turn(slug: str, session_id: str, meta: dict) -> dict | None:
     return record if record.get("created_at") else None
 
 
-def _save_offered_copies(slug: str, session_id: str, turn: dict) -> list[dict]:
+def _save_offered_copies(slug: str, session_id: str, run_id: str,
+                         turn: dict) -> list[dict]:
     """Every idea a planned turn offered, as a working copy the UI can render.
 
-    One card per offer, whichever thinking run produced it. Each keeps the **handle** the
-    turn offered it under, so accepting is a single call back into the orchestrator's own
-    accept step — the one that already knows how to find the reasoning behind a card and
-    attach it. Two accept implementations would have to be kept in step; one cannot drift.
+    One card per offer, whichever thinking run produced it. Two ids are kept because a
+    planned turn has two: `run_id` is the run entry the transcript message points at,
+    which is how the chat knows which cards belong under which reply, and `offer_run` is
+    the turn's own record, which is what the accept step reads the offer back out of.
+
+    Each card also keeps the **handle** it was offered under, so accepting is a single
+    call back into the orchestrator's accept step — the one that already knows how to
+    find the reasoning behind a card and attach it to what gets written. Two accept
+    implementations would have to be kept in step; one cannot drift.
     """
     from src.agents.orchestrator_agent.tools.commit import offer_handle
 
-    run_id = str(turn.get("run_id") or "")
+    offer_run = str(turn.get("run_id") or "")
     saved = []
     for index, record in enumerate(turn.get("ideas") or []):
-        handle = offer_handle(run_id, index, record.get("idea_id"))
+        handle = offer_handle(offer_run, index, record.get("idea_id"))
         if sessions.draft_for_handle(slug, session_id, handle):
             continue  # a reload, or a second tab: the card is already filed
         saved.append(sessions.save_draft(
             slug, session_id, record=record,
             kind="update" if record.get("idea_id") else "create",
-            run_id=run_id, source_index=index, handle=handle,
+            run_id=run_id, source_index=index, handle=handle, offer_run=offer_run,
             target_idea_id=record.get("idea_id"), label=record.get("title", "")))
     return saved
 
@@ -622,7 +628,7 @@ def api_session_land(slug: str, session_id: str, req: SessionLandRequest):
     turn = _orchestrator_turn(slug, session_id, meta)
     envelope = meta.get("envelope") or {}
     if turn is not None:
-        _save_offered_copies(slug, session_id, turn)
+        _save_offered_copies(slug, session_id, req.runId, turn)
     elif envelope:
         _save_working_copies(slug, session_id, req.runId, envelope)
 
@@ -653,9 +659,8 @@ def api_session_land(slug: str, session_id: str, req: SessionLandRequest):
 
 
 # --- working copies: the accept / dismiss step -------------------------------
-# The creative thinker writes nothing. These three endpoints are the orchestrator's
-# write step, done by hand until the orchestrator exists — and nothing reaches the
-# knowledge base without going through one of them.
+# The subagents write nothing. These endpoints are the human commit gate: nothing
+# reaches the knowledge base until the user accepts a working copy here.
 
 @app.get("/api/topics/{slug}/sessions/{session_id}/drafts")
 def api_session_drafts(slug: str, session_id: str):
@@ -724,7 +729,8 @@ def api_session_draft_accept(slug: str, session_id: str, draft_id: str,
         # which is what carries the branch of reasoning that produced it onto the record.
         from src.agents.orchestrator_agent.tools.commit import commit_selection
 
-        landed = commit_selection(slug, session_id, str(meta.get("run_id") or ""),
+        offer_run = str(meta.get("offer_run") or meta.get("run_id") or "")
+        landed = commit_selection(slug, session_id, offer_run,
                                   [str(meta["handle"])])
         if not landed:
             raise HTTPException(409, "the run that offered this draft no longer has it")

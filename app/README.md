@@ -5,11 +5,10 @@ app from one codebase. It renders the persistent knowledge base
 (`workspace/<slug>/…`) using the *Research Ideation v2* design, and drives the
 **paper agent** as a live, streamed run.
 
-This is separate from the internal `dev/` harness (a debug tool). Phase-1 (paper
-agent: papers, gaps, summaries, topic switching) is wired to real data. Phase 2 is
-wired to the **creative thinker** — ideas, the idea graph, and ideation sessions —
-with the orchestrator around it still missing, which the session chat says out
-loud rather than faking.
+This is separate from the internal `dev/` harness (a debug tool). Phase 1 (paper
+agent: papers, gaps, summaries, topic switching) and the first integrated Phase 2
+flow (orchestrator, investigator, creative thinker, ideas, and sessions) are wired
+to real data.
 
 ```
 app/
@@ -41,12 +40,11 @@ Or run each piece manually — useful for the desktop app, or when you want
 backend/frontend logs in separate terminals. Three pieces; the backend is
 shared by both the web and desktop apps.
 
-**1 — Backend** (from the `code/novadraft` root, so `dev.*`/`src.*` resolve):
+**1 — Backend** (from the `novadraft` root, so `dev.*`/`src.*` resolve):
 
 ```bash
-cd code/novadraft
-python -m uvicorn app.backend.main:app --reload --port 8787
-# `_env_bootstrap` re-execs into the novadraft conda env automatically.
+cd novadraft
+.venv/bin/python -m uvicorn app.backend.main:app --reload --port 8787
 ```
 
 Smoke-test it:
@@ -60,7 +58,7 @@ curl localhost:8787/api/topics/transformers/gaps
 **2 — Web app:**
 
 ```bash
-cd code/novadraft/app/frontend
+cd novadraft/app/frontend
 npm install        # first time
 npm run dev        # http://localhost:5173  (proxies /api → :8787)
 ```
@@ -68,7 +66,7 @@ npm run dev        # http://localhost:5173  (proxies /api → :8787)
 **3 — Desktop app** (optional; needs Rust + Xcode Command Line Tools):
 
 ```bash
-cd code/novadraft/app/frontend
+cd novadraft/app/frontend
 npm run tauri dev    # dev: opens a window on the Vite server (proxies /api)
 npm run tauri build  # bundle: → src-tauri/target/release/bundle/{macos/*.app, dmg/*.dmg}
 ```
@@ -96,7 +94,7 @@ run progress shows where the work happens. Ideation is the exception, and
 deliberately so: it is a conversation, so it has its own surface (below).
 Collaborators / History remain out of scope.
 
-## What's live (Phase 2 — creative thinker)
+## What's live (Phase 2 — idea agent)
 
 - **Ideas** — list, and an **idea page** with two tabs. *Content* is the record as
   a researcher reads and edits it: the spine (one-liner, description, problem)
@@ -113,16 +111,16 @@ Collaborators / History remain out of scope.
   nav tree, pasting an id, dropping a file, or the composer's **+** search. It
   stages above the composer until you send, then joins the session context — lit
   in the graph and listed in the Loaded Context window.
-- **A turn is one creative-thinker call.** The message is the run's `task`, the
-  loaded context is its `context`, and the composer exposes the thinker's own
-  knobs (mode, width, depth, styles, tool use). The result renders as what it is —
-  proposals: the answer, the typed operations, open questions, drafts, and the
-  modified idea copy shown as an idea page **with every changed part marked**.
+- **A turn is planned by the orchestrator.** It reads the message and loaded
+  context, then answers directly or calls the investigator and creative thinker
+  with the mode, width, depth and styles it decides are appropriate. The reply and
+  every proposed idea render together in the transcript.
 - **Accept / dismiss.** Everything a run produces lands as a **working copy** —
   a real `idea.json` in `sessions/<id>/drafts/`, not in the knowledge base.
   *Save as an idea* mints an id and writes it; *Accept into the idea* overwrites
   the record the run modified, carrying the run into its `runs[]`; *Dismiss*
-  deletes the file. Deleting a session takes its unaccepted copies with it.
+  records the decision without writing globally. Deleting a session takes its
+  working copies with it.
 
 ## Backend ↔ design mapping
 
@@ -147,8 +145,8 @@ returned `null` and the UI hides those widgets rather than inventing values.
 | POST | `/api/topics/{slug}/sessions/{id}/context` | load items into the session context |
 | DELETE | `…/sessions/{id}/context/{kind}/{id}` | unload one item |
 | POST | `…/sessions/{id}/files` | attach a dropped document as context |
-| POST | `…/sessions/{id}/send` | one chat turn → a creative-thinker run |
-| POST | `…/sessions/{id}/land` | write a run's envelope onto the transcript + file its working copies |
+| POST | `…/sessions/{id}/send` | one chat turn → an orchestrator run |
+| POST | `…/sessions/{id}/land` | write the reply onto the transcript + file all offered working copies |
 | GET | `…/sessions/{id}/drafts` | the session's unaccepted working copies |
 | POST | `…/sessions/{id}/drafts/{id}/accept` | write one into the global workspace |
-| DELETE | `…/sessions/{id}/drafts/{id}` | dismiss one (the file is deleted) |
+| DELETE | `…/sessions/{id}/drafts/{id}` | dismiss one and record the decision in the session |

@@ -791,24 +791,20 @@ body.col-resizing .gaps-row:hover { background: transparent; }
   border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-panel);
 }
 .chat-head { gap: 8px; }
-/* The demo tint: enough that the surface reads as a stand-in, not so much that
-   the conversation on it becomes hard to read. */
 .chat-scroll {
   flex: 1; min-height: 0; overflow-y: auto; padding: 16px;
   display: flex; flex-direction: column; gap: 16px;
-  background:
-    repeating-linear-gradient(-45deg, #00000000 0 10px, #d9a04c0a 10px 20px),
-    var(--bg-panel);
+  background: var(--bg-panel);
 }
 .chat-empty { margin: auto; max-width: 340px; text-align: center; color: var(--text-4); font-size: 13px; line-height: 1.6; }
 .chat-empty-title { font-size: 14px; font-weight: 600; color: var(--text-3); margin-bottom: 6px; }
 
-.demo-chip {
+.agent-chip {
   display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px;
-  border: 1px dashed #e8d2a8; border-radius: 999px; background: #fdf8ef;
-  color: #8b6014; font-size: 11px; font-weight: 600; cursor: help; white-space: nowrap;
+  border: 1px solid #ddd3f2; border-radius: 999px; background: var(--accent-ai-soft);
+  color: var(--accent-ai); font-size: 11px; font-weight: 600; cursor: help; white-space: nowrap;
 }
-.demo-chip .icon { opacity: .85; }
+.agent-chip .icon { opacity: .85; }
 
 .msg { display: flex; flex-direction: column; gap: 6px; }
 .msg--user { align-self: flex-end; max-width: 88%; align-items: flex-end; }
@@ -1098,7 +1094,7 @@ body.is-row-resizing { user-select: none; -webkit-user-select: none; cursor: row
 .quick-run { display: flex; flex-direction: column; gap: 10px; }
 .inline-link { border: 0; background: none; padding: 0; font: inherit; color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 
-/* Accept / dismiss — the orchestrator's write step, done by hand. */
+/* Accept / dismiss — the human commit gate. */
 .accept-bar {
   display: flex; align-items: center; gap: 8px; margin-top: 10px;
   padding-top: 10px; border-top: 1px solid var(--border-soft);

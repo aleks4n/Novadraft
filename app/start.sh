@@ -21,10 +21,13 @@ FRONTEND_DIR="$APP_DIR/frontend"
 BACKEND_PORT=8787
 FRONTEND_PORT=5173
 
-# Pick the project's declared Python if present, else fall back to python3
-# (_env_bootstrap re-execs into the novadraft conda env either way).
+# Prefer the local project environment. Fall back to the declared interpreter, then
+# python3, so a checkout with `uv sync` is runnable even when another developer's
+# absolute conda path in `.python-env` does not exist on this machine.
 PYTHON="python3"
-if [[ -f "$NOVADRAFT_ROOT/.python-env" ]]; then
+if [[ -x "$NOVADRAFT_ROOT/.venv/bin/python" ]]; then
+  PYTHON="$NOVADRAFT_ROOT/.venv/bin/python"
+elif [[ -f "$NOVADRAFT_ROOT/.python-env" ]]; then
   declared="$(head -n1 "$NOVADRAFT_ROOT/.python-env" | tr -d '[:space:]')"
   [[ -x "$declared" ]] && PYTHON="$declared"
 fi

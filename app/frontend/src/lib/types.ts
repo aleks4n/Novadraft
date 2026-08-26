@@ -446,8 +446,9 @@ export interface ChatMessage {
   failed?: boolean;
   demo?: DemoKind;            // client-side demo turns (see SessionView)
   settings?: {
-    mode: string; ideaId: string | null; width: number; depth: number;
-    styles: string[]; toolUse: boolean;
+    agent?: "orchestrator" | "creative_thinker";
+    mode?: string; ideaId?: string | null; width?: number; depth?: number;
+    styles?: string[]; toolUse?: boolean;
   };
 }
 
@@ -465,6 +466,8 @@ export interface SessionDraft extends IdeaRecordRaw {
     kind: "create" | "update";
     run_id: string;
     source_index: number | null;
+    handle?: string;
+    offer_run?: string;
     target_idea_id: string | null;
     label: string;
     // "open" until the user decides; then "accepted" or "dismissed" — the decision

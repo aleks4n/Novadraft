@@ -180,7 +180,8 @@ export const sessionApi = {
   removeContext: (slug: string, id: string, kind: string, itemId: string) =>
     del(`${S(slug)}/${encodeURIComponent(id)}/context/${encodeURIComponent(kind)}/${encodeURIComponent(itemId)}`),
 
-  // One chat turn: records the message, loads its context, starts the thinker.
+  // One chat turn: records the message, loads its context, and starts the idea
+  // orchestrator (or the direct thinker when explicitly requested).
   send: (slug: string, id: string, body: SendBody) =>
     postJSON<{ session: Session; message: unknown; run: RunMeta }>(
       `${S(slug)}/${encodeURIComponent(id)}/send`, body),
@@ -224,12 +225,19 @@ export const sessionApi = {
 export interface SendBody {
   text: string;
   context: { kind: string; id: string }[];
-  mode: "generation" | "refinement";
-  ideaId: string | null;
-  width: number;
-  depth: number;
-  styles: string[];
-  toolUse: boolean;
+  // Who runs the turn. "orchestrator" reads the message and decides what to call —
+  // it may generate, refine, look something up, or just answer. "creative_thinker"
+  // is the direct surface, where the fields below are the call.
+  //
+  // The fields below are ignored by the orchestrator: choosing them is what its
+  // planner is for. They stay because the direct surface still uses them.
+  agent?: "orchestrator" | "creative_thinker";
+  mode?: "generation" | "refinement";
+  ideaId?: string | null;
+  width?: number;
+  depth?: number;
+  styles?: string[];
+  toolUse?: boolean;
   maxLlmCalls?: number;
 }
 
