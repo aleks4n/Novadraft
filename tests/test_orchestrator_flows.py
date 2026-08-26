@@ -35,7 +35,7 @@ from src.agents.orchestrator_agent.state import MAX_LLM_CALLS_PER_TURN
 from src.agents.orchestrator_agent.schemas import (
     FocusSelection, Plan, ReflectJudgment, ToolCall,
 )
-from src.agents.orchestrator_agent.tools.commit import commit_selection
+from src.agents.orchestrator_agent.tools.commit import commit_selection, offer_handle
 
 GAP_ID = "gap_testflow"
 IDEA_A = "idea_testaaa"
@@ -500,8 +500,13 @@ def test_accepting_a_draft_mints_an_id_and_carries_the_trace(workspace, rec):
                                   candidate("Left", node="n1")], nodes=2)]
     rec.judgments = [ReflectJudgment(route="finish", answer="Two candidates.")]
 
-    turn(workspace, "give me 2 ideas", gaps=[GAP_ID])
+    state = turn(workspace, "give me 2 ideas", gaps=[GAP_ID])
     before = set(storage.list_idea_ids(CATEGORY))
+
+    # What a caller shows the idea under and what commit accepts have to be one string.
+    # They were not: the demo offered drafts by `idea_id`, which is None until this call
+    # mints one, so every accept matched nothing and wrote nothing without saying so.
+    assert offer_handle("run_1", 0, state["ideas"][0].idea_id) == "run_1#0"
 
     written = commit_selection(CATEGORY, "s1", "run_1", ["run_1#0"])
 

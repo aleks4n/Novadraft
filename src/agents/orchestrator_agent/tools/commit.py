@@ -20,6 +20,18 @@ from src.agents.idea_agent import apply_envelope
 from src.agents.orchestrator_agent import session
 
 
+def offer_handle(run_id: str, index: int, idea_id: str | None) -> str:
+    """What one offered idea is addressed by: its `idea_id`, or its position in the run.
+
+    A draft has no id until acceptance mints one, and the user still has to be able to
+    point at it. Exported rather than inlined because whoever *shows* the offer and
+    whoever passes the user's pick back here have to produce the same string — deriving
+    it in two places is exactly how they stop matching, and a mismatch here writes
+    nothing and says nothing.
+    """
+    return idea_id or f"{run_id}#{index}"
+
+
 def commit_selection(
     category_slug: str, session_id: str, run_id: str, accepted: list[str]
 ) -> list[str]:
@@ -42,7 +54,7 @@ def commit_selection(
     if not offered or len(offers) != len(offered):
         return []
 
-    handles = {(idea.get("idea_id") or f"{run_id}#{index}"): index
+    handles = {offer_handle(run_id, index, idea.get("idea_id")): index
                for index, idea in enumerate(offered)}
     picked = sorted({handles[key] for key in accepted if key in handles})
     if not picked:

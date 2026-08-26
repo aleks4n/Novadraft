@@ -41,6 +41,7 @@ if str(REPO_ROOT) not in sys.path:
 from src.common.schemas.gap import GapRecord
 from src.common.utils import storage
 from src.agents.orchestrator_agent.agent import _get_graph, commit_selection
+from src.agents.orchestrator_agent.tools.commit import offer_handle
 from src.agents.orchestrator_agent.schemas import FocusSelection
 
 W = 78
@@ -98,6 +99,9 @@ def _show_context(update: dict) -> None:
         print(f"   \033[36m{idea.idea_id}\033[0m  {idea.title}")
     for paper in ctx.papers:
         print(f"   \033[2m{paper.get('paper_id', '')}  {paper.get('title', '')}\033[0m")
+    for item in ctx.user_input:
+        unread = "" if item.extracted else "  \033[31m(text cannot be read)\033[0m"
+        print(f"   \033[2m{item.kind}: {item.title or item.id}\033[0m{unread}")
     if ctx.missing_ids:
         print(f"   \033[31mcould not load: {', '.join(ctx.missing_ids)}\033[0m")
 
@@ -145,19 +149,32 @@ def _show_reflect(update: dict) -> None:
         _kv("because", _wrap(judgment.feedback))
 
 
-def _show_finish(update: dict) -> None:
+def _show_finish(update: dict, run_id: str) -> None:
+    """The drafts on offer, each under the handle an accept would name it by.
+
+    Sections are whatever the thinker chose to write — it names its own — so they are
+    rendered in the record's order rather than from a fixed list of fields.
+    """
     _kv("answer", _wrap(update["answer"]))
     ideas = update["ideas"]
     print(f"\n   \033[2m{len(ideas)} draft(s) offered — nothing written to the idea graph\033[0m")
-    for idea in ideas:
-        lens = (idea.origin.lens or "—") if idea.origin else "—"
-        print(f"\n   \033[36m{idea.idea_id}\033[0m  \033[2m[{lens}]\033[0m")
+    for index, idea in enumerate(ideas):
+        handle = offer_handle(run_id, index, idea.idea_id)
+        style = (idea.origin.style or "—") if idea.origin else "—"
+        print(f"\n   \033[36m{handle}\033[0m  \033[2m[{style}]\033[0m")
         print(f"     \033[1m{idea.title}\033[0m")
-        print(f"     {_wrap(idea.description, '     ')}")
-        for step in idea.method:
-            print(f"       - {_wrap(step, '         ')}")
-        parents = ", ".join(f"{p.parent_kind}:{p.parent_id}" for p in idea.parents)
-        print(f"     \033[2mparents: {parents or 'none'}\033[0m")
+        if idea.one_liner:
+            print(f"     \033[2m{_wrap(idea.one_liner, '     ')}\033[0m")
+        if idea.description:
+            print(f"     {_wrap(idea.description, '     ')}")
+        for key, value in idea.ordered_sections():
+            print(f"     \033[2m{key}\033[0m")
+            for item in (value if isinstance(value, list) else [value]):
+                print(f"       - {_wrap(str(item), '         ')}")
+        if idea.addresses:
+            print(f"     \033[2maddresses: {', '.join(idea.addresses)}\033[0m")
+        for relation in idea.relations:
+            print(f"     \033[2m{relation.type} {relation.target}\033[0m")
 
 
 _RENDER = {
@@ -165,8 +182,7 @@ _RENDER = {
     "plan": _show_plan,
     "execute": _show_execute,
     "reflect": _show_reflect,
-    "finish": _show_finish,
-}
+}  # `finish` is dispatched separately — it needs the run id to name the offers.
 
 
 def main() -> None:
@@ -231,20 +247,24 @@ def main() -> None:
     for chunk in _get_graph().stream(inputs, stream_mode="updates"):
         for node, update in chunk.items():
             _rule(node)
-            render = _RENDER.get(node)
-            if render:
+            if node == "finish":
+                _show_finish(update, run_id)
+                offered = update.get("ideas", [])
+            elif render := _RENDER.get(node):
                 render(update)
             else:
                 print(f"   {update}")
-            if node == "finish":
-                offered = update.get("ideas", [])
 
     print(f"\n\033[2mSession file: workspace/{category}/sessions/{session_id}/{run_id}.json\033[0m")
     print(f"\033[2mContinue this conversation:  --session {session_id} -m \"...\"\033[0m")
 
     if args.accept and offered:
         _rule("accept (what the user's click would do)")
-        written = commit_selection(category, session_id, run_id, [i.idea_id for i in offered])
+        # By handle, not by `idea_id`: a generation draft has no id yet, so accepting by
+        # id would match nothing and write nothing without saying why.
+        picks = [offer_handle(run_id, index, idea.idea_id)
+                 for index, idea in enumerate(offered)]
+        written = commit_selection(category, session_id, run_id, picks)
         for idea_id in written:
             print(f"   \033[32mwrote\033[0m workspace/{category}/ideas/{idea_id}.json")
         print(f"\n   \033[2mrefine one with:  --idea {written[0]} -m \"...\"\033[0m" if written else "")
