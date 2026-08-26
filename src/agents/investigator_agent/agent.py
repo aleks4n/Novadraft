@@ -1021,6 +1021,12 @@ def download_papers_node(state: InvestigatorState) -> dict:
 		candidate for candidate in (result.get("search_results") or [])
 		if _is_arxiv_url(candidate.get("url") or "")
 	][:requested_count]
+	trace.log_event(
+		"investigator downloads started",
+		count=len(candidates),
+		requested=requested_count,
+		papers=[{"title": item.get("title"), "url": item.get("url")} for item in candidates],
+	)
 
 	def download_one(candidate: dict) -> dict:
 		query = candidate.get("url") or candidate.get("title") or state["query"]
@@ -1053,10 +1059,23 @@ def download_papers_node(state: InvestigatorState) -> dict:
 		with ThreadPoolExecutor(max_workers=len(batch)) as executor:
 			batch_results = list(executor.map(download_one, batch))
 		papers.extend(batch_results)
+		trace.log_event(
+			"investigator download progress",
+			completed=len(papers),
+			total=len(candidates),
+		)
 	selected = papers[:requested_count]
 	evidence = list(result.get("evidence") or [])
 	for index, item in enumerate(selected, start=1):
 		evidence.extend(_paper_evidence(item.get("result") or {}, index))
+	trace.log_event(
+		"investigator downloads finished",
+		count=len(selected),
+		successful=sum(
+			(item.get("result") or {}).get("status") not in {"error", "needs_source"}
+			for item in selected
+		),
+	)
 	return {"research_result": {**result, "papers": selected, "attempted_papers": papers, "evidence": evidence}}
 
 

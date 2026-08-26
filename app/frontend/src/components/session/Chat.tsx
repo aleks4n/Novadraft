@@ -91,10 +91,7 @@ export function Chat({
           />
         ))}
 
-        {/* A run that has started but whose reply is not on the transcript yet.
-            It shows its **tree**, not a stage list: the stages say where the agent
-            is, the tree says what it is considering, and only the second is worth
-            watching. */}
+        {/* A run that has started but whose reply is not on the transcript yet. */}
         {runs.filter((r) => !messages.some((m) => m.role === "agent" && m.run_id === r.id))
           .map((r) => (
             <div className="msg msg--agent" key={r.id}>

@@ -213,6 +213,45 @@ def stored(session_id="s1", run_id="run_1") -> dict:
     return session.read_result(CATEGORY, session_id, run_id)
 
 
+def test_stream_reports_plan_and_step_progress(workspace, rec):
+    rec.plans = [Plan(
+        goal="Research the selected gap",
+        steps=[ToolCall(tool="investigator", args={"query": "what has been tried?"})],
+        done_criteria=["findings returned"],
+    )]
+    rec.findings = ["Two relevant approaches."]
+    rec.judgments = [ReflectJudgment(
+        route="finish", keep_results=True, answer="Here is what I found.",
+    )]
+
+    custom = []
+    inputs = {
+        "session_id": "s-progress", "category_slug": CATEGORY,
+        "run_id": "run-progress", "message": "Research this",
+        "iteration": 0, "focus": FocusSelection(gap_ids=[GAP_ID]),
+    }
+    for _namespace, mode, data in build_orchestrator_graph().stream(
+        inputs, stream_mode=["updates", "custom"], subgraphs=True,
+    ):
+        if mode == "custom":
+            custom.append(data)
+
+    names = [event.get("name") for event in custom]
+    assert names == [
+        "orchestrator planning",
+        "orchestrator plan",
+        "orchestrator step started",
+        "orchestrator step finished",
+        "orchestrator review started",
+        "orchestrator review finished",
+    ]
+    planned = custom[1]
+    assert planned["data"]["goal"] == "Research the selected gap"
+    assert planned["data"]["steps"][0]["tool"] == "investigator"
+    assert custom[2]["data"]["step"] == 1
+    assert custom[3]["data"]["ok"] is True
+
+
 def drop(session_id="s1", *, notes=(), files=()) -> None:
     """Seed a session the way the chat surface does: notes pasted, documents dropped.
 

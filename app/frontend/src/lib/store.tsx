@@ -79,6 +79,7 @@ export function runForTarget(runs: RunState[], kind: "paper" | "gap", id: string
 function metaToState(meta: RunMeta, events: RunEvent[] = []): RunState {
   return {
     id: meta.run_id,
+    agent: meta.agent,
     kind: meta.kind,
     status: meta.status,
     query: meta.query,

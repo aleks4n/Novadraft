@@ -10,12 +10,19 @@
 // error, not a diagram.
 import { useState } from "react";
 import { Icon } from "./Icon";
+import { OrchestratorProgress } from "./OrchestratorProgress";
 import { NodeInspector, ThoughtTree } from "./ThoughtTree";
+import { isOrchestratorRun } from "../lib/orchestratorProgress";
 import { treeForRun } from "../lib/thoughts";
 import { useWorkspace } from "../lib/store";
 import type { RunState, ThoughtNode } from "../lib/types";
 
 export function LiveThoughts({ run }: { run: RunState }) {
+  if (isOrchestratorRun(run)) return <OrchestratorProgress run={run} />;
+  return <CreativeThoughts run={run} />;
+}
+
+function CreativeThoughts({ run }: { run: RunState }) {
   const { cancelRun, isCancelling, restartRun } = useWorkspace();
   const [selected, setSelected] = useState<ThoughtNode | null>(null);
   const tree = treeForRun(run);

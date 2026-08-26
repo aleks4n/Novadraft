@@ -730,6 +730,68 @@ body.col-resizing .gaps-row:hover { background: transparent; }
   font-size: 12px; color: var(--text-4);
 }
 
+.orchestrator-progress { gap: 9px; }
+.orchestrator-updated {
+  font-family: var(--font-mono); font-size: 9.5px; color: var(--text-5);
+}
+.orchestrator-goal {
+  margin: 0; font-size: 12px; line-height: 1.45; color: var(--text-2);
+}
+.orchestrator-steps {
+  list-style: none; margin: 0; padding: 1px 0; display: flex; flex-direction: column;
+}
+.orchestrator-step {
+  position: relative; display: flex; gap: 9px; min-height: 35px; padding: 3px 0 7px;
+}
+.orchestrator-step:not(:last-child)::after {
+  content: ""; position: absolute; left: 9px; top: 23px; bottom: -1px;
+  width: 1px; background: var(--border);
+}
+.orchestrator-step-mark {
+  position: relative; z-index: 1; width: 19px; height: 19px; flex: 0 0 19px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border-strong); border-radius: 50%; background: var(--bg-panel);
+  font-family: var(--font-mono); font-size: 9px; color: var(--text-5);
+}
+.orchestrator-step--active .orchestrator-step-mark {
+  border-color: #c9b9eb; background: var(--accent-ai-soft); color: var(--accent-ai);
+}
+.orchestrator-step--done .orchestrator-step-mark {
+  border-color: #bfe0cd; background: #f4faf6; color: var(--accent-green);
+}
+.orchestrator-step--failed .orchestrator-step-mark {
+  border-color: #efc5c5; background: #fff5f5; color: var(--accent-warm);
+}
+.orchestrator-step-copy { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.orchestrator-step-agent {
+  font-size: 9px; line-height: 1.25; font-weight: 700; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--text-4);
+}
+.orchestrator-step--active .orchestrator-step-agent { color: var(--accent-ai); }
+.orchestrator-step-title {
+  max-width: 100%; font-size: 11.5px; line-height: 1.35; color: var(--text-2);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.orchestrator-step--pending .orchestrator-step-copy { opacity: .58; }
+.orchestrator-step-error { font-size: 10.5px; color: var(--accent-warm); }
+.orchestrator-plan-wait {
+  display: flex; align-items: center; gap: 7px; min-height: 28px;
+  font-size: 11.5px; color: var(--text-4);
+}
+.orchestrator-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-5); }
+.orchestrator-current {
+  display: flex; align-items: baseline; gap: 7px; border-top: 1px solid var(--border-soft);
+  padding-top: 7px; font-size: 11.5px; color: var(--text-3);
+}
+.orchestrator-current-label {
+  font-size: 9px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--accent-ai);
+}
+.orchestrator-thinker { border-top: 1px solid var(--border-soft); padding-top: 8px; }
+.orchestrator-thinker-head {
+  margin-bottom: 6px; font-size: 10px; font-weight: 600; color: var(--text-4);
+}
+
 .run-band-summary { font-size: 12px; color: var(--text-3); line-height: 1.55; border-top: 1px solid var(--border-soft); padding-top: 8px; }
 .run-band-summary p { margin: 0 0 4px; }
 .run-band-summary b { color: var(--text-4); margin-right: 6px; }

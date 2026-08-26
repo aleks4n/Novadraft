@@ -13,6 +13,7 @@ outright ~1 in 3 times even with the registry's re-ask, and it is slower (9-11s 
 from __future__ import annotations
 
 from src.common.utils.prompts import load_prompt
+from src.common.utils.logging.trace import log_event
 from src.llm.registry import chat_with_structured_output, get_llm
 from src.common.schemas.context import Context
 from src.agents.orchestrator_agent.render import context_view, history_view, results_view
@@ -30,6 +31,8 @@ def plan(state: OrchestratorState) -> dict:
     """LangGraph node: message + context -> {"plan": Plan}."""
     ctx: Context = state.get("context") or Context()
     previous = state.get("judgment")
+    round_now = state.get("iteration", 0) + 1
+    log_event("orchestrator planning", round=round_now)
 
     user_message = (
         f"**Earlier in this conversation:**\n{history_view(state.get('history') or [])}\n\n"
@@ -56,8 +59,10 @@ def plan(state: OrchestratorState) -> dict:
                "**The previous round was discarded.** Nothing is in hand; plan from scratch.")
         )
 
+    planned = chat_with_structured_output(get_llm("cheap"), _SYSTEM, user_message, Plan)
+    log_event("orchestrator plan", round=round_now, **planned.model_dump(mode="json"))
     return {
-        "plan": chat_with_structured_output(get_llm("cheap"), _SYSTEM, user_message, Plan),
+        "plan": planned,
         "results": kept,
         "carried": len(kept),
     }

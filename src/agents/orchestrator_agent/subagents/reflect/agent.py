@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from src.common.schemas.context import Context
 from src.common.utils.prompts import load_prompt
+from src.common.utils.logging.trace import log_event
 from src.llm.registry import chat_with_structured_output, get_llm
 from src.agents.orchestrator_agent.render import context_view, history_view, results_view
 from src.agents.orchestrator_agent.schemas import Plan, ReflectJudgment
@@ -33,6 +34,7 @@ def reflect(state: OrchestratorState) -> dict:
     # judgment, so without this reflect can ask for another round it will not get and word
     # its answer as though one were coming.
     round_now = state.get("iteration", 0) + 1
+    log_event("orchestrator review started", round=round_now)
     user_message = (
         f"**Round {round_now} of {MAX_ITERATIONS}.**"
         + (" This is the last round — whatever you decide, this answer is final.\n\n"
@@ -48,5 +50,12 @@ def reflect(state: OrchestratorState) -> dict:
 
     judgment = chat_with_structured_output(
         get_llm("cheap"), _SYSTEM, user_message, ReflectJudgment
+    )
+    log_event(
+        "orchestrator review finished",
+        round=round_now,
+        route=judgment.route,
+        keep_results=judgment.keep_results,
+        feedback=judgment.feedback,
     )
     return {"judgment": judgment, "iteration": state.get("iteration", 0) + 1}

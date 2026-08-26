@@ -34,6 +34,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from src.common.schemas.context import Context
 from src.common.schemas.idea import IdeaRecord
+from src.common.utils.logging.trace import log_event
 from src.common.utils.logging.runlog import GraphRunLog
 from src.agents.orchestrator_agent import session
 from src.agents.orchestrator_agent.context import assemble_context
@@ -114,6 +115,13 @@ def execute(state: OrchestratorState) -> dict:
     spent = state.get("spent", 0)
 
     for i, step in enumerate(plan_.steps, 1):
+        log_event(
+            "orchestrator step started",
+            step=i,
+            total=len(plan_.steps),
+            tool=step.tool,
+            why=step.why,
+        )
         # Each step gets an equal share of what the turn has left, recomputed as it goes:
         # a step that came in under its slice leaves the rest for the ones after it, and a
         # replan inherits whatever the earlier rounds did not use.
@@ -141,6 +149,16 @@ def execute(state: OrchestratorState) -> dict:
         produced[i] = result
         at[i] = len(results)
         results.append(result)
+        log_event(
+            "orchestrator step finished",
+            step=i,
+            total=len(plan_.steps),
+            tool=step.tool,
+            ok=result.ok,
+            error=result.error,
+            ideas=len(result.ideas),
+            has_text=bool(result.text),
+        )
 
     return {"results": _drop_superseded(results, at, consumed), "spent": spent}
 

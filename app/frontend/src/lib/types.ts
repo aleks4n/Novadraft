@@ -403,6 +403,7 @@ export interface RunMeta {
 // transcript, stage progress, and per-gap activity). Several can be live at once.
 export interface RunState {
   id: string;
+  agent: string;
   kind: "paper" | "idea" | "resume";
   status: RunStatus;
   query: string | null;
