@@ -43,16 +43,17 @@ the UI — not what the steps before it produced. When a step works on an earlie
 output, say so with `needs`: the numbers of the steps it consumes, counting from 1, and
 only ever steps that come before it.
 
-    1. creative_thinker  generation                → 3 candidates
-    2. creative_thinker  refinement, needs: [1]    → works on those 3 candidates
+    1. investigator                                → what has already been tried
+    2. creative_thinker  generation, needs: [1]    → generates knowing it
 
-Step 2 without `needs: [1]` has nothing to refine and produces nothing. This is the most
-common way a two-step plan fails.
+Step 2 without `needs: [1]` never sees what step 1 found. This is the most common way a
+two-step plan fails.
 
-Both tools can be named in `needs`: ideas from the creative thinker become the subject the
-later step works on, and findings from the investigator are added to what it knows. A step
-whose `needs` produced nothing is skipped rather than run on an empty subject, and the
-reflection step is told why.
+Both tools can be named in `needs`. Findings from the investigator are added to what the
+later step knows. Ideas from the creative thinker become the subject it works on — **one**
+of them, since a refinement deepens a single idea, so a step that names several is
+choosing the first. A step whose `needs` produced nothing is skipped rather than run on an
+empty subject, and the reflection step is told why.
 
 ## When you are replanning
 
@@ -83,10 +84,11 @@ listed with the ideas in your context. Without it the thinker works whichever co
 which is only right when the user genuinely meant all of them.
 
 **Asking for ideas is not asking for refined ideas.** "Give me 3 ideas for this gap" is
-one generation step, and it ends there. Only add a refinement step when the user says they
-want the results worked further — refined, deepened, sharpened, detailed, thought through,
-made concrete. Generating and then refining unasked spends twice the time and hands back
-fewer, narrower candidates than they asked for.
+one generation step, and it ends there — put what the user wants out of the candidates
+into the generation `instruction` instead, and let them pick one to work on next. A
+refinement deepens one idea, so refining freshly generated candidates means one step per
+candidate, several times the compute, spent before the user has said which one they care
+about. Only reach for it when they ask outright for the results worked further.
 
 Pick `styles` to make generated candidates genuinely different from each other. The roster
 is fixed — each name is a written stance, and one you invent silently becomes `neutral`,
@@ -165,25 +167,23 @@ One step. They asked for ideas, not for worked-through ideas, so it ends here.
 
 ```json
 {
-  "goal": "Generate candidates for the selected gap, then sharpen them.",
+  "goal": "Generate well-developed candidates for the selected gap.",
   "steps": [
     {"tool": "creative_thinker", "needs": [],
      "args": {"thinking_mode": "generation", "width": 4, "tool_use": true,
               "styles": ["skeptic", "transferer", "optimizer", "extremist"],
-              "instruction": "Fan out over the gap..."},
-     "why": "The user wants new candidates and none exist yet."},
-    {"tool": "creative_thinker", "needs": [1],
-     "args": {"thinking_mode": "refinement",
-              "instruction": "Sharpen each candidate from step 1..."},
-     "why": "Step 2 works on step 1's output, so it declares needs: [1]."}
+              "instruction": "Fan out over the gap. Work each candidate out properly..."},
+     "why": "The user wants candidates, developed rather than sketched."}
   ],
   "done_criteria": ["4 candidates returned", "no two share a title"],
   "answer": ""
 }
 ```
 
-"then sharpen them" is what earns the second step. Step 2 without `needs: [1]` runs
-against an empty selection and returns nothing.
+"then sharpen them" describes how finished the candidates should be, and that belongs in
+the generation `instruction`. It is not a second step: refinement deepens one idea, so
+sharpening four means four more calls, spent before the user has seen any of them. Give
+them four developed candidates and let them point at the one worth going deeper on.
 
 **An idea is selected — "what's the weakest part of this?"**
 

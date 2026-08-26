@@ -18,7 +18,7 @@ from src.agents.creative_thinker.schemas import AgentStyle, Budget, Envelope, Th
 from src.agents.creative_thinker.styles import ROSTER, DEFAULT_REFINEMENT_STYLE
 from src.common.schemas.context import Context
 from src.common.schemas.idea import IdeaRecord
-from src.agents.orchestrator_agent.schemas import ToolResult
+from src.agents.orchestrator_agent.schemas import ToolResult, parse_step_ref, step_ref
 from src.agents.orchestrator_agent.tools.base import Tool, ToolEnv
 
 ThinkingMode = Literal["generation", "refinement"]
@@ -64,10 +64,12 @@ class ThinkerArgs(BaseModel):
     )
     work_on: list[str] = Field(
         default_factory=list,
-        description="Ids of the ideas already in your context that this call should work "
-                    "on — use it when several are in scope and the user meant one of them. "
-                    "Only ids listed in the context you were given. Leave empty to work on "
-                    "everything in scope.",
+        description="Which idea this call works on. Either an idea id from the context you "
+                    "were given, or the output of an earlier step of this plan written as "
+                    "step#position, both counted from 1 — 1#2 is the second idea step 1 "
+                    "returns. Use the step form when the idea does not exist yet because "
+                    "an earlier step is about to make it. Leave empty to work on whatever "
+                    "is in scope.",
     )
     width: int = Field(
         default=3,
@@ -91,33 +93,71 @@ class ThinkerArgs(BaseModel):
     )
 
 
-def _subject(args: ThinkerArgs, ctx: Context) -> tuple[IdeaRecord, Context, str]:
-    """The idea this call works on, the context around it, and a reason to fail.
+def _from_earlier_step(ref: str, env: ToolEnv) -> IdeaRecord | None:
+    """A `step#position` reference resolved against what that step actually returned."""
+    parsed = parse_step_ref(ref)
+    if parsed is None:
+        return None
+    step, position = parsed
+    produced = env.chained.get(step) or []
+    return produced[position - 1] if 1 <= position <= len(produced) else None
+
+
+def _subject(args: ThinkerArgs, ctx: Context,
+             env: ToolEnv) -> tuple[IdeaRecord, Context, str, str]:
+    """The idea this call works on, the context around it, a reason to fail, and the
+    handle of what it consumed.
 
     The thinker takes the subject as its own argument and treats `context.ideas` as
     *related* ideas — which is what makes "refinement deepens ONE existing idea" true.
-    `work_on` picks that subject out of what the planner could see; an id that is not
-    actually in context fails the step with a reason rather than silently working
-    whichever idea happened to come first.
+    `work_on` picks that subject out of what the planner could see; a name that resolves
+    to nothing fails the step with a reason rather than silently working whichever idea
+    happened to come first.
+
+    Two kinds of name resolve. An `idea_id` names a record in the workspace. A
+    `step#position` handle names one output of an earlier step in this same plan — which
+    is the only way to say "the second of the three you are about to generate", since
+    those have no ids until someone accepts them. The fourth return value is that handle
+    when one was used, so the caller can stop offering the record this call rewrote.
     """
     ideas = list(ctx.ideas)
     if args.work_on:
-        wanted = set(args.work_on)
-        chosen = [idea for idea in ideas if idea.idea_id in wanted]
+        by_id = {idea.idea_id: idea for idea in ideas if idea.idea_id}
+        chosen = [found for found in
+                  (_from_earlier_step(ref, env) or by_id.get(ref) for ref in args.work_on)
+                  if found is not None]
         if not chosen:
-            return IdeaRecord(), ctx, f"work_on named {args.work_on}, none of which is in context"
+            return (IdeaRecord(), ctx,
+                    f"work_on named {args.work_on}, none of which is in context", "")
         subject = chosen[0]
     elif args.thinking_mode == "refinement":
         if not ideas:
-            return IdeaRecord(), ctx, "refinement needs an idea in context and none is"
+            return IdeaRecord(), ctx, "refinement needs an idea in context and none is", ""
         subject = ideas[0]
     else:
         # Generation has no subject; every idea in scope is background it is deduplicated
         # against.
-        return IdeaRecord(), ctx, ""
+        return IdeaRecord(), ctx, "", ""
 
     rest = [idea for idea in ideas if idea is not subject]
-    return subject, ctx.model_copy(update={"ideas": rest}), ""
+    return subject, ctx.model_copy(update={"ideas": rest}), "", _handle_for(subject, env)
+
+
+def _handle_for(subject: IdeaRecord, env: ToolEnv) -> str:
+    """The `step#position` handle of the subject, when it came from an earlier step.
+
+    Derived from the record rather than from whatever `work_on` said, so a refinement that
+    named nothing and simply took the first idea reports its consumption too — that is the
+    plain `generate -> refine` case, and the one that put the same idea on screen twice.
+
+    Compared by identity: `_context_for` passes the very objects the earlier step returned,
+    so this asks "is this that record" rather than "does this look like it".
+    """
+    for step, produced in env.chained.items():
+        for position, candidate in enumerate(produced, 1):
+            if candidate is subject:
+                return step_ref(step, position)
+    return ""
 
 
 def _styles(args: ThinkerArgs) -> list[AgentStyle]:
@@ -140,7 +180,7 @@ def run(args: ThinkerArgs, ctx: Context, env: ToolEnv) -> ToolResult:
     completed round's survivors labelled `truncated`, and reflect has to be able to tell
     that apart from thinking that simply went badly.
     """
-    subject, around, problem = _subject(args, ctx)
+    subject, around, problem, consumed = _subject(args, ctx, env)
     if problem:
         return ToolResult(tool=TOOL.name, ok=False, error=problem)
 
@@ -167,16 +207,20 @@ def run(args: ThinkerArgs, ctx: Context, env: ToolEnv) -> ToolResult:
     # the trace lives on that carrier, and the accept step needs it to attach the right
     # part of it to whichever candidate the user takes.
     ideas = list(envelope.drafts)
+    draft_index: list[int | None] = list(range(len(envelope.drafts)))
     if args.thinking_mode == "refinement":
         ideas.insert(0, envelope.idea)
+        draft_index.insert(0, None)
 
     return ToolResult(
         tool=TOOL.name,
         ideas=ideas,
+        draft_index=draft_index,
         text=envelope.answer,
         status=envelope.status,
         limit=envelope.limit or "",
         envelope=envelope.model_dump(mode="json"),
+        consumed=consumed,
     )
 
 

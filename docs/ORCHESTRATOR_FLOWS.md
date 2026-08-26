@@ -100,6 +100,80 @@ Step 2 works on what step 1 produced. Without `needs` it would run against the u
 4. orchestrator → **reflect** (LLM)
 ```
 
+## A refined draft replaces the one it rewrote
+
+*`generate(2) -> refine`, with no idea named.*
+
+Refinement returns its subject *rewritten*, not an extra idea, so the original stops being something to offer. Without this the user is shown the same idea twice — before and after — with nothing saying which supersedes which, and accepting both writes one idea to the graph as two records.
+
+What is left still has to point at the right record inside its envelope: dropping the first candidate must not slide the second one's index up by one.
+
+```
+1. orchestrator → **plan** (LLM)
+2. orchestrator → **creative thinker**
+      mode: 'generation'
+      width: 2
+      depth: 3
+      budget_llm_calls: 60
+      context_gaps: ['gap_testflow']
+3. orchestrator → **creative thinker**
+      mode: 'refinement'
+      subject_title: 'Alpha'
+      styles: ['neutral']
+      width: 3
+      depth: 3
+      budget_llm_calls: 112
+      context_gaps: ['gap_testflow']
+      context_ideas: [None]
+4. orchestrator → **reflect** (LLM)
+```
+
+## Refining each candidate by step reference
+
+*`generate(3) -> refine 1#1 -> refine 1#2 -> refine 1#3`.*
+
+A candidate that does not exist yet has no id to name it by, so `work_on` also takes a `step#position` handle — knowable when the plan is written, because the plan is what decides how many the step returns.
+
+Without it every refinement step falls back to the first idea in context and all three sharpen the same candidate, leaving the other two untouched while reporting success.
+
+```
+1. orchestrator → **plan** (LLM)
+2. orchestrator → **creative thinker**
+      mode: 'generation'
+      width: 3
+      depth: 3
+      budget_llm_calls: 30
+      context_gaps: ['gap_testflow']
+3. orchestrator → **creative thinker**
+      mode: 'refinement'
+      subject_title: 'Alpha'
+      styles: ['neutral']
+      width: 3
+      depth: 3
+      budget_llm_calls: 37
+      context_gaps: ['gap_testflow']
+      context_ideas: [None, None]
+4. orchestrator → **creative thinker**
+      mode: 'refinement'
+      subject_title: 'Beta'
+      styles: ['neutral']
+      width: 3
+      depth: 3
+      budget_llm_calls: 52
+      context_gaps: ['gap_testflow']
+      context_ideas: [None, None]
+5. orchestrator → **creative thinker**
+      mode: 'refinement'
+      subject_title: 'Gamma'
+      styles: ['neutral']
+      width: 3
+      depth: 3
+      budget_llm_calls: 96
+      context_gaps: ['gap_testflow']
+      context_ideas: [None, None]
+6. orchestrator → **reflect** (LLM)
+```
+
 ## A step whose needs produced nothing is skipped not run
 
 *A dependency that returned nothing stops the step rather than feeding it nothing.*

@@ -45,6 +45,7 @@ from src.agents.orchestrator_agent.schemas import (
     ReflectJudgment,
     ToolCall,
     ToolResult,
+    parse_step_ref,
 )
 from src.agents.orchestrator_agent.state import (
     MAX_ITERATIONS,
@@ -108,6 +109,8 @@ def execute(state: OrchestratorState) -> dict:
     ctx: Context = state.get("context") or Context()
     results = list(state.get("results") or [])  # rounds reflect chose to keep
     produced: dict[int, ToolResult] = {}  # this pass only, by 1-based step number
+    at: dict[int, int] = {}  # step number -> where its result sits in `results`
+    consumed: set[str] = set()  # `step#position` handles a later step rewrote
     spent = state.get("spent", 0)
 
     for i, step in enumerate(plan_.steps, 1):
@@ -122,6 +125,7 @@ def execute(state: OrchestratorState) -> dict:
             session_id=state.get("session_id", ""),
             run_id=state.get("run_id", ""),
             max_llm_calls=granted,
+            chained={n: list(produced[n].ideas) for n in step.needs if n in produced},
         )
         step_ctx, skip = _context_for(step, ctx, produced)
         result = (ToolResult(tool=step.tool, ok=False, error=f"skipped — {skip}")
@@ -132,9 +136,50 @@ def execute(state: OrchestratorState) -> dict:
         # A skipped step ran nothing and is charged nothing.
         reported = int(((result.envelope.get("metrics") or {}).get("llm_calls")) or 0)
         spent += 0 if skip else (reported or granted)
+        if result.consumed:
+            consumed.add(result.consumed)
         produced[i] = result
+        at[i] = len(results)
         results.append(result)
-    return {"results": results, "spent": spent}
+
+    return {"results": _drop_superseded(results, at, consumed), "spent": spent}
+
+
+def _drop_superseded(results: list[ToolResult], at: dict[int, int],
+                     consumed: set[str]) -> list[ToolResult]:
+    """Stop offering the drafts that a later step rewrote.
+
+    A refinement returns *its subject, rewritten* — not an additional idea. Left alone,
+    a `generate -> refine` plan puts the same idea on screen twice, before and after,
+    with nothing marking which supersedes which; accepting both writes one idea to the
+    graph as two records.
+
+    Done here rather than in `finish` because the step numbering is only meaningful
+    within one pass: results kept from an earlier round sit in front of this round's, and
+    a handle recorded then would point at the wrong record now.
+    """
+    if not consumed:
+        return results
+    # Grouped by step and removed in one pass: taking them out one at a time renumbers
+    # the rest, so the second removal from the same step would hit the wrong record.
+    by_step: dict[int, set[int]] = {}
+    for handle in consumed:
+        parsed = parse_step_ref(handle)
+        if parsed is not None and parsed[0] in at:
+            by_step.setdefault(parsed[0], set()).add(parsed[1])
+
+    out = list(results)
+    for step, positions in by_step.items():
+        source = out[at[step]]
+        keep = [index for index in range(len(source.ideas)) if index + 1 not in positions]
+        out[at[step]] = source.model_copy(update={
+            "ideas": [source.ideas[i] for i in keep],
+            # `draft_index` stays parallel, so what is left still points at the right
+            # record inside the envelope rather than sliding up by one.
+            "draft_index": [source.draft_index[i] for i in keep
+                            if i < len(source.draft_index)],
+        })
+    return out
 
 
 def _fallback_answer(state: OrchestratorState) -> str:
@@ -182,12 +227,10 @@ def finish(state: OrchestratorState) -> dict:
             continue
         envelope_index = len(envelopes)
         envelopes.append(result.envelope)
-        # A refinement's first offered idea IS the envelope's record; the rest are drafts.
-        refined_first = bool(result.envelope) and result.ideas[0].idea_id is not None
         for position, idea in enumerate(result.ideas):
-            is_carrier = refined_first and position == 0
-            offers.append({"envelope": envelope_index,
-                           "draft": None if is_carrier else position - int(refined_first)})
+            slot = (result.draft_index[position]
+                    if position < len(result.draft_index) else position)
+            offers.append({"envelope": envelope_index, "draft": slot})
             ideas.append(idea)
 
     # Whoever saw the last decision-relevant thing speaks: reflect when tools ran (it is

@@ -6,11 +6,37 @@ returns when no API key is set) yields a usable object and a dev run still termi
 
 from __future__ import annotations
 
+import re
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
 from src.common.schemas.idea import IdeaRecord
+
+# --- addressing a draft that does not exist yet -------------------------------
+
+_STEP_REF = re.compile(r"^\s*(\d+)\s*#\s*(\d+)\s*$")
+
+
+def step_ref(step: int, position: int) -> str:
+    """The handle for one output of one step, both counted from 1.
+
+    Ideas made during a turn have no `idea_id` — nothing has accepted them — so there is
+    otherwise no way to say *which* of three candidates something means. A plan can name
+    one before it exists, because the plan is what decides how many the step returns.
+
+    The same string is used to point at a draft, to report which one a step consumed, and
+    to drop the consumed one from what is offered. One vocabulary, so the three cannot
+    disagree about what "the second candidate" is.
+    """
+    return f"{step}#{position}"
+
+
+def parse_step_ref(ref: str) -> tuple[int, int] | None:
+    """`"1#2"` -> `(1, 2)`, or None if it is not a step reference (an `idea_id` is not)."""
+    match = _STEP_REF.match(str(ref))
+    return (int(match.group(1)), int(match.group(2))) if match else None
+
 
 # --- session I/O -------------------------------------------------------------
 
@@ -137,6 +163,22 @@ class ToolResult(BaseModel):
     text: str = ""
     status: str = "completed"
     limit: str = ""
+    draft_index: list[int | None] = Field(
+        default_factory=list,
+        description="Parallel to `ideas`: where each one sits in `envelope`. An integer "
+                    "indexes `envelope.drafts`; None means it *is* the envelope's own "
+                    "record. Reported by the adapter, which knows, rather than inferred "
+                    "later from whether an id is present — a refinement of a draft "
+                    "rewrites a record that has no id either, and guessing gets it wrong.",
+    )
+    consumed: str = Field(
+        default="",
+        description="The `step#position` handle of the earlier draft this step took as "
+                    "its subject, if it took one. A refinement returns a rewrite of what "
+                    "it was given, so the original stops being a separate thing to offer "
+                    "— without this the user is shown the same idea twice, before and "
+                    "after, with nothing saying which supersedes which.",
+    )
     envelope: dict[str, Any] = Field(
         default_factory=dict,
         description="The subagent's own return, kept whole and opaque. A generation run's "

@@ -7,12 +7,13 @@ other.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable
 
 from pydantic import BaseModel
 
 from src.common.schemas.context import Context
+from src.common.schemas.idea import IdeaRecord
 from src.agents.orchestrator_agent.schemas import ToolResult
 
 
@@ -23,12 +24,17 @@ class ToolEnv:
     `max_llm_calls` is this step's slice of the turn's budget. A subagent's own ceiling is
     per call, which is the right unit for it and the wrong one for a turn: several steps
     across several reflect rounds multiply. Zero means "use the subagent's own default".
+
+    `chained` is what the steps this one declared in `needs` produced, by step number. It
+    is here rather than folded into the context because a `step#position` reference has to
+    resolve to *one* record, and the flattened context has lost which step made what.
     """
 
     category_slug: str = ""
     session_id: str = ""
     run_id: str = ""
     max_llm_calls: int = 0
+    chained: dict[int, list[IdeaRecord]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

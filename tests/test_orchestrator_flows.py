@@ -349,6 +349,70 @@ def test_chained_steps_pass_ideas_forward(workspace, rec):
     assert second["subject_title"] == "From skeptic", "step 2 got step 1's output"
 
 
+def test_a_refined_draft_replaces_the_one_it_rewrote(workspace, rec):
+    """`generate(2) -> refine`, with no idea named.
+
+    Refinement returns its subject *rewritten*, not an extra idea, so the original stops
+    being something to offer. Without this the user is shown the same idea twice — before
+    and after — with nothing saying which supersedes which, and accepting both writes one
+    idea to the graph as two records.
+
+    What is left still has to point at the right record inside its envelope: dropping the
+    first candidate must not slide the second one's index up by one.
+    """
+    made = [candidate("Alpha", node="n0"), candidate("Beta", node="n1")]
+    rec.plans = [Plan(goal="Generate then sharpen.", done_criteria=["2 candidates"], steps=[
+        ToolCall(tool="creative_thinker", args={"thinking_mode": "generation", "width": 2}),
+        ToolCall(tool="creative_thinker", needs=[1], args={"thinking_mode": "refinement"}),
+    ])]
+    rec.envelopes = [envelope(drafts=made),
+                     envelope(idea=made[0].model_copy(update={"title": "Alpha sharpened"}))]
+    rec.judgments = [ReflectJudgment(route="finish", answer="Sharpened the first.")]
+
+    state = turn(workspace, "give me ideas then sharpen", gaps=[GAP_ID])
+
+    assert [i.title for i in state["ideas"]] == ["Beta", "Alpha sharpened"]
+    assert stored()["offers"] == [{"envelope": 0, "draft": 1},
+                                  {"envelope": 1, "draft": None}]
+
+    # Accepting the rewritten one is a create: it has no id either, because the draft it
+    # rewrote had none. `apply_envelope` writes only what already has an id, so without
+    # minting here the click would write nothing and report nothing.
+    written = commit_selection(CATEGORY, "s1", "run_1", ["run_1#1"])
+    assert len(written) == 1
+    assert storage.read_idea_json(CATEGORY, written[0])["title"] == "Alpha sharpened"
+
+
+def test_refining_each_candidate_by_step_reference(workspace, rec):
+    """`generate(3) -> refine 1#1 -> refine 1#2 -> refine 1#3`.
+
+    A candidate that does not exist yet has no id to name it by, so `work_on` also takes
+    a `step#position` handle — knowable when the plan is written, because the plan is what
+    decides how many the step returns.
+
+    Without it every refinement step falls back to the first idea in context and all three
+    sharpen the same candidate, leaving the other two untouched while reporting success.
+    """
+    made = [candidate(t, node=f"n{i}")
+            for i, t in enumerate(("Alpha", "Beta", "Gamma"))]
+    rec.plans = [Plan(goal="Generate then sharpen each.", done_criteria=["3 refined"], steps=[
+        ToolCall(tool="creative_thinker", args={"thinking_mode": "generation", "width": 3}),
+        *[ToolCall(tool="creative_thinker", needs=[1],
+                   args={"thinking_mode": "refinement", "work_on": [f"1#{n}"]})
+          for n in (1, 2, 3)],
+    ])]
+    rec.envelopes = [envelope(drafts=made)] + [
+        envelope(idea=m.model_copy(update={"title": f"{m.title} v2"})) for m in made]
+    rec.judgments = [ReflectJudgment(route="finish", answer="Sharpened all three.")]
+
+    state = turn(workspace, "3 ideas for this gap, then sharpen each", gaps=[GAP_ID])
+
+    assert [c.args["subject_title"] for c in rec.to("creative_thinker")[1:]] == [
+        "Alpha", "Beta", "Gamma"], "each step got its own candidate"
+    assert [i.title for i in state["ideas"]] == ["Alpha v2", "Beta v2", "Gamma v2"], (
+        "three ideas, each in its refined form — not six, raw and refined side by side")
+
+
 def test_a_step_whose_needs_produced_nothing_is_skipped_not_run(workspace, rec):
     """A dependency that returned nothing stops the step rather than feeding it nothing.
 

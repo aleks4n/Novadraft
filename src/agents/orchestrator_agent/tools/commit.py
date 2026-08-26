@@ -16,7 +16,7 @@ result, so a request naming something the run never produced writes nothing.
 from __future__ import annotations
 
 from src.agents.creative_thinker.schemas import Envelope
-from src.agents.idea_agent import apply_envelope
+from src.agents.idea_agent import apply_envelope, new_idea_id
 from src.agents.orchestrator_agent import session
 
 
@@ -76,9 +76,20 @@ def commit_selection(
         raw = envelopes[envelope_index] if envelope_index < len(envelopes) else None
         if not raw:
             continue
+        envelope = Envelope.model_validate(raw)
+        if slot["carrier"] and not envelope.idea.idea_id:
+            # A refinement whose subject was itself a draft from earlier in this turn:
+            # the rewritten record has no id either, and `apply_envelope` persists only
+            # what already has one — so accepting it would write nothing and say nothing.
+            # Accepting an idea that has no id is a create; mint it here, where "the user
+            # took this" is what is actually known.
+            envelope.idea.idea_id = new_idea_id()
+            if envelope.idea.state == "provisional":
+                # Same rule `apply_envelope` applies to an accepted draft with no parent.
+                envelope.idea.state = "root"
         result = apply_envelope(
             category_slug,
-            Envelope.model_validate(raw),
+            envelope,
             accept_drafts=sorted(slot["drafts"]),
             # Only overwrite the source record when the user actually took the refined
             # version of it. A generation run's carrier is not a record anyone asked for.

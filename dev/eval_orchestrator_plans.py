@@ -86,11 +86,13 @@ CASES: list[dict] = [
     {"name": "gap_generate_implicit", "focus": "gap", "message": "what could we do here?",
      "expect": {"tool": "creative_thinker", "thinking_mode": "generation"}},
 
-    # --- a plan whose second step consumes the first. Without `needs`, step 2 runs
-    #     against the up-front context, finds no ideas, and produces nothing. ---
-    {"name": "gap_generate_then_refine", "focus": "gap",
+    # "then sharpen them" says how finished the candidates should be, not that a second
+    # step is wanted. Refinement deepens one idea, so sharpening four is four more calls
+    # spent before the user has seen any of them — the developedness belongs in the
+    # generation instruction, and the user picks what to go deeper on next turn.
+    {"name": "gap_generate_developed", "focus": "gap",
      "message": "give me a few ideas for this gap, then sharpen whatever you come up with",
-     "expect": {"tool": "creative_thinker", "chained": True}},
+     "expect": {"tool": "creative_thinker", "thinking_mode": "generation", "steps": 1}},
 
     # Chaining the other way round: research first, then generate grounded in what came
     # back. Exercises `needs` pointing at a tool that returns prose rather than ideas.
