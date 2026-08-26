@@ -347,7 +347,8 @@ def _draft_path(slug: str, session_id: str, draft_id: str) -> Path:
 
 def save_draft(slug: str, session_id: str, *, record: dict, kind: DraftKind,
                run_id: str, source_index: int | None = None,
-               target_idea_id: str | None = None, label: str = "") -> dict:
+               target_idea_id: str | None = None, label: str = "",
+               handle: str = "") -> dict:
     """Write one working copy into the session folder.
 
     The stored file is the `idea.json` **plus** a small `_session` block naming
@@ -355,6 +356,11 @@ def save_draft(slug: str, session_id: str, *, record: dict, kind: DraftKind,
     accepting it would do. Keeping the provenance beside the record is what lets
     an accept happen days later, from a reloaded page, without the envelope still
     being in anyone's memory.
+
+    `handle` is set for a copy a *planned* turn offered. Such a turn may have thought
+    several times, so "index into the envelope" is not enough to say which record this
+    is — the handle names it across the whole turn, and accepting hands it straight back
+    to the orchestrator rather than re-deriving the write here.
     """
     draft_id = new_draft_id()
     payload = dict(record)
@@ -364,6 +370,7 @@ def save_draft(slug: str, session_id: str, *, record: dict, kind: DraftKind,
         "kind": kind,                      # "create" | "update"
         "run_id": run_id,
         "source_index": source_index,      # index into envelope.drafts, for "create"
+        "handle": handle,                  # what a planned turn offered it as
         "target_idea_id": target_idea_id,  # the record an "update" would overwrite
         "label": label or record.get("title", ""),
         "status": "open",                  # open | accepted | dismissed
@@ -392,8 +399,24 @@ def list_drafts(slug: str, session_id: str) -> list[dict]:
             out.append(json.loads(f.read_text()))
         except (json.JSONDecodeError, OSError):
             continue
-    out.sort(key=lambda r: (r.get("_session") or {}).get("created_at") or "")
+    out.sort(key=_draft_order)
     return out
+
+
+def _draft_order(record: dict) -> tuple:
+    """Oldest first, then the order the run offered them in.
+
+    ``created_at`` alone is not enough: it has second resolution and a run files all of
+    its copies at once, so every card of one run ties. The tie then fell to the order the
+    filesystem happened to list random draft ids in — the same run showing its candidates
+    in a different order on a reload. ``source_index`` is the run's own numbering, which
+    is the order the user should see them in. The update copy of a refined record has
+    none, and belongs after the drafts of the same run rather than before them.
+    """
+    meta = record.get("_session") or {}
+    index = meta.get("source_index")
+    return (meta.get("created_at") or "", meta.get("run_id") or "",
+            index is None, index or 0)
 
 
 def read_draft(slug: str, session_id: str, draft_id: str) -> dict | None:
@@ -439,5 +462,19 @@ def draft_for_run(slug: str, session_id: str, run_id: str, kind: str,
         meta = d.get("_session") or {}
         if (meta.get("run_id") == run_id and meta.get("kind") == kind
                 and meta.get("source_index") == source_index):
+            return d
+    return None
+
+
+def draft_for_handle(slug: str, session_id: str, handle: str) -> dict | None:
+    """The working copy already saved for one offer of a planned turn, if any.
+
+    Same idempotence as :func:`draft_for_run`, keyed on the handle instead: a planned
+    turn may have thought several times, so the index alone does not identify a record.
+    """
+    if not handle:
+        return None
+    for d in list_drafts(slug, session_id):
+        if (d.get("_session") or {}).get("handle") == handle:
             return d
     return None

@@ -3,6 +3,9 @@
 # Dev harness UI
 fastapi>=0.110.0
 uvicorn>=0.27.0
+# Required by the session file-drop endpoint. FastAPI raises on import, not on
+# request, so without it the backend does not start at all.
+python-multipart>=0.0.9
 
 # LLM (LangChain + LangGraph)
 langchain>=0.3.0

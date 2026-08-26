@@ -333,7 +333,11 @@ def input_adapter(inputs: dict) -> dict:
 
     The harness streams `build_orchestrator_graph()` directly, so it needs the same
     inputs `run()` would have built — including a `run_id`, which the form has no field
-    for.
+    for and which is therefore minted here.
+
+    A caller that will need to find the turn's result afterwards passes its own instead.
+    The app backend does: the run file this turn writes is named by the `run_id`, and
+    that file is what the chat reads the reply and the offered drafts back out of.
     """
     payload = OrchestratorInput(
         session_id=inputs.get("session_id") or _new_session_id(),
@@ -343,7 +347,7 @@ def input_adapter(inputs: dict) -> dict:
             gap_ids=_ids(inputs.get("gap_ids")), idea_ids=_ids(inputs.get("idea_ids"))
         ),
     )
-    return _graph_inputs(payload, f"run_{uuid.uuid4().hex[:8]}")
+    return _graph_inputs(payload, inputs.get("run_id") or f"run_{uuid.uuid4().hex[:8]}")
 
 
 def _new_session_id() -> str:

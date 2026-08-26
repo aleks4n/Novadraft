@@ -35,6 +35,7 @@ from typing import Any  # noqa: E402
 import io  # noqa: E402
 import json  # noqa: E402
 import tarfile  # noqa: E402
+import uuid  # noqa: E402
 import zipfile  # noqa: E402
 
 from fastapi import FastAPI, File, HTTPException, UploadFile  # noqa: E402
@@ -313,17 +314,25 @@ class ContextRequest(BaseModel):
 
 
 class SessionSendRequest(BaseModel):
-    """One chat turn.
+    """One chat turn, run by one of two agents.
 
-    Until the orchestrator exists, a turn *is* one creative-thinker call: the
-    message becomes its ``task``, the newly-dropped items are merged into the
-    session's loaded context, and the whole loaded context is rendered as the
-    call's ``context``. The mode/width/depth/styles the user picked in the
-    composer are passed straight through — this is the demo surface, so the
-    thinker's own knobs are deliberately exposed rather than planned for them.
+    ``agent="creative_thinker"`` is the direct surface: a turn *is* one thinker call.
+    The message becomes its ``task``, the newly-dropped items are merged into the
+    session's loaded context, and the whole loaded context is rendered as the call's
+    ``context``. The mode/width/depth/styles the user picked in the composer are passed
+    straight through — the thinker's own knobs, deliberately exposed.
+
+    ``agent="orchestrator"`` plans the turn instead: it reads the message, decides which
+    subagents to call and with what, and may call none at all. **The composer knobs are
+    ignored on that path** — choosing them is what the planner is for. They stay in this
+    model because the thinker path still uses them.
+
+    The default is the thinker so the existing surface is unchanged. Switching it here is
+    what makes the orchestrator the default for everyone.
     """
     text: str = ""
     context: list[dict] = []          # items staged above the composer this turn
+    agent: str = "creative_thinker"   # creative_thinker | orchestrator
     mode: str = "generation"          # generation | refinement
     ideaId: str | None = None         # refinement: the idea under work
     width: int = 3
@@ -421,6 +430,40 @@ async def api_session_file(slug: str, session_id: str, file: UploadFile = File(.
     return {"session": rec, "added": added}
 
 
+def _send_to_orchestrator(slug: str, session_id: str, rec: dict, text: str,
+                          added: list[dict]) -> dict:
+    """Start a planned turn, and record the user's message against it.
+
+    The orchestrator takes the *selection*, not the composer's settings: which gaps and
+    which ideas are in scope. Those come from the session's loaded context, which is
+    already the single record of what the user has put in view — the same list the
+    thinker path renders — so nothing new has to be tracked to know what a turn may see.
+
+    The ``run_id`` is minted here rather than left to the graph because the turn's result
+    is written to a file named by it, and ``/land`` has to be able to find that file. It
+    travels on the run entry's stored inputs, which is where the rest of this module
+    looks things up.
+    """
+    loaded = rec.get("context") or []
+    run_id = f"run_{uuid.uuid4().hex[:8]}"
+    inputs = {
+        "category_slug": slug,
+        "session_id": session_id,
+        "run_id": run_id,
+        "message": text,
+        "gap_ids": [c["id"] for c in loaded if c.get("kind") == "gap"],
+        "idea_ids": [c["id"] for c in loaded if c.get("kind") == "idea"],
+    }
+    run = MANAGER.start(slug, "orchestrator_agent", "idea", inputs,
+                        text[:80] or f"context +{len(added)}", session_id=session_id)
+    message = sessions.append_message(rec, role="user", text=text, context=added,
+                                      run_id=run["run_id"], settings={"agent": "orchestrator"})
+    if rec.get("title") in ("", "New session") and text:
+        rec["title"] = text[:60]
+    sessions.write_session(slug, rec)
+    return {"session": rec, "message": message, "run": run}
+
+
 @app.post("/api/topics/{slug}/sessions/{session_id}/send")
 def api_session_send(slug: str, session_id: str, req: SessionSendRequest):
     """Send one chat turn — records it, loads its context, starts the thinker.
@@ -437,6 +480,10 @@ def api_session_send(slug: str, session_id: str, req: SessionSendRequest):
         raise HTTPException(400, "a turn needs a message or some context")
 
     added = sessions.add_context(slug, rec, req.context)
+
+    if req.agent == "orchestrator":
+        return _send_to_orchestrator(slug, session_id, rec, text, added)
+
     mode = "refinement" if str(req.mode).lower().startswith("r") else "generation"
     if mode == "refinement" and not req.ideaId:
         raise HTTPException(400, "refinement needs an idea to work on")
@@ -502,6 +549,49 @@ def _save_working_copies(slug: str, session_id: str, run_id: str, envelope: dict
     return saved
 
 
+def _orchestrator_turn(slug: str, session_id: str, meta: dict) -> dict | None:
+    """A planned turn's own record, or None when this run was not one.
+
+    The orchestrator writes what a turn produced — the reply, the ideas it offers, the
+    envelopes behind them and which envelope each offer came from — to a file under the
+    session as its last act. Read from there rather than off the run entry because a turn
+    can involve several thinking runs, and the run entry has room for one.
+    """
+    if meta.get("agent") != "orchestrator_agent":
+        return None
+    from src.agents.orchestrator_agent import session as orchestrator_session
+
+    run_id = str((meta.get("inputs") or {}).get("run_id") or "")
+    if not run_id:
+        return None
+    record = orchestrator_session.read_result(slug, session_id, run_id)
+    return record if record.get("created_at") else None
+
+
+def _save_offered_copies(slug: str, session_id: str, turn: dict) -> list[dict]:
+    """Every idea a planned turn offered, as a working copy the UI can render.
+
+    One card per offer, whichever thinking run produced it. Each keeps the **handle** the
+    turn offered it under, so accepting is a single call back into the orchestrator's own
+    accept step — the one that already knows how to find the reasoning behind a card and
+    attach it. Two accept implementations would have to be kept in step; one cannot drift.
+    """
+    from src.agents.orchestrator_agent.tools.commit import offer_handle
+
+    run_id = str(turn.get("run_id") or "")
+    saved = []
+    for index, record in enumerate(turn.get("ideas") or []):
+        handle = offer_handle(run_id, index, record.get("idea_id"))
+        if sessions.draft_for_handle(slug, session_id, handle):
+            continue  # a reload, or a second tab: the card is already filed
+        saved.append(sessions.save_draft(
+            slug, session_id, record=record,
+            kind="update" if record.get("idea_id") else "create",
+            run_id=run_id, source_index=index, handle=handle,
+            target_idea_id=record.get("idea_id"), label=record.get("title", "")))
+    return saved
+
+
 def _differs(stored: dict, copy: dict) -> bool:
     """Did the run change the parts a human would be accepting?
 
@@ -529,8 +619,11 @@ def api_session_land(slug: str, session_id: str, req: SessionLandRequest):
     if meta.get("status") == "running":
         raise HTTPException(409, "run is still going")
 
+    turn = _orchestrator_turn(slug, session_id, meta)
     envelope = meta.get("envelope") or {}
-    if envelope:
+    if turn is not None:
+        _save_offered_copies(slug, session_id, turn)
+    elif envelope:
         _save_working_copies(slug, session_id, req.runId, envelope)
 
     existing = next((m for m in rec.get("messages") or []
@@ -539,7 +632,14 @@ def api_session_land(slug: str, session_id: str, req: SessionLandRequest):
         return {"session": rec, "message": existing,
                 "drafts": sessions.list_drafts(slug, session_id)}
 
-    if not envelope:
+    if turn is not None:
+        # A planned turn always owes a reply and does not always owe ideas — "what can
+        # you do?" is answered without calling anything. Having no ideas is therefore an
+        # ordinary outcome here, not the failure it is on the direct thinker path.
+        message = sessions.append_message(
+            rec, role="agent", text=turn.get("answer", ""), run_id=req.runId,
+            failed=not turn.get("answer"))
+    elif not envelope:
         message = sessions.append_message(
             rec, role="agent", text=meta.get("error") or "The run produced no envelope.",
             run_id=req.runId, failed=True)
@@ -617,6 +717,24 @@ def api_session_draft_accept(slug: str, session_id: str, draft_id: str,
 
     from src.agents.creative_thinker.schemas import Envelope
     from src.agents.idea_agent import apply_envelope, promote_variant
+
+    if meta.get("handle"):
+        # Offered by a planned turn: hand it back to the step that offered it. That step
+        # replays the envelope the idea actually came from — a turn can hold several —
+        # which is what carries the branch of reasoning that produced it onto the record.
+        from src.agents.orchestrator_agent.tools.commit import commit_selection
+
+        landed = commit_selection(slug, session_id, str(meta.get("run_id") or ""),
+                                  [str(meta["handle"])])
+        if not landed:
+            raise HTTPException(409, "the run that offered this draft no longer has it")
+        sessions.decide_draft(slug, session_id, draft_id, "accepted",
+                              result_idea_id=landed[0])
+        rec = _require_session(slug, session_id)
+        sessions.touch(rec, landed)
+        sessions.write_session(slug, rec)
+        return {"result": {"created": landed, "written": []}, "session": rec,
+                "drafts": sessions.list_drafts(slug, session_id)}
 
     if meta.get("kind") == "update":
         target = meta.get("target_idea_id")
