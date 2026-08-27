@@ -116,3 +116,4 @@ yarn-error.log*
 .cache/
 
 workspace/session*
+workspace/
