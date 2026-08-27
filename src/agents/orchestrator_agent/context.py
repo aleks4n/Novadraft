@@ -144,16 +144,35 @@ def _user_input(category: str, session_id: str) -> list[UserInput]:
 
 
 def _session_papers(category: str, session_id: str) -> list[dict]:
-    """Papers the investigator fetched during this session."""
+    """Papers the investigator fetched during this session.
+
+    One folder per paper — `papers/<paper_id>/paper.json` — because a fetch keeps the pdf
+    and the extracted source beside the record. Globbing `*.json` at the top of that
+    directory therefore matches nothing, and every paper the investigator found reached
+    no one at all.
+
+    Reduced to the same brief shape `_paper_brief` builds for workspace papers, rather
+    than handed on raw: a fetched record carries `content`, the full text at ~60k chars,
+    which would crowd out everything else in the context it is added to. The title lives
+    under `metadata`, so a raw record also renders as its own id.
+    """
     papers_dir = session.session_papers_dir(category, session_id)
     if not papers_dir.exists():
         return []
     out = []
-    for path in sorted(papers_dir.glob("*.json")):
+    for path in sorted(papers_dir.glob("*/paper.json")):
         try:
-            out.append(json.loads(path.read_text(encoding="utf-8")))
+            raw = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
+        metadata = raw.get("metadata") or {}
+        out.append({
+            "paper_id": raw.get("paper_id") or path.parent.name,
+            "title": metadata.get("title") or raw.get("title") or "",
+            "year": metadata.get("year"),
+            "keywords": raw.get("keywords") or metadata.get("keywords") or [],
+            "summary": raw.get("summary") or None,
+        })
     return out
 
 

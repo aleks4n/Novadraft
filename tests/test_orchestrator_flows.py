@@ -274,6 +274,28 @@ def drop(session_id="s1", *, notes=(), files=()) -> None:
         {"session_id": session_id, "category_slug": CATEGORY, "context": entries}))
 
 
+def fetched(session_id="s1", *papers: tuple[str, str]) -> None:
+    """Seed papers the way the investigator stores them.
+
+    One folder per paper, holding the record beside the pdf and the extracted source —
+    not a flat `<paper_id>.json`. The layout is the investigator's, and reading it wrong
+    fails silently: the directory exists, the glob matches nothing, and every paper it
+    fetched reaches no one.
+    """
+    root = session.session_papers_dir(CATEGORY, session_id)
+    for paper_id, title in papers:
+        folder = root / paper_id
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "paper.json").write_text(json.dumps({
+            "paper_id": paper_id,
+            "metadata": {"title": title, "year": 2024},
+            # The full text, which is what a fetched record actually carries and what
+            # must not be passed on: ~60k chars in the real thing.
+            "content": "x" * 60_000,
+            "summary": {"problem": {"statement": f"What {title} is about."}},
+        }))
+
+
 # --- scenarios ----------------------------------------------------------------
 
 
@@ -636,6 +658,32 @@ def test_accepting_something_the_run_never_offered_writes_nothing(workspace, rec
 
     assert commit_selection(CATEGORY, "s1", "run_1", ["idea_never_offered"]) == []
     assert set(storage.list_idea_ids(CATEGORY)) == before
+
+
+def test_papers_the_investigator_fetched_reach_a_later_turn(workspace, rec):
+    """What an earlier turn's research found is in scope for this one.
+
+    The investigator saves what it fetches under the session, and that store is the only
+    place those papers exist — they are not in the workspace library, so nothing else
+    would put them in front of the thinker.
+
+    The full text is deliberately left behind. A fetched record carries the whole paper,
+    and passing that on would spend the context on one document.
+    """
+    fetched("s1", ("arxiv_1706.03762", "Attention Is All You Need"))
+
+    rec.plans = [Plan(goal="Generate.", done_criteria=["1 candidate"],
+                      steps=[ToolCall(tool="creative_thinker",
+                                      args={"thinking_mode": "generation", "width": 1})])]
+    rec.envelopes = [envelope(drafts=[candidate("Builds on what was fetched")])]
+    rec.judgments = [ReflectJudgment(route="finish", answer="One candidate.")]
+
+    turn(workspace, "ideas using what you found", gaps=[GAP_ID])
+
+    papers = rec.to("creative_thinker")[0].args["context"]["papers"]
+    found = next(p for p in papers if p["paper_id"] == "arxiv_1706.03762")
+    assert found["title"] == "Attention Is All You Need"
+    assert "content" not in found, "the full text stays where it was fetched"
 
 
 def test_a_pasted_note_and_a_dropped_document_reach_the_thinker(workspace, rec):

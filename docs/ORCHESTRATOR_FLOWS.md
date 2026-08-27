@@ -10,6 +10,19 @@ Regenerate with `python -m dev.record_flows`. The same scenarios are asserted in
 changing there or failing.
 
 ---
+## Stream reports plan and step progress
+
+**
+
+```
+1. orchestrator → **plan** (LLM)
+2. orchestrator → **investigator**
+      query: 'what has been tried?'
+      session_id: 's-progress'
+      category_slug: 'flowtest'
+3. orchestrator → **reflect** (LLM)
+```
+
 ## Conversational turn calls no tool and skips reflect
 
 *"what can you do?" — the planner answers, and execute and reflect never run.*
@@ -329,6 +342,25 @@ A draft has no `idea_id` until this call; the thinking graph lives on the envelo
 ## Accepting something the run never offered writes nothing
 
 *The rule that survives from the orchestrator's own commit path.*
+
+```
+1. orchestrator → **plan** (LLM)
+2. orchestrator → **creative thinker**
+      mode: 'generation'
+      width: 1
+      depth: 3
+      budget_llm_calls: 120
+      context_gaps: ['gap_testflow']
+3. orchestrator → **reflect** (LLM)
+```
+
+## Papers the investigator fetched reach a later turn
+
+*What an earlier turn's research found is in scope for this one.*
+
+The investigator saves what it fetches under the session, and that store is the only place those papers exist — they are not in the workspace library, so nothing else would put them in front of the thinker.
+
+The full text is deliberately left behind. A fetched record carries the whole paper, and passing that on would spend the context on one document.
 
 ```
 1. orchestrator → **plan** (LLM)
