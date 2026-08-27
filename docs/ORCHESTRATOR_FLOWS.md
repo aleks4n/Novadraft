@@ -373,6 +373,46 @@ The full text is deliberately left behind. A fetched record carries the whole pa
 3. orchestrator → **reflect** (LLM)
 ```
 
+## Tool use hands the thinker a way to look things up
+
+*`tool_use: true` — the thinker may ask the investigator mid-thought.*
+
+The thinker takes an investigator as an argument and skips every lookup when it is absent. This adapter used to call `think(call)` and pass nothing, so the argument was a promise no run could keep: a plan asked for grounded thinking and got ungrounded thinking, which reflect then read as weak.
+
+The callable is scoped to the session, so a paper the thinker asks for lands where the next turn will look for it rather than in the harness folder the thinker's own factory hardcodes.
+
+```
+1. orchestrator → **plan** (LLM)
+2. orchestrator → **creative thinker**
+      mode: 'generation'
+      width: 1
+      depth: 3
+      tool_use: True
+      can_investigate: True
+      budget_llm_calls: 120
+      context_gaps: ['gap_testflow']
+3. orchestrator → **reflect** (LLM)
+4. orchestrator → **investigator**
+      query: 'Has this been proposed before?'
+      session_id: 's1'
+      category_slug: 'flowtest'
+```
+
+## Without tool use the thinker gets no investigator
+
+*The default. Nothing is wired, so nothing is spent looking things up.*
+
+```
+1. orchestrator → **plan** (LLM)
+2. orchestrator → **creative thinker**
+      mode: 'generation'
+      width: 1
+      depth: 3
+      budget_llm_calls: 120
+      context_gaps: ['gap_testflow']
+3. orchestrator → **reflect** (LLM)
+```
+
 ## A pasted note and a dropped document reach the thinker
 
 *The user pasted a constraint and dropped a file into the session earlier.*

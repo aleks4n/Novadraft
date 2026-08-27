@@ -39,7 +39,8 @@ _WHO = {
 # Arguments worth showing per participant, in the order they answer "what was it asked".
 _SHOW = {
     "creative_thinker": ("mode", "subject", "subject_title", "styles", "width", "depth",
-                         "tool_use", "budget_llm_calls", "context_gaps", "context_ideas",
+                         "tool_use", "can_investigate", "budget_llm_calls",
+                         "context_gaps", "context_ideas",
                          "context_user_input", "context_findings", "task"),
     "investigator": ("query", "session_id", "category_slug"),
 }

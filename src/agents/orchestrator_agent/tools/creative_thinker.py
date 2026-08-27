@@ -10,7 +10,7 @@ an `Envelope`. Nothing here writes; persisting an accepted result is
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Callable, Literal
 
 from pydantic import BaseModel, Field
 
@@ -173,6 +173,41 @@ def _styles(args: ThinkerArgs) -> list[AgentStyle]:
     return []
 
 
+def _investigator(env: ToolEnv) -> Callable[[str], dict]:
+    """The investigator as the *thinker* asks it: a question in, an answer out.
+
+    This is the half of `tool_use` that lives on this side. The thinker takes an
+    investigator as an argument and skips every lookup when it is absent — which it always
+    was, because this adapter called `think(call)` and passed nothing. A plan could ask for
+    grounded thinking and quietly get ungrounded thinking.
+
+    Scoped to the session on purpose. The investigator saves what it downloads, and the
+    thinker's own factory hardcodes a harness folder; passing the session through is what
+    puts a paper the thinker asked for where the next turn will look for it.
+
+    The question goes through unchanged. The investigator routes free text to the paper
+    pipeline or to the web itself, and it is the component that knows which a question
+    deserves — the harness prefixes "search the web:" to force the cheap path, which is a
+    decision about its own demo rather than about what the thinker asked.
+    """
+
+    def ask(question: str) -> dict:
+        # Imported on first use: the investigator pulls in the paper pipeline and the web
+        # stack, and a run that never asks anything should not pay for that.
+        from src.agents.investigator_agent import run as run_investigator
+
+        answer = run_investigator(question,
+                                  session_id=env.session_id or "session-adhoc",
+                                  category_slug=env.category_slug or None,
+                                  stream=False)
+        # `sources` is the thinker's field for citations. The investigator reports its
+        # findings as prose and exposes no structured source list, so this stays empty
+        # rather than being invented from the text.
+        return {"answer": str(answer or ""), "sources": []}
+
+    return ask
+
+
 def run(args: ThinkerArgs, ctx: Context, env: ToolEnv) -> ToolResult:
     """Planner args + assembled context -> the subagent's typed call.
 
@@ -200,7 +235,12 @@ def run(args: ThinkerArgs, ctx: Context, env: ToolEnv) -> ToolResult:
 
     from src.agents.creative_thinker import think
 
-    envelope: Envelope = think(call)
+    # NOTE: an investigation is charged to the thinker's own `max_investigations` counter,
+    # not to `metrics.llm_calls` — and `llm_calls` is the only thing `execute` reads when
+    # it charges a step. So a `tool_use` run can spend several full investigator runs that
+    # the turn budget never sees. Deliberately left for the budget pass.
+    envelope: Envelope = think(
+        call, investigator=_investigator(env) if args.tool_use else None)
     # A refinement offers the modified copy of its subject; a generation offers new
     # candidates, and its `envelope.idea` is a titleless carrier holding the run's thought
     # graph rather than something to show. Either way the whole envelope is carried out:

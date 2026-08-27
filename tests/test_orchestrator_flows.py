@@ -124,8 +124,13 @@ def rec(monkeypatch) -> Recorder:
         recorder.calls.append(Call("reflect.llm", {"prompt": user}))
         return recorder._next(recorder.judgments, "reflect")
 
-    def fake_think(call):
+    def fake_think(call, *, investigator=None):
         recorder.calls.append(Call("creative_thinker", {
+            # Whether the thinker was handed a way to look things up. It skips every
+            # lookup when this is absent, so `tool_use` without it is a promise the run
+            # cannot keep.
+            "can_investigate": investigator is not None,
+            "investigator": investigator,
             "mode": call.mode,
             "task": call.task,
             "styles": [s.name for s in call.styles],
@@ -684,6 +689,52 @@ def test_papers_the_investigator_fetched_reach_a_later_turn(workspace, rec):
     found = next(p for p in papers if p["paper_id"] == "arxiv_1706.03762")
     assert found["title"] == "Attention Is All You Need"
     assert "content" not in found, "the full text stays where it was fetched"
+
+
+def test_tool_use_hands_the_thinker_a_way_to_look_things_up(workspace, rec):
+    """`tool_use: true` — the thinker may ask the investigator mid-thought.
+
+    The thinker takes an investigator as an argument and skips every lookup when it is
+    absent. This adapter used to call `think(call)` and pass nothing, so the argument was
+    a promise no run could keep: a plan asked for grounded thinking and got ungrounded
+    thinking, which reflect then read as weak.
+
+    The callable is scoped to the session, so a paper the thinker asks for lands where the
+    next turn will look for it rather than in the harness folder the thinker's own factory
+    hardcodes.
+    """
+    rec.plans = [Plan(goal="Generate, grounded.", done_criteria=["1 candidate"],
+                      steps=[ToolCall(tool="creative_thinker", args={
+                          "thinking_mode": "generation", "width": 1, "tool_use": True})])]
+    rec.envelopes = [envelope(drafts=[candidate("Checked against prior art")])]
+    rec.judgments = [ReflectJudgment(route="finish", answer="One candidate.")]
+    rec.findings = ["Nobody has tried it."]
+
+    turn(workspace, "ideas, and check they are new", gaps=[GAP_ID])
+
+    sent = rec.to("creative_thinker")[0].args
+    assert sent["can_investigate"] is True
+
+    # Calling it is what proves where its downloads go: the session, not `dev_creative_thinker`.
+    answer = sent["investigator"]("Has this been proposed before?")
+    assert answer["answer"] == "Nobody has tried it."
+    asked = rec.to("investigator")[0].args
+    assert asked["session_id"] == "s1"
+    assert asked["category_slug"] == CATEGORY
+
+
+def test_without_tool_use_the_thinker_gets_no_investigator(workspace, rec):
+    """The default. Nothing is wired, so nothing is spent looking things up."""
+    rec.plans = [Plan(goal="Generate.", done_criteria=["1 candidate"],
+                      steps=[ToolCall(tool="creative_thinker",
+                                      args={"thinking_mode": "generation", "width": 1})])]
+    rec.envelopes = [envelope(drafts=[candidate("Unchecked")])]
+    rec.judgments = [ReflectJudgment(route="finish", answer="One candidate.")]
+
+    turn(workspace, "give me an idea", gaps=[GAP_ID])
+
+    assert rec.to("creative_thinker")[0].args["can_investigate"] is False
+    assert rec.to("investigator") == []
 
 
 def test_a_pasted_note_and_a_dropped_document_reach_the_thinker(workspace, rec):
