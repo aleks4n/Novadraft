@@ -84,6 +84,31 @@ def _load_idea(category: str, idea_id: str) -> IdeaRecord | None:
         return None
 
 
+def _summary_line(summary: object) -> str:
+    """The paper's summary as a sentence or two of prose.
+
+    The thinker renders context by picking the first field it recognises as a body, and it
+    checks `description` before `summary`. A summary is a nested dict, so without this it
+    reaches `summary` and stringifies it — the thinker reads
+    `{'problem': {'statement': ...}}` where it should read a paragraph.
+
+    Deliberately short: what the paper set out to do and what it left open. The rest of the
+    structure stays on `summary`, which is what `render._paper_block` uses.
+    """
+    if not isinstance(summary, dict):
+        return ""
+    parts = []
+    if statement := (summary.get("problem") or {}).get("statement"):
+        parts.append(str(statement))
+    for thread in (summary.get("open_threads") or [])[:2]:
+        # A thread is prose, or a small record of it. Either flattens to one line.
+        text = (" · ".join(str(v) for v in thread.values() if v)
+                if isinstance(thread, dict) else str(thread))
+        if text:
+            parts.append(f"Left open: {text}")
+    return " ".join(parts)
+
+
 def _paper_brief(category: str, paper_id: str) -> dict | None:
     """A paper reduced to what ideation needs: what it did, not its full text."""
     record = paper_access.get_paper(category, paper_id)
@@ -98,6 +123,7 @@ def _paper_brief(category: str, paper_id: str) -> dict | None:
         # `summary` is a plain dict on PaperRecord, not a model. `content` (the full
         # text, ~60k chars) is deliberately left out.
         "summary": record.summary or None,
+        "description": _summary_line(record.summary),
     }
 
 
@@ -172,6 +198,7 @@ def _session_papers(category: str, session_id: str) -> list[dict]:
             "year": metadata.get("year"),
             "keywords": raw.get("keywords") or metadata.get("keywords") or [],
             "summary": raw.get("summary") or None,
+            "description": _summary_line(raw.get("summary")),
         })
     return out
 

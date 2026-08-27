@@ -224,6 +224,34 @@ def _block(result: ToolResult, step: ToolCall | None, label: str) -> list[str]:
         lines.extend(_idea_block(idea))
     if result.text:
         lines.append(f"    text: {result.text}")
+    lines.extend(_proposals(result))
+    return lines
+
+
+def _proposals(result: ToolResult) -> list[str]:
+    """Changes the step recommends but deliberately did not make.
+
+    A run does only what it was asked. When what it found also implies some other part of
+    the idea should change, it says so instead of doing it — and the schema names the
+    orchestrator as the one who decides: resolve it, put it to the user, or let it go, with
+    a "yes" coming back as the next step's task.
+
+    Shown here because both steps that read this view are the ones able to act. Reflect can
+    put it to the user in the answer; the planner, on a replan, can make it a step. Left
+    out, the proposal is produced every run and read by nobody.
+    """
+    proposals = (result.envelope or {}).get("proposed_changes") or []
+    if not proposals:
+        return []
+    lines = [f"    {len(proposals)} change(s) this step recommends but did NOT make — "
+             f"yours to act on, mention, or drop:"]
+    for proposal in proposals:
+        if not isinstance(proposal, dict):
+            continue
+        target = proposal.get("target") or "the idea"
+        lines.append(f"      {target}: {proposal.get('change', '')}")
+        if reason := proposal.get("reason"):
+            lines.append(f"        because {reason}")
     return lines
 
 

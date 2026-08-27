@@ -23,7 +23,8 @@ from typing import Any
 
 import pytest
 
-from src.agents.creative_thinker.schemas import Envelope
+from src.agents.creative_thinker.schemas import Envelope, ProposedChange
+from src.agents.creative_thinker.tools import context as thinker_context
 from src.common.schemas.idea import (
     IdeaOrigin, IdeaRecord, RunEntry, RunHeader, ThoughtNode,
 )
@@ -689,6 +690,62 @@ def test_papers_the_investigator_fetched_reach_a_later_turn(workspace, rec):
     found = next(p for p in papers if p["paper_id"] == "arxiv_1706.03762")
     assert found["title"] == "Attention Is All You Need"
     assert "content" not in found, "the full text stays where it was fetched"
+
+
+def test_a_change_the_step_recommended_but_did_not_make_reaches_reflect(workspace, rec):
+    """A run does only what it was asked, and says so when it finds more.
+
+    The thinker records the change it declined to make in `proposed_changes`, and its own
+    schema names the orchestrator as the one who decides: resolve it, put it to the user,
+    or drop it — with a "yes" coming back as the next step's task. It reached nobody,
+    because the only two steps that could act on it never saw it.
+    """
+    made = envelope(drafts=[candidate("Kernel mixture")])
+    made.proposed_changes = [ProposedChange(
+        target="experimental_protocol",
+        change="State the d_k sweep as {16, 32, 64} with three seeds.",
+        reason="The evaluation is not decidable at one seed.")]
+
+    rec.plans = [Plan(goal="Generate.", done_criteria=["1 candidate"],
+                      steps=[ToolCall(tool="creative_thinker",
+                                      args={"thinking_mode": "generation", "width": 1})])]
+    rec.envelopes = [made]
+    rec.judgments = [ReflectJudgment(route="finish", answer="One candidate.")]
+
+    turn(workspace, "give me an idea", gaps=[GAP_ID])
+
+    seen = rec.to("reflect.llm")[0].args["prompt"]
+    assert "did NOT make" in seen
+    assert "State the d_k sweep" in seen
+    assert "because The evaluation is not decidable" in seen
+
+
+def test_a_paper_reaches_the_thinker_as_prose_not_as_a_dict(workspace, rec):
+    """The thinker picks the first field it recognises as a body, and checks
+    `description` before `summary`.
+
+    A summary is a nested record, so without a description it reaches `summary` and
+    stringifies it — the thinker reads `{'problem': {'statement': ...}}` where a paragraph
+    belongs. The structure stays on `summary` for the planner's own renderer, which uses it.
+    """
+    fetched("s1", ("arxiv_1706.03762", "Attention Is All You Need"))
+
+    rec.plans = [Plan(goal="Generate.", done_criteria=["1 candidate"],
+                      steps=[ToolCall(tool="creative_thinker",
+                                      args={"thinking_mode": "generation", "width": 1})])]
+    rec.envelopes = [envelope(drafts=[candidate("Uses the paper")])]
+    rec.judgments = [ReflectJudgment(route="finish", answer="One candidate.")]
+
+    turn(workspace, "ideas from that paper", gaps=[GAP_ID])
+
+    paper = next(p for p in rec.to("creative_thinker")[0].args["context"]["papers"]
+                 if p["paper_id"] == "arxiv_1706.03762")
+    assert paper["description"] == "What Attention Is All You Need is about."
+    assert isinstance(paper["summary"], dict), "the structure stays for our own renderer"
+
+    rendered = thinker_context.render_context({"papers": [paper]})
+    assert "What Attention Is All You Need is about." in rendered
+    assert "{'problem'" not in rendered
 
 
 def test_tool_use_hands_the_thinker_a_way_to_look_things_up(workspace, rec):

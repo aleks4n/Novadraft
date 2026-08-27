@@ -373,6 +373,40 @@ The full text is deliberately left behind. A fetched record carries the whole pa
 3. orchestrator → **reflect** (LLM)
 ```
 
+## A change the step recommended but did not make reaches reflect
+
+*A run does only what it was asked, and says so when it finds more.*
+
+The thinker records the change it declined to make in `proposed_changes`, and its own schema names the orchestrator as the one who decides: resolve it, put it to the user, or drop it — with a "yes" coming back as the next step's task. It reached nobody, because the only two steps that could act on it never saw it.
+
+```
+1. orchestrator → **plan** (LLM)
+2. orchestrator → **creative thinker**
+      mode: 'generation'
+      width: 1
+      depth: 3
+      budget_llm_calls: 120
+      context_gaps: ['gap_testflow']
+3. orchestrator → **reflect** (LLM)
+```
+
+## A paper reaches the thinker as prose not as a dict
+
+*The thinker picks the first field it recognises as a body, and checks `description` before `summary`.*
+
+A summary is a nested record, so without a description it reaches `summary` and stringifies it — the thinker reads `{'problem': {'statement': ...}}` where a paragraph belongs. The structure stays on `summary` for the planner's own renderer, which uses it.
+
+```
+1. orchestrator → **plan** (LLM)
+2. orchestrator → **creative thinker**
+      mode: 'generation'
+      width: 1
+      depth: 3
+      budget_llm_calls: 120
+      context_gaps: ['gap_testflow']
+3. orchestrator → **reflect** (LLM)
+```
+
 ## Tool use hands the thinker a way to look things up
 
 *`tool_use: true` — the thinker may ask the investigator mid-thought.*
