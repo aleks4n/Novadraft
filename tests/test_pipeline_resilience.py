@@ -68,3 +68,15 @@ def test_collect_marks_an_incomplete_pipeline_partial():
     assert result["status"] == "partial"
     assert result["failed_validation_ids"] == ["gap_bad"]
     assert "Resume gaps" in result["error"]
+
+
+def test_solved_validation_is_read_from_archive(monkeypatch):
+    archived = {"gap_id": "gap_solved", "verdict": {"status": "solved"}}
+
+    def read_gap(_slug, gap_id, stage):
+        assert gap_id == "gap_solved"
+        return archived if stage == "archive" else None
+
+    monkeypatch.setattr(pipeline.storage, "read_gap_json", read_gap)
+
+    assert pipeline._read_validated_gap("topic", "gap_solved") == archived

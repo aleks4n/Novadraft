@@ -107,6 +107,17 @@ def _in_validate_inbox(slug: str, ids: list[str]) -> list[str]:
     return [g for g in ids if g in inbox]
 
 
+def _read_validated_gap(slug: str, gap_id: str) -> dict | None:
+    """Read either terminal branch produced by the validator.
+
+    Open/partial gaps move to ``to_rank``; solved gaps move to ``archive``.
+    ``master`` is retained as a compatibility fallback for older workspaces.
+    """
+    return (storage.read_gap_json(slug, gap_id, "to_rank")
+            or storage.read_gap_json(slug, gap_id, "archive")
+            or storage.read_gap_json(slug, gap_id, "master"))
+
+
 def _paper_gap_ids(slug: str, paper_id: str) -> list[str]:
     rec = storage.read_paper_json(slug, paper_id) or {}
     return list((rec.get("gaps") or {}).get("gap_ids") or [])
@@ -192,8 +203,7 @@ def validate_gap(state: PipelineState) -> dict:
             return None
         trace.log_event("gap_validate_start", gap_id=gid)
         _validator().invoke({"gap": GapRecord.model_validate(raw), "category_slug": slug})
-        rec = (storage.read_gap_json(slug, gid, "master")
-               or storage.read_gap_json(slug, gid, "to_rank"))
+        rec = _read_validated_gap(slug, gid)
         trace.log_event("gap_validated", gap_id=gid,
                         status=((rec or {}).get("verdict") or {}).get("status"))
         return rec
