@@ -1,10 +1,10 @@
 """Investigator agent — route a free-text instruction to the right research path.
 
-The agent accepts one text prompt and turns it into one of three best-effort
+The agent accepts one text prompt and turns it into one of four best-effort
 actions:
 
-- paper: resolve/download a paper and run the existing paper pipeline
-- paper_search: find several papers on the web, then download each one
+- paper: resolve/download a paper, extract it, and answer from its content
+- paper_search: find several papers, download/extract them, and answer from them
 - web: search the web and return the top results plus fetched excerpts
 - url: scrape a direct URL, downloading PDFs when possible
 
@@ -32,8 +32,10 @@ from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
 from pdfminer.high_level import extract_text as extract_pdf_text
 
-from src.agents.paper_agent import run as run_paper_agent
 from src.common.tools.paper_fetch import fetch as fetch_paper
+from src.common.tools.paper_fetch import PaperAlreadyExistsError
+from src.common.tools.paper_extract import extract as extract_paper
+from src.common.tools.paper_access import get_full_text
 from src.common.utils import storage
 from src.common.utils.logging import trace
 from src.common.utils.logging.runlog import GraphRunLog
@@ -49,10 +51,12 @@ _MAX_PAGE_CHARS = 4000
 _DEFAULT_MAX_ATTEMPTS = 2
 _MAX_REFLECTIONS_PER_TASK = 5
 _MAX_PARALLEL_PAPER_DOWNLOADS = 3
-# Stop retrying retrieval failures and render the deterministic partial result.
-ENABLE_DETERMINISTIC_FETCH_FALLBACK = True
-# Multi-paper requests normally need downloaded sources, not full analysis.
-ENABLE_FAST_MULTI_PAPER_DOWNLOAD = True
+# When explicitly enabled, retrieval failures render immediately. The default
+# keeps them inside Reflexion so the evaluator can reject the attempt and the
+# actor can retry with its persisted lesson.
+ENABLE_DETERMINISTIC_FETCH_FALLBACK = False
+_MAX_PAPER_CHARS = 50_000
+_MAX_MULTI_PAPER_CHARS = 100_000
 
 _WEB_ANSWER_SYSTEM_PROMPT = (
 	"Answer the user's query using only the supplied fetched web-page content. "
@@ -66,6 +70,13 @@ _CITED_ANSWER_SYSTEM_PROMPT = (
 	"answer and claims that support it. Every claim must cite one or more exact source_id "
 	"values from the evidence. Do not invent sources or facts. Mark claims verified only "
 	"when the evidence directly supports them."
+)
+
+_PAPER_ANSWER_SYSTEM_PROMPT = (
+	"Answer the user's question using only the supplied paper content. Do not use "
+	"outside knowledge or infer claims the papers do not support. If the content is "
+	"insufficient, say so clearly. Give a direct answer and distinguish findings from "
+	"limitations."
 )
 
 
@@ -279,22 +290,83 @@ def _claims_from_answer(answer: str | None, evidence: list[dict]) -> list[dict]:
 	except Exception:  # best-effort citation tracking must not lose the answer
 		return []
 
-def _paper_evidence(result: dict, index: int = 1) -> list[dict]:
-	paper = result.get("fetch", {}).get("paper") or {}
-	metadata = paper.get("metadata") or {}
-	source = paper.get("source") or {}
-	if not metadata and not source and not result.get("summary") and not result.get("paper_id"):
-		return []
-	text = result.get("summary") or result.get("message") or ""
-	if not isinstance(text, str):
-		text = json.dumps(text, ensure_ascii=False, default=str)
-	return [Evidence(
-		source_id=_evidence_id("paper", index),
-		title=metadata.get("title") or "Paper source",
-		url=source.get("source_url"), source_type="paper", text=text,
-		fetched=result.get("status") == "ok", credibility=0.9 if result.get("status") == "ok" else 0.0,
-		error=result.get("error"),
-	).model_dump()]
+def _clip_paper_text(text: str, budget: int) -> str:
+	text = (text or "").strip()
+	if len(text) <= budget:
+		return text
+	head = int(budget * 0.7)
+	return f"{text[:head]}\n\n[... paper truncated ...]\n\n{text[-(budget - head):]}"
+
+
+def _fetch_extract_paper(workspace_key: str, query: str) -> dict:
+	"""Download and extract one paper without invoking the paper/gap pipeline."""
+	try:
+		fetched = fetch_paper(workspace_key, query)
+	except PaperAlreadyExistsError as exc:
+		paper_id = exc.paper_id
+		paper = storage.read_paper_json(workspace_key, paper_id) or {}
+		fetched = {"status": "ok", "paper": paper}
+	except Exception as exc:  # noqa: BLE001 - one source failure is a readable result
+		return {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
+
+	if fetched.get("status") != "ok":
+		return dict(fetched)
+	paper = fetched.get("paper") or {}
+	paper_id = paper.get("paper_id")
+	if not paper_id:
+		return {"status": "error", "error": "The fetched paper has no paper_id."}
+	try:
+		extract_paper(workspace_key, paper_id)
+	except Exception as exc:  # noqa: BLE001
+		return {
+			"status": "error", "paper_id": paper_id, "fetch": fetched,
+			"error": f"Paper extraction failed: {type(exc).__name__}: {exc}",
+		}
+	# Extraction persists content back into paper.json; reload before reading it.
+	paper = storage.read_paper_json(workspace_key, paper_id) or paper
+	full_text = get_full_text(workspace_key, paper_id) or ""
+	if not full_text.strip():
+		return {
+			"status": "error", "paper_id": paper_id, "fetch": {**fetched, "paper": paper},
+			"error": "The paper was downloaded but no readable full text was extracted.",
+		}
+	return {
+		"status": "ok", "paper_id": paper_id, "fetch": {**fetched, "paper": paper},
+		"extract": {"status": "ok"}, "full_text": full_text,
+	}
+
+
+def _answer_from_papers(question: str, papers: list[dict]) -> tuple[str | None, list[dict], list[dict]]:
+	"""Answer one question from extracted papers and attach source-bound claims."""
+	evidence: list[dict] = []
+	sections: list[str] = []
+	remaining = _MAX_MULTI_PAPER_CHARS if len(papers) > 1 else _MAX_PAPER_CHARS
+	for index, result in enumerate(papers, start=1):
+		if result.get("status") != "ok":
+			continue
+		paper = result.get("fetch", {}).get("paper") or {}
+		metadata = paper.get("metadata") or {}
+		source = paper.get("source") or {}
+		full_text = result.get("full_text") or ""
+		budget = min(_MAX_PAPER_CHARS, remaining)
+		if budget <= 0:
+			break
+		content = _clip_paper_text(full_text, budget)
+		remaining -= len(content)
+		source_id = _evidence_id("paper", index)
+		title = metadata.get("title") or paper.get("paper_id") or "Paper source"
+		sections.append(f"Source ID: {source_id}\nTitle: {title}\nContent:\n{content}")
+		evidence.append(Evidence(
+			source_id=source_id, title=title, url=source.get("source_url"),
+			source_type="paper", text=_clip_paper_text(full_text, _MAX_PAGE_CHARS),
+			fetched=True, credibility=0.9,
+		).model_dump())
+	if not sections:
+		return None, evidence, []
+	prompt = f"Question:\n{question}\n\nPapers:\n\n" + "\n\n---\n\n".join(sections)
+	answer = chat(get_llm("cheap", temperature=0), _PAPER_ANSWER_SYSTEM_PROMPT, prompt).strip()
+	claims = _claims_from_answer(answer, evidence)
+	return answer or None, evidence, claims
 
 class _HTMLTextExtractor(HTMLParser):
 	def __init__(self) -> None:
@@ -746,13 +818,20 @@ def _paper_to_text(result: dict, query: str) -> str:
 		lines.append(result.get("message") or "The paper workflow did not complete.")
 		return "\n".join(lines)
 
+	answer = result.get("answer")
+	if isinstance(answer, str) and answer.strip():
+		lines = [answer.strip()]
+		claims = result.get("claims") or []
+		if claims:
+			lines.extend(["", "Citations:"])
+			for claim in claims:
+				ids = ", ".join(claim.get("source_ids") or []) or "unreferenced"
+				lines.append(f"- [{ids}] {claim.get('text') or ''}")
+		return "\n".join(lines)
+
 	paper = result.get("fetch", {}).get("paper") or {}
 	metadata = paper.get("metadata") or {}
 	source = paper.get("source") or {}
-	summary = result.get("summary") or {}
-	extract = result.get("extract") or {}
-	gaps = result.get("gaps") or {}
-
 	lines.extend([
 		"",
 		f"Paper ID: {paper.get('paper_id') or result.get('paper_id') or 'unknown'}",
@@ -768,28 +847,7 @@ def _paper_to_text(result: dict, query: str) -> str:
 		for warning in paper.get("warnings") or []:
 			lines.append(f"- {warning}")
 
-	lines.extend(["", "Summary:"])
-	if summary:
-		summary_text = summary.get("summary") or summary.get("text") or summary.get("result")
-		if isinstance(summary_text, str) and summary_text.strip():
-			lines.append(summary_text.strip())
-		else:
-			lines.append(json.dumps(summary, indent=2, ensure_ascii=False, default=str))
-	else:
-		lines.append("No summary was returned.")
-
-	if extract:
-		lines.extend(["", "Extract:"])
-		lines.append(json.dumps(extract, indent=2, ensure_ascii=False, default=str))
-
-	lines.extend(["", "Gaps:"])
-	if "gaps" in result:
-		if gaps:
-			lines.append(json.dumps(gaps, indent=2, ensure_ascii=False, default=str))
-		else:
-			lines.append("No gaps were returned.")
-	else:
-		lines.append("Gap extraction did not run for this paper result.")
+	lines.extend(["", "The paper was downloaded and extracted, but no grounded answer was returned."])
 
 	return "\n".join(lines)
 
@@ -866,20 +924,26 @@ def _url_to_text(result: dict, url: str) -> str:
 
 
 def _multi_paper_to_text(result: dict, query: str) -> str:
-	"""Render the search candidates and each individual paper-pipeline result."""
+	"""Render the grounded answer and the papers downloaded for it."""
 	lines = ["Multi-paper research", f"Query: {query}"]
 	if result.get("error"):
 		return "\n".join(lines + ["", f"Error: {result['error']}"])
 
-	candidates = result.get("search_results") or []
-	lines.extend(["", f"Requested: {result.get('requested_count', 0)} papers", "", "Web candidates:"])
-	for idx, candidate in enumerate(candidates, start=1):
-		lines.append(f"{idx}. {candidate.get('title') or 'Untitled'}")
-		lines.append(f"   {candidate.get('url') or 'No URL'}")
-
+	answer = result.get("answer")
+	if isinstance(answer, str) and answer.strip():
+		lines.extend(["", answer.strip()])
+	claims = result.get("claims") or []
+	if claims:
+		lines.extend(["", "Citations:"])
+		for claim in claims:
+			ids = ", ".join(claim.get("source_ids") or []) or "unreferenced"
+			lines.append(f"- [{ids}] {claim.get('text') or ''}")
+	lines.extend(["", f"Downloaded papers ({len(result.get('papers') or [])}):"])
 	for idx, item in enumerate(result.get("papers") or [], start=1):
-		lines.extend(["", f"Paper {idx}: {item.get('title') or item.get('url') or 'Untitled'}"])
-		lines.append(_paper_to_text(item.get("result") or {}, item.get("query") or query))
+		paper = (item.get("result") or {}).get("fetch", {}).get("paper") or {}
+		metadata = paper.get("metadata") or {}
+		lines.append(f"{idx}. {metadata.get('title') or item.get('title') or 'Untitled'}")
+		lines.append(f"   {item.get('url') or 'No URL'}")
 	return "\n".join(lines)
 
 
@@ -965,11 +1029,10 @@ def _answer_from_fetched_pages(query: str, pages: list[dict]) -> str | None:
 def paper_node(state: InvestigatorState) -> dict:
 	workspace_key = state.get("workspace_key", state["session_id"])
 	_ensure_workspace(workspace_key)
-	try:
-		result = run_paper_agent(workspace_key, state["query"], stream=False)
-	except Exception as exc:  # noqa: BLE001 - return a readable text error
-		result = {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
-	return {"research_result": {**result, "evidence": _paper_evidence(result)}}
+	result = _fetch_extract_paper(workspace_key, state["query"])
+	answer, evidence, claims = _answer_from_papers(state.get("text") or state["query"], [result])
+	result.pop("full_text", None)  # keep full text on disk, not in the run log/state
+	return {"research_result": {**result, "answer": answer, "evidence": evidence, "claims": claims}}
 
 
 def paper_search_node(state: InvestigatorState) -> dict:
@@ -1030,20 +1093,7 @@ def download_papers_node(state: InvestigatorState) -> dict:
 
 	def download_one(candidate: dict) -> dict:
 		query = candidate.get("url") or candidate.get("title") or state["query"]
-		try:
-			if ENABLE_FAST_MULTI_PAPER_DOWNLOAD:
-				# Fast mode runs the full paper pipeline directly for each selected
-				# candidate, avoiding an extra prefetch that can create duplicate
-				# records before analysis starts.
-				paper_result = run_paper_agent(workspace_key, query, stream=False)
-			else:
-				fetch_result = fetch_paper(workspace_key, query)
-				if fetch_result.get("status") == "ok":
-					paper_result = run_paper_agent(workspace_key, query, stream=False)
-				else:
-					paper_result = fetch_result
-		except Exception as exc:  # noqa: BLE001 - one failed candidate must not stop the session
-			paper_result = {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
+		paper_result = _fetch_extract_paper(workspace_key, query)
 		return {
 			"title": candidate.get("title"),
 			"url": candidate.get("url"),
@@ -1065,9 +1115,11 @@ def download_papers_node(state: InvestigatorState) -> dict:
 			total=len(candidates),
 		)
 	selected = papers[:requested_count]
-	evidence = list(result.get("evidence") or [])
-	for index, item in enumerate(selected, start=1):
-		evidence.extend(_paper_evidence(item.get("result") or {}, index))
+	answer, evidence, answer_claims = _answer_from_papers(
+		state.get("text") or state["query"], [item.get("result") or {} for item in selected],
+	)
+	for item in selected:
+		(item.get("result") or {}).pop("full_text", None)
 	trace.log_event(
 		"investigator downloads finished",
 		count=len(selected),
@@ -1076,7 +1128,10 @@ def download_papers_node(state: InvestigatorState) -> dict:
 			for item in selected
 		),
 	)
-	return {"research_result": {**result, "papers": selected, "attempted_papers": papers, "evidence": evidence}}
+	return {"research_result": {
+		**result, "papers": selected, "attempted_papers": papers, "answer": answer,
+		"evidence": evidence, "claims": answer_claims,
+	}}
 
 
 def web_node(state: InvestigatorState) -> dict:
@@ -1131,8 +1186,12 @@ def _deterministic_evaluate(mode: str, result: dict) -> tuple[bool, str]:
 		feedback = f"The {mode} route failed: {result['error']}"
 	elif mode == "paper" and result.get("status") != "ok":
 		feedback = result.get("message") or f"The paper workflow ended with status {result.get('status', 'unknown')}."
+	elif mode == "paper" and not result.get("answer"):
+		feedback = "The paper was fetched, but no answer was produced from its content."
 	elif mode == "paper_search" and not result.get("papers"):
 		feedback = "No candidate paper completed; refine the paper title/topic or use a more specific source."
+	elif mode == "paper_search" and not result.get("answer"):
+		feedback = "Papers were fetched, but no answer was produced from their content."
 	elif mode == "web" and not result.get("answer") and not result.get("search_results"):
 		feedback = "The web search returned no results; revise the search query."
 	elif mode == "url" and not result.get("text"):
@@ -1312,10 +1371,11 @@ def run(
 	echo: bool | None = None,
 	max_attempts: int = _DEFAULT_MAX_ATTEMPTS,
 ) -> str:
-	"""Route a free-text instruction to paper fetch/summarize or web scraping.
+	"""Route a free-text instruction to paper reading or web research.
 
-	Returns plain text so callers can display it directly. The paper path uses
-	the existing paper agent; the generic path searches the web and fetches the
+	Returns plain text so callers can display it directly. The paper path only
+	fetches and extracts sources, then answers the question from their content; it
+	does not run summary, gap, director, validator, or ranking agents. The web path searches and fetches the
 	top hits when the prompt asks for more than just a search result list. Every
 	download is stored in ``workspace/<category>/sessions/<session_id>/`` when
 	``category_slug`` is supplied by the validator.  The category-less form is

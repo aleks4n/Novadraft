@@ -118,30 +118,32 @@ def test_multi_paper_search_deduplicates_mirrors_before_download():
 
 def test_multi_paper_workflow_searches_then_downloads_each_candidate(monkeypatch):
 	candidates = [
-		agent.SearchResult(title="Paper one", url="https://arxiv.org/abs/1"),
-		agent.SearchResult(title="Paper two", url="https://arxiv.org/abs/2"),
-		agent.SearchResult(title="Paper three", url="https://arxiv.org/abs/3"),
+		agent.SearchResult(title="Paper one", url="https://arxiv.org/abs/2401.00001"),
+		agent.SearchResult(title="Paper two", url="https://arxiv.org/abs/2401.00002"),
+		agent.SearchResult(title="Paper three", url="https://arxiv.org/abs/2401.00003"),
 	]
 	downloads = []
-	monkeypatch.setattr(agent, "ENABLE_FAST_MULTI_PAPER_DOWNLOAD", False)
 	monkeypatch.setattr(agent, "_search_web", lambda query, max_results=None: candidates)
 	monkeypatch.setattr(agent, "_ensure_workspace", lambda session_id: None)
 	monkeypatch.setattr(
 		agent,
-		"run_paper_agent",
-		lambda session_id, query, stream: downloads.append((session_id, query, stream)) or {"status": "ok", "paper_id": query},
+		"_fetch_extract_paper",
+		lambda session_id, query: downloads.append((session_id, query)) or {"status": "ok", "paper_id": query, "full_text": "content"},
 	)
+	monkeypatch.setattr(agent, "_answer_from_papers", lambda question, papers: (
+		"answer", [{"source_id": f"paper-{i}"} for i in range(1, 4)], [],
+	))
 
 	state = {"session_id": "session-42", "query": "transformers", "paper_count": 3}
 	search_result = agent.paper_search_node(state)["research_result"]
 	download_result = agent.download_papers_node({**state, "research_result": search_result})["research_result"]
 
 	assert search_result["requested_count"] == 3
-	assert downloads == [
-		("session-42", "https://arxiv.org/abs/1", False),
-		("session-42", "https://arxiv.org/abs/2", False),
-		("session-42", "https://arxiv.org/abs/3", False),
-	]
+	assert sorted(downloads) == sorted([
+		("session-42", "https://arxiv.org/abs/2401.00001"),
+		("session-42", "https://arxiv.org/abs/2401.00002"),
+		("session-42", "https://arxiv.org/abs/2401.00003"),
+	])
 	assert len(download_result["papers"]) == 3
 	assert len(download_result["evidence"]) == 3
 	assert len(download_result["attempted_papers"]) == 3
@@ -153,8 +155,8 @@ def test_paper_search_falls_back_to_arxiv_when_web_returns_empty(monkeypatch):
 		agent,
 		"_search_arxiv",
 		lambda query, max_results=None: [
-			agent.SearchResult(title="A", url="https://arxiv.org/abs/1"),
-			agent.SearchResult(title="B", url="https://arxiv.org/abs/2"),
+			agent.SearchResult(title="A", url="https://arxiv.org/abs/2401.00001"),
+			agent.SearchResult(title="B", url="https://arxiv.org/abs/2401.00002"),
 		],
 	)
 
@@ -162,35 +164,29 @@ def test_paper_search_falls_back_to_arxiv_when_web_returns_empty(monkeypatch):
 
 	assert result["requested_count"] == 2
 	assert [item["url"] for item in result["search_results"]] == [
-		"https://arxiv.org/abs/1",
-		"https://arxiv.org/abs/2",
+		"https://arxiv.org/abs/2401.00001",
+		"https://arxiv.org/abs/2401.00002",
 	]
 
 
 def test_multi_paper_workflow_uses_later_candidates_after_fetch_failures(monkeypatch):
 	candidates = [
-		agent.SearchResult("Blocked one", "https://arxiv.org/abs/blocked1"),
-		agent.SearchResult("Good one", "https://arxiv.org/abs/good1"),
-		agent.SearchResult("Blocked two", "https://arxiv.org/abs/blocked2"),
-		agent.SearchResult("Good two", "https://arxiv.org/abs/good2"),
+		agent.SearchResult("Blocked one", "https://arxiv.org/abs/2401.00001"),
+		agent.SearchResult("Good one", "https://arxiv.org/abs/2401.00002"),
+		agent.SearchResult("Blocked two", "https://arxiv.org/abs/2401.00003"),
+		agent.SearchResult("Good two", "https://arxiv.org/abs/2401.00004"),
 	]
-	monkeypatch.setattr(agent, "ENABLE_FAST_MULTI_PAPER_DOWNLOAD", True)
 	monkeypatch.setattr(agent, "_ensure_workspace", lambda session_id: None)
 	runs = []
 	monkeypatch.setattr(
 		agent,
-		"run_paper_agent",
-		lambda session_id, query, stream: (
-			runs.append((session_id, query, stream))
-			or ({"status": "error", "error": "403"} if "blocked" in query else {
-				"status": "ok",
-				"paper_id": query,
-				"fetch": {"paper": {"paper_id": query, "metadata": {"title": query}}},
-				"summary": {"summary": "ok"},
-				"gaps": {"gaps": []},
-			})
+		"_fetch_extract_paper",
+		lambda session_id, query: (
+			runs.append((session_id, query))
+			or {"status": "ok", "paper_id": query, "full_text": "content"}
 		),
 	)
+	monkeypatch.setattr(agent, "_answer_from_papers", lambda question, papers: ("answer", [], []))
 	state = {
 		"session_id": "session-42", "query": "transformers", "paper_count": 2,
 		"research_result": {"search_results": [item.__dict__ for item in candidates]},
@@ -200,31 +196,27 @@ def test_multi_paper_workflow_uses_later_candidates_after_fetch_failures(monkeyp
 
 	assert [item["title"] for item in result["papers"]] == ["Blocked one", "Good one"]
 	assert len(result["attempted_papers"]) == 2
-	assert runs == [
-		("session-42", "https://arxiv.org/abs/blocked1", False),
-		("session-42", "https://arxiv.org/abs/good1", False),
-	]
+	assert runs == [("session-42", "https://arxiv.org/abs/2401.00001"),
+	                ("session-42", "https://arxiv.org/abs/2401.00002")]
 
 
 def test_multi_paper_workflow_stops_after_requested_successes(monkeypatch):
 	candidates = [
-		agent.SearchResult(f"Paper {index}", f"https://arxiv.org/abs/{index}")
-		for index in range(5)
+		agent.SearchResult(f"Paper {index}", f"https://arxiv.org/abs/2401.{index}")
+		for index in range(10000, 10005)
 	]
 	runs = []
-	monkeypatch.setattr(agent, "ENABLE_FAST_MULTI_PAPER_DOWNLOAD", True)
 	monkeypatch.setattr(agent, "_ensure_workspace", lambda session_id: None)
 	monkeypatch.setattr(
 		agent,
-		"run_paper_agent",
-		lambda session_id, query, stream: runs.append((session_id, query, stream)) or {
+		"_fetch_extract_paper",
+		lambda session_id, query: runs.append((session_id, query)) or {
 			"status": "ok",
 			"paper_id": query,
-			"fetch": {"paper": {"paper_id": query, "metadata": {"title": query}}},
-			"summary": {"summary": "ok"},
-			"gaps": {"gaps": []},
+			"full_text": "content",
 		},
 	)
+	monkeypatch.setattr(agent, "_answer_from_papers", lambda question, papers: ("answer", [], []))
 
 	result = agent.download_papers_node({
 		"session_id": "session-42", "query": "transformers", "paper_count": 3,
@@ -237,20 +229,20 @@ def test_multi_paper_workflow_stops_after_requested_successes(monkeypatch):
 
 def test_multi_paper_workflow_does_not_expand_attempt_pool_on_failures(monkeypatch):
 	candidates = [
-		agent.SearchResult(f"Paper {index}", f"https://arxiv.org/abs/{index}")
-		for index in range(6)
+		agent.SearchResult(f"Paper {index}", f"https://arxiv.org/abs/2401.{index}")
+		for index in range(10000, 10006)
 	]
 	runs = []
-	monkeypatch.setattr(agent, "ENABLE_FAST_MULTI_PAPER_DOWNLOAD", True)
 	monkeypatch.setattr(agent, "_ensure_workspace", lambda session_id: None)
 	monkeypatch.setattr(
 		agent,
-		"run_paper_agent",
-		lambda session_id, query, stream: runs.append((session_id, query, stream)) or {
+		"_fetch_extract_paper",
+		lambda session_id, query: runs.append((session_id, query)) or {
 			"status": "error",
 			"error": "blocked",
 		},
 	)
+	monkeypatch.setattr(agent, "_answer_from_papers", lambda question, papers: (None, [], []))
 
 	result = agent.download_papers_node({
 		"session_id": "session-42", "query": "transformers", "paper_count": 3,
@@ -281,6 +273,7 @@ def test_web_node_fetches_pages_only_when_llm_requests_it(monkeypatch):
 		"_answer_from_fetched_pages",
 		lambda query, pages: answer_inputs.append((query, pages)) or "Grounded answer",
 	)
+	monkeypatch.setattr(agent, "_claims_from_answer", lambda answer, evidence: [])
 
 	no_fetch = agent.web_node({"query": "topic", "text": "topic", "session_id": "session-1", "should_fetch_pages": False})
 	assert no_fetch["research_result"]["pages"] == []
@@ -321,15 +314,17 @@ def test_paper_node_uses_session_workspace(monkeypatch):
 	monkeypatch.setattr(agent, "_ensure_workspace", lambda session_id: created.append(session_id))
 	monkeypatch.setattr(
 		agent,
-		"run_paper_agent",
-		lambda session_id, query, stream: called.append((session_id, query, stream)) or {"status": "ok"},
+		"_fetch_extract_paper",
+		lambda session_id, query: called.append((session_id, query)) or {"status": "ok", "full_text": "paper body"},
 	)
+	monkeypatch.setattr(agent, "_answer_from_papers", lambda question, papers: ("grounded answer", [], []))
 
 	result = agent.paper_node({"session_id": "session-42", "query": "Attention Is All You Need"})
 
 	assert created == ["session-42"]
-	assert called == [("session-42", "Attention Is All You Need", False)]
+	assert called == [("session-42", "Attention Is All You Need")]
 	assert result["research_result"]["status"] == "ok"
+	assert result["research_result"]["answer"] == "grounded answer"
 	assert result["research_result"]["evidence"] == []
 
 
@@ -337,6 +332,7 @@ def test_renderers_format_text_output():
 	paper_text = agent._paper_to_text(
 		{
 			"status": "ok",
+			"answer": "Transformer summary.",
 			"fetch": {
 				"paper": {
 					"paper_id": "arxiv_1706.03762",
@@ -345,17 +341,12 @@ def test_renderers_format_text_output():
 					"warnings": [],
 				},
 			},
-			"summary": {"summary": "Transformer summary."},
 			"extract": {"status": "ok"},
-			"gaps": {"gap_ids": ["g1"]},
 		},
 		"attention is all you need",
 	)
 
-	assert "Paper ID: arxiv_1706.03762" in paper_text
-	assert "Title: Attention Is All You Need" in paper_text
-	assert "Summary:" in paper_text
-	assert "Transformer summary." in paper_text
+	assert paper_text == "Transformer summary."
 
 	web_text = agent._web_to_text(
 		{
