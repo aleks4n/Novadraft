@@ -10,9 +10,8 @@ import { useWorkspace } from "../../lib/store";
 import type { Idea } from "../../lib/types";
 
 export function IdeasOverview() {
-  const { active, bundle, setNav, startIdeaRun, runs } = useWorkspace();
+  const { active, bundle, setNav, runs } = useWorkspace();
   const ideas = bundle?.ideas ?? [];
-  const generating = runs.some((r) => r.kind === "idea" && r.status === "running");
   // Runs started from *this* view (a session's runs belong to its transcript).
   // Without this the button would fire a real run whose result went nowhere.
   const quickRuns = runs.filter((r) => r.kind === "idea" && !r.sessionId).slice(-3);
@@ -31,10 +30,6 @@ export function IdeasOverview() {
             <button className="btn btn--ghost" onClick={() => setNav({ view: "sessions", id: null })}>
               <Icon name="msg" /> New session
             </button>
-            <button className="btn btn--primary" disabled={generating}
-              onClick={() => startIdeaRun({ mode: "generate", count: 3 })}>
-              <Icon name="sparkle" /> {generating ? "Generating…" : "Generate from gaps"}
-            </button>
           </>
         }
         breadcrumb={[
@@ -46,8 +41,7 @@ export function IdeasOverview() {
 
       {ideas.length === 0 ? (
         <div className="empty-state">
-          No ideas yet. Use <b>Generate from gaps</b> to have the agent propose some,
-          or open a <b>session</b> to develop one in conversation.
+          No ideas yet. Open a <b>session</b> to develop one in conversation.
         </div>
       ) : null}
 

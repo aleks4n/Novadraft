@@ -110,7 +110,7 @@ export function TopicOverview() {
         <SummaryCard icon="compass" label="Research Gaps" count={gaps.length} tone="amber"
           rows={gaps.slice(0, 3).map((g) => g.short)} onClick={() => setNav({ view: "gaps", id: null })} />
         <SummaryCard icon="bulb" label="Research Ideas" count={ideas.length} tone="violet"
-          rows={ideas.length ? ideas.slice(0, 3).map((i) => i.short) : ["Generate from gaps →"]}
+          rows={ideas.length ? ideas.slice(0, 3).map((i) => i.short) : ["Start a session →"]}
           onClick={() => setNav({ view: "ideas", id: null })} />
       </div>
     </div>
