@@ -125,7 +125,7 @@ def _scope_ids(state: PipelineState) -> set[str] | None:
 
 # --- parallel drain helper ----------------------------------------------------
 
-def _drain_parallel(slug: str, queue: list[str], worker, phase: str) -> list[dict]:
+def _drain_parallel(slug: str, queue: list[str], worker, phase: str) -> tuple[list[dict], list[str]]:
     """Process every claimed gap in ``queue`` with a bounded thread pool and
     return the finalized records (order of completion is irrelevant — the
     reducer just accumulates them).
@@ -138,19 +138,21 @@ def _drain_parallel(slug: str, queue: list[str], worker, phase: str) -> list[dic
     released per gap in ``finally`` — success or failure — so a crashed gap is
     immediately claimable again."""
 
-    def _one(gid: str) -> dict | None:
+    def _one(gid: str) -> tuple[str, dict | None]:
         try:
-            return worker(gid)
+            return gid, worker(gid)
         except Exception as exc:  # noqa: BLE001 — gap stays put for a retry
             trace.log_event(f"gap_{phase}_failed", gap_id=gid, error=str(exc))
-            return None
+            return gid, None
         finally:
             claims.release(slug, gid)
 
     try:
         with ThreadPoolExecutor(max_workers=_MAX_PARALLEL_GAPS) as pool:
             futures = [pool.submit(copy_context().run, _one, gid) for gid in queue]
-            return [rec for rec in (f.result() for f in futures) if rec is not None]
+            outcomes = [f.result() for f in futures]
+            return ([rec for _, rec in outcomes if rec is not None],
+                    [gid for gid, rec in outcomes if rec is None])
     finally:
         # Backstop: if the pool itself blew up, don't leak the batch's claims.
         claims.release_all(slug, queue)
@@ -196,7 +198,8 @@ def validate_gap(state: PipelineState) -> dict:
                         status=((rec or {}).get("verdict") or {}).get("status"))
         return rec
 
-    return {"queue": [], "verdicts": _drain_parallel(slug, queue, _validate, "validate")}
+    verdicts, failed = _drain_parallel(slug, queue, _validate, "validate")
+    return {"queue": [], "verdicts": verdicts, "failed_validation_ids": failed}
 
 
 # --- phase 2: rank the open opportunities (claim, then drain in parallel) ------
@@ -236,20 +239,30 @@ def rank_gap(state: PipelineState) -> dict:
         trace.log_event("gap_ranked", gap_id=gid)
         return rec
 
-    return {"queue": [], "ranked": _drain_parallel(slug, queue, _rank, "rank")}
+    ranked, failed = _drain_parallel(slug, queue, _rank, "rank")
+    return {"queue": [], "ranked": ranked, "failed_ranking_ids": failed}
 
 
 def collect(state: PipelineState) -> dict:
     verdicts = [v for v in (state.get("verdicts") or []) if v]
     ranked = [r for r in (state.get("ranked") or []) if r]
+    failed_validation_ids = state.get("failed_validation_ids") or []
+    failed_ranking_ids = state.get("failed_ranking_ids") or []
+    incomplete = len(failed_validation_ids) + len(failed_ranking_ids)
     return {"result": {
-        "status": "ok",
+        "status": "partial" if incomplete else "ok",
+        "error": (
+            f"{incomplete} gap(s) could not finish ingestion; use Resume gaps to retry."
+            if incomplete else None
+        ),
         "paper_id": state.get("paper_id"),
         "novel_gap_ids": state.get("novel_gap_ids") or [],
         "n_validated": len(verdicts),
         "n_ranked": len(ranked),
         "verdicts": verdicts,
         "ranked": ranked,
+        "failed_validation_ids": failed_validation_ids,
+        "failed_ranking_ids": failed_ranking_ids,
     }}
 
 

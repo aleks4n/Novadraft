@@ -297,6 +297,8 @@ class RunManager:
             patch.update(status="ambiguous", candidates=output.get("candidates") or [])
         elif output.get("status") == "needs_source":
             patch["status"] = "needs_source"
+        elif output.get("status") == "partial":
+            patch.update(status="error", error=(output.get("error") or "Ingestion incomplete"))
         else:
             patch["status"] = "done"
         if isinstance(output.get("paper_id"), str) and output["paper_id"]:

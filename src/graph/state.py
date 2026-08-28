@@ -45,5 +45,7 @@ class PipelineState(TypedDict, total=False):
     # results accumulated across the phases
     verdicts: Annotated[list[dict], operator.add]   # validator: solved / open / partial
     ranked: Annotated[list[dict], operator.add]     # ranking: open opportunities scored
+    failed_validation_ids: list[str]
+    failed_ranking_ids: list[str]
 
     result: dict

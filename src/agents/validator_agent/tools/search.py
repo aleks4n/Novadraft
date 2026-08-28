@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-import time
+import random
 import urllib.parse
 from datetime import datetime, timedelta, timezone
 from typing import List
@@ -11,7 +11,7 @@ import feedparser
 from src.common.schemas.gap import GapRecord
 from src.common.schemas.paper import CandidatePaper
 from src.common.tools.paper_access import get_year
-from src.common.utils.ratelimit import wait_turn
+from src.common.utils.ratelimit import defer, wait_turn
 from src.agents.validator_agent.schemas import SearchQuery
 from src.agents.validator_agent.state import ValidatorState
 
@@ -116,7 +116,17 @@ def _search_one(query: SearchQuery, cutoff_date: str) -> List[CandidatePaper]:
         if status is None or status == 200:
             break
         if status in _RETRYABLE_STATUS and attempt < _RETRIES:
-            time.sleep(_BACKOFF_BASE * (2**attempt))
+            delay = _BACKOFF_BASE * (2**attempt)
+            headers = feed.get("headers") or {}
+            retry_after = headers.get("retry-after") or headers.get("Retry-After")
+            try:
+                delay = float(retry_after) if retry_after is not None else delay
+            except (TypeError, ValueError):
+                pass
+            delay += random.uniform(0, min(1.0, delay * 0.1))
+            # Cool down every queued validator. Sleeping only this worker lets
+            # the other gap threads continue producing 429s indefinitely.
+            defer("arxiv", delay)
             continue
         raise RuntimeError(f"arXiv returned HTTP {status} for {query.query_type} query")
 

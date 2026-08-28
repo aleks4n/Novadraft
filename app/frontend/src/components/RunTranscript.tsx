@@ -82,10 +82,12 @@ function traceCount(events: RunEvent[], name: string): number {
 function fanoutProgress(events: RunEvent[], phase: "validate" | "rank", loopGnode: string) {
   const doneName = phase === "validate" ? "gap_validated" : "gap_ranked";
   const started = traceCount(events, `gap_${phase}_start`);
-  const done = traceCount(events, doneName) + traceCount(events, `gap_${phase}_failed`);
+  const done = traceCount(events, doneName);
+  const failed = traceCount(events, `gap_${phase}_failed`);
   return {
     done: Math.max(done, started ? 0 : nodeCount(events, loopGnode)),
-    inFlight: Math.max(0, started - done),
+    failed,
+    inFlight: Math.max(0, started - done - failed),
   };
 }
 
@@ -153,7 +155,7 @@ export function RunTranscript({ run }: { run: RunState }) {
   const stages = run.kind === "idea" ? IDEA_STAGES : run.kind === "resume" ? RESUME_STAGES : PAPER_STAGES;
   const done = completedGnodes(run.events);
   const passes = passCounts(run.events);
-  const fanout: Record<string, { done: number; inFlight: number }> = {
+  const fanout: Record<string, { done: number; failed: number; inFlight: number }> = {
     validate: fanoutProgress(run.events, "validate", "validate_gap"),
     rank: fanoutProgress(run.events, "rank", "rank_gap"),
   };
@@ -237,11 +239,12 @@ export function RunTranscript({ run }: { run: RunState }) {
                   {s.loop && n > 0 && (
                     <span className="run-stage-pass">{isActive ? "refining · " : ""}{n} pass{n === 1 ? "" : "es"}</span>
                   )}
-                  {AGGREGATE_KEYS.has(s.key) && (fanout[s.key].done > 0 || fanout[s.key].inFlight > 0) && (
+                  {AGGREGATE_KEYS.has(s.key) && (fanout[s.key].done > 0 || fanout[s.key].failed > 0 || fanout[s.key].inFlight > 0) && (
                     <span className="run-stage-pass">
                       {fanout[s.key].inFlight > 0 && `${fanout[s.key].inFlight} in parallel`}
                       {fanout[s.key].inFlight > 0 && fanout[s.key].done > 0 && " · "}
                       {fanout[s.key].done > 0 && `${fanout[s.key].done} gap${fanout[s.key].done === 1 ? "" : "s"} done`}
+                      {fanout[s.key].failed > 0 && `${fanout[s.key].done > 0 ? " · " : ""}${fanout[s.key].failed} failed`}
                     </span>
                   )}
                 </div>

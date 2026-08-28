@@ -35,7 +35,9 @@ interface WorkspaceCtx {
   createTopic: (topic: string) => Promise<string | null>;
   // autoOpen: navigate to the paper's page the moment the run attaches to it
   // (single ingests do; batch ingests don't yank the user around).
-  startPaperRun: (query: string, opts?: { force?: boolean; autoOpen?: boolean }) => Promise<void>;
+  // True once the backend has accepted the run. Callers that provide their own
+  // feedback can use false to keep the query visible and surface the failure.
+  startPaperRun: (query: string, opts?: { force?: boolean; autoOpen?: boolean }) => Promise<boolean>;
   startIdeaRun: (opts: { mode: "generate" | "expand"; sketch?: string; count?: number }) => Promise<void>;
   startGapResume: (gapId: string) => Promise<void>;
   startPaperGapsResume: (paperId: string) => Promise<void>;
@@ -273,14 +275,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const startPaperRun = useCallback(
     async (query: string, opts: { force?: boolean; autoOpen?: boolean } = {}) => {
       const slug = slugRef.current;
-      if (!slug || !query.trim()) return;
+      if (!slug || !query.trim()) return false;
       try {
         const meta = await runPaperAgent(slug, query.trim(), opts.force ?? false);
         if (opts.autoOpen ?? true) autoOpenRef.current.add(meta.run_id);
         mergeMeta(slug, meta);
         if (meta.status === "running") attach(slug, meta.run_id);
+        return true;
       } catch (e) {
         console.error("start paper run failed:", e);
+        return false;
       }
     },
     [attach, mergeMeta],

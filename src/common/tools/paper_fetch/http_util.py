@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import gzip
 import json as _json
+import random
 import tarfile
 import time
 import urllib.error
@@ -11,7 +12,7 @@ import urllib.request
 from io import BytesIO
 from pathlib import Path
 
-from ...utils.ratelimit import wait_turn
+from ...utils.ratelimit import defer, wait_turn
 
 _UA = "novadraft-paper-fetch/0.1 (+research; mailto:noreply@example.com)"
 DEFAULT_TIMEOUT = 30
@@ -24,7 +25,7 @@ def _is_arxiv(url: str) -> bool:
 
 
 def _open(url: str, timeout: int = DEFAULT_TIMEOUT, accept: str | None = None,
-          retries: int = 2, backoff: float = 1.5):
+          retries: int = 4, backoff: float = 4.0):
     req = urllib.request.Request(url, headers={"User-Agent": _UA})
     if accept:
         req.add_header("Accept", accept)
@@ -40,7 +41,16 @@ def _open(url: str, timeout: int = DEFAULT_TIMEOUT, accept: str | None = None,
         except urllib.error.HTTPError as e:
             last_err = e
             if e.code in _RETRY_STATUSES and attempt < retries:
-                time.sleep(delay)
+                retry_after = e.headers.get("Retry-After") if e.headers else None
+                try:
+                    cooldown = float(retry_after) if retry_after is not None else delay
+                except (TypeError, ValueError):
+                    cooldown = delay
+                cooldown += random.uniform(0, min(1.0, cooldown * 0.1))
+                if _is_arxiv(url):
+                    defer("arxiv", cooldown)
+                else:
+                    time.sleep(cooldown)
                 delay *= 2
                 continue
             raise

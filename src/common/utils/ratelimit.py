@@ -27,15 +27,32 @@ _next_free: dict[str, float] = {}  # service -> earliest monotonic time of the n
 def wait_turn(service: str) -> None:
     """Block until `service` may be called again, then claim the slot.
 
-    Concurrent callers queue fairly: each claim pushes the next free slot one
-    interval further out, so N threads arriving at once get spaced one interval
-    apart rather than racing when the current wait expires.
+    Concurrent callers re-check the shared deadline before claiming a turn, so
+    they stay spaced and also observe cooldowns added while they were waiting.
     """
     interval = _MIN_INTERVAL[service]
-    with _lock:
-        now = time.monotonic()
-        slot = max(_next_free.get(service, now), now)
-        _next_free[service] = slot + interval
-    wait = slot - time.monotonic()
-    if wait > 0:
+    # Re-check after sleeping instead of reserving a future slot. A server-side
+    # 429 may extend the shared cooldown while callers are queued; reservations
+    # made before that response would otherwise wake up and keep hammering the
+    # service during its requested quiet period.
+    while True:
+        with _lock:
+            now = time.monotonic()
+            ready_at = _next_free.get(service, now)
+            if now >= ready_at:
+                _next_free[service] = now + interval
+                return
+            wait = ready_at - now
         time.sleep(wait)
+
+
+def defer(service: str, seconds: float) -> None:
+    """Pause all callers of ``service`` for at least ``seconds``.
+
+    Used after a shared rate-limit response. Waiting callers re-check this value
+    before making their request, so one 429 cools down the whole process rather
+    than only the thread that happened to receive it.
+    """
+    until = time.monotonic() + max(0.0, seconds)
+    with _lock:
+        _next_free[service] = max(_next_free.get(service, 0.0), until)
