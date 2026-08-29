@@ -195,9 +195,6 @@ export function PapersOverview() {
         eyebrow={`Reference papers · ${papers.length}`}
         title="Reference Papers"
         subtitle="Papers ingested into this knowledge base. Each is fetched, parsed, summarized & verified, then mined for the research gaps it states — the bar shows how far that pipeline got."
-        actions={
-          <button className="btn btn--ghost"><Icon name="filter" /> Filter</button>
-        }
         breadcrumb={[
           { label: "Research" },
           { label: active?.shortTitle || "Topic", onClick: () => setNav({ view: "topic", id: null }) },
@@ -385,7 +382,6 @@ export function PaperDetail({ id }: { id: string }) {
                 <Icon name="external" /> Open source
               </a>
             )}
-            <button className="btn btn--ghost"><Icon name="copy" /> Cite</button>
           </>
         }
         breadcrumb={[

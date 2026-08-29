@@ -156,7 +156,6 @@ export function IdeaDetail({ id }: { id: string }) {
             <button className="btn btn--ghost" onClick={() => setNav({ view: "idea-graph", id: null })}>
               <Icon name="share" /> In graph
             </button>
-            <button className="btn btn--ghost"><Icon name="star" /></button>
           </>
         }
         breadcrumb={[

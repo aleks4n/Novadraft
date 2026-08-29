@@ -685,6 +685,9 @@ body.col-resizing .gaps-row:hover { background: transparent; }
 
 /* the tree of thoughts — nodes on depth rows, joined to their parent */
 .tt { width: 100%; overflow-x: auto; overflow-y: hidden; padding-bottom: 6px; }
+/* Fitted (session window): the tree is scaled to the width, so it only scrolls
+   sideways once it has hit the minimum readable scale. */
+.tt--fit { padding-bottom: 2px; }
 .tt-stage { position: relative; }
 .tt-stage > div { position: relative; }
 .tt-edges { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; }
@@ -821,13 +824,16 @@ body.col-resizing .gaps-row:hover { background: transparent; }
 .thought-inspector-meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 10.5px; color: var(--text-5); border-top: 1px solid var(--border-soft); padding-top: 8px; }
 
 /* ---------- the session workspace ---------- */
-/* One top row (the session bar), then a field of white window blocks — the chat
-   is one of them. No nested frames: a window is a border, a header row, a body. */
+/* A field of page blocks on the canvas — the session bar, the chat, and each
+   window are all the same block the nav rail is, separated only by the gutters
+   between them. No nested frames: a window is a block, a header row, a body. */
 
-.session { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--bg); }
+.session { display: flex; flex-direction: column; height: 100%; min-height: 0; gap: 10px; }
 .session-bar {
-  display: flex; align-items: center; gap: 10px; padding: 0 14px; height: 44px;
-  border-bottom: 1px solid var(--border); background: var(--bg-sidebar); flex-shrink: 0;
+  display: flex; align-items: center; gap: 10px; padding: 0 16px; height: 46px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-block); box-shadow: var(--shadow-block);
+  flex-shrink: 0;
 }
 .session-bar > .icon { color: var(--text-4); flex-shrink: 0; }
 .session-title { font-size: 13.5px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 46%; }
@@ -836,27 +842,69 @@ body.col-resizing .gaps-row:hover { background: transparent; }
   font-size: 10.5px; font-weight: 600; color: var(--accent-ai); background: var(--accent-ai-soft);
   padding: 2px 8px; border-radius: 999px; white-space: nowrap;
 }
-.session-bar-right { margin-left: auto; display: flex; gap: 6px; }
+.session-bar-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
 
-.session-shell { flex: 1; min-height: 0; display: flex; padding: 10px; gap: 0; }
-.session-chat { min-width: 300px; display: flex; flex-direction: column; min-height: 0; }
-.session-panels { flex: 1; min-width: 260px; min-height: 0; display: flex; }
+/* Which windows are open — one menu, in the session bar. */
+.windows-menu { position: relative; }
+.windows-menu .btn--ghost-open { background: var(--bg-hover); color: var(--text); }
+.windows-menu-count {
+  font-size: 10.5px; font-weight: 600; color: var(--text-4);
+  background: var(--bg-inset); border-radius: 999px; padding: 1px 6px;
+  font-variant-numeric: tabular-nums;
+}
+.windows-menu-list {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; min-width: 210px;
+  padding: 5px; display: flex; flex-direction: column; gap: 1px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: 0 10px 28px rgba(28,28,26,.14);
+}
+.windows-menu-row {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 7px 9px; border: 0; background: none; border-radius: var(--radius-sm);
+  font: inherit; font-size: 13px; color: var(--text-2); text-align: left; cursor: pointer;
+}
+.windows-menu-row:hover { background: var(--bg-soft); color: var(--text); }
+.windows-menu-row--on { color: var(--text); font-weight: 500; }
+.windows-menu-check {
+  width: 14px; flex-shrink: 0; display: inline-flex;
+  align-items: center; justify-content: center; color: var(--accent);
+}
+
+/* The grid: a row of columns, each a stack of windows. No padding of its own —
+   the app shell's 10px inset already frames the field, and the splitters and
+   dividers are the gutters between the blocks. */
+.session-grid { position: relative; flex: 1; min-height: 0; display: flex; gap: 0; }
+.session-col {
+  display: flex; flex-direction: column;
+  min-width: 220px; min-height: 0;
+  flex-basis: 0; flex-shrink: 1;
+}
 
 .session-splitter { width: 10px; cursor: col-resize; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .session-splitter span { width: 2px; height: 36px; border-radius: 2px; background: var(--border-strong); }
 .session-splitter:hover span { background: var(--accent); height: 72px; }
 
+/* Where the dragged window would land. Drawn on the slot the pointer is over:
+   a bar along the edge it would join, so "above this one" and "beside this one"
+   are told apart before the mouse comes up. */
+.panel-slot { position: relative; }
+.drop-line { position: absolute; z-index: 25; background: var(--accent); border-radius: 3px; pointer-events: none; }
+.drop-line--top    { left: 0; right: 0; top: -3px; height: 4px; }
+.drop-line--bottom { left: 0; right: 0; bottom: -3px; height: 4px; }
+.drop-line--left   { top: 0; bottom: 0; left: -3px; width: 4px; }
+.drop-line--right  { top: 0; bottom: 0; right: -3px; width: 4px; }
+
 /* ---------- chat (a window like any other) ---------- */
 
 .chat-pane {
-  display: flex; flex-direction: column; min-height: 0; height: 100%; overflow: hidden;
-  border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-panel);
+  flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+  border: 1px solid var(--border); border-radius: var(--radius-block);
+  box-shadow: var(--shadow-block); background: var(--bg);
 }
 .chat-head { gap: 8px; }
 .chat-scroll {
   flex: 1; min-height: 0; overflow-y: auto; padding: 16px;
   display: flex; flex-direction: column; gap: 16px;
-  background: var(--bg-panel);
 }
 .chat-empty { margin: auto; max-width: 340px; text-align: center; color: var(--text-4); font-size: 13px; line-height: 1.6; }
 .chat-empty-title { font-size: 14px; font-weight: 600; color: var(--text-3); margin-bottom: 6px; }
@@ -1021,25 +1069,52 @@ body.col-resizing .gaps-row:hover { background: transparent; }
 .panel-slot { display: flex; flex-direction: column; min-height: 74px; flex-basis: 0; flex-shrink: 1; }
 .panel {
   flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
-  border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-panel);
+  border: 1px solid var(--border); border-radius: var(--radius-block);
+  box-shadow: var(--shadow-block); background: var(--bg);
 }
 .panel-head {
   display: flex; align-items: center; gap: 8px; padding: 0 6px 0 10px; height: 34px;
   border-bottom: 1px solid var(--border-soft); flex-shrink: 0;
+  /* A window can now be one of three columns wide, so the header row has to
+     give up its contents gracefully rather than wrap into a second line. */
+  flex-wrap: nowrap; overflow: hidden;
 }
-.panel-kind, .panel-ref {
-  height: 24px; padding: 0 4px; font: inherit; font-size: 12px; color: var(--text-2);
+/* The window's name is a label, not a control: no hover state, and centred on
+   the header row rather than sitting at the top of a fixed-height box. */
+.panel-kind {
+  display: inline-flex; align-items: center; min-width: 0;
+  font-size: 12px; font-weight: 600; color: var(--text);
+  max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.panel-ref {
+  height: 24px; padding: 0 4px; font: inherit; font-size: 12px; color: var(--text-3);
   border: 1px solid transparent; border-radius: 5px; background: none; cursor: pointer;
   max-width: 200px;
 }
-.panel-kind { font-weight: 600; color: var(--text); }
-.panel-kind--static { cursor: default; padding-left: 0; }
-.panel-ref { color: var(--text-3); }
-.panel-kind:hover, .panel-ref:hover { background: var(--bg-hover); border-color: var(--border); }
-.panel-head-right { margin-left: auto; display: flex; gap: 2px; }
-.panel-check { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-4); cursor: pointer; }
-.panel-note { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-4); font-family: var(--font-mono); }
-.panel-body { flex: 1; min-height: 0; overflow: auto; }
+.panel-ref:hover { background: var(--bg-hover); border-color: var(--border); }
+
+/* Reordering handle. Quiet until the header is hovered, like the title's own
+   controls — it is an affordance, not a decoration. */
+.panel-grip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 24px; margin-left: -4px; flex-shrink: 0;
+  color: var(--text-5); cursor: grab; opacity: 0; transition: opacity 120ms, color 120ms;
+}
+.panel-head:hover .panel-grip { opacity: 1; }
+.panel-grip:hover { color: var(--text-3); }
+.panel-slot--dragging { opacity: .55; }
+.panel-slot--dragging .panel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+body.is-panel-dragging { user-select: none; -webkit-user-select: none; cursor: grabbing; }
+body.is-panel-dragging .panel-grip { opacity: 1; cursor: grabbing; }
+.panel-head-right { margin-left: auto; display: flex; gap: 2px; flex-shrink: 0; }
+.panel-check { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-4); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+.panel-note { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-4); font-family: var(--font-mono); white-space: nowrap; flex-shrink: 0; }
+/* `scrollbar-gutter: stable` is load-bearing, not cosmetic: the tree of thoughts
+   scales itself to this box's width, and a classic scrollbar that appears when
+   the scaled content grows taller would shrink that width, shrink the scale,
+   shrink the content, and remove the scrollbar again — an oscillation that React
+   ends with "Maximum update depth exceeded". Reserving the gutter breaks it. */
+.panel-body { flex: 1; min-height: 0; overflow: auto; scrollbar-gutter: stable; }
 
 /* a divider drag passes over panel content — suppress selection for its duration */
 body.is-row-resizing { user-select: none; -webkit-user-select: none; cursor: row-resize; }
@@ -1047,25 +1122,9 @@ body.is-row-resizing { user-select: none; -webkit-user-select: none; cursor: row
 .panel-divider span { height: 2px; width: 36px; border-radius: 2px; background: var(--border-strong); }
 .panel-divider:hover span { background: var(--accent); width: 72px; }
 
-.panel-empty { margin: auto; text-align: center; color: var(--text-4); font-size: 13px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
-.panel-add { position: relative; margin-top: 10px; flex-shrink: 0; }
-.panel-add--inline { margin-top: 0; }
-.panel-add-btn {
-  width: 100%; display: flex; align-items: center; justify-content: center; gap: 7px;
-  padding: 6px; border: 1px dashed var(--border-strong); border-radius: var(--radius);
-  background: none; color: var(--text-4); font-size: 12px; cursor: pointer;
-}
-.panel-add-btn:hover { color: var(--accent); border-color: var(--accent); }
-.panel-add-menu {
-  position: absolute; bottom: 34px; left: 0; right: 0; z-index: 30; padding: 5px;
-  border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--bg-panel);
-  box-shadow: 0 8px 24px #0000001f; display: flex; flex-direction: column; gap: 2px;
-}
-.panel-add-menu button {
-  padding: 7px 9px; border: 0; border-radius: 5px; background: none; cursor: pointer;
-  text-align: left; font-size: 12.5px; color: var(--text-2);
-}
-.panel-add-menu button:hover { background: var(--bg-hover); color: var(--text); }
+.panel-empty { margin: auto; text-align: center; color: var(--text-4); font-size: 13px; display: flex; flex-direction: column; gap: 4px; align-items: center; }
+.panel-empty p { margin: 0; }
+.panel-empty-hint { font-size: 12px; color: var(--text-5); }
 
 .panel-idea { padding: 12px 14px; }
 .panel-idea-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
@@ -1186,14 +1245,13 @@ body.is-row-resizing { user-select: none; -webkit-user-select: none; cursor: row
    collapse the column too — otherwise the main pane keeps the rail's width and
    the page renders in a 256px strip. */
 .app--nosidebar { grid-template-columns: 1fr; }
-.app--nosidebar .main { border-left: 0; }
 /* Clear the floating toggle so it never sits on top of the first control. */
-.app--nosidebar .topbar { padding-left: 44px; }
-.app--nosidebar .session-bar { padding-left: 44px; }
+.app--nosidebar .topbar { padding-left: 48px; }
+.app--nosidebar .session-bar { padding-left: 46px; }
 
 /* The collapsed sidebar leaves one affordance behind. */
 .sidebar-show {
-  position: fixed; left: 8px; top: 10px; z-index: 40;
+  position: fixed; left: 20px; top: 20px; z-index: 40;
   width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
   border: 1px solid var(--border); border-radius: var(--radius-sm);
   background: var(--bg-panel); color: var(--text-3); cursor: pointer;

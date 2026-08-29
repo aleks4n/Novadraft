@@ -1,14 +1,12 @@
-// Shared view chrome — header (breadcrumb + title + actions) and tab buttons.
-// Ported from the design's ViewHeader / TabButton.
-import { Fragment } from "react";
+// Shared view chrome — header (title + actions) and tab buttons.
+// Ported from the design's ViewHeader / TabButton. The breadcrumb a view passes
+// is not drawn here: it is published to the top nav bar, which owns the path.
 import type { ReactNode } from "react";
 import { Icon } from "./Icon";
+import { usePublishBreadcrumb } from "../lib/breadcrumb";
+import type { Crumb } from "../lib/breadcrumb";
 
-export interface Crumb {
-  label: ReactNode;
-  current?: boolean;
-  onClick?: () => void;
-}
+export type { Crumb };
 
 export function ViewHeader({
   eyebrow,
@@ -23,22 +21,9 @@ export function ViewHeader({
   actions?: ReactNode;
   breadcrumb?: Crumb[];
 }) {
+  usePublishBreadcrumb(breadcrumb);
   return (
     <div className="view-header">
-      {breadcrumb && (
-        <div className="breadcrumb">
-          {breadcrumb.map((b, i) => (
-            <Fragment key={i}>
-              {i > 0 && <span className="breadcrumb-sep">/</span>}
-              {b.onClick ? (
-                <button className="breadcrumb-link" onClick={b.onClick}>{b.label}</button>
-              ) : (
-                <span className={"breadcrumb-item" + (b.current ? " breadcrumb-item--current" : "")}>{b.label}</span>
-              )}
-            </Fragment>
-          ))}
-        </div>
-      )}
       <div className="view-header-row">
         <div className="view-header-text">
           {eyebrow && <div className="view-eyebrow">{eyebrow}</div>}

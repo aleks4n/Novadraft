@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { Icon } from "./components/Icon";
 import { Sidebar } from "./components/Sidebar";
 import { TopicOverview } from "./components/views/TopicOverview";
@@ -9,11 +9,48 @@ import { IdeaGraphView } from "./components/views/IdeaGraphView";
 import { SessionWorkspace } from "./components/session/SessionWorkspace";
 import { NewIdea } from "./components/views/NewIdea";
 import { useWorkspace } from "./lib/store";
+import { BreadcrumbProvider, useBreadcrumb } from "./lib/breadcrumb";
 import type { Nav } from "./lib/types";
 
 export default function App() {
+  return (
+    <BreadcrumbProvider>
+      <Shell />
+    </BreadcrumbProvider>
+  );
+}
+
+const SIDEBAR_MIN = 208;
+const SIDEBAR_MAX = 460;
+const SIDEBAR_KEY = "novadraft.sidebarWidth";
+
+function Shell() {
   const { nav, active, loading } = useWorkspace();
   const [sidebar, setSidebar] = useState(true);
+  // The rail's width is the user's, and it survives a reload — the nav tree holds
+  // long paper and gap titles, and how much of them you want to read is a taste.
+  const [sidebarW, setSidebarW] = useState(() => {
+    const saved = Number(localStorage.getItem(SIDEBAR_KEY));
+    return saved >= SIDEBAR_MIN && saved <= SIDEBAR_MAX ? saved : 256;
+  });
+  const onResizeDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    document.body.classList.add("is-col-resizing");
+    const move = (ev: MouseEvent) => {
+      // The rail starts at the app's own 10px padding, so the width is the
+      // pointer's x minus that inset.
+      setSidebarW(Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, ev.clientX - 10)));
+    };
+    const up = () => {
+      document.body.classList.remove("is-col-resizing");
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+    };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+  }, []);
+
+  useEffect(() => { localStorage.setItem(SIDEBAR_KEY, String(sidebarW)); }, [sidebarW]);
 
   // ⌘\ / Ctrl-\ toggles it — the same shortcut every editor uses, and the only
   // way back once the rail is hidden besides the floating button.
@@ -33,33 +70,32 @@ export default function App() {
   const inSession = nav.view === "sessions" || nav.view === "session";
 
   return (
-    <div className={"app" + (sidebar ? "" : " app--nosidebar")}>
+    <div
+      className={"app" + (sidebar ? "" : " app--nosidebar") + (inSession ? " app--session" : "")}
+      style={sidebar ? ({ "--sidebar-w": `${sidebarW}px` } as React.CSSProperties) : undefined}
+    >
       {sidebar ? (
-        <Sidebar onCollapse={() => setSidebar(false)} />
+        <>
+          <Sidebar onCollapse={() => setSidebar(false)} />
+          <div
+            className="sidebar-resizer"
+            onMouseDown={onResizeDown}
+            onDoubleClick={() => setSidebarW(256)}
+            role="separator"
+            aria-orientation="vertical"
+            title="Drag to resize · double-click to reset"
+          >
+            <span />
+          </div>
+        </>
       ) : (
         <button className="sidebar-show" title="Show sidebar (⌘\\)" onClick={() => setSidebar(true)}>
           <Icon name="chevrons-left" className="flip" />
         </button>
       )}
 
-      <main className="main">
-        {!inSession && (
-        <header className="topbar">
-          <div className="topbar-left">
-            <div className="topbar-tabs">
-              <button className="topbar-tab topbar-tab--active"><Icon name="grid" /> Workspace</button>
-            </div>
-          </div>
-          <div className="topbar-right">
-            <div className="search-pill">
-              <Icon name="search" />
-              <span className="search-pill-text">Search papers, gaps, ideas...</span>
-              <span className="search-pill-kbd">⌘K</span>
-            </div>
-            <button className="topbar-icon-btn"><Icon name="more" /></button>
-          </div>
-        </header>
-        )}
+      <main className={"main" + (inSession ? " main--bare" : "")}>
+        {!inSession && <Topbar />}
 
         <div className="content">
           {inSession ? (
@@ -83,6 +119,29 @@ export default function App() {
         </div>
       </main>
     </div>
+  );
+}
+
+/** The top nav bar: the path to wherever you are, and what kind of place it is.
+ *  Views publish the path through ViewHeader; this only renders it. */
+function Topbar() {
+  const { crumbs } = useBreadcrumb();
+  return (
+    <header className="topbar">
+      <nav className="topbar-path">
+        {crumbs.map((c, i) => (
+          <Fragment key={i}>
+            {i > 0 && <span className="topbar-path-sep">/</span>}
+            {c.onClick ? (
+              <button className="topbar-path-link" onClick={c.onClick}>{c.label}</button>
+            ) : (
+              <span className={"topbar-path-item" + (c.current ? " topbar-path-item--current" : "")}>{c.label}</span>
+            )}
+          </Fragment>
+        ))}
+      </nav>
+      <span className="topbar-kind">Workspace</span>
+    </header>
   );
 }
 

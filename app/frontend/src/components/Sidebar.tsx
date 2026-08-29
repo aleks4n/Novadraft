@@ -93,7 +93,7 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
         <div className="brand-mark">N</div>
         <div className="brand-text">
           <div className="brand-title">Novadraft</div>
-          <div className="brand-sub">· Ideate</div>
+          <div className="brand-sub">Research Ideation</div>
         </div>
         <button className="icon-btn brand-collapse" title="Hide sidebar (⌘\\)"
           onClick={onCollapse}><Icon name="chevrons-left" /></button>
@@ -323,15 +323,6 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
           ]}
         />
       )}
-
-      <div className="user-row">
-        <div className="avatar avatar--lg" style={{ background: "#C75B5B" }}>DH</div>
-        <div className="user-text">
-          <div className="user-name">Denny Hermann</div>
-          <div className="user-plan">Research · Pro</div>
-        </div>
-        <button className="icon-btn"><Icon name="settings" /></button>
-      </div>
     </aside>
   );
 }

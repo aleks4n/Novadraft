@@ -8,20 +8,33 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../Icon";
 import { Chat } from "./Chat";
-import { PanelColumn } from "./Panels";
+import { KIND_LABEL, PanelGrid } from "./Panels";
 import type { DraftActions } from "./EnvelopeResult";
 import type { Mark } from "../IdeaGraph";
 import { sessionApi } from "../../lib/api";
 import { graphGaps } from "../../lib/graphdata";
 import { useWorkspace } from "../../lib/store";
 import type {
-  ContextRef, Panel, Session, SessionDraft,
+  Column, ContextRef, PanelKind, Session, SessionDraft,
 } from "../../lib/types";
 
-const DEFAULT_PANELS: Panel[] = [
-  { uid: "p-graph", kind: "graph", ref: null, weight: 1.35 },
-  { uid: "p-thoughts", kind: "thoughts", ref: null, weight: 1 },
+// Chat on the left, the two workspace windows stacked on the right — the layout
+// this session had before any of it could be rearranged. Every window here,
+// chat included, can be dragged anywhere in the grid.
+const DEFAULT_COLUMNS: Column[] = [
+  { uid: "c-chat", weight: 0.85, panels: [{ uid: "p-chat", kind: "chat", ref: null, weight: 1 }] },
+  {
+    uid: "c-work",
+    weight: 1.15,
+    panels: [
+      { uid: "p-graph", kind: "graph", ref: null, weight: 1.35 },
+      { uid: "p-thoughts", kind: "thoughts", ref: null, weight: 1 },
+    ],
+  },
 ];
+
+/** Every window in the grid, left to right, top to bottom. */
+const allPanels = (cols: Column[]) => cols.flatMap((c) => c.panels);
 
 export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
   const {
@@ -30,15 +43,13 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
 
   const [session, setSession] = useState<Session | null>(null);
   const [staged, setStaged] = useState<ContextRef[]>([]);
-  const [panels, setPanels] = useState<Panel[]>(DEFAULT_PANELS);
-  const [chatWidth, setChatWidth] = useState(0.46);   // fraction of the shell
+  const [columns, setColumns] = useState<Column[]>(DEFAULT_COLUMNS);
   const [sending, setSending] = useState(false);
   // The session's unaccepted working copies — real records in its own folder,
   // one per draft the runs produced plus one per idea a run modified.
   const [drafts, setDrafts] = useState<SessionDraft[]>([]);
   const [deciding, setDeciding] = useState<string | null>(null);
 
-  const shellRef = useRef<HTMLDivElement>(null);
   const ideas = bundle?.ideas ?? [];
   const gaps = useMemo(() => graphGaps(bundle), [bundle]);
   const summary = sessions.find((s) => s.session_id === sessionId);
@@ -206,28 +217,35 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
     busy: deciding,
   }), [activeSlug, sessionId, drafts, deciding, refresh]);
 
+  /** Put a new window at the bottom of the last column — the far side from the
+   *  chat in the default layout, and never on top of what you were reading. */
+  const addPanel = (kind: PanelKind, ref: string | null) =>
+    setColumns((cols) => {
+      if (!cols.length) {
+        return [{ uid: `c${Date.now()}`, weight: 1,
+          panels: [{ uid: `p${Date.now()}`, kind, ref, weight: 1 }] }];
+      }
+      const last = cols.length - 1;
+      return cols.map((c, i) => (i !== last ? c : {
+        ...c, panels: [...c.panels, { uid: `p${Date.now()}`, kind, ref, weight: 1 }],
+      }));
+    });
+
   // Adds a window, unless one of that kind is already open — a second identical
   // window is never what "show me this" meant.
-  const openPanel = (kind: Panel["kind"], ref: string | null) =>
-    setPanels((ps) => (ps.some((p) => p.kind === kind && p.ref === ref)
-      ? ps
-      : [...ps, { uid: `p${Date.now()}`, kind, ref, weight: 1 }]));
+  const openPanel = (kind: PanelKind, ref: string | null) => {
+    if (allPanels(columns).some((p) => p.kind === kind && p.ref === ref)) return;
+    addPanel(kind, ref);
+  };
 
-  // --- the splitter -------------------------------------------------------------
-
-  const onSplitterDown = (e: React.MouseEvent) => {
-    e.preventDefault();
-    const move = (ev: MouseEvent) => {
-      const box = shellRef.current?.getBoundingClientRect();
-      if (!box) return;
-      setChatWidth(Math.min(0.72, Math.max(0.28, (ev.clientX - box.left) / box.width)));
-    };
-    const up = () => {
-      window.removeEventListener("mousemove", move);
-      window.removeEventListener("mouseup", up);
-    };
-    window.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", up);
+  // Which windows are open is one decision, so it is one control: a menu in the
+  // session bar. Ticking a kind opens it, unticking closes every window of that
+  // kind — the windows themselves no longer choose what they are.
+  const toggleKind = (kind: PanelKind) => {
+    if (!allPanels(columns).some((p) => p.kind === kind)) { addPanel(kind, null); return; }
+    setColumns((cols) => cols
+      .map((c) => ({ ...c, panels: c.panels.filter((p) => p.kind !== kind) }))
+      .filter((c) => c.panels.length > 0));
   };
 
   return (
@@ -247,15 +265,28 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
           <span className="session-new-pip">unsaved — the first turn creates it</span>
         )}
         <div className="session-bar-right">
+          <WindowsMenu open={allPanels(columns).map((p) => p.kind)} onToggle={toggleKind} />
           <button className="btn btn--ghost" onClick={() => setNav({ view: "idea-graph", id: null })}>
             <Icon name="share" /> Full graph
           </button>
         </div>
       </div>
 
-      <div className="session-shell" ref={shellRef}>
-        <div className="session-chat" style={{ flexBasis: `${chatWidth * 100}%` }}>
+      <PanelGrid
+        columns={columns}
+        onChange={setColumns}
+        gaps={gaps}
+        ideas={ideas}
+        runs={sessionRuns}
+        marks={marks}
+        loaded={session?.context ?? []}
+        onToggleMark={toggleMark}
+        onOpenNode={(kind, id) => setNav({ view: kind === "gap" ? "gap" : "idea", id })}
+        onUnload={unload}
+        onOpenIdea={(id) => setNav({ view: "idea", id })}
+        renderChat={(grip) => (
           <Chat
+            grip={grip}
             session={session}
             staged={staged}
             runs={sessionRuns}
@@ -269,28 +300,62 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
             drafts={draftActions}
             onShowThoughts={() => openPanel("thoughts", null)}
           />
-        </div>
+        )}
+      />
+    </div>
+  );
+}
 
-        <div className="session-splitter" onMouseDown={onSplitterDown} title="Drag to resize">
-          <span />
-        </div>
+/** The one place that decides which windows are on screen. */
+function WindowsMenu({
+  open, onToggle,
+}: { open: PanelKind[]; onToggle: (k: PanelKind) => void }) {
+  const [menu, setMenu] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
-        <div className="session-panels">
-          <PanelColumn
-            panels={panels}
-            onChange={setPanels}
-            gaps={gaps}
-            ideas={ideas}
-            runs={sessionRuns}
-            marks={marks}
-            loaded={session?.context ?? []}
-            onToggleMark={toggleMark}
-            onOpenNode={(kind, id) => setNav({ view: kind === "gap" ? "gap" : "idea", id })}
-            onUnload={unload}
-            onOpenIdea={(id) => setNav({ view: "idea", id })}
-          />
+  useEffect(() => {
+    if (!menu) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setMenu(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMenu(false); };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menu]);
+
+  const kinds = Object.keys(KIND_LABEL) as PanelKind[];
+  return (
+    <div className="windows-menu" ref={ref}>
+      <button
+        className={"btn btn--ghost" + (menu ? " btn--ghost-open" : "")}
+        onClick={() => setMenu((v) => !v)}
+        aria-expanded={menu}
+      >
+        <Icon name="grid" /> Windows
+        <span className="windows-menu-count">{open.length}</span>
+        <Icon name="chevron-down" />
+      </button>
+      {menu && (
+        <div className="windows-menu-list">
+          {kinds.map((k) => {
+            const on = open.includes(k);
+            return (
+              <button
+                key={k}
+                className={"windows-menu-row" + (on ? " windows-menu-row--on" : "")}
+                onClick={() => onToggle(k)}
+              >
+                <span className="windows-menu-check">{on && <Icon name="check" />}</span>
+                {KIND_LABEL[k]}
+              </button>
+            );
+          })}
         </div>
-      </div>
+      )}
     </div>
   );
 }

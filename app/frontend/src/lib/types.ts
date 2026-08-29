@@ -564,7 +564,9 @@ export interface Envelope {
 // `thoughts` shows the tree of thoughts of the session's current run — what the
 // agent is *considering*, which is the thing worth a window; a stage list only
 // says where it is.
-export type PanelKind = "graph" | "context" | "idea" | "thoughts";
+// "chat" is a window like any other so it can be dragged, stacked and put side
+// by side with the rest — it is only special in that it cannot be closed.
+export type PanelKind = "chat" | "graph" | "context" | "idea" | "thoughts";
 
 export interface Panel {
   uid: string;
@@ -573,6 +575,15 @@ export interface Panel {
   ref?: string | null;
   // Flex weight within the column, so a drag resizes proportionally.
   weight: number;
+}
+
+/** A vertical stack of windows. The session is a row of these, which is what
+ *  lets windows sit side by side as well as above one another. */
+export interface Column {
+  uid: string;
+  // Flex weight within the row — the same proportional scheme as Panel.weight.
+  weight: number;
+  panels: Panel[];
 }
 
 export type NavView =

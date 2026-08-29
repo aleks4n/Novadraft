@@ -250,9 +250,11 @@ export function IdeaGraph({
   // than stacking a toolbar of its own underneath someone else's title bar.
   chrome?: (controls: ReactNode) => ReactNode;
 }) {
-  const [viewWidth, setViewWidth] = useState(900);
+  // 0 until the surface has actually been measured, so the first fit can wait for
+  // a real number instead of fitting to the 900px placeholder and staying there.
+  const [viewWidth, setViewWidth] = useState(0);
   const { nodes, links, width, height, bandHeight } =
-    useMemo(() => layout(gaps, ideas, viewWidth), [gaps, ideas, viewWidth]);
+    useMemo(() => layout(gaps, ideas, viewWidth || 900), [gaps, ideas, viewWidth]);
   // Zoom and pan are **one** state, not two. Anchoring a zoom to a point means
   // deriving the pan from the zoom that produced it; holding them apart meant
   // calling setPan from inside setZoom's updater — a side effect in a place React
@@ -269,24 +271,43 @@ export function IdeaGraph({
   const movedRef = useRef(0);
 
   // Re-wrap the loose-gap band when the surface resizes (the splitter drags it
-  // constantly in a session).
-  useLayoutEffect(() => {
-    const el = wrapRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(() => setViewWidth(el.clientWidth || 900));
-    ro.observe(el);
-    setViewWidth(el.clientWidth || 900);
-    return () => ro.disconnect();
-  }, []);
-
-  // Fit the graph to the surface on mount / whenever its extent changes. A panel
-  // is small enough that the default 1:1 would show one node and nothing else.
+  // constantly in a session). Measured after every render rather than through a
+  // ResizeObserver: every drag that changes this width re-renders the graph
+  // anyway, and the observer does not fire at all in some of the shells this
+  // runs in, which left the band wrapped for the old width.
   useLayoutEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
+    const w = Math.round(el.clientWidth) || 900;
+    // Guarded so the state write cannot loop: whole pixels only, and a change has
+    // to be worth more than the noise of a re-layout before it re-renders.
+    setViewWidth((cur) => (Math.abs(cur - w) > 2 ? w : cur));
+  });
+  useEffect(() => {
+    const onResize = () => {
+      const el = wrapRef.current;
+      if (el) setViewWidth(el.clientWidth || 900);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  // Fit the graph to the surface once per *content* change. A panel is small
+  // enough that the default 1:1 would show one node and nothing else — but the
+  // fit must not re-run just because the surface resized. Re-wrapping the band
+  // changes the extent, so keying the fit on the extent meant every frame of a
+  // splitter drag, a panel-divider drag or a window reorder threw away the pan
+  // and zoom the user had set: the window appeared to restart under the cursor.
+  const contentKey = `${compact ? "c" : "f"}:${gaps.length}:${ideas.length}`;
+  const fittedFor = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    const el = wrapRef.current;
+    if (!el || !viewWidth) return;          // wait for the first real measurement
+    if (fittedFor.current === contentKey) return;
+    fittedFor.current = contentKey;
     setView(fitView(el.clientWidth || width, el.clientHeight || height,
                     width, height, compact));
-  }, [width, height, compact]);
+  });
 
   useEffect(() => {
     const up = () => { dragRef.current = null; };

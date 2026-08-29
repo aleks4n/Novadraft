@@ -66,17 +66,16 @@ export function TopicOverview() {
               }}
             />
           ) : (
-            active.title
+            // Renaming is an edit of the title, so its control sits on the title
+            // rather than in a labelled button off on the far side of the row.
+            <span className="view-title-wrap">
+              {active.title}
+              <button className="view-title-edit" title="Rename topic"
+                onClick={() => setTitleEditing(true)}>
+                <Icon name="edit" />
+              </button>
+            </span>
           )
-        }
-        actions={
-          <>
-            <button className="btn btn--ghost"><Icon name="star" /> Starred</button>
-            <button className="btn btn--ghost"><Icon name="share" /> Share</button>
-            <button className="btn btn--primary" onClick={() => setTitleEditing(true)}>
-              <Icon name="edit" /> Edit topic
-            </button>
-          </>
         }
         breadcrumb={[{ label: "Research" }, { label: active.shortTitle, current: true }]}
       />
@@ -114,7 +113,9 @@ export function TopicOverview() {
           )}
         </div>
 
-        <div className="card">
+        {/* Goals may not exist yet — the stats card then owns the whole row
+            rather than leaving a column of dead space beside it. */}
+        <div className={"card" + (active.goals.length ? "" : " card--wide")}>
           <div className="card-label">Topic stats</div>
           <div className="kv-grid">
             <div className="kv"><span>Created</span><b>{active.createdAt || "—"}</b></div>

@@ -11,17 +11,46 @@
 // live tree beside the session chat (the current run, growing as it goes). Same
 // reading aids in both — colour by status, a style badge per node, and truncation
 // marked, because a partial exploration must never look finished.
-import { useMemo } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "./Icon";
 import type { IdeaRun, ThoughtNode } from "../lib/types";
 
-// Keep candidate cards readable. Wide trees scroll horizontally instead of
-// shrinking their text until it is illegible in the session chat.
 const NODE_W = 220;
 const NODE_H = 108;
 const COL_GAP = 16;
 const ROW_GAP = 46;
 const PAD = 10;
+// In a session window the tree is drawn at whatever scale makes the whole width
+// fit — a five-wide tree at full size is mostly off-screen, and the shape is the
+// point. It stops shrinking at MIN_FIT, below which the cards stop being
+// readable and horizontal scrolling is the better answer.
+const MIN_FIT = 0.42;
+
+/** The width available to the tree, tracked live so a splitter drag re-fits it.
+ *
+ *  Measured after *every* render rather than through a ResizeObserver: each drag
+ *  that changes this width — the chat splitter, a panel divider, the nav rail —
+ *  re-renders this tree anyway, and the observer turned out not to fire at all in
+ *  one of the shells this runs in. The window listener covers the one case that
+ *  re-renders nothing. */
+function useMeasuredWidth() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const w = Math.round(el.clientWidth);
+    // Guarded so the state write cannot loop: whole pixels only, and a change has
+    // to be worth more than the noise of a re-layout before it re-renders.
+    setWidth((cur) => (Math.abs(cur - w) > 2 ? w : cur));
+  });
+  useEffect(() => {
+    const onResize = () => { if (ref.current) setWidth(ref.current.clientWidth); };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return [ref, width] as const;
+}
 
 interface Placed {
   node: ThoughtNode;
@@ -73,24 +102,33 @@ function layout(nodes: ThoughtNode[]) {
 }
 
 export function ThoughtTree({
-  run, showPruned = true, selected, onSelect,
+  run, showPruned = true, selected, onSelect, fit = false,
 }: {
   run: IdeaRun;
   showPruned?: boolean;
   selected: ThoughtNode | null;
   onSelect: (n: ThoughtNode) => void;
+  /** Scale the whole tree down to the container's width (session windows). */
+  fit?: boolean;
 }) {
   const nodes = showPruned ? run.nodes : run.nodes.filter((n) => n.status !== "pruned");
   const { placed, at, width, height } = useMemo(() => layout(nodes), [nodes]);
+  const [boxRef, boxW] = useMeasuredWidth();
+
+  // Never scale *up*: a two-node tree at 3× would look like a mistake.
+  const scale = fit && boxW > 0 ? Math.min(1, Math.max(MIN_FIT, boxW / width)) : 1;
 
   if (!placed.length) {
     return <div className="empty-state empty-state--inline">Nothing to show at this filter.</div>;
   }
 
   return (
-    <div className="tt">
-      <div className="tt-stage" style={{ width, height }}>
-        <div style={{ width, height }}>
+    <div className={"tt" + (fit ? " tt--fit" : "")} ref={boxRef}>
+      {/* The stage carries the *scaled* box so the scrollport and the space the
+          tree occupies in the column agree; the inner layer keeps its true
+          geometry and is transformed as a whole. */}
+      <div className="tt-stage" style={{ width: width * scale, height: height * scale }}>
+        <div style={{ width, height, transform: `scale(${scale})`, transformOrigin: "top left" }}>
           <svg className="tt-edges" width={width} height={height}>
             {placed.map(({ node }) => {
               const parent = node.parentId ? at.get(node.parentId) : undefined;

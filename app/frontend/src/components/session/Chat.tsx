@@ -3,6 +3,7 @@
 // The idea agent plans each turn from the message and the session's loaded context.
 // It may answer directly, investigate, call the creative thinker, or combine them.
 import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { Icon } from "../Icon";
 import { LiveThoughts } from "../LiveThoughts";
 import { RichText } from "../RichText";
@@ -14,7 +15,7 @@ import type { ChatMessage, ContextRef, Idea, RunState, Session } from "../../lib
 
 export function Chat({
   session, staged, runs, ideas, sending,
-  onStage, onUnstage, onUploadFile, onSend, onOpenIdea, onShowThoughts, drafts,
+  onStage, onUnstage, onUploadFile, onSend, onOpenIdea, onShowThoughts, drafts, grip,
 }: {
   session: Session | null;
   staged: ContextRef[];
@@ -28,6 +29,8 @@ export function Chat({
   onOpenIdea: (id: string) => void;
   onShowThoughts: () => void;
   drafts: DraftActions;
+  /** The grid's reorder handle — the chat is a draggable window like the rest. */
+  grip?: ReactNode;
 }) {
   const [text, setText] = useState("");
   const [picker, setPicker] = useState(false);
@@ -62,7 +65,8 @@ export function Chat({
       onDrop={handleDrop}
     >
       <div className="panel-head chat-head">
-        <span className="panel-kind panel-kind--static">Chat</span>
+        {grip}
+        <span className="panel-kind">Chat</span>
         <span className="agent-chip"
           title="Plans from your message and loaded context, then calls the investigator or creative thinker when needed.">
           <Icon name="sparkle" size={13} /> idea agent
@@ -185,6 +189,8 @@ function MessageBubble({
   message: ChatMessage; run?: RunState; ideas: Idea[];
   onOpenIdea: (id: string) => void; onShowThoughts: () => void;
   drafts: DraftActions;
+  /** The grid's reorder handle — the chat is a draggable window like the rest. */
+  grip?: ReactNode;
 }) {
   if (message.role === "user") {
     return (
