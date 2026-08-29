@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "../Icon";
 import { LiveThoughts } from "../LiveThoughts";
+import { RichText } from "../RichText";
 import { ContextPicker } from "./ContextPicker";
 import { EnvelopeResult, OfferedDrafts } from "./EnvelopeResult";
 import type { DraftActions } from "./EnvelopeResult";
@@ -188,7 +189,7 @@ function MessageBubble({
   if (message.role === "user") {
     return (
       <div className="msg msg--user">
-        <div className="msg-body">{message.text}</div>
+        <div className="msg-body"><RichText>{message.text}</RichText></div>
         {message.context && message.context.length > 0 && (
           <div className="msg-context">
             {message.context.map((c) => (
@@ -233,7 +234,9 @@ function MessageBubble({
           baseline={baseline} onOpenIdea={onOpenIdea} drafts={drafts} />
       ) : (
         <>
-          <div className={"msg-body" + (message.failed ? " msg-body--failed" : "")}>{message.text}</div>
+          <div className={"msg-body" + (message.failed ? " msg-body--failed" : "")}>
+            <RichText>{message.text}</RichText>
+          </div>
           {message.run_id && <OfferedDrafts runId={message.run_id} drafts={drafts} />}
         </>
       )}

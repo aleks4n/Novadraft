@@ -11,19 +11,16 @@
 // live tree beside the session chat (the current run, growing as it goes). Same
 // reading aids in both — colour by status, a style badge per node, and truncation
 // marked, because a partial exploration must never look finished.
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import { Icon } from "./Icon";
 import type { IdeaRun, ThoughtNode } from "../lib/types";
 
-// Small on purpose: the tree is read as a shape first and a text second, and a
-// node big enough to hold its whole thought makes a tree of eight unreadable.
-// The full text is one click away in the inspector.
-const NODE_W = 132;
-// Tall enough for the style badge plus two clamped title lines; anything less
-// clips the second line, which is exactly the line that says what the branch is.
-const NODE_H = 48;
-const COL_GAP = 12;
-const ROW_GAP = 34;
+// Keep candidate cards readable. Wide trees scroll horizontally instead of
+// shrinking their text until it is illegible in the session chat.
+const NODE_W = 220;
+const NODE_H = 108;
+const COL_GAP = 16;
+const ROW_GAP = 46;
 const PAD = 10;
 
 interface Placed {
@@ -85,29 +82,15 @@ export function ThoughtTree({
 }) {
   const nodes = showPruned ? run.nodes : run.nodes.filter((n) => n.status !== "pruned");
   const { placed, at, width, height } = useMemo(() => layout(nodes), [nodes]);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
-
-  // Shrink to fit the surface, never past legibility — a session panel is narrow,
-  // and the tree grows sideways with every expansion.
-  useLayoutEffect(() => {
-    const el = wrapRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const fit = () => setScale(Math.min(1, Math.max(0.45, (el.clientWidth - 4) / width)));
-    const ro = new ResizeObserver(fit);
-    ro.observe(el);
-    fit();
-    return () => ro.disconnect();
-  }, [width]);
 
   if (!placed.length) {
     return <div className="empty-state empty-state--inline">Nothing to show at this filter.</div>;
   }
 
   return (
-    <div className="tt" ref={wrapRef}>
-      <div className="tt-stage" style={{ width: width * scale, height: height * scale }}>
-        <div style={{ width, height, transform: `scale(${scale})`, transformOrigin: "0 0" }}>
+    <div className="tt">
+      <div className="tt-stage" style={{ width, height }}>
+        <div style={{ width, height }}>
           <svg className="tt-edges" width={width} height={height}>
             {placed.map(({ node }) => {
               const parent = node.parentId ? at.get(node.parentId) : undefined;
