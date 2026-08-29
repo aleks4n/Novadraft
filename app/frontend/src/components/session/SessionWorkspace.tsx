@@ -7,6 +7,8 @@
 // straight away — an empty session and a new one look the same because they are.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../Icon";
+import { NavHistory } from "../NavHistory";
+import { TopSearch } from "../TopSearch";
 import { Chat } from "./Chat";
 import { KIND_LABEL, PanelGrid } from "./Panels";
 import type { DraftActions } from "./EnvelopeResult";
@@ -251,6 +253,7 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
   return (
     <div className="session">
       <div className="session-bar">
+        <NavHistory />
         <Icon name="msg" />
         <span className="session-title">
           {session?.title || summary?.title || "New session"}
@@ -265,6 +268,7 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
           <span className="session-new-pip">unsaved — the first turn creates it</span>
         )}
         <div className="session-bar-right">
+          <TopSearch />
           <WindowsMenu open={allPanels(columns).map((p) => p.kind)} onToggle={toggleKind} />
           <button className="btn btn--ghost" onClick={() => setNav({ view: "idea-graph", id: null })}>
             <Icon name="share" /> Full graph

@@ -29,6 +29,11 @@ interface WorkspaceCtx {
   sessions: SessionSummary[];
   setActiveSlug: (slug: string) => void;
   setNav: (nav: Nav) => void;
+  // Browser-style back/forward through the nav history built up by setNav.
+  goBack: () => void;
+  goForward: () => void;
+  canGoBack: boolean;
+  canGoForward: boolean;
   refresh: () => Promise<void>;
   // Bootstrap a new category via the category agent, then switch to it. Resolves
   // with the new slug (or null on failure) so the caller can close its form.
@@ -70,6 +75,26 @@ interface WorkspaceCtx {
 
 const Ctx = createContext<WorkspaceCtx | null>(null);
 
+// Where the app was last time it was open — restored on load, updated on every
+// nav/topic change, following the same localStorage pattern as the sidebar
+// width (App.tsx's SIDEBAR_KEY).
+const LAST_NAV_KEY = "novadraft.lastNav";
+const NAV_HISTORY_LIMIT = 50;
+
+function loadLastNav(): { slug: string; nav: Nav } | null {
+  try {
+    const raw = localStorage.getItem(LAST_NAV_KEY);
+    if (!raw) return null;
+    const saved = JSON.parse(raw) as { slug?: unknown; nav?: unknown };
+    if (typeof saved.slug !== "string" || !saved.slug) return null;
+    const nav = saved.nav as Partial<Nav> | undefined;
+    if (!nav || typeof nav.view !== "string") return null;
+    return { slug: saved.slug, nav: { view: nav.view as Nav["view"], id: (nav.id as string | null) ?? null } };
+  } catch {
+    return null;
+  }
+}
+
 // The latest run about an entity (paper page, gap page). Newest wins so a
 // follow-up run (retry, source upload → resume) replaces the finished one.
 export function runForTarget(runs: RunState[], kind: "paper" | "gap", id: string): RunState | undefined {
@@ -104,7 +129,32 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [activeSlug, _setActiveSlug] = useState<string | null>(null);
   const [bundle, setBundle] = useState<TopicBundle | null>(null);
   const [loading, setLoading] = useState(true);
-  const [nav, setNav] = useState<Nav>({ view: "topic", id: null });
+  // A history stack + pointer, browser-style: setNav pushes (truncating any
+  // forward entries), goBack/goForward just move the pointer.
+  const [navState, setNavState] = useState<{ stack: Nav[]; index: number }>({
+    stack: [{ view: "topic", id: null }], index: 0,
+  });
+  const nav = navState.stack[navState.index];
+
+  const setNav = useCallback((next: Nav | ((prev: Nav) => Nav)) => {
+    setNavState(({ stack, index }) => {
+      const cur = stack[index];
+      const resolved = typeof next === "function" ? (next as (p: Nav) => Nav)(cur) : next;
+      if (cur.view === resolved.view && cur.id === resolved.id) return { stack, index };
+      const truncated = stack.slice(0, index + 1);
+      const newStack = [...truncated, resolved].slice(-NAV_HISTORY_LIMIT);
+      return { stack: newStack, index: newStack.length - 1 };
+    });
+  }, []);
+  const goBack = useCallback(() => {
+    setNavState(({ stack, index }) => (index > 0 ? { stack, index: index - 1 } : { stack, index }));
+  }, []);
+  const goForward = useCallback(() => {
+    setNavState(({ stack, index }) => (index < stack.length - 1 ? { stack, index: index + 1 } : { stack, index }));
+  }, []);
+  const canGoBack = navState.index > 0;
+  const canGoForward = navState.index < navState.stack.length - 1;
+
   const [runs, setRuns] = useState<RunState[]>([]);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [cancelling, setCancelling] = useState<Set<string>>(new Set());
@@ -113,18 +163,30 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const autoOpenRef = useRef<Set<string>>(new Set());   // run ids that navigate on paper-attach
   const navigatedRef = useRef<Set<string>>(new Set());  // run ids that already navigated
 
-  // Initial topic list.
+  // Initial topic list — restores the last topic + page the app was on, if
+  // any, falling back to the first topic's overview.
   useEffect(() => {
     api.topics()
       .then((ts) => {
         setTopics(ts);
         if (ts.length && !slugRef.current) {
-          slugRef.current = ts[0].slug;
-          _setActiveSlug(ts[0].slug);
+          const last = loadLastNav();
+          const restoredSlug = last && ts.some((t) => t.slug === last.slug) ? last.slug : ts[0].slug;
+          slugRef.current = restoredSlug;
+          _setActiveSlug(restoredSlug);
+          if (last && restoredSlug === last.slug) {
+            setNavState({ stack: [last.nav], index: 0 });
+          }
         }
       })
       .catch(() => setTopics([]));
   }, []);
+
+  // Persist the current page so a reload comes back to it.
+  useEffect(() => {
+    if (!activeSlug) return;
+    try { localStorage.setItem(LAST_NAV_KEY, JSON.stringify({ slug: activeSlug, nav })); } catch { /* best-effort */ }
+  }, [activeSlug, nav]);
 
   const loadBundle = useCallback(async (slug: string) => {
     setLoading(true);
@@ -246,7 +308,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const setActiveSlug = useCallback((slug: string) => {
     slugRef.current = slug;
     _setActiveSlug(slug);
-    setNav({ view: "topic", id: null });
+    // A new topic invalidates the old history's ids, so start a fresh stack
+    // rather than pushing onto the old topic's.
+    setNavState({ stack: [{ view: "topic", id: null }], index: 0 });
     setRuns([]);
     setSessions([]);
   }, []);
@@ -463,7 +527,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider
       value={{
         topics, activeSlug, active, bundle, loading, nav, runs, sessions,
-        setActiveSlug, setNav, refresh, createTopic, startPaperRun, startIdeaRun,
+        setActiveSlug, setNav, goBack, goForward, canGoBack, canGoForward,
+        refresh, createTopic, startPaperRun, startIdeaRun,
         uploadSource, startGapResume, startPaperGapsResume, cancelRun, restartRun,
         deleteRun, isCancelling, refreshSessions, createSession, renameSession,
         deleteSession, attachRun, updateIdea, loadIdea, updateTopic,

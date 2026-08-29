@@ -209,7 +209,7 @@ body.is-col-resizing .sidebar-resizer span { background: var(--accent); height: 
 }
 .topbar-path {
   display: flex; align-items: center; gap: 7px;
-  min-width: 0; overflow: hidden;
+  flex: 1; min-width: 0; overflow: hidden;
   font-size: 13px; color: var(--text-4);
 }
 .topbar-path-sep { color: var(--text-5); }
@@ -233,6 +233,45 @@ body.is-col-resizing .sidebar-resizer span { background: var(--accent); height: 
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 3px 10px;
+}
+
+.navhistory { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.navhistory .ghost-btn:disabled { opacity: .35; cursor: default; }
+.navhistory .ghost-btn:disabled:hover { background: none; color: var(--text-4); }
+
+/* Global top-bar search — same result styling as the session ContextPicker
+   modal (.pick-row, .ctx-kind), just anchored under an inline field instead
+   of a modal. */
+.topsearch {
+  position: relative;
+  display: flex; align-items: center; gap: 6px;
+  flex-shrink: 0;
+  width: 260px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-soft);
+  color: var(--text-4);
+}
+.topsearch-icon { flex-shrink: 0; }
+.topsearch-input {
+  flex: 1; min-width: 0;
+  border: 0; background: none; outline: none;
+  font: inherit; font-size: 13px; color: var(--text);
+}
+.topsearch-clear {
+  flex-shrink: 0; display: inline-flex;
+  border: 0; background: none; padding: 2px;
+  color: var(--text-4); cursor: pointer; border-radius: 4px;
+}
+.topsearch-clear:hover { background: var(--bg-hover); color: var(--text); }
+.topsearch-results {
+  position: absolute; top: calc(100% + 6px); right: 0;
+  width: 340px; max-height: 360px; overflow-y: auto;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: var(--shadow-lg, 0 8px 24px rgba(0,0,0,.16));
+  padding: 6px;
+  z-index: 40;
 }
 
 /* ========== SIDEBAR ========== */

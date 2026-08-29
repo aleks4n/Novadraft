@@ -1,6 +1,8 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { Icon } from "./components/Icon";
 import { Sidebar } from "./components/Sidebar";
+import { NavHistory } from "./components/NavHistory";
+import { TopSearch } from "./components/TopSearch";
 import { TopicOverview } from "./components/views/TopicOverview";
 import { PapersOverview, PaperDetail } from "./components/views/Papers";
 import { GapsOverview, GapDetail } from "./components/views/Gaps";
@@ -128,6 +130,7 @@ function Topbar() {
   const { crumbs } = useBreadcrumb();
   return (
     <header className="topbar">
+      <NavHistory />
       <nav className="topbar-path">
         {crumbs.map((c, i) => (
           <Fragment key={i}>
@@ -140,6 +143,7 @@ function Topbar() {
           </Fragment>
         ))}
       </nav>
+      <TopSearch />
       <span className="topbar-kind">Workspace</span>
     </header>
   );

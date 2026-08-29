@@ -8,15 +8,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../Icon";
 import { useWorkspace } from "../../lib/store";
-import { graphGaps } from "../../lib/graphdata";
+import { buildSearchRows, filterSearchRows, type SearchRow } from "../../lib/searchRows";
 import type { ContextKind, ContextRef } from "../../lib/types";
 
-interface Row {
-  kind: ContextKind;
-  id: string;
-  label: string;
-  sub: string;
-}
+type Row = SearchRow;
 
 export function ContextPicker({
   loaded, staged, onClose, onAdd,
@@ -37,34 +32,14 @@ export function ContextPicker({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const rows: Row[] = useMemo(() => {
-    if (!bundle) return [];
-    return [
-      ...graphGaps(bundle).map((g) => ({
-        kind: "gap" as const, id: g.id, label: g.title || g.short,
-        sub: g.canonicalDescription || g.description,
-      })),
-      ...bundle.ideas.map((i) => ({
-        kind: "idea" as const, id: i.id, label: i.title || i.short,
-        sub: i.oneLiner || i.description,
-      })),
-      ...bundle.papers.map((p) => ({
-        kind: "paper" as const, id: p.id, label: p.title || p.short,
-        sub: [p.authors, p.year].filter(Boolean).join(" · "),
-      })),
-    ];
-  }, [bundle]);
+  const rows: Row[] = useMemo(() => buildSearchRows(bundle), [bundle]);
 
   const alreadyIn = new Set([
     ...loaded.map((c) => `${c.kind}:${c.id}`),
     ...staged.map((c) => `${c.kind}:${c.id}`),
   ]);
 
-  const q = query.trim().toLowerCase();
-  const shown = rows.filter((r) =>
-    (tab === "all" || r.kind === tab) &&
-    (!q || r.label.toLowerCase().includes(q) || r.id.toLowerCase().includes(q) ||
-      r.sub.toLowerCase().includes(q)));
+  const shown = filterSearchRows(rows, query, tab);
 
   const count = Object.keys(picked).length;
   const commit = () => {
