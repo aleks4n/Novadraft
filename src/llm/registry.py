@@ -39,8 +39,8 @@ T = TypeVar("T", bound=BaseModel)
 
 # role -> "provider:model" string understood by init_chat_model
 MODELS: dict[str, str] = {
-    "reasoner": "deepseek:deepseek-reasoner",
-    "cheap": "deepseek:deepseek-chat",
+    "reasoner": "deepseek:deepseek-v4-pro",
+    "cheap": "deepseek:deepseek-v4-flash"
 }
 
 # --- failure retry ---------------------------------------------------
