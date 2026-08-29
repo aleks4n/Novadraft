@@ -543,6 +543,20 @@ button { font-family: inherit; font-size: inherit; }
   max-width: 720px;
   line-height: 1.55;
 }
+.view-title-input {
+  margin: 0;
+  padding: 2px 6px;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--text);
+  font-family: inherit;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  min-width: 240px;
+}
 .view-actions { display: flex; gap: 6px; align-items: center; }
 
 /* Buttons */

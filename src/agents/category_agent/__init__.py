@@ -1,10 +1,10 @@
-"""Category agent — fetch a short Wikipedia description and write the category.
+"""Category agent — LLM-write a short technical category description.
 
 The ``MANIFEST`` below is what the dev harness auto-discovers (see
-``dev/registry.py``). The live agent (``agent.py``) takes a short Wikipedia
-description and writes ``meta.json``; the original full-dossier fetcher is kept in
-``old_agent.py``, and the richer LLM variant (name + description + seminal papers)
-is archived under ``archive/`` for later use.
+``dev/registry.py``). The agent (``agent.py``) asks the LLM (fast ``cheap``
+role) for a short technical description of the topic and writes ``meta.json``.
+The description is just a starting point — the app UI lets the user edit it by
+hand afterwards.
 """
 from .agent import build_category_graph, run
 
@@ -19,7 +19,7 @@ MANIFEST = {
     # ``run()`` logs under the workspace it creates.
     "workspace_field": None,
     "steps": [
-        "fetch",
+        "describe",
         "write_category",
     ],
     "schema": [

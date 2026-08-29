@@ -8,7 +8,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import type { ReactNode } from "react";
 import {
   api, cancelRun as apiCancel, deleteRun as apiDelete, restartRun as apiRestart,
-  followRun, listRuns, patchIdea, resumeGap, resumePaperGaps, runIdeaAgent,
+  followRun, listRuns, patchIdea, patchTopic, resumeGap, resumePaperGaps, runIdeaAgent,
   runPaperAgent, sessionApi, uploadPaperSource,
 } from "./api";
 import type {
@@ -64,6 +64,8 @@ interface WorkspaceCtx {
   updateIdea: (ideaId: string, patch: Parameters<typeof patchIdea>[2]) => Promise<Idea | null>;
   // One idea with its `runs[]` — the bundle carries the spine only.
   loadIdea: (ideaId: string) => Promise<Idea | null>;
+  // A hand edit to the active topic's name/description; refreshes the bundle.
+  updateTopic: (patch: Parameters<typeof patchTopic>[1]) => Promise<TopicMeta | null>;
 }
 
 const Ctx = createContext<WorkspaceCtx | null>(null);
@@ -439,6 +441,22 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     try { return await api.idea(slug, ideaId); } catch { return null; }
   }, []);
 
+  const updateTopic = useCallback(
+    async (patch: Parameters<typeof patchTopic>[1]) => {
+      const slug = slugRef.current;
+      if (!slug) return null;
+      try {
+        const topic = await patchTopic(slug, patch);
+        await reloadBundle();
+        return topic;
+      } catch (e) {
+        console.error("topic patch failed:", e);
+        return null;
+      }
+    },
+    [reloadBundle],
+  );
+
   const active = topics.find((t) => t.slug === activeSlug) || bundle?.meta || null;
 
   return (
@@ -448,7 +466,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setActiveSlug, setNav, refresh, createTopic, startPaperRun, startIdeaRun,
         uploadSource, startGapResume, startPaperGapsResume, cancelRun, restartRun,
         deleteRun, isCancelling, refreshSessions, createSession, renameSession,
-        deleteSession, attachRun, updateIdea, loadIdea,
+        deleteSession, attachRun, updateIdea, loadIdea, updateTopic,
       }}
     >
       {children}

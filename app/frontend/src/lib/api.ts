@@ -25,7 +25,7 @@ async function getJSON<T>(path: string): Promise<T> {
 export const api = {
   topics: () => getJSON<{ topics: TopicMeta[] }>("/api/topics").then((d) => d.topics),
   topic: (slug: string) => getJSON<TopicBundle>(`/api/topics/${encodeURIComponent(slug)}`),
-  // Bootstrap a new category via the category agent (research → describe → write
+  // Bootstrap a new category via the category agent (LLM description → write
   // meta.json). Resolves with the created topic once its meta.json is on disk.
   createTopic: (topic: string) => postJSON<TopicMeta>("/api/topics", { topic }),
   paper: (slug: string, id: string) =>
@@ -254,4 +254,13 @@ export function patchIdea(
 ): Promise<Idea> {
   return patchJSON<Idea>(
     `/api/topics/${encodeURIComponent(slug)}/ideas/${encodeURIComponent(ideaId)}`, patch);
+}
+
+// A researcher's own edit to a topic's name/description. The category agent
+// only writes a starting-point description; this is how the user corrects it.
+export function patchTopic(
+  slug: string,
+  patch: { name?: string; description?: string },
+): Promise<TopicMeta> {
+  return patchJSON<TopicMeta>(`/api/topics/${encodeURIComponent(slug)}`, patch);
 }

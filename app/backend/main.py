@@ -161,14 +161,15 @@ class TopicCreateRequest(BaseModel):
 @app.post("/api/topics")
 def api_create_topic(req: TopicCreateRequest):
     """Bootstrap a new research category from a free-text topic via the category
-    agent: it looks the topic up on Wikipedia, takes a short description, and
-    writes ``workspace/<slug>/meta.json`` — the record every other endpoint
-    requires. Returns the created topic (same shape as ``/api/topics``), so the
-    frontend can switch to it immediately.
+    agent: it asks the LLM for a short technical description and writes
+    ``workspace/<slug>/meta.json`` — the record every other endpoint requires.
+    Returns the created topic (same shape as ``/api/topics``), so the frontend
+    can switch to it immediately.
 
-    Runs synchronously (one Wikipedia lookup, ~1s); FastAPI serves it from the
-    threadpool, so the event loop is not blocked. Re-creating an existing topic
-    refreshes its name/description rather than erroring.
+    Runs synchronously (one LLM call); FastAPI serves it from the threadpool, so
+    the event loop is not blocked. Re-creating an existing topic refreshes its
+    name/description rather than erroring. The description is only a starting
+    point — see ``PATCH /api/topics/{slug}`` for hand edits.
     """
     topic = (req.topic or "").strip()
     if not topic:
@@ -185,6 +186,31 @@ def api_create_topic(req: TopicCreateRequest):
 
     slug = result["category_slug"]
     meta = _require_meta(slug)
+    n_papers, n_gaps, n_ideas = _counts(slug)
+    return mappers.map_topic(meta, n_papers=n_papers, n_gaps=n_gaps, n_ideas=n_ideas)
+
+
+class TopicPatchRequest(BaseModel):
+    """A researcher's own edit to a topic's name/description. The category
+    agent only writes a starting-point description; this is how the user
+    corrects or refines it by hand."""
+    name: str | None = None
+    description: str | None = None
+
+
+@app.patch("/api/topics/{slug}")
+def api_topic_patch(slug: str, req: TopicPatchRequest):
+    meta = _require_meta(slug)
+
+    for field in ("name", "description"):
+        value = getattr(req, field)
+        if value is not None:
+            meta[field] = value
+
+    meta["updated_at"] = storage.now_iso()
+    meta_path = storage.category_dir(slug) / "meta.json"
+    meta_path.write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
+
     n_papers, n_gaps, n_ideas = _counts(slug)
     return mappers.map_topic(meta, n_papers=n_papers, n_gaps=n_gaps, n_ideas=n_ideas)
 
