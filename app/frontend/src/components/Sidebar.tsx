@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { Icon, SeverityDot } from "./Icon";
 import { useWorkspace } from "../lib/store";
 import { refDragProps } from "../lib/dnd";
+import { useRenameField } from "../lib/renameField";
 import type { DragRef } from "../lib/dnd";
 import type { Nav, RunState } from "../lib/types";
 import { DEFAULT_RANKING_CONFIG, fmtScore, overallScore } from "../lib/ranking";
@@ -402,8 +403,7 @@ function RenameRow({
 }: {
   value: string; onChange: (v: string) => void; onCommit: () => void; onCancel: () => void;
 }) {
-  const ref = useRef<HTMLInputElement>(null);
-  useEffect(() => { ref.current?.focus(); ref.current?.select(); }, []);
+  const { ref, blurCancels } = useRenameField();
   return (
     <div className="sidebar-item sidebar-item--renaming">
       <span className="sidebar-item-icon"><Icon name="msg" /></span>
@@ -412,7 +412,7 @@ function RenameRow({
         className="sidebar-rename-input"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        onBlur={onCancel}
+        onBlur={() => { if (blurCancels) onCancel(); }}
         onKeyDown={(e) => {
           if (e.key === "Enter") onCommit();
           else if (e.key === "Escape") onCancel();
@@ -431,8 +431,16 @@ function ContextMenu({
   x: number; y: number; onClose: () => void;
   items: { label: string; onClick: () => void; danger?: boolean }[];
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    const close = () => onClose();
+    // Anything *outside* the menu dismisses it. The check matters: this listener is
+    // on `capture`, so it runs before the item's own handler and a `stopPropagation`
+    // there cannot hold it off — without the containment test, pressing Rename tore
+    // the menu down on mousedown and the click that would have run it never landed.
+    const close = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) onClose();
+    };
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     // `capture` so the click that dismisses the menu does not also land on
     // whatever is underneath it.
@@ -450,12 +458,11 @@ function ContextMenu({
   const top = y + height > window.innerHeight - 8 ? Math.max(8, y - height) : y;
 
   return (
-    <div className="ctx-menu" style={{ left: x, top }}>
+    <div className="ctx-menu" ref={ref} style={{ left: x, top }}>
       {items.map((item) => (
         <button
           key={item.label}
           className={"ctx-menu-item" + (item.danger ? " ctx-menu-item--danger" : "")}
-          onMouseDown={(e) => { e.stopPropagation(); }}
           onClick={() => { item.onClick(); onClose(); }}
         >
           {item.label}

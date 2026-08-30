@@ -17,6 +17,7 @@ import type { DraftActions } from "./EnvelopeResult";
 import type { Mark } from "../IdeaGraph";
 import { sessionApi } from "../../lib/api";
 import { graphGaps } from "../../lib/graphdata";
+import { useRenameField } from "../../lib/renameField";
 import { useWorkspace } from "../../lib/store";
 import type {
   AgentPlan, ContextRef, PanelKind, Row, Session, SessionDraft,
@@ -454,15 +455,14 @@ function SessionRename({
 }: {
   value: string; onChange: (v: string) => void; onCommit: () => void; onCancel: () => void;
 }) {
-  const ref = useRef<HTMLInputElement>(null);
-  useEffect(() => { ref.current?.focus(); ref.current?.select(); }, []);
+  const { ref, blurCancels } = useRenameField();
   return (
     <input
       ref={ref}
       className="session-title-input"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      onBlur={onCancel}
+      onBlur={() => { if (blurCancels) onCancel(); }}
       onKeyDown={(e) => {
         if (e.key === "Enter") onCommit();
         else if (e.key === "Escape") onCancel();

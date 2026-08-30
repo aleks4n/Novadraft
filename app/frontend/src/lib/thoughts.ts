@@ -1,8 +1,10 @@
 // The tree of thoughts of one run, from whichever source has it.
 //
 // A creative-thinker run streams its tree as it grows — `tools/trace.py` emits a
-// `branch created` the moment a node is minted, then `branch scored` and
-// `branch <status>` as the selector judges it. So the tree is watchable live, not
+// `branch created` the moment a node is minted, then `branch <status>` as the
+// selector judges it. There is no score in any of it: one branch is kept per round
+// and generation returns its batch unranked, so what a node carries is its status
+// and the comparison line that explains it. So the tree is watchable live, not
 // only after the fact, which is the whole point of showing it beside the chat.
 //
 // Once the run ends the authoritative copy is the run entry the envelope carries
@@ -46,7 +48,6 @@ export function treeFromEvents(events: RunEvent[]): IdeaRun | null {
         text: str(d["text"]),
         title: str(d["title"]),
         style: str(d["style"]) || "neutral",
-        score: null,
         status: "kept",
         kind: (str(d["kind"]) || "branch") as ThoughtNode["kind"],
         depth: num(d["depth"]),
@@ -60,15 +61,12 @@ export function treeFromEvents(events: RunEvent[]): IdeaRun | null {
 
     const node = byId.get(id);
     if (!node) continue;   // a status for a node whose creation we missed
-    if (ev.name === "branch scored") {
-      node.score = typeof d["score"] === "number" ? (d["score"] as number) : node.score;
-      node.comparison = str(d["comparison"]) || node.comparison;
-    } else {
-      // `branch kept` / `branch pruned` / `branch rejected` / `branch accepted`
-      const status = ev.name.slice("branch ".length) as ThoughtNode["status"];
-      if (["kept", "pruned", "rejected", "accepted"].includes(status)) node.status = status;
-      node.comparison = str(d["comparison"]) || node.comparison;
-    }
+    // `branch kept` / `branch pruned` / `branch rejected` / `branch accepted`.
+    // An older log's `branch scored` falls through here too: its status is not one
+    // of the four, so only the comparison line it carries is taken.
+    const status = ev.name.slice("branch ".length) as ThoughtNode["status"];
+    if (["kept", "pruned", "rejected", "accepted"].includes(status)) node.status = status;
+    node.comparison = str(d["comparison"]) || node.comparison;
   }
 
   if (!order.length) return null;
@@ -105,7 +103,6 @@ export function treeFromEnvelope(envelope: Envelope): IdeaRun | null {
     nodes: (raw.nodes || []).map((n: Record<string, any>) => ({
       id: str(n.node_id), parentId: n.parent_id ?? null, text: str(n.text),
       title: str(n.title), style: str(n.style) || "neutral",
-      score: typeof n.score === "number" ? n.score : null,
       status: (n.status || "kept") as ThoughtNode["status"],
       kind: (n.kind || "branch") as ThoughtNode["kind"],
       depth: num(n.depth), comparison: str(n.comparison), question: n.question ?? null,

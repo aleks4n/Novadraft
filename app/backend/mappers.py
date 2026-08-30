@@ -473,7 +473,6 @@ def _map_run_entry(run: dict) -> dict:
                 "text": n.get("text", ""),
                 "title": n.get("title", ""),
                 "style": n.get("style", "neutral"),
-                "score": n.get("score"),
                 "status": n.get("status", "kept"),
                 "kind": n.get("kind", "branch"),
                 "depth": n.get("depth", 0),

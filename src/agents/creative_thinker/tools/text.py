@@ -1,8 +1,8 @@
-"""Bag-of-words similarity — the one text measure dedup, ranking and diversity share.
+"""Bag-of-words similarity — the one text measure dedup and diversity share.
 
-Deliberately not a model call and not an embedding: dedup, ranking arithmetic and
-the diversity metrics have to be *deterministic* for the test suite to mean
-anything, and cheap enough to run on every pair in a fan-out.
+Deliberately not a model call and not an embedding: dedup and the diversity metrics
+have to be *deterministic* for the test suite to mean anything, and cheap enough to
+run on every pair in a fan-out.
 """
 
 from __future__ import annotations

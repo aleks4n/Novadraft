@@ -42,7 +42,7 @@ Because a run is now *asked* something, it **owes an answer**: `envelope.answer`
 | Node | Kind | Role |
 |---|---|---|
 | `prepare` | deterministic | Deep-copy the idea snapshot; open the trace and the budget ledger; render context, idea and prior ground; mint the root thought node. |
-| `generate` | LLM ×width + deterministic | `width` differently-styled thinkers in parallel, one rough candidate each; dedup (batch + context), optional grounded rating, rank, carve drafts. |
+| `generate` | LLM ×width + deterministic | `width` differently-styled thinkers in parallel, one rough candidate each; dedup (batch + context), optional grounding pass for sources, carve drafts. **No ranking** — the batch comes back in the order it was thought of. |
 | `refine/expand` | LLM | One level of the tree: up to `width` ways of doing the task from here. A branch needing a fact asks the Investigator or leaves an `investigate` proposal. |
 | `refine/evaluate` | LLM ×1 + deterministic | **One call over the whole frontier** → the branch to deepen, a verdict line per branch, and a child/variant label per branch. `undecided` is a first-class answer. |
 | `refine/writeback` | LLM | Answer the task; record the result in the **one** idea through section ops; rewrite the description/problem **only when the task asked for it or the run made what is written there wrong**; recommend anything further as a `proposed_change`. |
@@ -287,7 +287,8 @@ which is what makes it useful to the reflector.
 
 `select_branch` sees the idea, the task and **every sibling at once**, and returns the
 index to deepen plus a verdict line and a divergence label per branch. It replaced
-`compare_siblings` (pairwise votes) + `tools/rank.tournament` (round-robin arithmetic) +
+`compare_siblings` (pairwise votes) + the round-robin arithmetic that once lived in
+`tools/rank.py` (since deleted with the rest of the ranking) +
 `diagnose_divergence` (a separate call to label a near-tie). Three reasons:
 
 - **Cost** — `k` siblings cost `k(k-1)/2` comparisons for a judgement one call can make.
@@ -314,7 +315,7 @@ that produced it, which is what makes the roster measurable over time.
 
 ## What is deliberately not in the model
 
-Dedup, ranking arithmetic, budget accounting, diversity metrics, trace assembly, the
+Dedup, budget accounting, diversity metrics, trace assembly, the
 section-edit application and the escalation rate limit are all deterministic (`tools/`).
 The model is asked only for judgements it is uniquely able to make, and always *relative*
 ones — "which of these", never "score this out of ten".
@@ -322,7 +323,7 @@ ones — "which of these", never "score this out of ten".
 ## Streaming and logging
 
 The graph is streamed, never invoked quietly. `prepare`/`expand`/`evaluate`/`writeback`
-emit `branch created` / `branch scored` / `branch pruned|kept|accepted` /
+emit `branch created` / `branch pruned|kept|accepted` /
 `investigator called` / `escalation raised` through `trace.emit`, so a long run shows its
 tree growing. LLM calls trace for free via `src/llm/registry`. `assemble` returns the
 envelope as a top-level `result` delta, which is what the run log records as the run's
@@ -357,7 +358,7 @@ produced:
 
 | # | Example | Shows |
 |---|---|---|
-| 1 | Generation — 4 stances on two gaps | breadth fan-out, dedup vs batch + workspace, ranking |
+| 1 | Generation — 4 stances on two gaps | breadth fan-out, dedup vs batch + workspace |
 | 2 | Generation — steered by the researcher's own ideas | `user_input` notes, constraints, a rejected direction; chosen styles |
 | 3 | Generation — budget cuts the fan-out | `truncated` with the limit named |
 | 4 | Refinement — deep dive on what generation produced | continues #1; prior ground feeds the prompts |
@@ -424,7 +425,7 @@ message; the only thing running underneath is `apply_envelope`, gated on the tic
 
 The dev harness has an **Idea** panel: the *idea graph* (accepted ideas + typed edges,
 `addresses` to gaps) beside the *thinking tree* (each run's nodes as a band under its
-header, colour by status, style badge, score, `show pruned` toggle, click-to-inspect,
+header, colour by status, style badge, `show pruned` toggle, click-to-inspect,
 truncation marked). The two are deliberately not merged — the tree never leaks into the
 graph panel.
 
@@ -440,8 +441,12 @@ graph panel.
   but a good branch cut at depth 1 does not come back. This is now a *decision* rather
   than a gap: the one-call selector returns one winner or `undecided`, and an undecided
   round hands the whole frontier to the user rather than carrying it forward silently.
-- **No cluster-based selection.** Generation ranks by distinctness and rating rather
-  than clustering and keeping the best per cluster (MMR-style).
+- **No ranking or scoring anywhere.** Generation used to order its batch by
+  distinctness × grounded rating, and every kept branch used to carry a score (a
+  constant 1.0, since a round keeps exactly one). Both are gone: a node records its
+  `status` and the `comparison` line behind it, nothing numeric. The notes' MMR-style
+  clustering — keep the best per cluster — is therefore not implemented either; dedup
+  drops restatements and every survivor is returned.
 - **No expansion cache.** The notes' reproducibility guard (cache expansions by state
   hash, log seeds) is not implemented; the stored tree is the record, but a re-run will
   not reproduce it.

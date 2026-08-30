@@ -214,7 +214,6 @@ export interface ThoughtNode {
   text: string;
   title: string;
   style: string;
-  score: number | null;
   status: "kept" | "pruned" | "rejected" | "accepted";
   kind: "root" | "candidate" | "branch" | "aggregate";
   depth: number;

@@ -52,21 +52,21 @@ EdgeType = Literal["expanded-into", "aggregated-from"]
 class ThoughtNode(BaseModel):
     """One thought: a generation candidate, a refinement branch, or a merge.
 
-    Spec fields: `node_id`, `parent_id`, `text`, `style`, `score`, `status`.
+    Spec fields: `node_id`, `parent_id`, `text`, `style`, `status`.
     Additive: `depth`, `kind`, `title`, `comparison`, `question`, `sources` — what the
     decision-graph window needs to lay the tree out, badge the style and show *why* a
     node survived without re-deriving it.
 
-    `score` is the win rate a node earned against its siblings, not an absolute quality
-    judgement: within one expansion the only question asked is which sibling is more
-    promising.
+    There is no `score`. A round keeps one branch and generation returns its batch
+    unranked, so the only honest record of a node's fate is its `status` plus the
+    `comparison` sentence that explains it. Older runs on disk may still carry a
+    `score` key; it is ignored on load.
     """
 
     node_id: str
     parent_id: str | None = None
     text: str = ""
     style: str = "neutral"
-    score: float | None = None
     status: NodeStatus = "kept"
 
     depth: int = 0

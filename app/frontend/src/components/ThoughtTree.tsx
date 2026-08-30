@@ -11,6 +11,11 @@
 // live tree beside the session chat (the current run, growing as it goes). Same
 // reading aids in both — colour by status, a style badge per node, and truncation
 // marked, because a partial exploration must never look finished.
+//
+// No node carries a number. A round keeps one branch, so a score was either the
+// constant 1.0 on the survivor or a presentation order read as a verdict; the
+// comparison line in the inspector says why a branch won or died, which is the
+// thing a reader actually wants.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "./Icon";
 import type { IdeaRun, ThoughtNode } from "../lib/types";
@@ -167,9 +172,6 @@ export function ThoughtTree({
               <span className="tt-node-title">
                 {node.title || node.text.slice(0, 48) || node.id}
               </span>
-              {node.score != null && (
-                <span className="tt-node-score">{node.score.toFixed(2)}</span>
-              )}
             </button>
           ))}
         </div>
@@ -202,7 +204,6 @@ export function NodeInspector({ node, onClose }: { node: ThoughtNode; onClose: (
       )}
       <div className="thought-inspector-meta">
         <span>{node.kind}</span><span>depth {node.depth}</span>
-        {node.score != null && <span>score {node.score.toFixed(2)}</span>}
         <span className="mono">{node.id}</span>
       </div>
     </aside>

@@ -728,11 +728,6 @@ body.col-resizing .gaps-row:hover { background: transparent; }
   font-size: 13px; line-height: 1.35; color: var(--text);
   display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
 }
-.tt-node-score {
-  position: absolute; right: 5px; bottom: 3px;
-  font-family: var(--font-mono); font-size: 10px; color: var(--text-5);
-}
-
 /* a run in progress, in the chat */
 .live-thoughts {
   border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-panel);

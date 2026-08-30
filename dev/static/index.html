@@ -73,7 +73,6 @@
   .tnode.rejected  { border-left-color: #c62828; color: #955; }
   .badge { font-family: var(--mono); font-size: 10px; padding: 0 4px; border-radius: 3px;
            background: #eceff4; color: #445; white-space: nowrap; }
-  .badge.score { background: #e8f0e9; }
   .badge.q { background: #fff3cd; color: #7a5c00; }
   .cutoff { padding: 4px 8px; font-family: var(--mono); font-size: 11px; color: #b26a00;
             border-top: 1px dashed #e0a800; }
@@ -671,9 +670,7 @@ function candidateRow(node, depth, draftIndex) {
   }
   const body = el("div", { class: "ct" });
   body.append(el("div", {}, el("b", {}, node.title || node.node_id),
-    el("span", { class: "badge", style: "margin-left:6px" }, node.style || "-"),
-    node.score === null || node.score === undefined ? ""
-      : el("span", { class: "badge score", style: "margin-left:4px" }, String(node.score))));
+    el("span", { class: "badge", style: "margin-left:6px" }, node.style || "-")));
   body.append(el("div", { class: "cl" },
     (node.text || "").slice(0, 180) + ((node.text || "").length > 180 ? "…" : "")));
   if (node.comparison) body.append(el("div", { class: "cl" }, `↳ ${node.comparison}`));
@@ -917,9 +914,6 @@ function nodeRow(node, depth, run) {
     onclick: () => selectNode(node, run, row),
   });
   row.append(el("span", { class: "badge" }, node.style || "-"));
-  if (node.score !== null && node.score !== undefined) {
-    row.append(el("span", { class: "badge score" }, String(node.score)));
-  }
   row.append(el("span", { class: "tt" }, node.title || node.text || node.node_id));
   if (node.question) row.append(el("span", { class: "badge q", title: node.question }, "?"));
   return row;
@@ -936,7 +930,6 @@ function selectNode(node, run, row) {
   add("node", `${node.node_id} · ${node.status} · depth ${node.depth ?? "?"} · ${node.kind || ""}`);
   add("style", node.style);
   add("thought", node.text);
-  add("score", node.score);
   add("comparison", node.comparison);   // why it survived, or why it was pruned
   add("question", node.question);
   add("sources", (node.sources || []).join(", "));

@@ -5,7 +5,7 @@ is the point — they must not drift apart:
 
 1. mints the thought **nodes and edges** that become the ``runs[]`` entry,
 2. **emits** each of them into the LangGraph custom stream, so the run log shows
-   the tree growing instead of a spinner (branch created / scored / pruned /
+   the tree growing instead of a spinner (branch created / kept / pruned /
    investigated / escalated), and
 3. hands back the finished :class:`RunEntry` for :func:`append_run`, which is the
    only function anywhere that touches ``idea.runs`` — and it only ever appends.
@@ -86,15 +86,12 @@ class TraceBuilder:
         for s in sources:
             self.add_edge(s, target, "aggregated-from")
 
-    # --- scoring / status ---
-    def score(self, node_id: str, score: float, comparison: str = "") -> None:
-        node = self.nodes[node_id]
-        node.score = score
-        node.comparison = comparison or node.comparison
-        emit({"type": "event", "name": "branch scored", "data": {
-            "node_id": node_id, "score": score, "comparison": comparison,
-        }})
-
+    # --- status ---
+    # There is no scoring here, deliberately. A run keeps exactly one branch per
+    # round and generation hands its batch back unranked, so a number on a node
+    # was either a constant (1.0 for "the one that was kept") or a presentation
+    # order dressed up as a quality judgement. The *comparison* line carries the
+    # judgement instead, and it is the thing worth reading.
     def set_status(self, node_id: str, status: NodeStatus, comparison: str = "") -> None:
         """Pruned siblings are **recorded, never dropped** — the losing branch is
         exactly what stops the next run re-treading this ground."""

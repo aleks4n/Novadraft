@@ -87,7 +87,6 @@ from src.agents.creative_thinker.tools import investigate
 from src.agents.creative_thinker.tools.budget import BudgetLedger
 from src.agents.creative_thinker.tools.dedup import dedupe
 from src.agents.creative_thinker.tools.envelope import build_envelope
-from src.agents.creative_thinker.tools.rank import rank_candidates
 from src.agents.creative_thinker.tools.trace import TraceBuilder, make_header, new_run_id
 from src.common.schemas.idea import IdeaOrigin, IdeaRecord, InheritedFrom, RunSummary
 from src.common.schemas.idea_compat import normalize as normalize_idea
@@ -95,10 +94,6 @@ from src.common.utils import storage
 from src.common.utils.logging.runlog import GraphRunLog
 from src.common.utils.logging.trace import log_event
 
-# A grounded rating is a *rating*, never a filter: an Investigator pass shifts a
-# candidate's rank, it never removes it from the batch.
-_RATING_VERIFIED = 0.7
-_RATING_UNVERIFIED = 0.5
 _MAX_INVESTIGATION_CONTEXT_CHARS = 12_000
 
 
@@ -141,7 +136,7 @@ def _map_styles(styles: list[AgentStyle], fn: Callable[[AgentStyle], Any],
     stream writer and node metadata survive the thread hop — the per-candidate
     LLM calls still land in the run log under the node that spawned them. Results
     keep the input order regardless of completion order, so the batch (and
-    therefore the dedup and the ranking) is reproducible.
+    therefore the dedup, and the order the drafts come back in) is reproducible.
     """
     if not parallel or len(styles) <= 1:
         return [fn(s) for s in styles]
@@ -242,8 +237,8 @@ def generate(state: CreativeThinkerState) -> dict:
 
     Depth stays 1 and the candidates are deliberately rough. **No LLM judge
     filters them** — they are deduplicated against the batch and against the
-    ideas already in context, ranked, and every survivor is returned. The human
-    is the evaluator.
+    ideas already in context, and every survivor is returned, unranked and in the
+    order it was thought of. The human is the evaluator.
 
     Same machinery serves all three of its jobs — new ideas from a gap, candidate
     children, candidate variants. What differs is only whether ``spec.idea`` carries
@@ -289,12 +284,11 @@ def generate(state: CreativeThinkerState) -> dict:
     for index, reason in dd.dropped:
         trace.set_status(node_ids[index], "rejected", reason)
 
-    # --- optional grounded rating (never a filter) ---
-    # Skipped entirely without an Investigator. It used to run regardless, which cost
-    # nothing but returned the same constant for every candidate — so the ranking below
-    # silently degenerated to distinctness alone while the stream reported an
-    # `investigator called` event per candidate that had never happened.
-    ratings: dict[int, float] = {}
+    # --- optional grounding pass (never a filter, never a ranking) ---
+    # Skipped entirely without an Investigator. What it buys is the sources on a
+    # candidate's node and the `investigator called` note — it used to also mint a
+    # rating that fed an ordering, which is gone: generation hands back the batch,
+    # the researcher is the evaluator.
     if spec.tool_use and state.get("investigator") is not None:
         for index in dd.kept:
             finding = investigate.ask(
@@ -305,22 +299,16 @@ def generate(state: CreativeThinkerState) -> dict:
             if finding.attempted:
                 trace.note_investigation(node_ids[index], candidates[index].title,
                                          finding.found)
-            ratings[index] = _RATING_VERIFIED if finding.found else _RATING_UNVERIFIED
             if finding.found:
                 trace.nodes[node_ids[index]].sources = finding.sources or []
 
-    # --- rank the survivors and carve them into drafts ---
-    # Only the candidates that actually got a grounded rating carry one; without an
-    # Investigator the map is empty and the ranking is distinctness alone, which is
-    # the honest ordering rather than a constant dressed up as a score.
-    ranked = rank_candidates([texts[i] for i in dd.kept], state["existing_ideas"],
-                             {p: ratings[i] for p, i in enumerate(dd.kept)
-                              if i in ratings})
+    # --- carve the survivors into drafts ---
+    # In the order they were generated. There is deliberately no ranking: an
+    # arithmetic order reads as a quality verdict the run has not earned, and the
+    # batch is meant to be read as a batch of alternatives.
     drafts: list[IdeaRecord] = []
-    for position, entry in enumerate(ranked):
-        index = dd.kept[entry.index]
+    for index in dd.kept:
         node_id = node_ids[index]
-        trace.score(node_id, entry.score, f"rank {position + 1}/{len(ranked)}")
         trace.set_status(node_id, "kept")
         drafts.append(_draft_from(candidates[index], state, affordable[index], node_id))
 
@@ -561,8 +549,8 @@ def evaluate(state: CreativeThinkerState) -> dict:
     """Choose the branch to deepen — **one call, the whole frontier**.
 
     The evaluator is the model itself and it is asked only a relative question: given
-    the idea and the task, which of these is worth developing further? It never scores
-    a branch.
+    the idea and the task, which of these is worth developing further? It never scores or ranks
+    a branch — one of them is chosen, and the rest carry the sentence that lost them.
 
     **undecided** is not "pick one": it ends the run ``stopped-uncertain`` with every
     branch left ``kept`` and one question carrying them as options, for the user to
@@ -584,7 +572,7 @@ def evaluate(state: CreativeThinkerState) -> dict:
     if not frontier:
         return {}
     if len(frontier) == 1:  # only one honest continuation — nothing to choose between
-        trace.score(frontier[0], 1.0, "sole branch at this depth")
+        trace.set_status(frontier[0], "kept", "sole branch at this depth")
         return {"path": state["path"] + [frontier[0]]}
 
     if not ledger.can_spend_llm():
@@ -622,7 +610,6 @@ def evaluate(state: CreativeThinkerState) -> dict:
             trace.set_status(node_id, "pruned",
                              trace.nodes[node_id].comparison or selection.reasoning)
     trace.set_status(frontier[winner], "kept", selection.reasoning)
-    trace.score(frontier[winner], 1.0, selection.reasoning)
 
     rejected = list(state.get("rejected_notes") or []) + [
         f"{trace.nodes[frontier[p]].title or f'branch {p}'}: "

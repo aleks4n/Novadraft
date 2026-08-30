@@ -99,7 +99,7 @@ MANIFEST = {
             "description": (
                 "The breadth fan-out: four differently-styled thinkers on the same "
                 "gaps, deduplicated against each other and against the ideas already "
-                "in the workspace, then ranked. No judge filters them."
+                "in the workspace. No judge filters them and nothing is ranked."
             ),
         },
         {
