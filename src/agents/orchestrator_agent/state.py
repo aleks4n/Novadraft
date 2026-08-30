@@ -45,6 +45,14 @@ and hands each step a slice of what is left.
 
 Provisional. Pick it properly once there are real runs to look at."""
 
+UNMETERED_TOOL_LLM_CHARGE = 12
+"""Conservative charge for a tool that cannot report its own LLM usage.
+
+Charging the complete grant makes a one-step investigator plan consume the entire turn,
+so reflect can request a replan but `_route` immediately stops it.  A fixed reserve keeps
+unmetered tools accountable while leaving room for the orchestrator's bounded retry loop.
+"""
+
 
 class OrchestratorState(TypedDict, total=False):
     # --- inputs, set at the boundary (run()) ---

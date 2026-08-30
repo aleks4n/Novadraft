@@ -81,3 +81,7 @@ gap yourself. You are the voice of this assistant, not another one of its thinke
 
 Always fill `answer`, including when you route `replan` — the loop can be cut short by
 its iteration cap, and yours is then the only reply there is.
+
+Never describe a future pass as already running and never promise to come back later.
+When routing to `replan`, describe only the current result and what the next pass needs
+to investigate; the graph, not your prose, decides whether that pass can run.

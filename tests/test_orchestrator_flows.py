@@ -32,7 +32,10 @@ from src.common.utils import storage
 
 from src.agents.orchestrator_agent import session
 from src.agents.orchestrator_agent.agent import build_orchestrator_graph
-from src.agents.orchestrator_agent.state import MAX_LLM_CALLS_PER_TURN
+from src.agents.orchestrator_agent.state import (
+    MAX_LLM_CALLS_PER_TURN,
+    UNMETERED_TOOL_LLM_CHARGE,
+)
 from src.agents.orchestrator_agent.schemas import (
     FocusSelection, Plan, ReflectJudgment, ToolCall,
 )
@@ -602,7 +605,7 @@ def test_a_truncated_run_is_reported_as_truncated_not_as_a_shortfall(workspace, 
 
 
 def test_the_reflect_loop_stops_at_the_iteration_cap(workspace, rec):
-    """A reflect that keeps asking to replan is overridden, and its answer is what shows."""
+    """A reflect that keeps asking to replan is overridden and the stop is disclosed."""
     rec.plans = [Plan(goal="Generate.", done_criteria=["1 candidate"],
                       steps=[ToolCall(tool="creative_thinker",
                                       args={"thinking_mode": "generation", "width": 1})])
@@ -614,7 +617,8 @@ def test_the_reflect_loop_stops_at_the_iteration_cap(workspace, rec):
     state = turn(workspace, "give me ideas", gaps=[GAP_ID])
 
     assert len(rec.to("plan.llm")) == 3, "capped at MAX_ITERATIONS, not looping forever"
-    assert state["answer"] == "Round 2 was short."
+    assert "Round 2 was short." in state["answer"]
+    assert "maximum number of research rounds" in state["answer"]
 
 
 def test_accepting_a_draft_mints_an_id_and_carries_the_trace(workspace, rec):
@@ -883,7 +887,8 @@ def test_a_turn_that_has_spent_its_budget_stops_instead_of_replanning(workspace,
     rec.plans = [Plan(goal="Generate.", done_criteria=["3 candidates"],
                       steps=[ToolCall(tool="creative_thinker",
                                       args={"thinking_mode": "generation", "width": 3})])]
-    rec.envelopes = [envelope(drafts=[candidate("The only one")], llm_calls=0)]
+    rec.envelopes = [envelope(drafts=[candidate("The only one")],
+                              llm_calls=MAX_LLM_CALLS_PER_TURN)]
     rec.judgments = [ReflectJudgment(route="replan", keep_results=True,
                                      feedback="One came back, three were asked for.",
                                      answer="One candidate — the turn ran out of budget.")]
@@ -892,7 +897,34 @@ def test_a_turn_that_has_spent_its_budget_stops_instead_of_replanning(workspace,
 
     assert len(rec.to("plan.llm")) == 1, "no second plan was made"
     assert state["spent"] >= MAX_LLM_CALLS_PER_TURN
-    assert state["answer"] == "One candidate — the turn ran out of budget."
+    assert "One candidate — the turn ran out of budget." in state["answer"]
+    assert "could not run another pass" in state["answer"]
+
+
+def test_unmetered_investigator_can_replan_instead_of_exhausting_turn(workspace, rec):
+    """An investigator has no usage ledger, but one pass must not consume the whole turn."""
+    rec.plans = [
+        Plan(goal="Check prior work.", done_criteria=["relevant prior work found"],
+             steps=[ToolCall(tool="investigator", args={"query": "first search"})]),
+        Plan(goal="Check prior work more deeply.", done_criteria=["relevant prior work found"],
+             steps=[ToolCall(tool="investigator", args={"query": "deeper search"})]),
+    ]
+    rec.findings = ["Only a general definition.", "A relevant prior work survey."]
+    rec.judgments = [
+        ReflectJudgment(route="replan", keep_results=True,
+                        feedback="Search the specific method and citations.",
+                        answer="The first search was too broad."),
+        ReflectJudgment(route="finish", answer="I found the relevant prior work."),
+    ]
+
+    state = turn(workspace, "Does this method already exist?")
+
+    assert [call.args["query"] for call in rec.to("investigator")] == [
+        "first search", "deeper search",
+    ]
+    assert len(rec.to("plan.llm")) == 2
+    assert state["spent"] == 2 * UNMETERED_TOOL_LLM_CHARGE
+    assert state["answer"] == "I found the relevant prior work."
 
 
 def test_the_turn_budget_is_divided_across_the_steps_it_plans(workspace, rec):

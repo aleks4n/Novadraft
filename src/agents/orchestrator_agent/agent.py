@@ -61,6 +61,7 @@ from src.agents.orchestrator_agent.schemas import (
 from src.agents.orchestrator_agent.state import (
     MAX_ITERATIONS,
     MAX_LLM_CALLS_PER_TURN,
+    UNMETERED_TOOL_LLM_CHARGE,
     OrchestratorState,
 )
 from src.agents.orchestrator_agent.subagents.plan.agent import plan
@@ -148,12 +149,13 @@ def execute(state: OrchestratorState) -> dict:
         step_ctx, skip = _context_for(step, ctx, produced)
         result = (ToolResult(tool=step.tool, ok=False, error=f"skipped — {skip}")
                   if skip else dispatch(step, step_ctx, env))
-        # Charge what it reported, or its whole slice when it reported nothing. A subagent
-        # that keeps no ledger — the investigator keeps none — would otherwise be free, and
-        # a ceiling that only binds the components honest enough to count is not a ceiling.
+        # Charge what it reported, or a conservative fixed amount when it reported
+        # nothing. A subagent that keeps no ledger — the investigator keeps none — must
+        # not be free, but charging its whole slice makes a single-step plan exhaust the
+        # entire turn and prevents reflect's requested retry from ever running.
         # A skipped step ran nothing and is charged nothing.
         reported = int(((result.envelope.get("metrics") or {}).get("llm_calls")) or 0)
-        spent += 0 if skip else (reported or granted)
+        spent += 0 if skip else (reported or min(granted, UNMETERED_TOOL_LLM_CHARGE))
         if result.consumed:
             consumed.add(result.consumed)
         produced[i] = result
@@ -270,6 +272,16 @@ def finish(state: OrchestratorState) -> dict:
     # user what was about to happen as though it had.
     planned_reply = "" if plan_.steps else plan_.answer
     answer = judgment.answer or planned_reply or _fallback_answer(state)
+    # Reflect may request another pass, but the deterministic guards have the final word.
+    # Make that visible instead of returning prose such as "I'm running a deeper pass"
+    # after the graph has actually ended.
+    if judgment.route == "replan":
+        if state.get("iteration", 0) >= MAX_ITERATIONS:
+            answer = (answer.rstrip() + "\n\nI could not run another pass because this "
+                      "turn reached its maximum number of research rounds.")
+        elif state.get("spent", 0) >= MAX_LLM_CALLS_PER_TURN:
+            answer = (answer.rstrip() + "\n\nI could not run another pass because this "
+                      "turn reached its research budget.")
     session.write_result(
         state["category_slug"], session_id, run_id,
         message=state.get("message", ""), answer=answer, ideas=ideas,
