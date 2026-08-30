@@ -60,6 +60,8 @@ export interface LlmTelemetry {
   failedAttempts: number;
   activeCalls: number;
   totalDurationSeconds: number;
+  investigatorCalls: number;
+  activeInvestigatorCalls: number;
 }
 
 interface ParsedPlan {
@@ -316,6 +318,8 @@ function latestDetail(events: RunEvent[]): string {
 function llmTelemetry(events: RunEvent[], runIsActive: boolean): LlmTelemetry {
   const started = new Set<string>();
   const completed = new Set<string>();
+  const investigatorStarted = new Set<string>();
+  const investigatorCompleted = new Set<string>();
   let providerAttempts = 0;
   let retries = 0;
   let structuredReasks = 0;
@@ -325,7 +329,11 @@ function llmTelemetry(events: RunEvent[], runIsActive: boolean): LlmTelemetry {
   for (const event of events) {
     if (event.kind !== "event") continue;
     const callId = string(event.data?.call_id);
-    if (event.name === "llm call started") {
+    if (event.name === "investigator call started") {
+      if (callId) investigatorStarted.add(callId);
+    } else if (event.name === "investigator call finished") {
+      if (callId) investigatorCompleted.add(callId);
+    } else if (event.name === "llm call started") {
       if (callId) started.add(callId);
     } else if (event.name === "llm call finished") {
       if (callId) completed.add(callId);
@@ -342,6 +350,8 @@ function llmTelemetry(events: RunEvent[], runIsActive: boolean): LlmTelemetry {
   }
 
   const unfinished = [...started].filter((callId) => !completed.has(callId)).length;
+  const unfinishedInvestigators = [...investigatorStarted]
+    .filter((callId) => !investigatorCompleted.has(callId)).length;
   return {
     calls: started.size,
     providerAttempts,
@@ -350,6 +360,8 @@ function llmTelemetry(events: RunEvent[], runIsActive: boolean): LlmTelemetry {
     failedAttempts,
     activeCalls: runIsActive ? unfinished : 0,
     totalDurationSeconds,
+    investigatorCalls: investigatorStarted.size,
+    activeInvestigatorCalls: runIsActive ? unfinishedInvestigators : 0,
   };
 }
 

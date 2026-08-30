@@ -891,6 +891,27 @@ def test_without_tool_use_the_thinker_gets_no_investigator(workspace, rec):
     assert rec.to("investigator") == []
 
 
+def test_investigator_invocation_emits_logical_call_lifecycle(monkeypatch):
+    from src.agents import investigator_agent
+    from src.agents.orchestrator_agent.tools import creative_thinker as thinker_tool
+    from src.agents.orchestrator_agent.tools.base import ToolEnv
+
+    events = []
+    monkeypatch.setattr(thinker_tool.trace, "emit", events.append)
+    monkeypatch.setattr(investigator_agent, "run", lambda *_args, **_kwargs: "grounded")
+
+    ask = thinker_tool._investigator(ToolEnv(
+        category_slug="topic", session_id="session", run_id="run",
+    ))
+    assert ask("Is this prior work?")["answer"] == "grounded"
+
+    assert [event["name"] for event in events] == [
+        "investigator call started", "investigator call finished",
+    ]
+    assert events[0]["data"]["call_id"] == events[1]["data"]["call_id"]
+    assert events[1]["data"]["ok"] is True
+
+
 def test_a_pasted_note_and_a_dropped_document_reach_the_thinker(workspace, rec):
     """The user pasted a constraint and dropped a file into the session earlier.
 
