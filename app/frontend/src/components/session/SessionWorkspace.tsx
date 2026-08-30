@@ -10,14 +10,16 @@ import { Icon } from "../Icon";
 import { NavHistory } from "../NavHistory";
 import { TopSearch } from "../TopSearch";
 import { Chat } from "./Chat";
+import type { PlanActions } from "./Chat";
 import { KIND_LABEL, PanelGrid } from "./Panels";
+import type { PlannedTurn } from "./Panels";
 import type { DraftActions } from "./EnvelopeResult";
 import type { Mark } from "../IdeaGraph";
 import { sessionApi } from "../../lib/api";
 import { graphGaps } from "../../lib/graphdata";
 import { useWorkspace } from "../../lib/store";
 import type {
-  Column, ContextRef, PanelKind, Session, SessionDraft,
+  AgentPlan, Column, ContextRef, PanelKind, Session, SessionDraft,
 } from "../../lib/types";
 
 // Chat on the left, the two workspace windows stacked on the right — the layout
@@ -29,7 +31,10 @@ const DEFAULT_COLUMNS: Column[] = [
     uid: "c-work",
     weight: 1.15,
     panels: [
-      { uid: "p-graph", kind: "graph", ref: null, weight: 1.35 },
+      // The plan first: it is what the run is *about to do*, and the window the Start
+      // button in the chat refers to.
+      { uid: "p-plan", kind: "plan", ref: null, weight: 1 },
+      { uid: "p-graph", kind: "graph", ref: null, weight: 1.2 },
       { uid: "p-thoughts", kind: "thoughts", ref: null, weight: 1 },
     ],
   },
@@ -51,6 +56,8 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
   // one per draft the runs produced plus one per idea a run modified.
   const [drafts, setDrafts] = useState<SessionDraft[]>([]);
   const [deciding, setDeciding] = useState<string | null>(null);
+  // The proposed plan currently being started, by the run id that proposed it.
+  const [starting, setStarting] = useState<string | null>(null);
 
   const ideas = bundle?.ideas ?? [];
   const gaps = useMemo(() => graphGaps(bundle), [bundle]);
@@ -140,6 +147,14 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
     setSession(r.session);
   };
 
+  // Every planned turn of this session, in order — what the plan window reads when no
+  // run of it is streaming any more.
+  const planned = useMemo<PlannedTurn[]>(
+    () => (session?.messages ?? [])
+      .filter((m) => m.plan)
+      .map((m) => ({ plan: m.plan!, status: m.plan_status ?? "proposed" })),
+    [session]);
+
   const marks = useMemo(() => {
     const m = new Map<string, Mark>();
     for (const c of session?.context ?? []) m.set(`${c.kind}:${c.id}`, "loaded");
@@ -176,6 +191,37 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
       setSending(false);
     }
   };
+
+  // --- the plan gate -----------------------------------------------------------
+  // A planned turn is shown before it runs. Starting it is a second run over the same
+  // turn — the same shape as accepting a draft: what the agent produced is an offer,
+  // and the user's click is what makes it happen.
+
+  const planActions: PlanActions = useMemo(() => ({
+    start: async (runId: string, plan: AgentPlan) => {
+      if (!activeSlug || !sessionId || starting) return;
+      setStarting(runId);
+      try {
+        const r = await sessionApi.approvePlan(activeSlug, sessionId, runId, plan);
+        setSession(r.session);
+        attachRun(r.run.run_id);
+      } catch (e) {
+        console.error("starting the plan failed:", e);
+        alert(`Could not start the plan: ${e}`);
+      } finally {
+        setStarting(null);
+      }
+    },
+    cancel: async (runId: string) => {
+      if (!activeSlug || !sessionId) return;
+      try {
+        setSession((await sessionApi.cancelPlan(activeSlug, sessionId, runId)).session);
+      } catch (e) {
+        console.error("discarding the plan failed:", e);
+      }
+    },
+    busy: starting,
+  }), [activeSlug, sessionId, starting, attachRun]);
 
   // --- accept / dismiss --------------------------------------------------------
   // The orchestrator's write step, done by hand. Accepting refreshes the bundle
@@ -282,6 +328,7 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
         gaps={gaps}
         ideas={ideas}
         runs={sessionRuns}
+        planned={planned}
         marks={marks}
         loaded={session?.context ?? []}
         onToggleMark={toggleMark}
@@ -302,6 +349,7 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
             onSend={send}
             onOpenIdea={(id) => openPanel("idea", id)}
             drafts={draftActions}
+            plans={planActions}
             onShowThoughts={() => openPanel("thoughts", null)}
           />
         )}

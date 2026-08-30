@@ -17,18 +17,30 @@ import type { ReactNode } from "react";
 import { Icon } from "../Icon";
 import { IdeaGraph } from "../IdeaGraph";
 import type { Mark } from "../IdeaGraph";
+import { StepArgs, agentLabel, useToolSpecs } from "../PlanReview";
 import { NodeInspector, ThoughtTree, TruncationNote } from "../ThoughtTree";
+import { isOrchestratorRun, progressForRun } from "../../lib/orchestratorProgress";
 import { IdeaContent } from "../views/IdeaContent";
 import { useFullIdea } from "../views/Ideas";
 import { treeForRun } from "../../lib/thoughts";
 import type {
-  Column, ContextRef, Gap, Idea, Panel, PanelKind, RunState, ThoughtNode,
+  AgentPlan, Column, ContextRef, Gap, Idea, Panel, PanelKind, PlanStatus, RunState,
+  ThoughtNode,
 } from "../../lib/types";
+
+/** A planned turn as the transcript recorded it — what the plan window falls back to
+ *  when the run that produced it is no longer streaming (a reloaded session, or a run
+ *  the backend's index has since pruned). */
+export interface PlannedTurn {
+  plan: AgentPlan;
+  status: PlanStatus;
+}
 
 export const KIND_LABEL: Record<PanelKind, string> = {
   chat: "Chat",
   graph: "Gap & idea graph",
   context: "Loaded context",
+  plan: "Agent plan",
   idea: "Idea",
   thoughts: "Tree of thoughts",
 };
@@ -44,7 +56,7 @@ const sameDrop = (a: Drop | null, b: Drop | null) =>
     && (a.newCol || b.newCol || a.col === b.col));
 
 export function PanelGrid({
-  columns, onChange, gaps, ideas, runs, marks, loaded,
+  columns, onChange, gaps, ideas, runs, planned, marks, loaded,
   onToggleMark, onOpenNode, onUnload, onOpenIdea, renderChat,
 }: {
   columns: Column[];
@@ -52,6 +64,7 @@ export function PanelGrid({
   gaps: Gap[];
   ideas: Idea[];
   runs: RunState[];
+  planned: PlannedTurn[];
   marks: Map<string, Mark>;
   loaded: ContextRef[];
   onToggleMark: (kind: "gap" | "idea", id: string) => void;
@@ -307,7 +320,8 @@ export function PanelGrid({
                   renderChat(grip(panel.uid))
                 ) : (
                   <PanelBody
-                    panel={panel} gaps={gaps} ideas={ideas} runs={runs} marks={marks}
+                    panel={panel} gaps={gaps} ideas={ideas} runs={runs} planned={planned}
+                    marks={marks}
                     loaded={loaded} onToggleMark={onToggleMark} onOpenNode={onOpenNode}
                     onUnload={onUnload}
                     head={(controls) => (
@@ -353,9 +367,10 @@ export function PanelGrid({
 /** One window. `head` is a render prop so each kind can put its own controls into
  *  the *single* header row rather than growing a toolbar of its own underneath. */
 function PanelBody({
-  panel, gaps, ideas, runs, marks, loaded, head, onToggleMark, onOpenNode, onUnload,
+  panel, gaps, ideas, runs, planned, marks, loaded, head, onToggleMark, onOpenNode,
+  onUnload,
 }: {
-  panel: Panel; gaps: Gap[]; ideas: Idea[]; runs: RunState[];
+  panel: Panel; gaps: Gap[]; ideas: Idea[]; runs: RunState[]; planned: PlannedTurn[];
   marks: Map<string, Mark>; loaded: ContextRef[];
   head: (controls: ReactNode) => ReactNode;
   onToggleMark: (kind: "gap" | "idea", id: string) => void;
@@ -370,6 +385,10 @@ function PanelBody({
         chrome={head}
       />
     );
+  }
+
+  if (panel.kind === "plan") {
+    return <PlanPanel runs={runs} planned={planned} head={head} />;
   }
 
   if (panel.kind === "thoughts") {
@@ -399,6 +418,149 @@ export function Window({ head, children }: { head: ReactNode; children: ReactNod
       {head}
       <div className="panel-body">{children}</div>
     </div>
+  );
+}
+
+/** The orchestrator's plan for the session's current turn, and where it has got to.
+ *
+ *  The tree-of-thoughts window says what one subagent is *considering*; this one says
+ *  what the orchestrator decided to *do*: which agent each step calls, with which
+ *  arguments, in which order, and which of them have run. While a plan is only
+ *  proposed, nothing here has run yet — the same plan is in the chat with a Start
+ *  button, which is where it is edited, because editing it is a decision and decisions
+ *  belong on the transcript. */
+function PlanPanel({
+  runs, planned, head,
+}: { runs: RunState[]; planned: PlannedTurn[]; head: (c: ReactNode) => ReactNode }) {
+  const specs = useToolSpecs();
+  // Long instructions are clamped: the window is read as a *sequence* — which agent,
+  // with which parameters, where the run has got to — and one step's four-line prompt
+  // pushes the rest of it off screen. The whole text is one click away.
+  const [open, setOpen] = useState<number[]>([]);
+
+  // The newest orchestrator run of the session: a turn that was planned and then
+  // started is two runs, and the second is the one with something to show.
+  const run = [...runs].reverse().find(isOrchestratorRun);
+  // With no run to read, the transcript still has the plan — a session opened days
+  // later has no event stream, and an empty window there would say the turn had no
+  // plan rather than that nobody is watching it run.
+  const recorded = planned[planned.length - 1];
+  const progress = run ? progressForRun(run)
+    : recorded ? {
+      phase: recorded.status === "proposed" ? "Waiting for you to start it"
+        : recorded.status === "approved" ? "Started" : "Not run",
+      goal: recorded.plan.goal,
+      criteria: recorded.plan.done_criteria || [],
+      detail: recorded.status === "proposed"
+        ? "Nothing has run yet — read the plan in the chat and press Start"
+        : recorded.status === "approved" ? "This plan was started from the chat"
+        : "You turned this plan down",
+      awaitingApproval: recorded.status === "proposed",
+      updatedAt: null,
+      steps: recorded.plan.steps.map((step, index) => ({
+        number: index + 1, tool: step.tool, args: step.args || {},
+        needs: step.needs || [], why: step.why,
+        title: String((step.args || {}).instruction || (step.args || {}).query
+          || step.why || step.tool),
+        status: "pending" as const, error: "",
+      })),
+    } : null;
+  const live = run?.status === "running";
+  const steps = progress?.steps ?? [];
+  const settled = steps.filter((s) => s.status === "done" || s.status === "failed").length;
+
+  // The header carries the count; the phase is the line above the steps, where it is
+  // read together with what the run is doing rather than squeezed into the title row.
+  const controls = steps.length ? (
+    <span className="panel-note">
+      {live && <span className="sidebar-spin" />}
+      {settled}/{steps.length} steps
+    </span>
+  ) : null;
+
+  return (
+    <Window head={head(controls)}>
+      {!progress ? (
+        <div className="empty-state empty-state--inline">
+          No planned turn in this session yet. Ask for something and the plan appears
+          here before it runs.
+        </div>
+      ) : (
+        <div className="plan-panel">
+          <div className="plan-panel-top">
+            <span className={"plan-phase plan-phase--"
+              + (progress.awaitingApproval ? "waiting" : live ? "live" : "settled")}>
+              {progress.phase}
+            </span>
+            {progress.goal && <p className="plan-panel-goal">{progress.goal}</p>}
+            {steps.length > 1 && (
+              <div className="plan-track" role="presentation">
+                {steps.map((step) => (
+                  <span className={"plan-track-seg plan-track-seg--" + step.status}
+                    key={step.number} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {steps.length === 0 ? (
+            <div className="empty-state empty-state--inline">
+              {live ? "Planning…" : "This turn needed no agents — it was answered directly."}
+            </div>
+          ) : (
+            <ol className="plan-steps plan-steps--rail">
+              {steps.map((step) => {
+                const expanded = open.includes(step.number);
+                const long = step.title.length > 150;
+                return (
+                  <li className={"plan-step plan-step--" + step.status} key={step.number}>
+                    <span className="plan-step-num" aria-label={step.status}>
+                      {step.status === "active" ? <span className="sidebar-spin" />
+                        : step.status === "done" ? "✓"
+                        : step.status === "failed" ? "!" : step.number}
+                    </span>
+                    <div className="plan-step-body">
+                      <div className="plan-step-head">
+                        <span className="plan-step-agent">{agentLabel(step.tool)}</span>
+                        <span className={"plan-state plan-state--" + step.status}>
+                          {step.status === "active" ? "running" : step.status}
+                        </span>
+                      </div>
+                      <div className={"plan-step-title"
+                        + (long && !expanded ? " plan-step-title--clamped" : "")}>
+                        {step.title}
+                      </div>
+                      {long && (
+                        <button className="plan-step-more"
+                          onClick={() => setOpen((cur) => expanded
+                            ? cur.filter((n) => n !== step.number) : [...cur, step.number])}>
+                          {expanded ? "less" : "more"}
+                        </button>
+                      )}
+                      <StepArgs step={{ tool: step.tool, args: step.args, why: step.why,
+                        needs: step.needs }} specs={specs} />
+                      {step.error && <div className="plan-step-error">{step.error}</div>}
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+
+          {progress.criteria.length > 0 && (
+            <div className="plan-criteria">
+              <span className="plan-criteria-label">Done when</span>
+              <ul>{progress.criteria.map((c, i) => <li key={i}>{c}</li>)}</ul>
+            </div>
+          )}
+
+          <div className="plan-panel-now">
+            <span className="plan-panel-now-label">Now</span>
+            <span>{progress.detail}</span>
+          </div>
+        </div>
+      )}
+    </Window>
   );
 }
 

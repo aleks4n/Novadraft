@@ -23,7 +23,8 @@ MANIFEST = {
     "graph_builder": build_orchestrator_graph,
     "workspace_field": "category_slug",
     "input_adapter": input_adapter,
-    "steps": ["assemble_context", "plan", "execute", "reflect", "finish"],
+    "steps": ["assemble_context", "plan", "adopt_plan", "propose", "execute",
+              "reflect", "finish"],
     "schema": [
         {
             "name": "category_slug",
@@ -48,6 +49,12 @@ MANIFEST = {
             "type": "text",
             "required": False,
             "placeholder": "idea_464a2325 — for refinement",
+        },
+        {
+            "name": "require_approval",
+            "type": "text",
+            "required": False,
+            "placeholder": "true = stop after planning and offer the plan",
         },
         {
             "name": "session_id",

@@ -4,13 +4,23 @@ idea nodes.
 One path through the graph:
 
     assemble_context -> plan -> execute -> reflect -> finish
-                         | ^                  |         ^
-                         | +---- replan ------+         |
-                         +-- plan called no tools ------+
+             |           | ^                  |         ^
+             |           | +---- replan ------+         |
+             |           +-- plan called no tools ------+
+             |           +-- awaiting approval --> propose -> END
+             +-- an approved plan came in --> adopt_plan --> execute
 
 A turn that needs no tools is answered by the planner itself and skips straight to
 finish: there is nothing to dispatch, and reflect checks results against done-criteria
 it would not have.
+
+A turn that *does* call tools is shown to the user first. The run ends at `propose`,
+having written its plan to the session; the user reads it, adjusts the arguments the
+planner chose, and presses Start, which begins a second run carrying that plan as
+`approved_plan`. That run re-assembles the context (deterministic, and the state it is
+built from may have moved), adopts the plan without planning again, and executes it.
+Two runs rather than a suspended one, for the same reason accepting a draft is a separate
+call: a run always completes, and the pending state lives in the session file.
 
 A run always completes. It ends by *offering* draft ideas (written to the session's run
 result, returned to the chat); accepting them is `commit_selection()`, a plain function
@@ -264,6 +274,10 @@ def finish(state: OrchestratorState) -> dict:
         state["category_slug"], session_id, run_id,
         message=state.get("message", ""), answer=answer, ideas=ideas,
         envelopes=envelopes, offers=offers,
+        # The plan as it actually ran — including a replan's rewrite of it, and the
+        # arguments the user edited before starting it. The run log has the same thing
+        # step by step; this is the copy that outlives it.
+        plan=plan_.model_dump(mode="json"),
     )
     # session_id / run_id are already in state; echoing them here puts them in this
     # node's update delta, which is what the app's run manager watches to learn where
@@ -271,14 +285,74 @@ def finish(state: OrchestratorState) -> dict:
     return {"ideas": ideas, "answer": answer, "session_id": session_id, "run_id": run_id}
 
 
+def propose(state: OrchestratorState) -> dict:
+    """LangGraph node: end the run by offering the plan instead of running it.
+
+    The mirror of `finish`. That one offers drafts the user accepts; this one offers the
+    plan the user starts — and in both cases what is offered is written to the session
+    file, because the decision happens in a later HTTP call and nothing may sit in memory
+    waiting for it.
+
+    Nothing has been dispatched at this point, so there is no answer to write: the reply
+    the user sees is the plan itself.
+    """
+    plan_: Plan = state.get("plan") or Plan()
+    log_event(
+        "orchestrator plan proposed",
+        goal=plan_.goal,
+        steps=len(plan_.steps),
+        tools=[step.tool for step in plan_.steps],
+    )
+    session.write_result(
+        state["category_slug"], state["session_id"], state["run_id"],
+        message=state.get("message", ""), answer="",
+        status="awaiting_approval", plan=plan_.model_dump(mode="json"),
+    )
+    return {"answer": "", "ideas": [],
+            "session_id": state["session_id"], "run_id": state["run_id"]}
+
+
+def adopt_plan(state: OrchestratorState) -> dict:
+    """LangGraph node: take the plan the user started, unchanged, as this run's plan.
+
+    Deterministic — the planning already happened, in the run that proposed it, and the
+    user has since had the last word on the arguments. Re-planning here would throw that
+    away and could easily come back with a different plan than the one they approved.
+
+    It re-emits `orchestrator plan` so everything downstream of the planner — the progress
+    view, the reflect prompt's view of what was asked for — sees the plan the same way on
+    both runs, rather than the executing run appearing to run steps nobody planned.
+    """
+    approved: Plan = state.get("approved_plan") or Plan()
+    log_event("orchestrator plan approved", goal=approved.goal, steps=len(approved.steps))
+    log_event("orchestrator plan", round=1, **approved.model_dump(mode="json"))
+    return {"plan": approved}
+
+
+def _entry(state: OrchestratorState) -> str:
+    """Plan this turn, or run the plan the user already approved."""
+    return "adopt_plan" if (state.get("approved_plan") or Plan()).steps else "plan"
+
+
 def _after_plan(state: OrchestratorState) -> str:
-    """Skip execute and reflect when the plan calls no tools.
+    """Skip execute and reflect when the plan calls no tools; stop for approval otherwise.
 
     A conversational turn is already answered by then (`Plan.answer`), there is nothing
     to dispatch, and reflect — which checks results against done-criteria — would have
     neither. Routing straight to finish costs one LLM call for such a turn instead of two.
+    It is also never held for approval: there is nothing to approve, and making the user
+    press Start to be told the answer they already have is not a gate, it is a delay.
+
+    Approval is asked once, for the plan that opens the turn. A replan happens inside a
+    run the user already started, in response to results they have not seen yet; stopping
+    there would ask them to approve a correction to a plan they never watched fail.
     """
-    return "execute" if (state.get("plan") or Plan()).steps else "finish"
+    plan_: Plan = state.get("plan") or Plan()
+    if not plan_.steps:
+        return "finish"
+    if state.get("require_approval") and state.get("iteration", 0) == 0:
+        return "propose"
+    return "execute"
 
 
 def _route(state: OrchestratorState) -> str:
@@ -303,13 +377,19 @@ def build_orchestrator_graph():
     g = StateGraph(OrchestratorState)
     g.add_node("assemble_context", assemble_context)
     g.add_node("plan", plan)
+    g.add_node("adopt_plan", adopt_plan)
+    g.add_node("propose", propose)
     g.add_node("execute", execute)
     g.add_node("reflect", reflect)
     g.add_node("finish", finish)
 
     g.add_edge(START, "assemble_context")
-    g.add_edge("assemble_context", "plan")
-    g.add_conditional_edges("plan", _after_plan, {"execute": "execute", "finish": "finish"})
+    g.add_conditional_edges("assemble_context", _entry,
+                            {"adopt_plan": "adopt_plan", "plan": "plan"})
+    g.add_edge("adopt_plan", "execute")
+    g.add_conditional_edges("plan", _after_plan,
+                            {"execute": "execute", "propose": "propose", "finish": "finish"})
+    g.add_edge("propose", END)
     g.add_edge("execute", "reflect")
     g.add_conditional_edges("reflect", _route, {"plan": "plan", "finish": "finish"})
     g.add_edge("finish", END)
@@ -336,14 +416,18 @@ def _ids(value: str | list[str] | None) -> list[str]:
 
 
 def _graph_inputs(payload: OrchestratorInput, run_id: str) -> OrchestratorState:
-    return {
+    inputs: OrchestratorState = {
         "session_id": payload.session_id,
         "category_slug": payload.category_slug,
         "run_id": run_id,
         "message": payload.message,
         "focus": payload.focus,
+        "require_approval": payload.require_approval,
         "iteration": 0,
     }
+    if payload.approved_plan is not None:
+        inputs["approved_plan"] = payload.approved_plan
+    return inputs
 
 
 def input_adapter(inputs: dict) -> dict:
@@ -364,8 +448,21 @@ def input_adapter(inputs: dict) -> dict:
         focus=FocusSelection(
             gap_ids=_ids(inputs.get("gap_ids")), idea_ids=_ids(inputs.get("idea_ids"))
         ),
+        # Both travel as JSON: the run manager round-trips a run's inputs through its
+        # index, so a restart has to be able to rebuild the same turn from a file.
+        require_approval=_flag(inputs.get("require_approval")),
+        approved_plan=(Plan.model_validate(inputs["approved_plan"])
+                       if inputs.get("approved_plan") else None),
     )
     return _graph_inputs(payload, inputs.get("run_id") or f"run_{uuid.uuid4().hex[:8]}")
+
+
+def _flag(value) -> bool:
+    """A checkbox that came through a text box. The dev form has only text inputs, so
+    "true" arrives as the string, and `bool("false")` is True."""
+    if isinstance(value, bool):
+        return value
+    return str(value or "").strip().lower() in {"1", "true", "yes", "y", "on"}
 
 
 def _new_session_id() -> str:
@@ -403,6 +500,7 @@ def run_turn(payload: OrchestratorInput, *, stream: bool = True,
 
 def run(category_slug: str, message: str = "", session_id: str = "",
         gap_ids: str | list[str] = "", idea_ids: str | list[str] = "",
+        require_approval: bool = False, approved_plan: dict | None = None,
         stream: bool = True) -> dict:
     """Flat-argument entry point — what the dev harness and the app backend call.
 
@@ -414,6 +512,8 @@ def run(category_slug: str, message: str = "", session_id: str = "",
         category_slug=category_slug,
         message=message,
         focus=FocusSelection(gap_ids=_ids(gap_ids), idea_ids=_ids(idea_ids)),
+        require_approval=require_approval,
+        approved_plan=Plan.model_validate(approved_plan) if approved_plan else None,
     )
     out = run_turn(payload, stream=stream)
     return {"session_id": payload.session_id, **out.model_dump(mode="json")}

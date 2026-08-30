@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { StepArgs, useToolSpecs } from "./PlanReview";
 import { NodeInspector, ThoughtTree } from "./ThoughtTree";
 import { treeForRun } from "../lib/thoughts";
 import { progressForRun } from "../lib/orchestratorProgress";
@@ -14,6 +15,7 @@ function timeLabel(value: string | null): string {
 export function OrchestratorProgress({ run }: { run: RunState }) {
   const { cancelRun, isCancelling, restartRun } = useWorkspace();
   const [selected, setSelected] = useState<ThoughtNode | null>(null);
+  const specs = useToolSpecs();
   const progress = progressForRun(run);
   const tree = treeForRun(run);
   const thinkerTree = tree ? {
@@ -61,6 +63,10 @@ export function OrchestratorProgress({ run }: { run: RunState }) {
               <span className="orchestrator-step-copy">
                 <span className="orchestrator-step-agent">{step.tool.split("_").join(" ")}</span>
                 <span className="orchestrator-step-title" title={step.title}>{step.title}</span>
+                {/* What the subagent is actually called with — the plan's arguments for
+                    this step, so "creative thinker" is not the whole story. */}
+                <StepArgs step={{ tool: step.tool, args: step.args, why: step.why,
+                  needs: step.needs }} specs={specs} />
                 {step.error && <span className="orchestrator-step-error">{step.error}</span>}
               </span>
             </li>

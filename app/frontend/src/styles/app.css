@@ -1258,3 +1258,203 @@ body.is-row-resizing { user-select: none; -webkit-user-select: none; cursor: row
 }
 .sidebar-show:hover { background: var(--bg-hover); color: var(--text); }
 .icon.flip { transform: rotate(180deg); }
+
+/* --- the plan gate ---------------------------------------------------------
+   A planned turn shown before it runs: the goal, one row per subagent call with
+   the arguments it is made with, and the Start button. The same step rows are
+   reused by the Agent plan window, where they carry a live status instead of an
+   editor. */
+
+.plan-card {
+  border: 1px solid var(--border-strong); border-radius: var(--radius);
+  background: var(--bg-panel); padding: 11px 13px;
+  display: flex; flex-direction: column; gap: 9px;
+}
+.plan-card--proposed { border-color: #c9b9eb; background: var(--accent-ai-soft); }
+.plan-card--cancelled { opacity: .72; }
+.plan-card-head { display: flex; align-items: center; gap: 7px; color: var(--accent-ai); }
+.plan-card-kind {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+}
+.plan-card-count {
+  margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--text-4);
+}
+.plan-goal { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--text); }
+
+.plan-steps {
+  list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px;
+}
+.plan-step {
+  display: flex; gap: 9px; padding: 8px 9px; border-radius: var(--radius-sm);
+  background: var(--bg); border: 1px solid var(--border);
+}
+.plan-step-num {
+  width: 19px; height: 19px; flex: 0 0 19px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border-strong); border-radius: 50%; background: var(--bg-panel);
+  font-family: var(--font-mono); font-size: 9px; color: var(--text-5);
+}
+.plan-step--active .plan-step-num {
+  border-color: #c9b9eb; background: var(--accent-ai-soft); color: var(--accent-ai);
+}
+.plan-step--done .plan-step-num {
+  border-color: #bfe0cd; background: #f4faf6; color: var(--accent-green);
+}
+.plan-step--failed .plan-step-num {
+  border-color: #efc5c5; background: #fff5f5; color: var(--accent-warm);
+}
+.plan-step--pending .plan-step-body { opacity: .62; }
+.plan-step-body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.plan-step-head { display: flex; align-items: center; gap: 8px; }
+.plan-step-agent {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--accent-ai);
+}
+.plan-step-state {
+  font-family: var(--font-mono); font-size: 9px; color: var(--text-5);
+}
+.plan-step-edit { margin-left: auto; font-size: 10.5px; gap: 4px; }
+.plan-step-drop { color: var(--text-4); }
+.plan-step-title { font-size: 12px; line-height: 1.4; color: var(--text-2); }
+.plan-step-why { font-size: 11px; line-height: 1.4; color: var(--text-4); }
+.plan-step-error { font-size: 10.5px; color: var(--accent-warm); }
+
+.plan-args { display: flex; flex-wrap: wrap; gap: 4px; }
+.plan-arg {
+  display: inline-flex; align-items: baseline; gap: 4px;
+  padding: 1px 6px; border-radius: 999px;
+  background: var(--bg-soft); border: 1px solid var(--border);
+  font-family: var(--font-mono); font-size: 9.5px; color: var(--text-3);
+}
+.plan-arg--needs { background: var(--accent-soft); border-color: #d9d9fb; color: var(--accent); }
+.plan-arg-key { color: var(--text-4); }
+.plan-arg-val { color: var(--text-2); }
+
+.plan-fields {
+  margin-top: 3px; padding-top: 7px; border-top: 1px dashed var(--border);
+  display: flex; flex-direction: column; gap: 7px;
+}
+.plan-fields-empty { margin: 0; font-size: 11px; color: var(--text-4); }
+.plan-field { display: flex; align-items: flex-start; gap: 8px; }
+.plan-field-label {
+  flex: 0 0 88px; padding-top: 3px;
+  font-size: 10px; font-weight: 600; color: var(--text-3);
+  display: flex; flex-direction: column;
+}
+.plan-field-range { font-family: var(--font-mono); font-size: 9px; color: var(--text-5); }
+.plan-field-input {
+  flex: 1; min-width: 0; padding: 3px 6px;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  background: var(--bg); font: inherit; font-size: 11.5px; color: var(--text);
+}
+.plan-field-input--area { resize: vertical; line-height: 1.4; }
+.plan-field-input:focus-visible { outline: none; border-color: var(--accent); }
+.plan-field-check { margin-top: 4px; }
+.plan-field-chips { flex: 1; display: flex; flex-wrap: wrap; gap: 4px; }
+.plan-chip {
+  padding: 2px 8px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--border-strong); background: var(--bg);
+  font-size: 10.5px; color: var(--text-3);
+}
+.plan-chip:hover { background: var(--bg-hover); }
+.plan-chip--on {
+  background: var(--accent-ai-soft); border-color: #c9b9eb; color: var(--accent-ai);
+  font-weight: 600;
+}
+
+.plan-criteria { font-size: 11px; color: var(--text-3); }
+.plan-criteria-label {
+  font-size: 9px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--text-4);
+}
+.plan-criteria ul { margin: 3px 0 0; padding-left: 16px; line-height: 1.5; }
+
+.plan-actions {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  border-top: 1px solid var(--border-soft); padding-top: 9px;
+}
+.plan-actions-note { font-size: 10.5px; color: var(--text-4); }
+
+/* The Agent plan window — the same step rows, read-only, on a rail, with a live
+   status per step. Read top to bottom as a sequence: where the run is, what each
+   step calls and with what, and what it is being judged against. */
+.plan-panel { display: flex; flex-direction: column; gap: 11px; min-height: 100%; }
+.plan-panel-top { display: flex; flex-direction: column; gap: 6px; }
+.plan-panel-goal {
+  margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--text);
+}
+.plan-phase {
+  align-self: flex-start; padding: 1px 7px; border-radius: 999px;
+  font-size: 9px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  background: var(--bg-soft); border: 1px solid var(--border); color: var(--text-4);
+}
+.plan-phase--waiting {
+  background: var(--accent-ai-soft); border-color: #d9cdf1; color: var(--accent-ai);
+}
+.plan-phase--live { background: #f4faf6; border-color: #cfe6d8; color: var(--accent-green); }
+
+/* One segment per step: the shape of the turn at a glance, and the only place the
+   window says how far along it is without being read. */
+.plan-track { display: flex; gap: 3px; }
+.plan-track-seg { flex: 1; height: 3px; border-radius: 999px; background: var(--bg-active); }
+.plan-track-seg--active { background: var(--accent-ai); }
+.plan-track-seg--done { background: var(--accent-green); }
+.plan-track-seg--failed { background: var(--accent-warm); }
+
+/* The rail. The chat card's steps are cards you edit; these are stations on a line,
+   which is what makes "step 2 of 3, running" legible without reading the words. */
+.plan-steps--rail { gap: 0; }
+.plan-steps--rail .plan-step {
+  position: relative; background: none; border: 0; border-radius: 0;
+  padding: 0 0 13px; gap: 10px;
+}
+.plan-steps--rail .plan-step:last-child { padding-bottom: 2px; }
+.plan-steps--rail .plan-step:not(:last-child)::after {
+  content: ""; position: absolute; left: 9px; top: 22px; bottom: 2px;
+  width: 1px; background: var(--border);
+}
+.plan-steps--rail .plan-step--done:not(:last-child)::after { background: #cfe6d8; }
+.plan-steps--rail .plan-step-num { z-index: 1; }
+.plan-steps--rail .plan-step-body { gap: 3px; }
+
+.plan-state {
+  padding: 0 5px; border-radius: 999px; background: var(--bg-soft);
+  font-family: var(--font-mono); font-size: 8.5px; letter-spacing: .02em;
+  text-transform: uppercase; color: var(--text-5);
+}
+.plan-state--active { background: var(--accent-ai-soft); color: var(--accent-ai); }
+.plan-state--done { background: #f4faf6; color: var(--accent-green); }
+.plan-state--failed { background: #fff5f5; color: var(--accent-warm); }
+
+/* An instruction is often a paragraph. Clamped, because the window is read as a
+   sequence and one prompt would push the rest of it off screen. */
+.plan-step-title--clamped {
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.plan-step-more {
+  align-self: flex-start; padding: 0; border: 0; background: none; cursor: pointer;
+  font: inherit; font-size: 10.5px; color: var(--accent); text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.plan-step-more:hover { color: var(--accent-ai); }
+
+.plan-panel .plan-criteria {
+  padding: 7px 9px; border-radius: var(--radius-sm); background: var(--bg-inset);
+}
+/* Pinned to the foot of the window: what the run is doing *now* is the one line
+   worth reading without scrolling back to it. */
+.plan-panel-now {
+  position: sticky; bottom: 0; margin-top: auto;
+  display: flex; align-items: baseline; gap: 7px;
+  border-top: 1px solid var(--border-soft); padding: 8px 0 2px;
+  background: var(--bg); font-size: 11.5px; color: var(--text-3);
+  /* Only visible when the steps run on under it — the one cue that says the window
+     has more in it than the line pinned to its foot. */
+  box-shadow: 0 -7px 9px -9px rgba(28, 28, 26, .35);
+}
+.plan-panel-now-label {
+  flex: 0 0 auto;
+  font-size: 9px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--accent-ai);
+}

@@ -436,6 +436,51 @@ export interface ContextRef {
   at?: string;
 }
 
+// --- the orchestrator's plan ---------------------------------------------------
+// What the planner decided to do before it does it: a goal, the checkable conditions
+// it will be judged against, and one step per subagent call with the arguments that
+// call is made with. The user reads it, retunes those arguments (a creative thinker's
+// width and depth above all) and presses Start — nothing runs until then.
+
+export interface PlanStep {
+  tool: string;
+  args: Record<string, unknown>;
+  why: string;
+  needs: number[];
+}
+
+export interface AgentPlan {
+  goal: string;
+  steps: PlanStep[];
+  done_criteria: string[];
+  answer?: string;
+}
+
+// "proposed" is waiting on the user, "approved" started a second run (`plan_run_id`),
+// "cancelled" was turned down. Stored on the transcript message so a reloaded session
+// shows what was decided instead of offering the choice again.
+export type PlanStatus = "proposed" | "approved" | "cancelled";
+
+// One argument of one tool, as the backend derives it from that tool's own args model
+// (`tools/registry.py::tool_specs`). The editor renders itself from these, so it can
+// never offer a knob the tool does not have or a range it would reject.
+export interface ToolArgSpec {
+  name: string;
+  kind: "text" | "int" | "bool" | "enum" | "enum_list" | "text_list";
+  options: string[];
+  required: boolean;
+  default: unknown;
+  description: string;
+  min?: number;
+  max?: number;
+}
+
+export interface ToolSpec {
+  name: string;
+  description: string;
+  args: ToolArgSpec[];
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "agent";
@@ -444,6 +489,10 @@ export interface ChatMessage {
   context?: ContextRef[];     // what this turn added to the loaded context
   run_id?: string;
   envelope?: Envelope;
+  // Set on the agent message of a turn that stopped at its plan.
+  plan?: AgentPlan;
+  plan_status?: PlanStatus;
+  plan_run_id?: string;
   failed?: boolean;
   demo?: DemoKind;            // client-side demo turns (see SessionView)
   settings?: {
@@ -561,12 +610,14 @@ export interface Envelope {
 // The right-hand column: a stack of panels the user adds, removes and resizes.
 // The chat is not one of them — it is always there, on the left.
 
+// `plan` shows the orchestrator's plan for the session's current run: which subagent
+// each step calls, with which arguments, and where the run has got to in it.
 // `thoughts` shows the tree of thoughts of the session's current run — what the
 // agent is *considering*, which is the thing worth a window; a stage list only
 // says where it is.
 // "chat" is a window like any other so it can be dragged, stacked and put side
 // by side with the rest — it is only special in that it cannot be closed.
-export type PanelKind = "chat" | "graph" | "context" | "idea" | "thoughts";
+export type PanelKind = "chat" | "graph" | "context" | "plan" | "idea" | "thoughts";
 
 export interface Panel {
   uid: string;

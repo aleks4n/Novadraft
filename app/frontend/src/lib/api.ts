@@ -2,8 +2,8 @@
 // run is an SSE stream (the reader mirrors dev/static/index.html::runStreaming).
 
 import type {
-  ContextRef, Idea, Paper, RunEvent, RunMeta, Session, SessionDraft, SessionSummary,
-  TopicBundle, TopicMeta,
+  AgentPlan, ChatMessage, ContextRef, Idea, Paper, RunEvent, RunMeta, Session,
+  SessionDraft, SessionSummary, ToolSpec, TopicBundle, TopicMeta,
 } from "./types";
 
 // Web app: relative URLs, proxied to the backend by Vite (dev) / served same-
@@ -193,6 +193,17 @@ export const sessionApi = {
     postJSON<{ session: Session; message: unknown; drafts: SessionDraft[] }>(
       `${S(slug)}/${encodeURIComponent(id)}/land`, { runId }),
 
+  // --- the plan gate -------------------------------------------------------
+  // A planned turn stops once it has a plan and offers it. Starting it runs a second
+  // run over the same turn, with whatever the user changed about the arguments.
+  approvePlan: (slug: string, id: string, runId: string, plan: AgentPlan) =>
+    postJSON<{ session: Session; message: ChatMessage; run: RunMeta }>(
+      `${S(slug)}/${encodeURIComponent(id)}/plan/approve`,
+      { runId, goal: plan.goal, steps: plan.steps, doneCriteria: plan.done_criteria }),
+  cancelPlan: (slug: string, id: string, runId: string) =>
+    postJSON<{ session: Session; message: ChatMessage }>(
+      `${S(slug)}/${encodeURIComponent(id)}/plan/cancel`, { runId }),
+
   // --- working copies: the accept / dismiss step ---------------------------
   drafts: (slug: string, id: string) =>
     getJSON<{ drafts: SessionDraft[] }>(`${S(slug)}/${encodeURIComponent(id)}/drafts`)
@@ -222,6 +233,14 @@ export const sessionApi = {
   },
 };
 
+// What the orchestrator can call and what each call takes — derived on the backend
+// from the tools' own argument models, so the plan editor's fields, ranges and allowed
+// values are the ones the tools actually validate against.
+export const agentApi = {
+  orchestratorTools: () =>
+    getJSON<{ tools: ToolSpec[] }>("/api/agents/orchestrator/tools").then((d) => d.tools),
+};
+
 export interface SendBody {
   text: string;
   context: { kind: string; id: string }[];
@@ -239,6 +258,9 @@ export interface SendBody {
   styles?: string[];
   toolUse?: boolean;
   maxLlmCalls?: number;
+  // Orchestrator only: show the plan and wait for Start (the default) instead of
+  // running it straight away.
+  requirePlanApproval?: boolean;
 }
 
 // A researcher's own edit to an idea (spine fields + the open sections). The

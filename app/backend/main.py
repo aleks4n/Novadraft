@@ -366,6 +366,12 @@ class SessionSendRequest(BaseModel):
     styles: list[str] = []
     toolUse: bool = False
     maxLlmCalls: int = 60
+    # Orchestrator only: stop once the turn has a plan and offer it, instead of running
+    # it. The user reads which subagent would be called with which arguments, adjusts
+    # them, and presses Start — see ``/plan/approve``. Default on: a planned turn can
+    # spend a lot of the budget, and the arguments the planner picks (a creative thinker
+    # width and depth above all) are exactly the ones a researcher wants a say in.
+    requirePlanApproval: bool = True
 
 
 def _require_session(slug: str, session_id: str) -> dict:
@@ -457,7 +463,7 @@ async def api_session_file(slug: str, session_id: str, file: UploadFile = File(.
 
 
 def _send_to_orchestrator(slug: str, session_id: str, rec: dict, text: str,
-                          added: list[dict]) -> dict:
+                          added: list[dict], *, require_approval: bool = True) -> dict:
     """Start a planned turn, and record the user's message against it.
 
     The orchestrator takes the *selection*, not the composer's settings: which gaps and
@@ -479,6 +485,7 @@ def _send_to_orchestrator(slug: str, session_id: str, rec: dict, text: str,
         "message": text,
         "gap_ids": [c["id"] for c in loaded if c.get("kind") == "gap"],
         "idea_ids": [c["id"] for c in loaded if c.get("kind") == "idea"],
+        "require_approval": require_approval,
     }
     run = MANAGER.start(slug, "orchestrator_agent", "idea", inputs,
                         text[:80] or f"context +{len(added)}", session_id=session_id)
@@ -508,7 +515,8 @@ def api_session_send(slug: str, session_id: str, req: SessionSendRequest):
     added = sessions.add_context(slug, rec, req.context)
 
     if req.agent == "orchestrator":
-        return _send_to_orchestrator(slug, session_id, rec, text, added)
+        return _send_to_orchestrator(slug, session_id, rec, text, added,
+                                     require_approval=req.requirePlanApproval)
 
     mode = "refinement" if str(req.mode).lower().startswith("r") else "generation"
     if mode == "refinement" and not req.ideaId:
@@ -653,7 +661,8 @@ def api_session_land(slug: str, session_id: str, req: SessionLandRequest):
 
     turn = _orchestrator_turn(slug, session_id, meta)
     envelope = meta.get("envelope") or {}
-    if turn is not None:
+    proposal = turn is not None and turn.get("status") == "awaiting_approval"
+    if turn is not None and not proposal:
         _save_offered_copies(slug, session_id, req.runId, turn)
     elif envelope:
         _save_working_copies(slug, session_id, req.runId, envelope)
@@ -664,7 +673,16 @@ def api_session_land(slug: str, session_id: str, req: SessionLandRequest):
         return {"session": rec, "message": existing,
                 "drafts": sessions.list_drafts(slug, session_id)}
 
-    if turn is not None:
+    if proposal:
+        # A turn that stopped at its plan. The message carries the plan itself rather
+        # than a sentence about it: the chat renders it as the thing to read, edit and
+        # start, and `plan_status` is what says whether that has happened yet — so a
+        # reloaded transcript shows a started plan as started instead of offering the
+        # button a second time.
+        message = sessions.append_message(
+            rec, role="agent", text="", run_id=req.runId,
+            plan=turn.get("plan") or {}, plan_status="proposed")
+    elif turn is not None:
         # A planned turn always owes a reply and does not always owe ideas — "what can
         # you do?" is answered without calling anything. Having no ideas is therefore an
         # ordinary outcome here, not the failure it is on the direct thinker path.
@@ -682,6 +700,110 @@ def api_session_land(slug: str, session_id: str, req: SessionLandRequest):
     sessions.write_session(slug, rec)
     return {"session": rec, "message": message,
             "drafts": sessions.list_drafts(slug, session_id)}
+
+
+# --- the plan gate -----------------------------------------------------------
+# The orchestrator plans a turn before it runs one. The plan is shown first, with the
+# arguments each subagent would be called with; nothing is dispatched until the user
+# presses Start. Same shape as the accept gate below — the run that proposed the plan is
+# over, and starting it is a second run — for the same reason: a run always completes,
+# and what is pending lives in the session, not in a suspended graph.
+
+class PlanStepRequest(BaseModel):
+    tool: str
+    args: dict = {}
+    why: str = ""
+    needs: list[int] = []
+
+
+class PlanApproveRequest(BaseModel):
+    """Start the plan a run proposed, as the user left it.
+
+    The whole plan comes back rather than a diff of what changed: the user may have
+    dropped a step as well as retuned one, and a plan is validated as a whole anyway.
+    """
+
+    runId: str
+    goal: str = ""
+    steps: list[PlanStepRequest] = []
+    doneCriteria: list[str] = []
+
+
+@app.get("/api/agents/orchestrator/tools")
+def api_orchestrator_tools():
+    """What the orchestrator can call, and the arguments each call takes.
+
+    Generated from the tools' own arg models — the same source the planner's catalogue is
+    rendered from — so the editor cannot offer a knob the tool does not have, or a range
+    the validator would reject.
+    """
+    from src.agents.orchestrator_agent.tools.registry import tool_specs
+
+    return {"tools": tool_specs()}
+
+
+def _proposal_message(rec: dict, run_id: str) -> dict:
+    message = next((m for m in rec.get("messages") or []
+                    if m.get("run_id") == run_id and m.get("plan") is not None), None)
+    if message is None:
+        raise HTTPException(404, f"run '{run_id}' proposed no plan in this session")
+    return message
+
+
+@app.post("/api/topics/{slug}/sessions/{session_id}/plan/approve")
+def api_session_plan_approve(slug: str, session_id: str, req: PlanApproveRequest):
+    """Run the proposed plan — with whatever the user changed about it.
+
+    The edited arguments go through the tools' own schemas here, before anything starts,
+    so a width the thinker would reject is a form error rather than a step that fails
+    halfway into a run the user has been watching.
+
+    The execution is a fresh run over the same turn: the original message and selection
+    come off the proposing run's stored inputs, so the plan runs against what it was
+    planned for. Its reply and its drafts land on the transcript the ordinary way.
+    """
+    from src.agents.orchestrator_agent.tools.registry import validate_args
+
+    rec = _require_session(slug, session_id)
+    proposed = MANAGER.get(req.runId)
+    if proposed is None:
+        raise HTTPException(404, f"unknown run '{req.runId}'")
+    message = _proposal_message(rec, req.runId)
+    if message.get("plan_status") not in (None, "proposed"):
+        raise HTTPException(409, f"this plan was already {message.get('plan_status')}")
+    if not req.steps:
+        raise HTTPException(400, "a plan with no steps has nothing to start")
+
+    try:
+        steps = [{"tool": step.tool, "args": validate_args(step.tool, step.args),
+                  "why": step.why, "needs": step.needs} for step in req.steps]
+    except Exception as exc:  # noqa: BLE001 — a bad edit is a 400, not a 500
+        raise HTTPException(400, f"the edited plan is not valid: {exc}") from exc
+
+    plan = {"goal": req.goal, "steps": steps,
+            "done_criteria": req.doneCriteria, "answer": ""}
+    inputs = dict(proposed.get("inputs") or {})
+    inputs.update(run_id=f"run_{uuid.uuid4().hex[:8]}", require_approval=False,
+                  approved_plan=plan)
+    run = MANAGER.start(slug, "orchestrator_agent", "idea", inputs,
+                        f"start plan · {req.runId}", session_id=session_id)
+
+    message["plan"] = plan          # what was started, not what was offered
+    message["plan_status"] = "approved"
+    message["plan_run_id"] = run["run_id"]
+    sessions.write_session(slug, rec)
+    return {"session": rec, "message": message, "run": run}
+
+
+@app.post("/api/topics/{slug}/sessions/{session_id}/plan/cancel")
+def api_session_plan_cancel(slug: str, session_id: str, req: SessionLandRequest):
+    """Turn a proposed plan down. Nothing runs; the decision stays on the transcript."""
+    rec = _require_session(slug, session_id)
+    message = _proposal_message(rec, req.runId)
+    if message.get("plan_status") in (None, "proposed"):
+        message["plan_status"] = "cancelled"
+        sessions.write_session(slug, rec)
+    return {"session": rec, "message": message}
 
 
 # --- working copies: the accept / dismiss step -------------------------------

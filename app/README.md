@@ -106,8 +106,8 @@ Collaborators / History remain out of scope.
   carrying its rationale. Clicking a node opens its page.
 - **Sessions** — one chat-like surface per line of work, stored under
   `workspace/<slug>/sessions/`. The chat is always on the left; the right is a
-  column of windows you add, remove and resize (graph · loaded context · an idea
-  page · a run trace). Context enters by clicking a graph node, dragging from the
+  column of windows you add, remove and resize (graph · loaded context · the agent
+  plan · an idea page · a run trace). Context enters by clicking a graph node, dragging from the
   nav tree, pasting an id, dropping a file, or the composer's **+** search. It
   stages above the composer until you send, then joins the session context — lit
   in the graph and listed in the Loaded Context window.
@@ -115,6 +115,14 @@ Collaborators / History remain out of scope.
   context, then answers directly or calls the investigator and creative thinker
   with the mode, width, depth and styles it decides are appropriate. The reply and
   every proposed idea render together in the transcript.
+- **The plan is shown before it runs.** A turn that would call a subagent stops at
+  its plan: the chat lists each step with the agent it calls *and the arguments it
+  calls it with*, every one of them editable in place (the creative thinker's width
+  and depth above all), and nothing is dispatched until you press **Start** —
+  which runs a second run with the plan as you left it. **Discard** turns it down.
+  The *Agent plan* window carries the same plan read-only, with a live status per
+  step while the run goes. The editor's fields come from the tools' own argument
+  models, so it cannot offer a value the tool would reject.
 - **Accept / dismiss.** Everything a run produces lands as a **working copy** —
   a real `idea.json` in `sessions/<id>/drafts/`, not in the knowledge base.
   *Save as an idea* mints an id and writes it; *Accept into the idea* overwrites
@@ -147,6 +155,9 @@ returned `null` and the UI hides those widgets rather than inventing values.
 | POST | `…/sessions/{id}/files` | attach a dropped document as context |
 | POST | `…/sessions/{id}/send` | one chat turn → an orchestrator run |
 | POST | `…/sessions/{id}/land` | write the reply onto the transcript + file all offered working copies |
+| GET | `/api/agents/orchestrator/tools` | what the orchestrator can call and the arguments each call takes (the plan editor's fields) |
+| POST | `…/sessions/{id}/plan/approve` | start a proposed plan, with the arguments the user edited |
+| POST | `…/sessions/{id}/plan/cancel` | turn a proposed plan down; nothing runs |
 | GET | `…/sessions/{id}/drafts` | the session's unaccepted working copies |
 | POST | `…/sessions/{id}/drafts/{id}/accept` | write one into the global workspace |
 | DELETE | `…/sessions/{id}/drafts/{id}` | dismiss one and record the decision in the session |

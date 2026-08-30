@@ -3,9 +3,15 @@
 A LangGraph TypedDict; `total=False` so each node returns only the keys it sets.
 
     assemble_context -> plan -> execute -> reflect -> finish
-                         | ^        |                  ^
-                         | +--------+  (replan/cont.)  |
-                         +-- plan called no tools -----+
+             |           | ^        |                  ^
+             |           | +--------+  (replan/cont.)  |
+             |           +-- plan called no tools -----+
+             |           +-- awaiting approval --> propose -> END
+             +-- an approved plan came in --> adopt_plan --> execute
+
+Approving a plan is *not* part of this graph either: the run that proposed one ends at
+`propose`, and the user's Start button begins a second run carrying `approved_plan`.
+Same reason as the commit gate below — a run always completes rather than suspending.
 
 Accepting an idea is *not* part of this graph — it needs no LLM, so it is a plain
 function call (`agent.commit_selection`).
@@ -47,6 +53,8 @@ class OrchestratorState(TypedDict, total=False):
     run_id: str  # this turn; names the log file, the run result, and each idea's origin
     message: str  # the user's text
     focus: FocusSelection  # gap_ids + idea_ids clicked in the UI
+    require_approval: bool  # stop after planning and offer the plan to the user
+    approved_plan: Plan  # the plan the user started, possibly with edited arguments
 
     # --- after assemble_context (deterministic) ---
     context: Context

@@ -12,15 +12,19 @@ produced.
 
 ```
 assemble_context -> plan -> execute -> reflect -> finish
-                     | ^                  |         ^
-                     | +---- replan ------+         |
-                     +-- plan called no tools ------+
+        |            | ^                  |         ^
+        |            | +---- replan ------+         |
+        |            +-- plan called no tools ------+
+        |            +-- awaiting approval --> propose -> END
+        +-- an approved plan came in --> adopt_plan --> execute
 ```
 
 | Node | Kind | Role |
 |---|---|---|
 | `assemble_context` | deterministic | Focus ids (what the user clicked) → gaps, ideas, and the session's fetched papers. Unresolvable ids go to `missing_ids`, never raise. |
 | `plan` | LLM (cheap) | Message + context view + tool catalogue → `Plan` (goal, tool steps, `done_criteria`). Answers the user directly when no tool is needed. On a replan, carries or clears `results` per reflect's `keep_results`. |
+| `propose` | deterministic | Ends the run by *offering* the plan: writes it to the session with `status="awaiting_approval"` and stops. Nothing has been dispatched. |
+| `adopt_plan` | deterministic | Takes `approved_plan` — the plan the user started, with whatever they changed — as this run's plan, without planning again. |
 | `execute` | deterministic | Dispatches each step through `tools/registry.py`. Decides nothing. A failing step is recorded, the rest continue. |
 | `reflect` | LLM (cheap) | Steps + their full output vs `plan.done_criteria` → `finish` or `replan` (with `feedback` and `keep_results`), plus the user-facing answer. Only runs when tools ran. |
 | `finish` | deterministic | Stamps provenance, writes the run result (answer + drafts) to the session file. |
@@ -28,8 +32,37 @@ assemble_context -> plan -> execute -> reflect -> finish
 Accepting a draft is **not in the graph** — `commit_selection()` is a plain function
 (no LLM, no plan, no reflection) that the UI calls when the user clicks.
 
+Approving a plan is not in the graph either. A gated turn is **two runs**: the first
+plans and stops at `propose`, the second carries `approved_plan` and executes it.
+
 ## Key decisions
 
+- **The plan is shown before it runs, and a gated turn is two runs.** `require_approval`
+  stops the turn at `propose` once it has a plan that calls tools; the user reads which
+  subagent would be called with which arguments, retunes them, and presses Start, which
+  begins a second run carrying that plan as `approved_plan`. Two runs rather than one
+  suspended run, for the same reason accepting a draft is a separate call — the pending
+  state lives in the session file, not in a checkpointer. The second run re-assembles the
+  context (deterministic, and the workspace may have moved) and adopts the plan without
+  re-planning: re-planning would throw away the arguments the user just chose, and could
+  come back with a different plan than the one they approved.
+- **Approval is asked once, for the plan that opens the turn.** A conversational turn is
+  never gated: there is nothing to approve, and making the user press Start to be told an
+  answer that already exists is a delay, not a gate. Neither is a replan — it happens
+  inside a run the user already started, in response to results they have not seen, so
+  stopping there would ask them to approve a correction to a plan they never watched fail.
+- **The edited arguments are validated by the tool's own schema.** `tools/registry.py`
+  exposes `tool_specs()` (what a form can be generated from) and `validate_args()` (what
+  the edit is checked against), both derived from the same `args_schema` the planner's
+  catalogue is rendered from. The UI cannot offer a knob a tool does not have, or a range
+  it would reject, and a bad edit is a 400 rather than a step that fails halfway into a
+  run the user has been watching.
+- **The plan is stored on the run result, not only in the log.** `<run_id>.json` carries
+  `status` (`completed` / `awaiting_approval`) and `plan`. The proposal needs it to be
+  shown and edited; a finished turn keeps it as the record of the arguments each subagent
+  was actually called with, which otherwise survives only in a prunable `.jsonl`. A run
+  still `awaiting_approval` is skipped by `read_runs`, so it is not counted as a turn of
+  the conversation — it holds the same message as the run that executes it.
 - **A run always completes; it never suspends mid-graph.** A run ends by *offering*
   drafts; accepting them is a separate call. Pending state lives in a session file rather
   than a LangGraph checkpointer, so this keeps the same one-run-per-call / `GraphRunLog`
@@ -189,6 +222,9 @@ creative thinker.
 python src/agents/orchestrator_agent/agent.py "<message>" <category> [gap_id ...]
 ```
 
+`run(..., require_approval=True)` returns the proposal (`status="awaiting_approval"` and
+the `plan`) without running anything; `run(..., approved_plan=<plan dict>)` runs it.
+
 Demo data: use a `gaps/master/` folder (`llm_reasoning`, `computer_vision`,
 `generative_adversarial_network`). **97 of 106 gaps in `transformers/pending/` predate the
 current `GapRecord`** (no `evidence[].anchor`) and land in `missing_ids`.
@@ -201,6 +237,9 @@ current `GapRecord`** (no `evidence[].anchor`) and land in `missing_ids`.
   one refinement call per idea received — would fix it at N× the cost, on candidates the
   user has not looked at yet. Left as is deliberately: they can pick one and refine it
   properly next turn, which sessions now make possible.
+- **A gated turn spends a planning call before the user can decline it.** Discarding a
+  plan throws that call away. Cheap (one `cheap`-model call) and the price of seeing the
+  plan at all, but a turn the user was never going to want still costs one.
 - **The frontend does not carry `session_id`.** `run()` mints one when it is omitted, so
   until a client persists and resends it, every message is a fresh session of length one
   and none of the history mechanism can engage. `app/backend/main.py` also posts to a

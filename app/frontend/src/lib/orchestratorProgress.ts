@@ -7,6 +7,10 @@ export interface OrchestratorStepProgress {
   tool: string;
   title: string;
   why: string;
+  /** What the subagent is called with — the plan's own arguments for this step. */
+  args: Record<string, unknown>;
+  /** Earlier steps whose output this one works on. */
+  needs: number[];
   status: OrchestratorStepStatus;
   error: string;
 }
@@ -14,13 +18,18 @@ export interface OrchestratorStepProgress {
 export interface OrchestratorProgressState {
   phase: string;
   goal: string;
+  /** What the run will be judged against — the plan's own `done_criteria`. */
+  criteria: string[];
   detail: string;
   steps: OrchestratorStepProgress[];
+  /** The run stopped at its plan and is waiting for the user to start it. */
+  awaitingApproval: boolean;
   updatedAt: string | null;
 }
 
 interface ParsedPlan {
   goal: string;
+  criteria: string[];
   steps: OrchestratorStepProgress[];
 }
 
@@ -88,10 +97,13 @@ function structuredPlan(value: unknown): ParsedPlan | null {
     const why = string(step.why);
     return {
       number: index + 1, tool, title: stepTitle(tool, args, why), why,
+      args, needs: Array.isArray(step.needs) ? step.needs.map(Number) : [],
       status: "pending" as const, error: "",
     };
   });
-  return { goal: string(plan.goal), steps };
+  const criteria = Array.isArray(plan.done_criteria)
+    ? plan.done_criteria.map(string).filter(Boolean) : [];
+  return { goal: string(plan.goal), criteria, steps };
 }
 
 // Older run logs stringify Pydantic's Plan object. Reading that representation keeps
@@ -113,10 +125,11 @@ function legacyPlan(value: unknown): ParsedPlan | null {
     };
     return {
       number: index + 1, tool, title: stepTitle(tool, args, why), why,
+      args, needs: [],
       status: "pending" as const, error: "",
     };
   });
-  return { goal: quotedAfter(value, "goal="), steps };
+  return { goal: quotedAfter(value, "goal="), criteria: [], steps };
 }
 
 function planFromEvent(event: RunEvent) {
@@ -253,10 +266,18 @@ export function progressForRun(run: RunState): OrchestratorProgressState {
     });
   }
 
+  // A run that ended at `propose` did not run its plan — it offered it. That reads as a
+  // finished run everywhere else (it is one), so the distinction has to come from the
+  // node itself rather than from the run's status. Starting the plan is a *different*
+  // run, so this one stays "proposed" forever, which is what it is: the record of the
+  // turn's planning half.
+  const awaitingApproval = run.events.some(
+    (event) => event.kind === "event" && event.name === "orchestrator plan proposed");
   const finished = run.events.some((event) => event.kind === "run_end") || run.status === "done";
   const reviewing = executeDone && !finished;
   const failed = run.status === "error" || run.status === "cancelled" || run.status === "interrupted";
   const phase = failed ? (run.status === "error" ? "Run failed" : labelNode(run.status))
+    : awaitingApproval ? "Waiting for you to start it"
     : finished ? "Complete"
     : !parsed ? "Planning"
     : reviewing ? "Reviewing results"
@@ -266,8 +287,14 @@ export function progressForRun(run: RunState): OrchestratorProgressState {
   return {
     phase,
     goal: parsed?.goal || "",
-    detail: failed ? (run.error || latestDetail(events)) : latestDetail(events),
-    steps,
+    criteria: parsed?.criteria || [],
+    detail: failed ? (run.error || latestDetail(events))
+      : awaitingApproval ? "Nothing has run yet — read the plan and press Start"
+      : latestDetail(events),
+    steps: awaitingApproval
+      ? steps.map((step) => ({ ...step, status: "pending" as const }))
+      : steps,
+    awaitingApproval,
     updatedAt,
   };
 }

@@ -10,12 +10,24 @@ import { RichText } from "../RichText";
 import { ContextPicker } from "./ContextPicker";
 import { EnvelopeResult, OfferedDrafts } from "./EnvelopeResult";
 import type { DraftActions } from "./EnvelopeResult";
+import { PlanReview } from "../PlanReview";
 import { readDrop } from "../../lib/dnd";
-import type { ChatMessage, ContextRef, Idea, RunState, Session } from "../../lib/types";
+import type {
+  AgentPlan, ChatMessage, ContextRef, Idea, RunState, Session,
+} from "../../lib/types";
+
+/** Starting or turning down a proposed plan. `busy` names the run being started, so
+ *  only that card's button says so. */
+export interface PlanActions {
+  start: (runId: string, plan: AgentPlan) => void;
+  cancel: (runId: string) => void;
+  busy: string | null;
+}
 
 export function Chat({
   session, staged, runs, ideas, sending,
-  onStage, onUnstage, onUploadFile, onSend, onOpenIdea, onShowThoughts, drafts, grip,
+  onStage, onUnstage, onUploadFile, onSend, onOpenIdea, onShowThoughts, drafts, plans,
+  grip,
 }: {
   session: Session | null;
   staged: ContextRef[];
@@ -29,6 +41,8 @@ export function Chat({
   onOpenIdea: (id: string) => void;
   onShowThoughts: () => void;
   drafts: DraftActions;
+  /** The plan gate: a planned turn is shown before it runs and started from here. */
+  plans: PlanActions;
   /** The grid's reorder handle — the chat is a draggable window like the rest. */
   grip?: ReactNode;
 }) {
@@ -93,6 +107,7 @@ export function Chat({
             onOpenIdea={onOpenIdea}
             onShowThoughts={onShowThoughts}
             drafts={drafts}
+            plans={plans}
           />
         ))}
 
@@ -184,11 +199,12 @@ export function Chat({
 // --- one transcript message ----------------------------------------------------
 
 function MessageBubble({
-  message, run, ideas, onOpenIdea, onShowThoughts, drafts,
+  message, run, ideas, onOpenIdea, onShowThoughts, drafts, plans,
 }: {
   message: ChatMessage; run?: RunState; ideas: Idea[];
   onOpenIdea: (id: string) => void; onShowThoughts: () => void;
   drafts: DraftActions;
+  plans: PlanActions;
   /** The grid's reorder handle — the chat is a draggable window like the rest. */
   grip?: ReactNode;
 }) {
@@ -235,7 +251,18 @@ function MessageBubble({
           </button>
         )}
       </div>
-      {message.envelope ? (
+      {message.plan ? (
+        // A turn that stopped at its plan. The plan *is* the message: it says which
+        // subagent would be called with which arguments, and nothing runs until the
+        // user starts it from here.
+        <PlanReview
+          plan={message.plan}
+          status={message.plan_status ?? "proposed"}
+          busy={plans.busy === message.run_id}
+          onStart={(edited) => message.run_id && plans.start(message.run_id, edited)}
+          onCancel={() => message.run_id && plans.cancel(message.run_id)}
+        />
+      ) : message.envelope ? (
         <EnvelopeResult envelope={message.envelope} runId={message.run_id || ""}
           baseline={baseline} onOpenIdea={onOpenIdea} drafts={drafts} />
       ) : (

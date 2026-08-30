@@ -49,19 +49,33 @@ class FocusSelection(BaseModel):
 
 
 class OrchestratorInput(BaseModel):
-    """One user turn."""
+    """One user turn.
+
+    `require_approval` stops the turn once it has a plan that calls tools and offers that
+    plan instead of running it. `approved_plan` is the other half: the plan the user
+    started, as they left it, which the run adopts instead of planning again. A caller
+    sets one or the other, never both — they are the two halves of one turn.
+    """
 
     session_id: str
     category_slug: str
     message: str = ""
     focus: FocusSelection = Field(default_factory=FocusSelection)
+    require_approval: bool = False
+    approved_plan: "Plan | None" = None
 
 
 class OrchestratorOutput(BaseModel):
-    """What the chat renders. `ideas` are drafts on offer — nothing is written yet."""
+    """What the chat renders. `ideas` are drafts on offer — nothing is written yet.
+
+    `status` says which kind of offer this is: `completed` offers the ideas, and
+    `awaiting_approval` offers `plan`, with nothing run yet.
+    """
 
     run_id: str
     answer: str = ""
+    status: str = "completed"
+    plan: "Plan" = Field(default_factory=lambda: Plan())
     ideas: list[IdeaRecord] = Field(default_factory=list)
 
 
@@ -186,3 +200,7 @@ class ToolResult(BaseModel):
                     "the candidates, and the accept step needs the real envelope to carve "
                     "the right slice of it onto whichever draft the user takes.",
     )
+
+
+OrchestratorInput.model_rebuild()
+OrchestratorOutput.model_rebuild()

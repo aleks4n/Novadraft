@@ -57,10 +57,17 @@ def _session(client) -> str:
     return response.json()["session_id"]
 
 
-def _send(client, session_id: str, text: str, context=()) -> dict:
+def _send(client, session_id: str, text: str, context=(), *, gate: bool = False) -> dict:
+    """One turn. `gate` is the product default — the plan is offered and waits for Start.
+
+    Off by default here so the scenarios below stay about what they are about (landing a
+    reply, filing cards, accepting one); the gate has its own tests, which drive the same
+    endpoints with it on.
+    """
     response = client.post(
         f"/api/topics/{CATEGORY}/sessions/{session_id}/send",
-        json={"text": text, "agent": "orchestrator", "context": list(context)})
+        json={"text": text, "agent": "orchestrator", "context": list(context),
+              "requirePlanApproval": gate})
     assert response.status_code == 200, response.text
     return response.json()
 
@@ -173,6 +180,133 @@ def test_landing_twice_does_not_duplicate_the_cards(client, rec):  # noqa: F811
     assert len(second["drafts"]) == 1
     agent_messages = [m for m in second["session"]["messages"] if m["role"] == "agent"]
     assert len(agent_messages) == 1
+
+
+# --- the plan gate ------------------------------------------------------------
+# A planned turn is shown before it runs. These drive the two halves the browser drives:
+# the turn that stops at its plan, and the Start that runs it with whatever the user
+# changed about the arguments.
+
+
+def _approve(client, session_id: str, run_id: str, plan: dict) -> dict:
+    response = client.post(
+        f"/api/topics/{CATEGORY}/sessions/{session_id}/plan/approve",
+        json={"runId": run_id, "goal": plan["goal"], "steps": plan["steps"],
+              "doneCriteria": plan["done_criteria"]})
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_a_gated_turn_offers_its_plan_and_runs_nothing(client, rec):  # noqa: F811
+    """The plan comes back as the message; no subagent was called."""
+    rec.plans = [Plan(goal="Generate 2.", done_criteria=["2 candidates"],
+                      steps=[ToolCall(tool="creative_thinker", why="fan out",
+                                      args={"thinking_mode": "generation", "width": 2})])]
+
+    session_id = _session(client)
+    started = _send(client, session_id, "give me 2 ideas", gate=True,
+                    context=[{"kind": "gap", "id": GAP_ID}])
+    _finished(client, started["run"]["run_id"])
+    landed = _land(client, session_id, started["run"]["run_id"])
+
+    message = landed["message"]
+    assert message["plan_status"] == "proposed"
+    assert message["plan"]["steps"][0]["tool"] == "creative_thinker"
+    assert message["plan"]["steps"][0]["args"]["width"] == 2
+    assert landed["drafts"] == [], "nothing ran, so there is nothing to accept"
+    assert rec.to("creative_thinker") == [], "the subagent was never called"
+
+
+def test_starting_an_edited_plan_runs_it_with_the_edited_arguments(client, rec):  # noqa: F811
+    """The user raises the width and presses Start.
+
+    The second run must not plan again — it would throw away the number they just chose —
+    and the subagent must receive that number, not the planner's.
+    """
+    rec.plans = [Plan(goal="Generate 2.", done_criteria=["2 candidates"],
+                      steps=[ToolCall(tool="creative_thinker",
+                                      args={"thinking_mode": "generation", "width": 2})])]
+    rec.envelopes = [envelope(drafts=[candidate("Kernel mixture"), candidate("Poly kernel"),
+                                      candidate("Random features")])]
+    rec.judgments = [ReflectJudgment(route="finish", answer="I drafted three candidates.")]
+
+    session_id = _session(client)
+    started = _send(client, session_id, "give me some ideas", gate=True,
+                    context=[{"kind": "gap", "id": GAP_ID}])
+    _finished(client, started["run"]["run_id"])
+    proposed = _land(client, session_id, started["run"]["run_id"])["message"]["plan"]
+
+    edited = json.loads(json.dumps(proposed))
+    edited["steps"][0]["args"]["width"] = 3
+    approved = _approve(client, session_id, started["run"]["run_id"], edited)
+    assert approved["message"]["plan_status"] == "approved"
+
+    _finished(client, approved["run"]["run_id"])
+    landed = _land(client, session_id, approved["run"]["run_id"])
+
+    assert len(rec.to("plan.llm")) == 1, "the approved plan was not re-planned"
+    assert rec.to("creative_thinker")[0].args["width"] == 3
+    assert landed["message"]["text"] == "I drafted three candidates."
+    assert len(landed["drafts"]) == 3
+    # The selection the plan was made against still reaches the run that executes it.
+    assert rec.to("creative_thinker")[0].args["context_gaps"] == [GAP_ID]
+
+
+def test_an_edit_the_tool_would_reject_is_refused_before_anything_runs(client, rec):  # noqa: F811
+    """A width past the roster fails as a form error, not as a step mid-run."""
+    rec.plans = [Plan(goal="Generate 2.", done_criteria=["2 candidates"],
+                      steps=[ToolCall(tool="creative_thinker",
+                                      args={"thinking_mode": "generation", "width": 2})])]
+
+    session_id = _session(client)
+    started = _send(client, session_id, "ideas", gate=True)
+    _finished(client, started["run"]["run_id"])
+    plan = _land(client, session_id, started["run"]["run_id"])["message"]["plan"]
+
+    plan["steps"][0]["args"]["width"] = 99
+    refused = client.post(
+        f"/api/topics/{CATEGORY}/sessions/{session_id}/plan/approve",
+        json={"runId": started["run"]["run_id"], "goal": plan["goal"],
+              "steps": plan["steps"], "doneCriteria": plan["done_criteria"]})
+    assert refused.status_code == 400, refused.text
+    assert rec.to("creative_thinker") == []
+
+
+def test_a_conversational_turn_is_never_gated(client, rec):  # noqa: F811
+    """Nothing to approve: the planner answered, so the reply lands straight away."""
+    rec.plans = [Plan(goal="Say what this does.", steps=[],
+                      answer="I turn gaps into candidate research ideas.")]
+
+    session_id = _session(client)
+    started = _send(client, session_id, "what can you do?", gate=True)
+    _finished(client, started["run"]["run_id"])
+    landed = _land(client, session_id, started["run"]["run_id"])
+
+    assert landed["message"].get("plan") is None
+    assert landed["message"]["text"] == "I turn gaps into candidate research ideas."
+
+
+def test_a_discarded_plan_stays_discarded(client, rec):  # noqa: F811
+    rec.plans = [Plan(goal="Generate 1.", done_criteria=["1 candidate"],
+                      steps=[ToolCall(tool="creative_thinker", args={"width": 1})])]
+
+    session_id = _session(client)
+    started = _send(client, session_id, "one idea", gate=True)
+    _finished(client, started["run"]["run_id"])
+    plan = _land(client, session_id, started["run"]["run_id"])["message"]["plan"]
+
+    cancelled = client.post(f"/api/topics/{CATEGORY}/sessions/{session_id}/plan/cancel",
+                            json={"runId": started["run"]["run_id"]})
+    assert cancelled.status_code == 200, cancelled.text
+    assert cancelled.json()["message"]["plan_status"] == "cancelled"
+
+    # And it cannot then be started behind the user's back.
+    refused = client.post(
+        f"/api/topics/{CATEGORY}/sessions/{session_id}/plan/approve",
+        json={"runId": started["run"]["run_id"], "goal": plan["goal"],
+              "steps": plan["steps"], "doneCriteria": plan["done_criteria"]})
+    assert refused.status_code == 409, refused.text
+    assert rec.to("creative_thinker") == []
 
 
 def test_the_thinker_path_still_works_untouched(client, rec, monkeypatch):  # noqa: F811

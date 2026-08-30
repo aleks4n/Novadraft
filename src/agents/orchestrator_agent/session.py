@@ -75,6 +75,7 @@ def write_result(
     category_slug: str, session_id: str, run_id: str, *,
     message: str = "", answer: str = "", ideas: list[IdeaRecord] | None = None,
     envelopes: list[dict] | None = None, offers: list[dict] | None = None,
+    status: str = "completed", plan: dict | None = None,
 ) -> Path:
     """Persist one run's outcome.
 
@@ -83,6 +84,12 @@ def write_result(
 
     `created_at` orders the runs. Run ids are random, so they sort into no sequence, and
     file mtimes are lost the moment a workspace is copied.
+
+    `status` is `completed` for a turn that ran, `awaiting_approval` for one that stopped
+    at the plan and is waiting for the user to start it. `plan` is written on both: the
+    proposal needs it to be shown and edited, and a finished turn keeps it as the record
+    of what was actually run — which is the only place the arguments each subagent was
+    called with survive once the run log has been pruned.
     """
     d = session_dir(category_slug, session_id)
     d.mkdir(parents=True, exist_ok=True)
@@ -92,8 +99,12 @@ def write_result(
             {
                 "run_id": run_id,
                 "created_at": storage.now_iso(),
+                "status": status,
                 "message": message,
                 "answer": answer,
+                # The plan as it ran (or as it is being proposed): goal, steps, and the
+                # arguments each step calls its subagent with.
+                "plan": plan or {},
                 "ideas": [i.model_dump(mode="json") for i in (ideas or [])],
                 # What each offered idea came from. The thinking graph lives on the
                 # envelope rather than on the candidate, so accepting one needs the
@@ -113,8 +124,8 @@ def read_result(category_slug: str, session_id: str, run_id: str) -> dict:
     """One run's outcome; empty defaults if it wrote none."""
     p = _path(category_slug, session_id, run_id)
     if not p.exists():
-        return {"run_id": run_id, "created_at": "", "message": "", "answer": "",
-                "ideas": [], "envelopes": [], "offers": []}
+        return {"run_id": run_id, "created_at": "", "status": "", "message": "",
+                "answer": "", "plan": {}, "ideas": [], "envelopes": [], "offers": []}
     return json.loads(p.read_text(encoding="utf-8"))
 
 
@@ -127,6 +138,11 @@ def read_runs(category_slug: str, session_id: str, limit: int = 3,
 
     Runs that predate `created_at` sort first, which puts them where they belong: older
     than anything written since.
+
+    A run still `awaiting_approval` is skipped. It holds the same message as the run that
+    executes it and an empty answer, so counting it as a turn would show the history the
+    user's question twice — once unanswered — and let one turn's proposal push a real
+    exchange out of the window.
     """
     d = session_dir(category_slug, session_id)
     if not d.exists():
@@ -139,9 +155,12 @@ def read_runs(category_slug: str, session_id: str, limit: int = 3,
         if path.stem == before:
             continue
         try:
-            runs.append(json.loads(path.read_text(encoding="utf-8")))
+            record = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
+        if record.get("status") == "awaiting_approval":
+            continue
+        runs.append(record)
     runs.sort(key=lambda r: r.get("created_at") or "")
     return runs[-limit:] if limit else runs
 
