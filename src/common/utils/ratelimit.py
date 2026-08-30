@@ -18,6 +18,11 @@ import time
 # service -> minimum seconds between requests
 _MIN_INTERVAL = {
     "arxiv": 3.0,  # arXiv asks for ~1 request per 3s; exceeding it earns 503s/429s
+    # Semantic Scholar: a free API key grants ~1 req/s. Unauthenticated calls share one
+    # global pool and 429 constantly, so the same gate applies either way and the caller's
+    # 429 handling (defer) widens it when the server pushes back.
+    "s2": 1.1,
+    "openalex": 0.15,  # OpenAlex allows 10 req/s in the polite pool (mailto identified)
 }
 
 _lock = threading.Lock()

@@ -17,6 +17,7 @@ from __future__ import annotations
 from ...utils import storage
 from ...utils.logging.trace import log_event
 from .classify import classify
+from .enrich import enrich_record
 from .errors import PaperAlreadyExistsError, PaperFetchError
 from .fetchers.arxiv import fetch_arxiv
 from .fetchers.arxiv_lookup import arxiv_id_for_doi
@@ -125,8 +126,24 @@ def _fill_missing_metadata(record: dict, destination: str) -> bool:
     return True
 
 
+def _enrich(record: dict) -> bool:
+    """Best-effort venue + citation enrichment (see paper_fetch/enrich.py).
+
+    arXiv reports a venue only via `journal_ref`, which is set on a small minority of
+    preprints, so without this the ranking agent's impact score has no venue or citation
+    signal to work with. Failures are swallowed: they leave the record exactly as fetched.
+    """
+    try:
+        return enrich_record(record)
+    except Exception as e:  # never fail a fetch over an optional signal
+        record.setdefault("warnings", []).append(f"enrichment_failed: {e!r}")
+        return True
+
+
 def _check_usable(record: dict, query: str, source: str, destination: str) -> dict:
-    if _fill_missing_metadata(record, destination):
+    filled = _fill_missing_metadata(record, destination)
+    enriched = _enrich(record)
+    if filled or enriched:
         storage.write_paper_json(destination, record)
 
     has_pdf = bool(record["source"]["files"].get("pdf"))

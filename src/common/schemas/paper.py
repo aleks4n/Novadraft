@@ -22,6 +22,19 @@ class PaperMetadata(BaseModel):
     # "2023". `year` is the integer view of this. See paper_fetch/date_util.py.
     publication_date: Optional[str] = None
     venue: Optional[str] = None
+    # --- venue/citation enrichment (paper_fetch/enrich.py; Semantic Scholar, OpenAlex
+    # fallback). arXiv only reports a venue in `journal_ref`, which authors add by hand
+    # after journal publication and almost never set, so these stay None until enriched.
+    venue_type: Optional[str] = None  # "conference" | "journal" | "workshop" | ...
+    # Venue acronyms as the provider gives them ("ICLR", "NeurIPS"). Preferred over the
+    # LLM name->acronym resolver in ranking_agent.venue, which only sees the messy string.
+    venue_acronyms: list[str] = Field(default_factory=list)
+    citation_count: Optional[int] = None
+    influential_citation_count: Optional[int] = None
+    # When the counts were read — they grow over time, so a stale record is still usable
+    # but knowable as stale.
+    enriched_at: Optional[str] = None
+    enriched_via: Optional[str] = None  # "semantic_scholar" | "openalex"
     abstract: Optional[str] = None
     identifiers: PaperIdentifiers = Field(default_factory=PaperIdentifiers)
 
