@@ -180,6 +180,14 @@ export function OrchestratorProgress({ run }: { run: RunState }) {
             provider attempts <b>{progress.llm.providerAttempts}</b>
           </span>
           <span title="Retries after transient provider errors">retries <b>{progress.llm.retries}</b></span>
+          <span title="Logical Investigator agent invocations started">
+            investigator calls <b>{progress.llm.investigatorCalls}</b>
+          </span>
+          {progress.llm.activeInvestigatorCalls > 0 && (
+            <span className="orchestrator-telemetry-live">
+              <span className="sidebar-spin" /> {progress.llm.activeInvestigatorCalls} investigator active
+            </span>
+          )}
           {progress.llm.structuredReasks > 0 && (
             <span title="Extra calls made because structured output was missing">
               format re-asks <b>{progress.llm.structuredReasks}</b>

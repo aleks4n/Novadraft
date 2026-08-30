@@ -10,6 +10,7 @@ an `Envelope`. Nothing here writes; persisting an accepted result is
 
 from __future__ import annotations
 
+import uuid
 from typing import Callable, Literal
 
 from pydantic import BaseModel, Field
@@ -228,10 +229,27 @@ def _investigator(env: ToolEnv) -> Callable[[str], dict]:
         # stack, and a run that never asks anything should not pay for that.
         from src.agents.investigator_agent import run as run_investigator
 
-        answer = run_investigator(question,
-                                  session_id=env.session_id or "session-adhoc",
-                                  category_slug=env.category_slug or None,
-                                  stream=False)
+        call_id = f"investigator_{uuid.uuid4().hex[:10]}"
+        trace.emit({
+            "type": "event", "name": "investigator call started",
+            "data": {"call_id": call_id, "question": question},
+        })
+        try:
+            answer = run_investigator(question,
+                                      session_id=env.session_id or "session-adhoc",
+                                      category_slug=env.category_slug or None,
+                                      stream=False)
+        except Exception as exc:
+            trace.emit({
+                "type": "event", "name": "investigator call finished",
+                "data": {"call_id": call_id, "ok": False,
+                         "error": f"{type(exc).__name__}: {exc}"},
+            })
+            raise
+        trace.emit({
+            "type": "event", "name": "investigator call finished",
+            "data": {"call_id": call_id, "ok": True, "has_answer": bool(answer)},
+        })
         # `sources` is the thinker's field for citations. The investigator reports its
         # findings as prose and exposes no structured source list, so this stays empty
         # rather than being invented from the text.
