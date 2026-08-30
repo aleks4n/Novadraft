@@ -36,8 +36,19 @@ def _consolidate_investigator_steps(planned: Plan) -> Plan:
     """
     positions = [i for i, step in enumerate(planned.steps, 1)
                  if step.tool == "investigator"]
-    if len(positions) <= 1:
+    if not positions:
         return planned
+    if len(positions) == 1:
+        index = positions[0] - 1
+        step = planned.steps[index]
+        args = dict(step.args)
+        try:
+            args["paper_count"] = max(1, min(5, int(args.get("paper_count") or 1)))
+        except (TypeError, ValueError):
+            args["paper_count"] = 1
+        steps = list(planned.steps)
+        steps[index] = step.model_copy(update={"args": args})
+        return planned.model_copy(update={"steps": steps})
 
     first = positions[0]
     investigator_steps = [planned.steps[i - 1] for i in positions]
@@ -93,6 +104,40 @@ def _consolidate_investigator_steps(planned: Plan) -> Plan:
     return planned.model_copy(update={"steps": remapped})
 
 
+def _preserve_manual_thinker_settings(planned: Plan, approved: Plan | None) -> Plan:
+    """Keep researcher-selected width/depth authoritative across automatic replans.
+
+    Approval happens once at the start of the turn. Reflect may ask the planner for a
+    correction later, but that is not permission to silently raise the compute controls
+    the researcher chose at the gate.
+    """
+    if approved is None:
+        return planned
+    chosen: dict[str, int] = {}
+    for step in approved.steps:
+        if step.tool != "creative_thinker":
+            continue
+        mode = str(step.args.get("thinking_mode") or "generation")
+        setting = "depth" if mode == "refinement" else "width"
+        if setting in step.args:
+            chosen[mode] = int(step.args[setting])
+    if not chosen:
+        return planned
+
+    steps: list[ToolCall] = []
+    for step in planned.steps:
+        if step.tool != "creative_thinker":
+            steps.append(step)
+            continue
+        mode = str(step.args.get("thinking_mode") or "generation")
+        setting = "depth" if mode == "refinement" else "width"
+        args = dict(step.args)
+        if mode in chosen:
+            args[setting] = chosen[mode]
+        steps.append(step.model_copy(update={"args": args}))
+    return planned.model_copy(update={"steps": steps})
+
+
 def plan(state: OrchestratorState) -> dict:
     """LangGraph node: message + context -> {"plan": Plan}."""
     ctx: Context = state.get("context") or Context()
@@ -127,6 +172,8 @@ def plan(state: OrchestratorState) -> dict:
 
     planned = chat_with_structured_output(get_llm("cheap"), _SYSTEM, user_message, Plan)
     planned = _consolidate_investigator_steps(planned)
+    planned = _preserve_manual_thinker_settings(
+        planned, state.get("approved_plan") if state.get("iteration", 0) else None)
     log_event("orchestrator plan", round=round_now, **planned.model_dump(mode="json"))
     return {
         "plan": planned,

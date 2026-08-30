@@ -141,6 +141,36 @@ export function OrchestratorProgress({ run }: { run: RunState }) {
         <span>{progress.detail}</span>
       </div>
 
+      {progress.llm.calls > 0 && (
+        <div className="orchestrator-telemetry" aria-label="LLM activity">
+          <span title="Logical chat calls started">LLM calls <b>{progress.llm.calls}</b></span>
+          <span title="Requests sent to the model provider, including retries and structured re-asks">
+            provider attempts <b>{progress.llm.providerAttempts}</b>
+          </span>
+          <span title="Retries after transient provider errors">retries <b>{progress.llm.retries}</b></span>
+          {progress.llm.structuredReasks > 0 && (
+            <span title="Extra calls made because structured output was missing">
+              format re-asks <b>{progress.llm.structuredReasks}</b>
+            </span>
+          )}
+          {progress.llm.failedAttempts > 0 && (
+            <span className="orchestrator-telemetry-warning" title="Provider attempts that returned an error">
+              failed attempts <b>{progress.llm.failedAttempts}</b>
+            </span>
+          )}
+          {progress.llm.activeCalls > 0 && (
+            <span className="orchestrator-telemetry-live">
+              <span className="sidebar-spin" /> {progress.llm.activeCalls} active
+            </span>
+          )}
+          {progress.llm.totalDurationSeconds > 0 && (
+            <span title="Combined duration of completed logical LLM calls">
+              completed in <b>{progress.llm.totalDurationSeconds.toFixed(1)}s</b>
+            </span>
+          )}
+        </div>
+      )}
+
       {run.error && <p className="run-error">{run.error}</p>}
 
       {tree && (

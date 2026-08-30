@@ -142,6 +142,19 @@ search, `web` for non-paper web research, and `workspace` for records already he
 project. When exact arXiv IDs, DOI values, or URLs are known, put them in `sources`; do not
 embed them in a title-like query and ask the investigator to rediscover them.
 
+Keep research plans lightweight. For a literature or prior-art check where the user did
+not request a number, set `paper_count` to **2**. Use at most **3** papers when broader
+coverage is genuinely necessary. Request 4 or 5 only when the user explicitly asks for
+that many papers or explicitly asks for an exhaustive/deep review. Do not allocate one
+paper per question, mechanism, keyword, or subtopic: ask one focused query and let the
+same small source set answer several related parts. Prefer papers already in the workspace
+and exact sources already named in context before requesting new downloads.
+
+A lightweight plan should normally be: one Investigator call, no more than two papers,
+one synthesis in that same call, then finish. Additional research rounds are for a real
+retrieval failure or a clearly missing requested item—not merely because more literature
+might exist.
+
 ## Rules
 
 - Never plan to write to the idea graph. Nothing you do creates or edits an idea — the

@@ -69,6 +69,57 @@ def test_repeated_investigator_steps_are_consolidated_and_dependencies_remapped(
     assert result.steps[1].needs == [1]
 
 
+def test_single_investigator_paper_count_is_clamped_to_tool_limit():
+    planned = Plan(steps=[ToolCall(
+        tool="investigator", args={"query": "find papers", "paper_count": 6},
+    )])
+
+    result = _consolidate_investigator_steps(planned)
+
+    assert result.steps[0].args["paper_count"] == 5
+
+
+def test_replan_preserves_user_selected_refinement_depth(workspace, rec):
+    """An automatic correction cannot raise depth beyond what the user approved."""
+    approved = Plan(goal="Refine.", steps=[ToolCall(
+        tool="creative_thinker", args={
+            "thinking_mode": "refinement", "depth": 1,
+            "work_on": ["idea_missing"],
+        },
+    )])
+    rec.plans = [Plan(goal="Retry refinement.", steps=[ToolCall(
+        tool="creative_thinker", args={
+            "thinking_mode": "refinement", "depth": 3, "work_on": [IDEA_A],
+        },
+    )])]
+    rec.envelopes = [envelope(idea=IdeaRecord(
+        idea_id=IDEA_A, title="Kernel attention", state="root",
+        description="Refined.", addresses=[GAP_ID],
+    ))]
+    rec.judgments = [
+        ReflectJudgment(route="replan", feedback="Use the valid selected idea."),
+        ReflectJudgment(route="finish", answer="Refined it."),
+    ]
+
+    build_orchestrator_graph().invoke({
+        "session_id": "s-depth", "category_slug": CATEGORY, "run_id": "run-depth",
+        "message": "refine it", "iteration": 0, "approved_plan": approved,
+        "focus": FocusSelection(idea_ids=[IDEA_A]),
+    })
+
+    assert rec.to("creative_thinker")[0].args["depth"] == 1
+
+
+def test_refinement_depth_one_forces_one_candidate_branch():
+    """The only refinement control shown to the user must not hide width=3."""
+    from src.agents.creative_thinker.schemas import ThinkerCall
+
+    call = ThinkerCall(mode="refinement", depth=1, width=3)
+
+    assert call.depth == 1
+    assert call.width == 1
+
+
 # --- the recorder -------------------------------------------------------------
 
 
@@ -398,6 +449,26 @@ def test_refinement_hands_the_thinker_exactly_one_subject(workspace, rec):
     assert sent["subject"] == IDEA_B
     assert sent["context_ideas"] == [IDEA_A], "the other idea stays as background"
     assert sent["depth"] == 3
+
+
+def test_refinement_resolves_persisted_work_on_idea_not_preloaded_in_context(workspace, rec):
+    """A valid workspace id is enough; the user need not load the same idea twice."""
+    rec.plans = [Plan(goal="Sharpen persisted idea.", steps=[ToolCall(
+        tool="creative_thinker", args={
+            "thinking_mode": "refinement", "work_on": [IDEA_B], "depth": 2,
+        },
+    )])]
+    rec.envelopes = [envelope(idea=IdeaRecord(
+        idea_id=IDEA_B, title="Low-rank bilinear form", state="root",
+        description="Refined.", addresses=[GAP_ID],
+    ))]
+    rec.judgments = [ReflectJudgment(route="finish", answer="Refined it.")]
+
+    turn(workspace, "refine that idea")
+
+    sent = rec.to("creative_thinker")[0].args
+    assert sent["subject"] == IDEA_B
+    assert sent["context_ideas"] == []
 
 
 def test_work_on_naming_an_id_not_in_context_fails_the_step(workspace, rec):

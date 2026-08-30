@@ -815,6 +815,39 @@ body.col-resizing .gaps-row:hover { background: transparent; }
   font-size: 9px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
   color: var(--accent-ai);
 }
+
+.orchestrator-telemetry {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  color: var(--text-4);
+  font-size: 11px;
+}
+
+.orchestrator-telemetry b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.orchestrator-telemetry-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--accent-ai);
+}
+
+.orchestrator-telemetry-live .sidebar-spin {
+  width: 10px;
+  height: 10px;
+}
+
+.orchestrator-telemetry-warning,
+.orchestrator-telemetry-warning b {
+  color: var(--accent-warm);
+}
 .orchestrator-thinker { border-top: 1px solid var(--border-soft); padding-top: 8px; }
 .orchestrator-thinker-head {
   margin-bottom: 6px; font-size: 10px; font-weight: 600; color: var(--text-4);

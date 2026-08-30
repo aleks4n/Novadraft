@@ -19,6 +19,7 @@ from src.agents.creative_thinker.styles import ROSTER, DEFAULT_REFINEMENT_STYLE
 from src.agents.creative_thinker.tools.context import render_context as render_thinker_context
 from src.common.schemas.context import Context
 from src.common.schemas.idea import IdeaRecord
+from src.common.utils import storage
 from src.common.utils.logging import trace
 from src.agents.orchestrator_agent.schemas import ToolResult, parse_step_ref, step_ref
 from src.agents.orchestrator_agent.tools.base import Tool, ToolEnv
@@ -91,9 +92,9 @@ class ThinkerArgs(BaseModel):
         default=3,
         ge=1,
         le=4,
-        description="Refinement only: how many levels the tree goes. 1 is a single pass "
-                    "and loses most of what refinement is for — raise it when the user "
-                    "wants an idea thought through rather than just touched up.",
+        description="Refinement only: how many levels the tree goes. 1 is one pass with "
+                    "one candidate branch; raise it when the user wants an idea thought "
+                    "through rather than just touched up.",
     )
     tool_use: bool = Field(
         default=False,
@@ -109,6 +110,25 @@ def _from_earlier_step(ref: str, env: ToolEnv) -> IdeaRecord | None:
     step, position = parsed
     produced = env.chained.get(step) or []
     return produced[position - 1] if 1 <= position <= len(produced) else None
+
+
+def _from_workspace(ref: str, env: ToolEnv) -> IdeaRecord | None:
+    """Resolve a persisted idea named by the plan even when it was not preloaded.
+
+    The planner sees the workspace index and may legitimately name an idea listed there.
+    Requiring the same record to also be in `context.ideas` made valid refinement plans
+    fail, especially when the session held an anonymous working-copy version of it.
+    """
+    if not env.category_slug or not ref.startswith("idea_"):
+        return None
+    record = storage.read_idea_json(env.category_slug, ref)
+    if not record:
+        return None
+    try:
+        idea = IdeaRecord.model_validate(record)
+    except Exception:  # an invalid persisted record must remain an ordinary missing target
+        return None
+    return idea if idea.idea_id == ref else None
 
 
 def _subject(args: ThinkerArgs, ctx: Context,
@@ -132,11 +152,12 @@ def _subject(args: ThinkerArgs, ctx: Context,
     if args.work_on:
         by_id = {idea.idea_id: idea for idea in ideas if idea.idea_id}
         chosen = [found for found in
-                  (_from_earlier_step(ref, env) or by_id.get(ref) for ref in args.work_on)
+                  (_from_earlier_step(ref, env) or by_id.get(ref)
+                   or _from_workspace(ref, env) for ref in args.work_on)
                   if found is not None]
         if not chosen:
             return (IdeaRecord(), ctx,
-                    f"work_on named {args.work_on}, none of which is in context", "")
+                    f"work_on named {args.work_on}, none of which is in context or workspace", "")
         subject = chosen[0]
     elif args.thinking_mode == "refinement":
         if not ideas:
@@ -147,7 +168,10 @@ def _subject(args: ThinkerArgs, ctx: Context,
         # against.
         return IdeaRecord(), ctx, "", ""
 
-    rest = [idea for idea in ideas if idea is not subject]
+    rest = [idea for idea in ideas
+            if idea is not subject
+            and not (subject.idea_id and idea.idea_id == subject.idea_id)
+            and not (subject.idea_id and not idea.idea_id and idea.title == subject.title)]
     return subject, ctx.model_copy(update={"ideas": rest}), "", _handle_for(subject, env)
 
 

@@ -23,6 +23,7 @@ import json
 import random
 import sys
 import time
+import uuid
 from pathlib import Path
 from typing import TypeVar
 
@@ -60,18 +61,50 @@ def _is_transient(exc: Exception) -> bool:
     return type(exc).__name__ in _TRANSIENT_NAMES
 
 
-def _invoke_with_retry(invoke):
+def _telemetry(name: str, **data) -> None:
+    emit_trace({"type": "event", "name": name, "data": data})
+
+
+def _invoke_with_retry(invoke, *, call_id: str = "", operation: str = "llm",
+                       structured_attempt: int | None = None):
     """Run `invoke`, retrying transient failures with exponential backoff. 
     The random jitter added to each delay desynchronizes parallel callers, 
     so calls that failed together don't all retry in one wave.
     """
     for attempt in range(_RETRIES + 1):
+        attempt_started = time.time()
+        _telemetry(
+            "llm provider attempt started", call_id=call_id, operation=operation,
+            attempt=attempt + 1, max_attempts=_RETRIES + 1,
+            structured_attempt=structured_attempt,
+        )
         try:
-            return invoke()
+            result = invoke()
+            _telemetry(
+                "llm provider attempt finished", call_id=call_id, operation=operation,
+                attempt=attempt + 1, max_attempts=_RETRIES + 1,
+                structured_attempt=structured_attempt,
+                duration_s=round(time.time() - attempt_started, 3),
+            )
+            return result
         except Exception as exc:
-            if attempt >= _RETRIES or not _is_transient(exc):
+            transient = _is_transient(exc)
+            _telemetry(
+                "llm provider attempt failed", call_id=call_id, operation=operation,
+                attempt=attempt + 1, max_attempts=_RETRIES + 1,
+                structured_attempt=structured_attempt,
+                duration_s=round(time.time() - attempt_started, 3),
+                error_type=type(exc).__name__, status_code=getattr(exc, "status_code", None),
+                transient=transient,
+            )
+            if attempt >= _RETRIES or not transient:
                 raise
             delay = _BACKOFF_BASE * (2 ** attempt) + random.random()
+            _telemetry(
+                "llm retry scheduled", call_id=call_id, operation=operation,
+                retry=attempt + 1, delay_s=round(delay, 3),
+                structured_attempt=structured_attempt,
+            )
             print(f"[llm] transient {type(exc).__name__} — retrying in {delay:.1f}s "
                   f"({attempt + 1}/{_RETRIES})", file=sys.stderr)
             time.sleep(delay)
@@ -104,9 +137,15 @@ def chat(llm, system: str, user: str) -> str:
     Returns the raw response text.
     """
     t0 = time.time()
+    call_id = f"llm_{uuid.uuid4().hex[:10]}"
+    _telemetry("llm call started", call_id=call_id, operation="chat",
+               schema=None, structured_attempts=1)
     messages = [SystemMessage(content=system), HumanMessage(content=user)]
-    text = _invoke_with_retry(lambda: llm.invoke(messages)).content
+    text = _invoke_with_retry(lambda: llm.invoke(messages), call_id=call_id,
+                              operation="chat").content
     _trace("chat", system, user, schema=None, output=text, t0=t0)
+    _telemetry("llm call finished", call_id=call_id, operation="chat",
+               duration_s=round(time.time() - t0, 3))
     return text
 
 
@@ -131,17 +170,30 @@ def chat_with_structured_output(llm, system: str, user: str, schema: type[T]) ->
     messages = [SystemMessage(content=system), HumanMessage(content=user)]
 
     t0 = time.time()
+    call_id = f"llm_{uuid.uuid4().hex[:10]}"
+    _telemetry("llm call started", call_id=call_id,
+               operation="chat_with_structured_output", schema=schema.__name__,
+               structured_attempts=_STRUCTURED_ATTEMPTS)
     if isinstance(llm, _MockChat):
         # Offline dev run: skip tool binding and return an unvalidated instance.
         result = schema.model_construct()
         _trace("chat_with_structured_output", system, user, schema=schema,
                output=result.model_dump(), t0=t0)
+        _telemetry("llm call finished", call_id=call_id,
+                   operation="chat_with_structured_output", schema=schema.__name__,
+                   duration_s=round(time.time() - t0, 3), offline=True)
         return result
 
     bound = llm.bind_tools([schema], tool_choice="auto")
     args = None
     for attempt in range(_STRUCTURED_ATTEMPTS):
-        resp = _invoke_with_retry(lambda: bound.invoke(messages))
+        _telemetry("llm structured attempt started", call_id=call_id,
+                   schema=schema.__name__, attempt=attempt + 1,
+                   max_attempts=_STRUCTURED_ATTEMPTS)
+        resp = _invoke_with_retry(
+            lambda: bound.invoke(messages), call_id=call_id,
+            operation="chat_with_structured_output", structured_attempt=attempt + 1,
+        )
         if resp.tool_calls:
             args = _normalize_structured_args(resp.tool_calls[0]["args"], schema)
             break
@@ -154,6 +206,9 @@ def chat_with_structured_output(llm, system: str, user: str, schema: type[T]) ->
         # forced on these models, the only lever is asking again — measured at
         # roughly 1 call in 3 on deepseek-reasoner, so one attempt isn't enough.
         if attempt < _STRUCTURED_ATTEMPTS - 1:
+            _telemetry("llm structured reask", call_id=call_id,
+                       schema=schema.__name__, completed_attempt=attempt + 1,
+                       next_attempt=attempt + 2, reason="no structured tool call or JSON")
             print(f"[llm] {schema.__name__}: no tool call in response — retrying "
                   f"({attempt + 1}/{_STRUCTURED_ATTEMPTS - 1})", file=sys.stderr)
     if args is None:
@@ -165,6 +220,9 @@ def chat_with_structured_output(llm, system: str, user: str, schema: type[T]) ->
 
     _trace("chat_with_structured_output", system, user, schema=schema,
            output=result.model_dump(), t0=t0)
+    _telemetry("llm call finished", call_id=call_id,
+               operation="chat_with_structured_output", schema=schema.__name__,
+               duration_s=round(time.time() - t0, 3))
     return result
 
 

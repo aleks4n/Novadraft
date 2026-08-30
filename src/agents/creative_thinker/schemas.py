@@ -124,6 +124,20 @@ class ThinkerCall(BaseModel):
             data.setdefault("depth", 1)
         return data
 
+    @model_validator(mode="after")
+    def _single_pass_is_one_branch(self) -> "ThinkerCall":
+        """Make refinement depth 1 the promised single chain, not a hidden fan-out.
+
+        Refinement exposes only ``depth`` to the user. Leaving ``width`` at its default
+        of three meant selecting depth 1 still created three sibling candidates before
+        the evaluator chose among them. Besides being surprising, that contradicted the
+        documented ``depth = 1`` chain-of-thought degeneration. A single pass therefore
+        has exactly one branch regardless of a stale/default width supplied upstream.
+        """
+        if self.mode == "refinement" and self.depth == 1:
+            self.width = 1
+        return self
+
 
 # --- output ------------------------------------------------------------------
 

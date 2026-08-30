@@ -47,6 +47,19 @@ export interface OrchestratorProgressState {
   /** The run stopped at its plan and is waiting for the user to start it. */
   awaitingApproval: boolean;
   updatedAt: string | null;
+  llm: LlmTelemetry;
+}
+
+export interface LlmTelemetry {
+  /** Logical chat/chat_with_structured_output calls. */
+  calls: number;
+  /** Actual provider requests, including transient retries and structured re-asks. */
+  providerAttempts: number;
+  retries: number;
+  structuredReasks: number;
+  failedAttempts: number;
+  activeCalls: number;
+  totalDurationSeconds: number;
 }
 
 interface ParsedPlan {
@@ -231,6 +244,27 @@ function latestDetail(events: RunEvent[]): string {
     }
   }
   if (last.kind === "event") {
+    if (last.name === "llm retry scheduled") {
+      const retry = number(last.data?.retry);
+      const delay = number(last.data?.delay_s);
+      return `Model request failed · retry ${retry ?? ""}${delay !== null ? ` in ${delay.toFixed(1)}s` : ""}`;
+    }
+    if (last.name === "llm structured reask") {
+      const next = number(last.data?.next_attempt);
+      return `Model returned the wrong format · requesting it again${next ? ` (attempt ${next})` : ""}`;
+    }
+    if (last.name === "llm call started" || last.name === "llm provider attempt started") {
+      if (activeTool === "creative_thinker") return "Creative thinker · waiting for candidate generation";
+      if (activeTool === "investigator") return "Investigator · waiting for model response";
+      return "Planning · waiting for model response";
+    }
+    // Completion telemetry is deliberately the final event of a model call. Preserve
+    // the useful agent-level status instead of replacing it with a generic "Working".
+    if (last.name === "llm provider attempt finished" || last.name === "llm call finished") {
+      if (activeTool === "creative_thinker") return "Creative thinker · processing generated candidates";
+      if (activeTool === "investigator") return "Investigator · processing the model response";
+      return "Planning · processing the model response";
+    }
     if (last.name === "orchestrator planning") return "Choosing the agents and their order";
     if (last.name === "orchestrator plan") return "The plan is ready; starting its first step";
     if (last.name === "orchestrator step started") {
@@ -277,6 +311,46 @@ function latestDetail(events: RunEvent[]): string {
   if (last.node === "finish" || last.kind === "run_end") return "Finished";
   if (last.node === "assemble_context") return "Choosing the agents and their order";
   return last.node ? labelNode(last.node) : "Working";
+}
+
+function llmTelemetry(events: RunEvent[], runIsActive: boolean): LlmTelemetry {
+  const started = new Set<string>();
+  const completed = new Set<string>();
+  let providerAttempts = 0;
+  let retries = 0;
+  let structuredReasks = 0;
+  let failedAttempts = 0;
+  let totalDurationSeconds = 0;
+
+  for (const event of events) {
+    if (event.kind !== "event") continue;
+    const callId = string(event.data?.call_id);
+    if (event.name === "llm call started") {
+      if (callId) started.add(callId);
+    } else if (event.name === "llm call finished") {
+      if (callId) completed.add(callId);
+      totalDurationSeconds += number(event.data?.duration_s) ?? 0;
+    } else if (event.name === "llm provider attempt started") {
+      providerAttempts += 1;
+    } else if (event.name === "llm provider attempt failed") {
+      failedAttempts += 1;
+    } else if (event.name === "llm retry scheduled") {
+      retries += 1;
+    } else if (event.name === "llm structured reask") {
+      structuredReasks += 1;
+    }
+  }
+
+  const unfinished = [...started].filter((callId) => !completed.has(callId)).length;
+  return {
+    calls: started.size,
+    providerAttempts,
+    retries,
+    structuredReasks,
+    failedAttempts,
+    activeCalls: runIsActive ? unfinished : 0,
+    totalDurationSeconds,
+  };
 }
 
 export function isOrchestratorRun(run: RunState): boolean {
@@ -378,5 +452,6 @@ export function progressForRun(run: RunState): OrchestratorProgressState {
       : steps,
     awaitingApproval,
     updatedAt,
+    llm: llmTelemetry(run.events, run.status === "running"),
   };
 }

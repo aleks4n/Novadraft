@@ -229,6 +229,28 @@ export function PlanReview({
     setDraft(status === "proposed" ? awaitingManualThinkerSettings(plan) : plan);
   }, [plan, status]);
 
+  // Planner output is free-form until tool validation. Clamp any integer it supplied
+  // as soon as the catalogue arrives, so an untouched out-of-range value cannot make
+  // Start fail. Missing values stay missing (notably the manual width/depth choices).
+  useEffect(() => {
+    if (!specs.length || status !== "proposed") return;
+    setDraft((cur) => ({
+      ...cur,
+      steps: cur.steps.map((step) => {
+        const spec = specs.find((item) => item.name === step.tool);
+        if (!spec) return step;
+        const args = { ...step.args };
+        spec.args.filter((arg) => arg.kind === "int").forEach((arg) => {
+          if (typeof args[arg.name] !== "number") return;
+          const low = arg.min ?? (args[arg.name] as number);
+          const high = arg.max ?? (args[arg.name] as number);
+          args[arg.name] = Math.max(low, Math.min(high, args[arg.name] as number));
+        });
+        return { ...step, args };
+      }),
+    }));
+  }, [specs, status]);
+
   const editable = status === "proposed";
   const steps = editable ? draft.steps : plan.steps;
 
@@ -323,7 +345,7 @@ export function PlanReview({
                         Choose {name}
                         <small>{mode === "generation"
                           ? "Number of candidate branches"
-                          : "Levels of refinement"}</small>
+                          : "Refinement levels · 1 produces one candidate"}</small>
                       </span>
                       <select value={typeof value === "number" ? String(value) : ""}
                         onChange={(event) => setManualSetting(

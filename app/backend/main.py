@@ -794,6 +794,13 @@ def api_session_plan_approve(slug: str, session_id: str, req: PlanApproveRequest
 
     try:
         for step in req.steps:
+            if step.tool == "investigator" and "paper_count" in step.args:
+                # Older/already-proposed plans may contain a planner value above the
+                # tool's declared ceiling. Keep the hard bound without making the user
+                # discard and regenerate an otherwise valid plan.
+                step.args["paper_count"] = max(
+                    1, min(5, int(step.args.get("paper_count") or 1))
+                )
             if step.tool != "creative_thinker":
                 continue
             mode = step.args.get("thinking_mode", "generation")
