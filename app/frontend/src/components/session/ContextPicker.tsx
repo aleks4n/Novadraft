@@ -3,8 +3,9 @@
 //
 // It is the same selection the graph panel and drag-and-drop make — this is just
 // the path for the case those two are bad at: finding one paper among sixty by
-// name. Items already loaded are shown but not selectable; loading something
-// twice is a no-op, and saying so is clearer than silently dropping the click.
+// name. A paper/note/file already loaded is shown but not selectable — loading it
+// twice is a no-op. A gap/idea already loaded stays selectable: picking it again is
+// how you tell the agent this turn is about it, same as clicking it in the graph.
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../Icon";
 import { useWorkspace } from "../../lib/store";
@@ -34,10 +35,8 @@ export function ContextPicker({
 
   const rows: Row[] = useMemo(() => buildSearchRows(bundle), [bundle]);
 
-  const alreadyIn = new Set([
-    ...loaded.map((c) => `${c.kind}:${c.id}`),
-    ...staged.map((c) => `${c.kind}:${c.id}`),
-  ]);
+  const alreadyLoaded = new Set(loaded.map((c) => `${c.kind}:${c.id}`));
+  const alreadyStaged = new Set(staged.map((c) => `${c.kind}:${c.id}`));
 
   const shown = filterSearchRows(rows, query, tab);
 
@@ -79,7 +78,13 @@ export function ContextPicker({
           {shown.length === 0 && <div className="empty-state empty-state--inline">Nothing matches.</div>}
           {shown.map((r) => {
             const k = `${r.kind}:${r.id}`;
-            const disabled = alreadyIn.has(k);
+            const pinnable = r.kind === "gap" || r.kind === "idea";
+            const inStaged = alreadyStaged.has(k);
+            const inLoaded = alreadyLoaded.has(k);
+            // Already staged: nothing this modal can add. Already loaded: still a no-op
+            // for a paper/note/file, but a gap/idea stays pickable — picking it again is
+            // how it gets (re)selected as this turn's subject.
+            const disabled = inStaged || (inLoaded && !pinnable);
             const on = Boolean(picked[k]);
             return (
               <button
@@ -100,7 +105,12 @@ export function ContextPicker({
                   <span className="pick-sub">{r.sub}</span>
                 </span>
                 <span className="pick-mark">
-                  {disabled ? "in context" : on ? <Icon name="check" /> : <Icon name="plus" />}
+                  {inStaged ? "staged" : disabled ? "in context" : (
+                    <>
+                      {inLoaded && <span className="pick-loaded-tag">in context</span>}
+                      {on ? <Icon name="check" /> : <Icon name="plus" />}
+                    </>
+                  )}
                 </span>
               </button>
             );

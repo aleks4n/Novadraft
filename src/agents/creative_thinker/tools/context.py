@@ -302,12 +302,12 @@ def render_context(context: dict[str, Any]) -> str:
     material.
     """
     context = context or {}
-    # `active_id` is a plain string, not a list of records — it steers the gap/idea
-    # blocks below rather than getting a section of its own.
-    active_id = context.get("active_id")
+    # `active_ids` is a list of plain id strings, not a list of records — it steers the
+    # gap/idea blocks below rather than getting a section of its own.
+    active_ids = set(context.get("active_ids") or [])
     keys = [k for k in _ORDER if k in context]
     keys += [k for k in context
-             if k not in _HEADINGS and k != "active_id"]  # unrecognised, generic fallback
+             if k not in _HEADINGS and k != "active_ids"]  # unrecognised, generic fallback
 
     blocks: list[str] = []
     for key in keys:
@@ -338,9 +338,9 @@ def render_context(context: dict[str, Any]) -> str:
         if not items:
             continue
         lines = [f"## {heading}"]
-        if key in ("gaps", "ideas") and active_id:
+        if key in ("gaps", "ideas") and active_ids:
             for item in items:
-                lines.extend(_BLOCKS[key](item, active=_pick(item, _ID_KEYS) == active_id))
+                lines.extend(_BLOCKS[key](item, active=_pick(item, _ID_KEYS) in active_ids))
                 lines.append("")
         elif block := _BLOCKS.get(key):
             for item in items:

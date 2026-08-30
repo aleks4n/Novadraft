@@ -57,11 +57,11 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
   } = useWorkspace();
 
   const [session, setSession] = useState<Session | null>(null);
+  // What this turn is about: a paper/note/file staged here is new context about to
+  // load; a gap/idea staged here is *also* the turn's subject — selecting and staging
+  // are the same action, so an id already loaded can be staged again just to say
+  // "this one" without re-adding it (loading is idempotent server-side).
   const [staged, setStaged] = useState<ContextRef[]>([]);
-  // The one gap/idea (already loaded, or staged for this same turn) the conversation
-  // is currently about — distinct from what's in scope, which is everything loaded.
-  // Sticky across turns: it names "what we're discussing", not "what's new this turn".
-  const [active, setActiveRef] = useState<ContextRef | null>(null);
   const [rows, setRows] = useState<Row[]>(DEFAULT_ROWS);
   const [sending, setSending] = useState(false);
   // The session's unaccepted working copies — real records in its own folder,
@@ -105,7 +105,6 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
 
   useEffect(() => {
     setStaged([]);
-    setActiveRef(null);
     reload();
   }, [reload]);
 
@@ -132,42 +131,31 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
 
   // --- context -----------------------------------------------------------------
 
+  // Staging is idempotent by id, but no longer skips ids already in `session.context` —
+  // restaging an already-loaded gap/idea is exactly how you select it as this turn's
+  // subject without re-adding it (the backend's own add is idempotent too).
   const stage = useCallback((refs: ContextRef[]) => {
     setStaged((cur) => {
       const have = new Set(cur.map((c) => `${c.kind}:${c.id}`));
-      const loaded = new Set((session?.context ?? []).map((c) => `${c.kind}:${c.id}`));
       return [...cur, ...refs.filter((r) => {
         const k = `${r.kind}:${r.id}`;
-        if (have.has(k) || loaded.has(k)) return false;
+        if (have.has(k)) return false;
         have.add(k);
         return true;
       })];
     });
-  }, [session]);
+  }, []);
 
-  const unstage = (ref: ContextRef) => {
+  const unstage = (ref: ContextRef) =>
     setStaged((cur) => cur.filter((c) => !(c.kind === ref.kind && c.id === ref.id)));
-    clearActiveIfMatches(ref);
-  };
 
-  // Only gap/idea can be "what this turn is about" — the orchestrator's focus has no
-  // slot for pinning a paper, note or file.
-  const toggleActive = (ref: ContextRef) => {
-    if (ref.kind !== "gap" && ref.kind !== "idea") return;
-    setActiveRef((cur) => (cur && cur.kind === ref.kind && cur.id === ref.id ? null : ref));
-  };
-
-  const clearActiveIfMatches = (ref: ContextRef) =>
-    setActiveRef((cur) => (cur && cur.kind === ref.kind && cur.id === ref.id ? null : cur));
-
+  // Clicking a node: stage it if it isn't already selected, unstage it if it is —
+  // one toggle, whether the node is new, already staged, or already loaded. A loaded
+  // node just cycles through "selected" and back to plain background context.
   const toggleMark = (kind: "gap" | "idea", id: string) => {
     const k = `${kind}:${id}`;
-    // Already loaded or staged — clicking it again can't mean "add it", so it means
-    // "this is what I'm talking about" instead. Removing it from scope still goes
-    // through its own chip's ✕, in the composer or the Loaded Context panel.
-    if ((session?.context ?? []).some((c) => `${c.kind}:${c.id}` === k)
-        || staged.some((c) => `${c.kind}:${c.id}` === k)) {
-      toggleActive({ kind, id, label: "", digest: "" });
+    if (staged.some((c) => `${c.kind}:${c.id}` === k)) {
+      unstage({ kind, id, label: "", digest: "" });
       return;
     }
     const label = kind === "gap"
@@ -179,7 +167,7 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
   const unload = async (ref: ContextRef) => {
     if (!activeSlug || !sessionId) return;
     await sessionApi.removeContext(activeSlug, sessionId, ref.kind, ref.id);
-    clearActiveIfMatches(ref);
+    unstage(ref);
     reload();
   };
 
@@ -227,7 +215,10 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
       const res = await sessionApi.send(activeSlug, id!, {
         text,
         context: staged.map((c) => ({ kind: c.kind, id: c.id })),
-        activeId: active?.id ?? null,
+        // Every staged gap/idea is this turn's subject — whether it's new context or
+        // one already loaded that got reselected.
+        activeIds: staged.filter((c) => c.kind === "gap" || c.kind === "idea")
+          .map((c) => c.id),
         agent: "orchestrator",
       });
       setSession(res.session);
@@ -418,8 +409,6 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
         planned={planned}
         marks={marks}
         loaded={session?.context ?? []}
-        active={active}
-        onToggleActive={toggleActive}
         onToggleMark={toggleMark}
         onOpenNode={(kind, id) => setNav({ view: kind === "gap" ? "gap" : "idea", id })}
         onUnload={unload}
@@ -429,8 +418,6 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
             grip={grip}
             session={session}
             staged={staged}
-            active={active}
-            onToggleActive={toggleActive}
             runs={sessionRuns}
             ideas={ideas}
             sending={sending}

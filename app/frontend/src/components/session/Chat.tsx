@@ -28,22 +28,19 @@ export interface PlanActions {
 }
 
 export function Chat({
-  session, staged, active, runs, ideas, sending,
-  onStage, onUnstage, onToggleActive, onUploadFile, onSend, onOpenIdea, onShowThoughts,
-  drafts, plans,
+  session, staged, runs, ideas, sending,
+  onStage, onUnstage, onUploadFile, onSend, onOpenIdea, onShowThoughts, drafts, plans,
   grip,
 }: {
   session: Session | null;
+  // A gap/idea staged here is also what the turn is about — staging is selecting,
+  // even for an id already loaded (harmless to restage: loading is idempotent).
   staged: ContextRef[];
-  /** The gap/idea this turn is about — a pin among what's loaded or staged, not a
-   *  second selection. */
-  active: ContextRef | null;
   runs: RunState[];
   ideas: Idea[];
   sending: boolean;
   onStage: (refs: ContextRef[]) => void;
   onUnstage: (ref: ContextRef) => void;
-  onToggleActive: (ref: ContextRef) => void;
   onUploadFile: (file: File) => void;
   onSend: (text: string) => void;
   onOpenIdea: (id: string) => void;
@@ -146,29 +143,15 @@ export function Chat({
               </span>
             </div>
             <div className="staged-chips">
-              {staged.map((c) => {
-                const isActive = active?.kind === c.kind && active.id === c.id;
-                const pinnable = c.kind === "gap" || c.kind === "idea";
-                return (
-                  <span className={"ctx-chip ctx-chip--" + c.kind
-                    + (isActive ? " ctx-chip--active" : "")} key={`${c.kind}:${c.id}`}>
-                    <span className={"ctx-kind ctx-kind--" + c.kind}>{c.kind}</span>
-                    <span className="ctx-chip-label" title={c.digest || c.id}>{c.label || c.id}</span>
-                    {pinnable && (
-                      <button className={"ctx-chip-pin" + (isActive ? " ctx-chip-pin--on" : "")}
-                        onClick={() => onToggleActive(c)}
-                        title={isActive
-                          ? "This is what the turn is about — click to unpin"
-                          : "Pin: this turn is about this one"}>
-                        <Icon name="target" size={12} />
-                      </button>
-                    )}
-                    <button className="ctx-chip-x" onClick={() => onUnstage(c)} title="Remove">
-                      <Icon name="x" size={12} />
-                    </button>
-                  </span>
-                );
-              })}
+              {staged.map((c) => (
+                <span className={"ctx-chip ctx-chip--" + c.kind} key={`${c.kind}:${c.id}`}>
+                  <span className={"ctx-kind ctx-kind--" + c.kind}>{c.kind}</span>
+                  <span className="ctx-chip-label" title={c.digest || c.id}>{c.label || c.id}</span>
+                  <button className="ctx-chip-x" onClick={() => onUnstage(c)} title="Remove">
+                    <Icon name="x" size={12} />
+                  </button>
+                </span>
+              ))}
             </div>
           </div>
         )}

@@ -76,11 +76,11 @@ class Context(BaseModel):
     missing_ids: list[str] = Field(
         default_factory=list, description="Focus ids that could not be loaded."
     )
-    active_id: str | None = Field(
-        default=None,
-        description="The gap_id or idea_id (among `gaps`/`ideas` above) the user pinned as "
+    active_ids: list[str] = Field(
+        default_factory=list,
+        description="gap_ids/idea_ids (among `gaps`/`ideas` above) the user selected as "
                     "what this turn is about — set when more than one thing is in scope and "
                     "the message would otherwise be ambiguous about which. Renderers mark "
-                    "it; nothing here is scoped by it, since everything loaded is still in "
-                    "scope.",
+                    "them; nothing here is scoped by this, since everything loaded stays "
+                    "in scope regardless.",
     )

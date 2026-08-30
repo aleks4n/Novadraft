@@ -558,10 +558,10 @@ body.col-resizing .gaps-row:hover { background: transparent; }
 /* Loaded = the model can already see it. Staged = selected for the *next* run and
    not sent yet. Two different marks, because that difference is the whole point. */
 .graph-node--loaded { border-color: var(--accent); background: var(--accent-soft); }
+/* Staged doubles as selected: a node not yet loaded gets this when queued to join
+   context, and one already loaded gets it right back when reselected as the turn's
+   subject — the same mark either way. */
 .graph-node--staged { border-color: var(--accent-ai); border-style: dashed; background: var(--accent-ai-soft); }
-/* Active = the one loaded/staged node this session's turns are currently about —
-   layered on top of loaded/staged rather than replacing it. */
-.graph-node--active { box-shadow: 0 0 0 2px var(--accent-amber); }
 
 .graph-node-head { display: flex; align-items: center; gap: 5px; }
 .graph-node-kind { font-size: 10px; color: var(--text-4); text-transform: lowercase; }
@@ -580,7 +580,6 @@ body.col-resizing .gaps-row:hover { background: transparent; }
 }
 .graph-mark--loaded { color: var(--accent); background: #fff; }
 .graph-mark--staged { color: var(--accent-ai); background: #fff; }
-.graph-mark--active { color: var(--accent-amber); background: #fff; }
 .graph-hint {
   padding: 5px 10px; font-size: 11px; color: var(--text-4);
   border-top: 1px solid var(--border-soft); background: var(--bg-soft); flex-shrink: 0;
@@ -1058,14 +1057,15 @@ body.col-resizing .gaps-row:hover { background: transparent; }
 .ctx-chip-x { border: 0; background: none; cursor: pointer; color: var(--text-5); display: flex; padding: 0 2px; }
 .ctx-chip-x:hover { color: var(--accent-warm); }
 
-/* The gap/idea a turn is pinned to — a marker on top of "in context", not a
-   replacement for it. */
-.ctx-chip-pin, .ctx-item-pin {
+/* Selecting an already-loaded gap/idea from the Loaded Context panel — the same
+   select/deselect toggle a graph node click does, surfaced here since not every
+   loaded item is on screen in the graph. */
+.ctx-item-pin {
   border: 0; background: none; cursor: pointer; color: var(--text-5); display: flex; padding: 0 2px;
 }
-.ctx-chip-pin:hover, .ctx-item-pin:hover { color: var(--accent-amber); }
-.ctx-chip-pin--on, .ctx-item-pin--on { color: var(--accent-amber); }
-.ctx-chip--active, .ctx-item--active {
+.ctx-item-pin:hover { color: var(--accent-amber); }
+.ctx-item-pin--on { color: var(--accent-amber); }
+.ctx-item--selected {
   border-color: var(--accent-amber); box-shadow: 0 0 0 1px var(--accent-amber) inset;
 }
 
@@ -1159,7 +1159,8 @@ body.col-resizing .gaps-row:hover { background: transparent; }
 .pick-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .pick-label { font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pick-sub { font-size: 11.5px; color: var(--text-4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pick-mark { font-size: 10.5px; color: var(--text-4); display: flex; align-items: center; flex-shrink: 0; }
+.pick-mark { font-size: 10.5px; color: var(--text-4); display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.pick-loaded-tag { text-transform: none; }
 .modal-foot { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--border); background: var(--bg-soft); }
 .modal-foot-hint { flex: 1; font-size: 11px; color: var(--text-4); line-height: 1.4; }
 

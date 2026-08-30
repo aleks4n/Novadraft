@@ -459,7 +459,7 @@ def input_adapter(inputs: dict) -> dict:
         message=inputs.get("message", ""),
         focus=FocusSelection(
             gap_ids=_ids(inputs.get("gap_ids")), idea_ids=_ids(inputs.get("idea_ids")),
-            active_id=inputs.get("active_id") or None,
+            active_ids=_ids(inputs.get("active_ids")),
         ),
         # Both travel as JSON: the run manager round-trips a run's inputs through its
         # index, so a restart has to be able to rebuild the same turn from a file.
@@ -513,7 +513,7 @@ def run_turn(payload: OrchestratorInput, *, stream: bool = True,
 
 def run(category_slug: str, message: str = "", session_id: str = "",
         gap_ids: str | list[str] = "", idea_ids: str | list[str] = "",
-        active_id: str = "",
+        active_ids: str | list[str] = "",
         require_approval: bool = False, approved_plan: dict | None = None,
         stream: bool = True) -> dict:
     """Flat-argument entry point — what the dev harness and the app backend call.
@@ -526,7 +526,7 @@ def run(category_slug: str, message: str = "", session_id: str = "",
         category_slug=category_slug,
         message=message,
         focus=FocusSelection(gap_ids=_ids(gap_ids), idea_ids=_ids(idea_ids),
-                             active_id=active_id or None),
+                             active_ids=_ids(active_ids)),
         require_approval=require_approval,
         approved_plan=Plan.model_validate(approved_plan) if approved_plan else None,
     )

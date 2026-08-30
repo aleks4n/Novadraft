@@ -46,13 +46,13 @@ class FocusSelection(BaseModel):
 
     gap_ids: list[str] = Field(default_factory=list)
     idea_ids: list[str] = Field(default_factory=list)
-    active_id: str | None = Field(
-        default=None,
-        description="A gap_id or idea_id from the two lists above, pinned as what this "
-                    "turn's message is actually about. Everything in scope still loads — "
-                    "this only disambiguates 'this one' when more than one is in scope. "
-                    "Not required to be in `gap_ids`/`idea_ids`; if it is not, it marks "
-                    "nothing.",
+    active_ids: list[str] = Field(
+        default_factory=list,
+        description="gap_ids/idea_ids the user (re)selected this turn — what the message "
+                    "is actually about, not just in scope. The UI's 'staged' set doubles "
+                    "as this: an id can be freshly staged, or an id already loaded that "
+                    "was clicked again to bring it back into focus. Not required to be a "
+                    "subset of `gap_ids`/`idea_ids`; an id that is not marks nothing.",
     )
 
 

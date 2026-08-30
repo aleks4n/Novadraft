@@ -297,11 +297,10 @@ def assemble_context(state: OrchestratorState) -> dict:
             user_input=_user_input(category, session_id),
             catalog=index,
             missing_ids=missing,
-            # Only kept if it names something that actually loaded — a stale or unloaded
-            # id would mark nothing downstream anyway, and dropping it here means every
-            # renderer can just compare ids without also checking they resolved.
-            active_id=(focus.active_id
-                       if focus.active_id in gaps or focus.active_id in ideas else None),
+            # Only ids that actually loaded — a stale or unloaded id would mark nothing
+            # downstream anyway, and filtering here means every renderer can just check
+            # membership without also checking it resolved.
+            active_ids=[i for i in focus.active_ids if i in gaps or i in ideas],
         ),
         "history": [{"message": r.get("message", ""), "answer": r.get("answer", "")}
                     for r in earlier],

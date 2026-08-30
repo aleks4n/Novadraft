@@ -192,9 +192,9 @@ def context_view(ctx: Context) -> str:
     """What was loaded for this turn, for the planner and for reflect."""
     lines: list[str] = []
     for gap in ctx.gaps:
-        lines.extend(_gap_block(gap, active=gap.gap_id == ctx.active_id))
+        lines.extend(_gap_block(gap, active=gap.gap_id in ctx.active_ids))
     for idea in ctx.ideas:
-        lines.extend(_idea_block(idea, with_id=True, active=idea.idea_id == ctx.active_id))
+        lines.extend(_idea_block(idea, with_id=True, active=idea.idea_id in ctx.active_ids))
     # Papers are capped, gaps and ideas are not: the user chose those, and dropping a
     # chosen record answers a different question than the one asked. Papers arrive
     # implicitly, one hop out from each gap. The cap announces itself.

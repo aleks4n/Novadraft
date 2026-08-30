@@ -359,7 +359,9 @@ class SessionSendRequest(BaseModel):
     """
     text: str = ""
     context: list[dict] = []          # items staged above the composer this turn
-    activeId: str | None = None       # orchestrator only: gap/idea id this turn is about
+    activeIds: list[str] = []         # orchestrator only: gap/idea ids this turn is about —
+                                       # the "staged" set doubles as this, so it may include
+                                       # ids already in the session's loaded context
     agent: str = "orchestrator"       # orchestrator | creative_thinker
     mode: str = "generation"          # generation | refinement
     ideaId: str | None = None         # refinement: the idea under work
@@ -468,7 +470,7 @@ async def api_session_file(slug: str, session_id: str, file: UploadFile = File(.
 
 
 def _send_to_orchestrator(slug: str, session_id: str, rec: dict, text: str,
-                          added: list[dict], *, active_id: str | None = None,
+                          added: list[dict], *, active_ids: list[str] | None = None,
                           require_approval: bool = True) -> dict:
     """Start a planned turn, and record the user's message against it.
 
@@ -491,7 +493,7 @@ def _send_to_orchestrator(slug: str, session_id: str, rec: dict, text: str,
         "message": text,
         "gap_ids": [c["id"] for c in loaded if c.get("kind") == "gap"],
         "idea_ids": [c["id"] for c in loaded if c.get("kind") == "idea"],
-        "active_id": active_id,
+        "active_ids": active_ids or [],
         "require_approval": require_approval,
     }
     run = MANAGER.start(slug, "orchestrator_agent", "idea", inputs,
@@ -524,7 +526,7 @@ def api_session_send(slug: str, session_id: str, req: SessionSendRequest):
 
     if req.agent == "orchestrator":
         return _send_to_orchestrator(slug, session_id, rec, text, added,
-                                     active_id=req.activeId,
+                                     active_ids=req.activeIds,
                                      require_approval=req.requirePlanApproval)
 
     mode = "refinement" if str(req.mode).lower().startswith("r") else "generation"
