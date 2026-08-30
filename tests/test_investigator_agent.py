@@ -49,6 +49,7 @@ def test_classifier_prefers_embedded_exact_identifier_over_title_search():
 
 
 def test_decide_request_routes_paper_query(monkeypatch):
+	models = []
 	decision = SimpleNamespace(
 		action="paper",
 		should_fetch_pages=False,
@@ -59,7 +60,7 @@ def test_decide_request_routes_paper_query(monkeypatch):
 	)
 
 	monkeypatch.setattr(agent, "chat_with_structured_output", lambda *args, **kwargs: decision)
-	monkeypatch.setattr(agent, "get_llm", lambda *args, **kwargs: object())
+	monkeypatch.setattr(agent, "get_llm", lambda role, **kwargs: models.append(role) or object())
 
 	result = agent._decide_request("search and download the paper: attention is all you need")
 
@@ -68,6 +69,7 @@ def test_decide_request_routes_paper_query(monkeypatch):
 	assert result["save_requested"] is True
 	assert result["should_fetch_pages"] is False
 	assert result["decision_reason"] == "paper request"
+	assert models == ["cheap"]
 
 
 def test_decide_request_routes_web_query(monkeypatch):
@@ -495,9 +497,10 @@ def test_actor_conditions_routing_on_saved_reflections(monkeypatch):
 
 def test_evaluate_uses_llm_when_available(monkeypatch):
 	captured = {}
+	models = []
 
 	monkeypatch.setattr(agent, "ENABLE_DETERMINISTIC_FETCH_FALLBACK", False)
-	monkeypatch.setattr(agent, "get_llm", lambda *args, **kwargs: object())
+	monkeypatch.setattr(agent, "get_llm", lambda role, **kwargs: models.append(role) or object())
 	monkeypatch.setattr(
 		agent,
 		"chat_with_structured_output",
@@ -517,6 +520,7 @@ def test_evaluate_uses_llm_when_available(monkeypatch):
 	assert evaluation["evaluation"]["success"] is False
 	assert evaluation["evaluation"]["feedback"] == "The page was too sparse."
 	assert "summary of the paper" in captured["prompt"]
+	assert models == ["cheap"]
 
 
 def test_evaluator_routes_failed_attempt_to_reflection_then_stops_at_limit(monkeypatch):

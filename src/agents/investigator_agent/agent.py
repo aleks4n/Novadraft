@@ -643,7 +643,7 @@ def _decide_request(text: str, reflections: list[str] | None = None) -> dict:
 		actor_input += "\nUse these lessons to choose a revised strategy."
 	try:
 		decision = chat_with_structured_output(
-			get_llm("reasoner", temperature=0),
+			get_llm("cheap", temperature=0),
 			_DECISION_SYSTEM_PROMPT,
 			actor_input,
 			InvestigatorDecision,
@@ -1465,7 +1465,7 @@ def evaluate(state: InvestigatorState) -> dict:
 
 	try:
 		judgment = chat_with_structured_output(
-			get_llm("reasoner", temperature=0),
+			get_llm("cheap", temperature=0),
 			_EVALUATION_SYSTEM_PROMPT,
 			json.dumps(payload, ensure_ascii=False, default=str),
 			InvestigatorEvaluation,

@@ -1,4 +1,4 @@
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, ToolMessage
 from pydantic import BaseModel
 
 from src.llm import registry
@@ -70,3 +70,38 @@ def test_structured_reask_includes_the_invalid_answer_and_correction(monkeypatch
     assert seen_messages[1][-2].content.startswith("I think")
     assert "could not be parsed as Result" in seen_messages[1][-1].content
     assert "Do not answer with prose" in seen_messages[1][-1].content
+
+
+def test_structured_reask_acknowledges_malformed_tool_call(monkeypatch):
+    class Result(BaseModel):
+        value: str
+
+    seen_messages = []
+
+    class BoundLlm:
+        def invoke(self, messages):
+            seen_messages.append(list(messages))
+            if len(seen_messages) == 1:
+                return AIMessage(content="", invalid_tool_calls=[{
+                    "name": "Result", "args": "{broken", "id": "bad_call",
+                    "error": "invalid JSON", "type": "invalid_tool_call",
+                }])
+            return AIMessage(content="", tool_calls=[{
+                "name": "Result", "args": {"value": "fixed"},
+                "id": "good_call", "type": "tool_call",
+            }])
+
+    class Llm:
+        def bind_tools(self, *_args, **_kwargs):
+            return BoundLlm()
+
+    monkeypatch.setattr(registry, "emit_trace", lambda _event: None)
+
+    result = registry.chat_with_structured_output(Llm(), "system", "user", Result)
+
+    assert result.value == "fixed"
+    tool_messages = [message for message in seen_messages[1]
+                     if isinstance(message, ToolMessage)]
+    assert len(tool_messages) == 1
+    assert tool_messages[0].tool_call_id == "bad_call"
+    assert "Invalid Result arguments" in tool_messages[0].content

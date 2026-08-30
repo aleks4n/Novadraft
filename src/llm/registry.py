@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import TypeVar
 
 from dotenv import load_dotenv
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from pydantic import BaseModel
 
 from ..common.utils.logging.trace import emit as emit_trace
@@ -63,6 +63,47 @@ def _is_transient(exc: Exception) -> bool:
 
 def _telemetry(name: str, **data) -> None:
     emit_trace({"type": "event", "name": name, "data": data})
+
+
+def _structured_reask_messages(resp: AIMessage, schema_name: str) -> list:
+    """Return a protocol-valid corrective continuation after unusable output.
+
+    LangChain places tool calls whose arguments could not be decoded in
+    ``invalid_tool_calls``. They are still tool calls at the provider protocol layer, so
+    replaying the assistant message requires one ToolMessage per call id before another
+    user message. Without those acknowledgements OpenAI-compatible providers return 400.
+    """
+    invalid_calls = list(getattr(resp, "invalid_tool_calls", None) or [])
+    raw_calls = list((getattr(resp, "additional_kwargs", None) or {}).get("tool_calls") or [])
+    call_ids: list[str] = []
+    for call in invalid_calls:
+        call_id = call.get("id") if isinstance(call, dict) else getattr(call, "id", None)
+        if call_id and call_id not in call_ids:
+            call_ids.append(call_id)
+    for call in raw_calls:
+        call_id = call.get("id") if isinstance(call, dict) else None
+        if call_id and call_id not in call_ids:
+            call_ids.append(call_id)
+
+    correction = HumanMessage(content=(
+        f"Your previous response could not be parsed as {schema_name}: it contained "
+        "neither a usable tool call nor a valid JSON object. Return the result now by "
+        f"calling the provided {schema_name} tool. Do not answer with prose."
+    ))
+    if call_ids:
+        return [
+            resp,
+            *(ToolMessage(
+                content=f"Invalid {schema_name} arguments; submit a corrected tool call.",
+                tool_call_id=call_id,
+            ) for call_id in call_ids),
+            correction,
+        ]
+    if raw_calls:
+        # A malformed provider call without an id cannot be acknowledged. Do not replay
+        # it into history; the correction becomes a fresh request instead.
+        return [correction]
+    return [resp, correction]
 
 
 def _invoke_with_retry(invoke, *, call_id: str = "", operation: str = "llm",
@@ -221,15 +262,7 @@ def chat_with_structured_output(llm, system: str, user: str, schema: type[T]) ->
             # This is a corrective re-ask, not an identical replay. Keeping the
             # assistant response preserves DeepSeek's reasoning_content while the new
             # user turn states exactly what was invalid and what must come next.
-            messages = messages + [
-                resp,
-                HumanMessage(content=(
-                    f"Your previous response could not be parsed as {schema.__name__}: "
-                    "it contained neither a tool call nor a valid JSON object. Return "
-                    f"the {schema.__name__} result now by calling the provided tool. "
-                    "Do not answer with prose."
-                )),
-            ]
+            messages = messages + _structured_reask_messages(resp, schema.__name__)
     if args is None:
         raise ValueError(
             f"{schema.__name__}: model returned no parseable structured output "
