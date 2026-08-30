@@ -13,6 +13,8 @@ from src.common.utils.prompts import load_prompt
 from src.llm.registry import chat_with_structured_output, get_llm
 
 _TASK = load_prompt(__file__)
+_MAX_CONTEXT_CHARS = 24_000
+_MAX_PRIOR_CHARS = 8_000
 
 
 def _system(style: AgentStyle) -> str:
@@ -30,6 +32,11 @@ def generate_candidate(*, style: AgentStyle, context_md: str, idea_md: str = "",
     — the deterministic dedup pass runs regardless.
     """
     avoid = avoid or []
+    # Candidate ideation needs the focused brief, not an unbounded workspace history.
+    # Bounding these two inherited blocks reduces provider prefill latency while keeping
+    # the selected idea and task intact.
+    context_md = context_md[:_MAX_CONTEXT_CHARS]
+    prior_ground = prior_ground[-_MAX_PRIOR_CHARS:]
     sections = [f"# Loaded context\n\n{context_md}"]
     if idea_md:
         sections.append(f"# Parent idea this should branch from\n\n{idea_md}")
@@ -39,7 +46,9 @@ def generate_candidate(*, style: AgentStyle, context_md: str, idea_md: str = "",
     sections.append(f"# Already tried in earlier runs\n\n{prior_ground or '_(nothing)_'}")
 
     candidate = chat_with_structured_output(
-        get_llm(style.model, style.temperature),
+        # Rough candidates favor latency. The heavier reasoner is retained for
+        # multi-level refinement, comparison, and final writeback.
+        get_llm("cheap", style.temperature, reasoning_effort="low"),
         _system(style),
         "\n\n".join(sections),
         Candidate,

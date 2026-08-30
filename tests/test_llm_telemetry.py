@@ -1,4 +1,5 @@
 from langchain_core.messages import AIMessage
+from pydantic import BaseModel
 
 from src.llm import registry
 
@@ -38,3 +39,34 @@ def test_chat_emits_logical_call_provider_attempt_and_retry_events(monkeypatch):
         if event["name"].startswith("llm ") and "call_id" in event["data"]
     }
     assert len(call_ids) == 1
+
+
+def test_structured_reask_includes_the_invalid_answer_and_correction(monkeypatch):
+    class Result(BaseModel):
+        value: str
+
+    seen_messages = []
+
+    class BoundLlm:
+        def invoke(self, messages):
+            seen_messages.append(list(messages))
+            if len(seen_messages) == 1:
+                return AIMessage(content="I think the value should be usable prose.")
+            return AIMessage(content="", tool_calls=[{
+                "name": "Result", "args": {"value": "structured"},
+                "id": "call_1", "type": "tool_call",
+            }])
+
+    class Llm:
+        def bind_tools(self, *_args, **_kwargs):
+            return BoundLlm()
+
+    monkeypatch.setattr(registry, "emit_trace", lambda _event: None)
+
+    result = registry.chat_with_structured_output(Llm(), "system", "user", Result)
+
+    assert result.value == "structured"
+    assert len(seen_messages) == 2
+    assert seen_messages[1][-2].content.startswith("I think")
+    assert "could not be parsed as Result" in seen_messages[1][-1].content
+    assert "Do not answer with prose" in seen_messages[1][-1].content

@@ -110,7 +110,8 @@ def _invoke_with_retry(invoke, *, call_id: str = "", operation: str = "llm",
             time.sleep(delay)
 
 
-def get_llm(role: str, temperature: float = 0.2):
+def get_llm(role: str, temperature: float = 0.2,
+            reasoning_effort: str | None = None):
     """Return a chat model for `role`.
 
     The `reasoner` model is wrapped with a fallback to the `cheap` model, so a
@@ -124,9 +125,12 @@ def get_llm(role: str, temperature: float = 0.2):
 
     from langchain.chat_models import init_chat_model
 
-    llm = init_chat_model(MODELS[role], temperature=temperature)
+    model_options = {"temperature": temperature}
+    if reasoning_effort is not None:
+        model_options["reasoning_effort"] = reasoning_effort
+    llm = init_chat_model(MODELS[role], **model_options)
     if role == "reasoner":
-        cheap = init_chat_model(MODELS["cheap"], temperature=temperature)
+        cheap = init_chat_model(MODELS["cheap"], **model_options)
         llm = llm.with_fallbacks([cheap])
     return llm
 
@@ -211,6 +215,18 @@ def chat_with_structured_output(llm, system: str, user: str, schema: type[T]) ->
                        next_attempt=attempt + 2, reason="no structured tool call or JSON")
             print(f"[llm] {schema.__name__}: no tool call in response — retrying "
                   f"({attempt + 1}/{_STRUCTURED_ATTEMPTS - 1})", file=sys.stderr)
+            # This is a corrective re-ask, not an identical replay. Keeping the
+            # assistant response preserves DeepSeek's reasoning_content while the new
+            # user turn states exactly what was invalid and what must come next.
+            messages = messages + [
+                resp,
+                HumanMessage(content=(
+                    f"Your previous response could not be parsed as {schema.__name__}: "
+                    "it contained neither a tool call nor a valid JSON object. Return "
+                    f"the {schema.__name__} result now by calling the provided tool. "
+                    "Do not answer with prose."
+                )),
+            ]
     if args is None:
         raise ValueError(
             f"{schema.__name__}: model returned no parseable structured output "

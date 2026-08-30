@@ -21,6 +21,8 @@ from src.common.utils.prompts import load_prompt
 from src.llm.registry import chat_with_structured_output, get_llm
 
 _TASK = load_prompt(__file__)
+_MAX_CONTEXT_CHARS = 24_000
+_MAX_PRIOR_CHARS = 8_000
 
 # Wider than this and the selection becomes a survey rather than a choice: the
 # evaluator has to hold every branch side by side in one call, and past six it stops
@@ -41,6 +43,8 @@ def expand_branch(*, style: AgentStyle, idea_md: str, path_md: str,
     asking again.
     """
     wanted = max(1, min(int(width or 1), MAX_BRANCHES))
+    context_md = context_md[:_MAX_CONTEXT_CHARS]
+    prior_ground = prior_ground[-_MAX_PRIOR_CHARS:]
     sections = [
         f"# The idea under refinement\n\n{idea_md}",
         f"# What this run was asked to do\n\n{task or '_(no explicit task — develop the idea where it is weakest)_'}",
@@ -59,7 +63,8 @@ def expand_branch(*, style: AgentStyle, idea_md: str, path_md: str,
     sections.append(f"# Already tried in earlier runs\n\n{prior_ground or '_(nothing)_'}")
 
     result = chat_with_structured_output(
-        get_llm(style.model, style.temperature),
+        get_llm(style.model, style.temperature,
+                reasoning_effort="low" if style.model == "cheap" else None),
         f"{load_style_prompt(style.name)}\n\n---\n\n{_TASK}",
         "\n\n".join(sections),
         BranchSet,
