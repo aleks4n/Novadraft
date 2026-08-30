@@ -794,6 +794,11 @@ body.col-resizing .gaps-row:hover { background: transparent; }
 }
 .step-context-body b { font-weight: 600; color: var(--text-3); }
 .step-context-missing { color: var(--accent-warm); }
+.step-context-tool-on { color: var(--accent-green); }
+.step-context-tool-off { color: var(--text-5); }
+.step-context-catalog, .step-context-shape {
+  margin-top: 3px; padding-top: 3px; border-top: 1px dotted var(--border-soft);
+}
 .step-context-raw > summary { cursor: pointer; color: var(--text-5); }
 .step-context-raw > summary:hover { color: var(--text-3); }
 .step-context-raw pre {
@@ -1524,3 +1529,8 @@ body.is-row-resizing { user-select: none; -webkit-user-select: none; cursor: row
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* The handover rows under a finished turn's reply. Indented under the message body so
+   they read as a footnote to the answer rather than as part of it. */
+.msg-handovers { margin-top: 6px; padding-top: 5px; border-top: 1px solid var(--border-soft); }
+.msg-handovers .step-context + .step-context { margin-top: 4px; }

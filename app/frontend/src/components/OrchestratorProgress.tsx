@@ -20,7 +20,7 @@ function timeLabel(value: string | null): string {
  * is answered by the summary line alone, and only the follow-up — "then why is the
  * candidate wrong" — needs the literal prompt text underneath.
  */
-function StepContext({ handover }: { handover: StepHandover }) {
+export function StepContext({ handover }: { handover: StepHandover }) {
   const parts = [
     [handover.gaps.length, "gap"],
     [handover.papers.length, "paper"],
@@ -40,7 +40,10 @@ function StepContext({ handover }: { handover: StepHandover }) {
     <details className="step-context">
       <summary className="step-context-summary">
         Context it had: {summary}
-        {notLoaded && <span className="step-context-rest"> · {notLoaded} not loaded</span>}
+        {notLoaded && <span className="step-context-rest"> · {notLoaded} indexed</span>}
+        <span className={handover.toolUse ? "step-context-tool-on" : "step-context-tool-off"}>
+          {handover.toolUse ? " · investigator on" : " · investigator off"}
+        </span>
       </summary>
       <div className="step-context-body">
         {handover.gaps.length > 0 && <div><b>gaps:</b> {handover.gaps.join(", ")}</div>}
@@ -56,6 +59,35 @@ function StepContext({ handover }: { handover: StepHandover }) {
             <b>could not load:</b> {handover.missingIds.join(", ")}
           </div>
         )}
+
+        {/* The index is a different kind of thing from the records above — those are
+            loaded in full, these are titles the thinker can ask the investigator for.
+            Saying so is the point: it is what turns "32 gaps" from noise into an
+            explanation of what the run could have reached for. */}
+        {notLoaded && (
+          <div className="step-context-catalog">
+            <b>workspace index:</b> {notLoaded} listed by title only —{" "}
+            {handover.toolUse
+              ? "it could ask the investigator for any of them by id."
+              : "it could see they exist, but tool use was off, so it could not fetch them."}
+          </div>
+        )}
+
+        <div className="step-context-shape">
+          <b>investigator:</b>{" "}
+          {handover.toolUse
+            ? "on — the thinker could research mid-thought"
+            : "off — the thinker worked only from the context above"}
+          {handover.mode && <> · <b>mode:</b> {handover.mode}</>}
+          {handover.mode === "generation" && handover.width !== null && (
+            <> · <b>width:</b> {handover.width}</>
+          )}
+          {handover.mode === "refinement" && handover.depth !== null && (
+            <> · <b>depth:</b> {handover.depth}</>
+          )}
+          {handover.styles.length > 0 && <> · <b>styles:</b> {handover.styles.join(", ")}</>}
+        </div>
+
         <details className="step-context-raw">
           <summary>The exact text it was given ({handover.chars.toLocaleString()} chars)</summary>
           <pre>{handover.markdown}</pre>

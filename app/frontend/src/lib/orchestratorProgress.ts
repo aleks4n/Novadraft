@@ -17,6 +17,19 @@ export interface StepHandover {
   missingIds: string[];
   /** How many records the workspace holds that this step did NOT load, by kind. */
   catalogCounts: Record<string, number>;
+  /**
+   * Whether the thinker was allowed to call the investigator mid-thought.
+   *
+   * Shown even when false, unlike the plan's own argument chips — those hide a false
+   * flag as "unused", which makes "the investigator was switched off" and "this step
+   * has no such setting" look identical. For a run whose candidates came back
+   * ungrounded, that is exactly the difference you are looking for.
+   */
+  toolUse: boolean;
+  mode: string;
+  styles: string[];
+  width: number | null;
+  depth: number | null;
   /** The literal context markdown the subagent's prompt carried. */
   markdown: string;
   chars: number;
@@ -128,7 +141,7 @@ function countMap(value: unknown): Record<string, number> {
   return out;
 }
 
-function handoverFromEvent(data: unknown): StepHandover | null {
+export function handoverFromEvent(data: unknown): StepHandover | null {
   const payload = object(data);
   if (!payload) return null;
   const inventory = object(payload.inventory) || {};
@@ -139,6 +152,11 @@ function handoverFromEvent(data: unknown): StepHandover | null {
     userInput: stringList(inventory.user_input),
     missingIds: stringList(inventory.missing_ids),
     catalogCounts: countMap(inventory.catalog_counts),
+    toolUse: payload.tool_use === true,
+    mode: string(payload.mode),
+    styles: stringList(payload.styles),
+    width: number(payload.width),
+    depth: number(payload.depth),
     markdown: string(payload.context_md),
     chars: number(payload.context_chars) ?? 0,
   };

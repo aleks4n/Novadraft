@@ -11,6 +11,8 @@ import { ContextPicker } from "./ContextPicker";
 import { EnvelopeResult, OfferedDrafts } from "./EnvelopeResult";
 import type { DraftActions } from "./EnvelopeResult";
 import { PlanReview } from "../PlanReview";
+import { StepContext } from "../OrchestratorProgress";
+import { handoverFromEvent } from "../../lib/orchestratorProgress";
 import { readDrop } from "../../lib/dnd";
 import type {
   AgentPlan, ChatMessage, ContextRef, Idea, RunState, Session,
@@ -196,6 +198,28 @@ export function Chat({
   );
 }
 
+/**
+ * What each thinking step of a finished turn was handed.
+ *
+ * One row per creative-thinker step, because a plan can call it more than once and the
+ * steps do not see the same thing — a second call chained onto an investigator step has
+ * that step's findings in scope and the first one did not. Collapsing them into a single
+ * "this turn's context" row would hide exactly the difference worth reading.
+ */
+function TurnHandovers({ message }: { message: ChatMessage }) {
+  const handovers = (message.handovers || [])
+    .map(handoverFromEvent)
+    .filter((handover): handover is NonNullable<typeof handover> => handover !== null);
+  if (!handovers.length) return null;
+  return (
+    <div className="msg-handovers">
+      {handovers.map((handover, index) => (
+        <StepContext key={index} handover={handover} />
+      ))}
+    </div>
+  );
+}
+
 // --- one transcript message ----------------------------------------------------
 
 function MessageBubble({
@@ -273,6 +297,10 @@ function MessageBubble({
           {message.run_id && <OfferedDrafts runId={message.run_id} drafts={drafts} />}
         </>
       )}
+      {/* What the thinker could see while producing the reply above. The live plan
+          panel shows this during the run and then vanishes with it, which is the wrong
+          moment: you ask "did it even have the paper" after reading the answer. */}
+      <TurnHandovers message={message} />
       {run && run.status !== "done" && !message.envelope && <LiveThoughts run={run} />}
     </div>
   );

@@ -493,6 +493,13 @@ export interface ChatMessage {
   plan?: AgentPlan;
   plan_status?: PlanStatus;
   plan_run_id?: string;
+  /**
+   * What each creative-thinker step of this turn was handed — the raw event payloads,
+   * copied onto the transcript when the run landed. The live plan panel shows the same
+   * thing from the event stream while a run is going; this is what keeps it readable
+   * afterwards, which is when the question actually gets asked.
+   */
+  handovers?: unknown[];
   failed?: boolean;
   demo?: DemoKind;            // client-side demo turns (see SessionView)
   settings?: {

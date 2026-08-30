@@ -332,3 +332,46 @@ def test_the_thinker_path_still_works_untouched(client, rec, monkeypatch):  # no
     assert meta["agent"] == "creative_thinker"
     assert meta["inputs"]["width"] == 2, "the composer's knobs still reach the thinker"
     _finished(client, response.json()["run"]["run_id"])
+
+
+def test_run_handovers_reads_thinker_context_off_the_run_log(tmp_path, monkeypatch):
+    """A finished turn must still be able to say what its thinker could see.
+
+    The live plan panel reads these from the event stream, but it is gone once the run
+    ends — and "did that step even have the paper?" is asked after reading the reply,
+    not during. So they are copied onto the transcript at land time.
+    """
+    from app.backend import main
+    from app.backend.runs import MANAGER
+
+    log = tmp_path / "run.jsonl"
+    log.write_text("\n".join([
+        json.dumps({"kind": "event", "name": "orchestrator step started",
+                    "data": {"step": 1, "tool": "creative_thinker"}}),
+        json.dumps({"kind": "event", "name": "context handed to creative thinker",
+                    "data": {"mode": "generation", "tool_use": True,
+                             "inventory": {"gaps": ["gap_a"], "papers": ["arxiv_1"]},
+                             "context_md": "## Gaps in scope", "context_chars": 16}}),
+        # A second thinking step in the same turn — chained onto an investigator step, so
+        # it saw something the first one did not. Both must survive.
+        json.dumps({"kind": "event", "name": "context handed to creative thinker",
+                    "data": {"mode": "refinement", "tool_use": False,
+                             "inventory": {"gaps": ["gap_a"], "findings": 1},
+                             "context_md": "## Findings", "context_chars": 11}}),
+    ]), encoding="utf-8")
+    monkeypatch.setattr(MANAGER, "log_path", lambda run_id: log)
+
+    found = main._run_handovers("run-1")
+
+    assert [h["mode"] for h in found] == ["generation", "refinement"]
+    assert [h["tool_use"] for h in found] == [True, False]
+    assert found[0]["inventory"]["papers"] == ["arxiv_1"]
+
+
+def test_run_handovers_is_best_effort(monkeypatch):
+    """A missing or unreadable log costs the diagnostic, never the reply it belongs to."""
+    from app.backend import main
+    from app.backend.runs import MANAGER
+
+    monkeypatch.setattr(MANAGER, "log_path", lambda run_id: None)
+    assert main._run_handovers("unknown-run") == []

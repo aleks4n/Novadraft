@@ -584,6 +584,40 @@ def _save_working_copies(slug: str, session_id: str, run_id: str, envelope: dict
     return saved
 
 
+def _run_handovers(run_id: str) -> list[dict]:
+    """What each creative-thinker step in this run was handed, off the run's own log.
+
+    The live plan panel reads these straight from the event stream, but that panel is
+    gone the moment the run ends — and the question they answer ("did that step even
+    have the paper? was the investigator switched on?") is asked *after* reading the
+    result, not during. So they are copied onto the transcript at land time, where the
+    reply itself lives.
+
+    Read from the `.jsonl` rather than kept on the run entry because a turn can involve
+    several thinking runs and the entry has room for one — the same reason
+    `_orchestrator_turn` reads from the session file.
+
+    Best-effort by design: a missing or half-written log costs the diagnostic, never the
+    reply it belongs to.
+    """
+    path = MANAGER.log_path(run_id)
+    if path is None or not path.exists():
+        return []
+    out: list[dict] = []
+    try:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if "context handed to creative thinker" not in line:
+                continue
+            event = json.loads(line)
+            if event.get("name") != "context handed to creative thinker":
+                continue
+            if data := event.get("data"):
+                out.append(data)
+    except (OSError, json.JSONDecodeError):
+        return out
+    return out
+
+
 def _orchestrator_turn(slug: str, session_id: str, meta: dict) -> dict | None:
     """A planned turn's own record, or None when this run was not one.
 
@@ -689,7 +723,8 @@ def api_session_land(slug: str, session_id: str, req: SessionLandRequest):
         # ordinary outcome here, not the failure it is on the direct thinker path.
         message = sessions.append_message(
             rec, role="agent", text=turn.get("answer", ""), run_id=req.runId,
-            failed=not turn.get("answer"))
+            failed=not turn.get("answer"),
+            handovers=_run_handovers(req.runId))
     elif not envelope:
         message = sessions.append_message(
             rec, role="agent", text=meta.get("error") or "The run produced no envelope.",
