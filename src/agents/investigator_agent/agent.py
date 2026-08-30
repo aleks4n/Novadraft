@@ -37,6 +37,7 @@ from src.common.tools.paper_fetch import PaperAlreadyExistsError
 from src.common.tools.paper_extract import extract as extract_paper
 from src.common.tools.paper_access import get_full_text
 from src.common.utils import storage
+from src.agents.investigator_agent import workspace_lookup
 from src.common.utils.logging import trace
 from src.common.utils.logging.runlog import GraphRunLog
 from src.common.schemas.evidence import CitedAnswer, CitationClaim, Evidence
@@ -81,8 +82,16 @@ _PAPER_ANSWER_SYSTEM_PROMPT = (
 
 
 class InvestigatorDecision(BaseModel):
-	action: Literal["paper", "paper_search", "web", "url"] = Field(
-		description="Choose paper for one known paper, paper_search to find and download several papers, web for a general web search, or url for a direct page to scrape/download.",
+	action: Literal["workspace", "paper", "paper_search", "web", "url"] = Field(
+		description="Choose workspace to read what this project already holds (its gaps, its saved papers, its ideas), paper for one known paper to fetch from outside, paper_search to find and download several papers, web for a general web search, or url for a direct page to scrape/download.",
+	)
+	workspace_ids: list[str] = Field(
+		default_factory=list,
+		description="For action=workspace: exact record ids to read, when the request names any (for example gap_04e60ada or arxiv_1706.03762). Leave empty to search the workspace by topic instead.",
+	)
+	section: str = Field(
+		default="",
+		description="For action=workspace: the name of one paper section to read, when the request asks about a specific part (for example 'experiments' or 'related work'). Leave empty for the summary.",
 	)
 	paper_count: int = Field(
 		default=1,
@@ -138,7 +147,17 @@ class InvestigatorEvaluation(BaseModel):
 
 _DECISION_SYSTEM_PROMPT = (
 	"You route a single user instruction to the right research action. "
-	"Pick exactly one action: paper, paper_search, web, or url. "
+	"Pick exactly one action: workspace, paper, paper_search, web, or url. "
+	"CHECK THE WORKSPACE FIRST. This project keeps its own knowledge base — the research gaps it has "
+	"extracted, the papers it has already fetched and summarised, and the ideas it has developed. "
+	"Use workspace whenever the request could be answered from that: when it names a record id "
+	"(gap_..., arxiv_..., doi_..., hash_..., idea_...), when it asks what this project knows, holds, "
+	"has already found or has already tried, or when it asks about a topic that the project plausibly "
+	"has material on. Put any ids the request names into workspace_ids; otherwise leave workspace_ids "
+	"empty and put the topic in query. Set section when the request is about one part of a paper. "
+	"Going to the web for something already on disk is slower and gives a worse answer, so prefer "
+	"workspace unless the request clearly needs the outside world — new literature, prior-art checks, "
+	"anything published since, or a named paper the project does not have. "
 	"Use paper when the text is about a paper, article, preprint, DOI, arXiv ID, or asks to search/download a paper. "
 	"Use paper_search when the user asks to find, search for, or download multiple papers (for example 'download 3 papers about transformers'). Set paper_count to the requested number, or 3 when they say 'some' or do not specify a number. "
 	"Use web when the text asks to search the web generally, compare claims on the web, or learn about a topic without naming a direct URL. "
@@ -169,8 +188,14 @@ class InvestigatorState(TypedDict, total=False):
 	# ``workspace_key`` is the category-relative location used by downstream
 	# agents, e.g. ``machine-learning/sessions/session-42``.
 	workspace_key: str
+	# The bare category slug, kept beside ``workspace_key`` rather than parsed out of it:
+	# the workspace routes read ``<category>/gaps/...``, which is a sibling of the session
+	# folder the fetch routes write into, not something under it.
+	category_slug: str
 	mode: str
 	query: str
+	workspace_ids: list[str]
+	section: str
 	paper_count: int
 	url: str
 	save_requested: bool
@@ -499,10 +524,31 @@ def _paper_search_topic(text: str) -> str:
 	return _normalize(topic).strip(":- ") or _normalize(text)
 
 
+# A workspace record id, written literally in the request. Distinctive enough to route on
+# without an LLM: nothing else in a research question looks like `gap_04e60ada`.
+_RECORD_ID_RE = re.compile(r"\b((?:gap|idea|arxiv|doi|hash)_[A-Za-z0-9._\-]+)\b")
+
+
 def _heuristic_decide_request(text: str) -> dict:
 	clean = _normalize(text)
 	lower = clean.lower()
 	url = _first_url(clean)
+
+	# Before anything else: an id names a record this project already holds, and no web
+	# search will find it. This is the one route the fallback can be certain about.
+	if ids := _RECORD_ID_RE.findall(clean):
+		return {
+			"mode": "workspace",
+			"query": clean,
+			"workspace_ids": ids,
+			"section": "",
+			"paper_count": 1,
+			"url": url or None,
+			"save_requested": False,
+			"should_fetch_pages": False,
+			"decision_reason": "heuristic fallback: request names workspace record id(s)",
+		}
+
 	save_requested = any(term in lower for term in ("download", "save", "scrape", "crawl", "fetch"))
 	paper_requested = any(term in lower for term in ("paper", "arxiv", "doi", "preprint", "manuscript"))
 	paper_count = _requested_paper_count(clean)
@@ -563,8 +609,23 @@ def _decide_request(text: str, reflections: list[str] | None = None) -> dict:
 	url = _normalize(decision.url) or _first_url(clean) or ""
 	query = _normalize(decision.query)
 	action = _normalize(getattr(decision, "action", ""))
-	if action not in {"paper", "paper_search", "web", "url"}:
+	if action not in {"workspace", "paper", "paper_search", "web", "url"}:
 		return _heuristic_decide_request(clean)
+	if action == "workspace":
+		ids = [_normalize(i) for i in (getattr(decision, "workspace_ids", None) or [])]
+		return {
+			"mode": "workspace",
+			# The whole request is the fallback query. A workspace search scores over terms,
+			# so the raw question works where an over-extracted phrase ("the gap") does not.
+			"query": query or clean,
+			"workspace_ids": [i for i in ids if i],
+			"section": _normalize(getattr(decision, "section", "")),
+			"paper_count": 1,
+			"url": url or None,
+			"save_requested": False,
+			"should_fetch_pages": False,
+			"decision_reason": decision.reason,
+		}
 	if action == "url":
 		if not url:
 			url = _first_url(clean) or ""
@@ -1026,6 +1087,88 @@ def _answer_from_fetched_pages(query: str, pages: list[dict]) -> str | None:
 	return chat(get_llm("cheap", temperature=0), _WEB_ANSWER_SYSTEM_PROMPT, user_prompt).strip()
 
 
+_WORKSPACE_ANSWER_SYSTEM_PROMPT = (
+	"Answer the user's question using only the supplied records from this project's own "
+	"knowledge base. These are the project's stored gaps, papers and ideas — treat them as "
+	"what the project knows, not as external literature. Do not use outside knowledge and do "
+	"not infer claims the records do not support. Cite the record ids you used. If the records "
+	"do not answer the question, say so plainly and say what they do contain."
+)
+
+
+def _answer_from_workspace(question: str, text: str) -> str | None:
+	if not text.strip():
+		return None
+	return chat(get_llm("cheap", temperature=0), _WORKSPACE_ANSWER_SYSTEM_PROMPT,
+				f"Question:\n{question}\n\nRecords from the project's knowledge base:\n\n{text}").strip()
+
+
+def workspace_node(state: InvestigatorState) -> dict:
+	"""Read what the project already holds, and answer from it.
+
+	The only route that touches the category workspace rather than the session folder, and
+	the only one that writes nothing at all: everything it reads is already saved, so there
+	is nothing to stage or promote.
+
+	Without a category there is no workspace to read — the standalone/legacy caller passes
+	only a session id — and that is reported as a failure rather than silently answered
+	from nothing, so the evaluator can send the actor to the web instead.
+	"""
+	category_slug = _normalize(state.get("category_slug") or "")
+	question = _normalize(state.get("text") or "") or state.get("query", "")
+	if not category_slug:
+		result = {"error": "no category workspace is attached to this investigator run, "
+						   "so there is nothing of the project's own to read"}
+		trace.log_event("investigator_workspace", error=result["error"])
+		return {"research_result": result}
+
+	result = workspace_lookup.lookup(
+		category_slug,
+		ids=list(state.get("workspace_ids") or []),
+		query=state.get("query", ""),
+		section=state.get("section", ""),
+	)
+	trace.log_event("investigator_workspace",
+					category=category_slug,
+					ids=list(state.get("workspace_ids") or []),
+					section=state.get("section", ""),
+					found=[r["id"] for r in result.get("records") or []],
+					unknown=result.get("unknown_ids") or [])
+
+	if result.get("text"):
+		try:
+			result["answer"] = _answer_from_workspace(question, result["text"])
+		except Exception as exc:  # noqa: BLE001 - keep the records if the LLM is unavailable
+			result["answer_error"] = f"{type(exc).__name__}: {exc}"
+	return {"research_result": result}
+
+
+def _workspace_to_text(result: dict, query: str) -> str:
+	"""What the run returns to its caller.
+
+	The answer leads and the records follow it by id. The ids matter as much as the prose:
+	the caller is usually a step that will want to ask for one of these records again, and
+	an answer that names no ids ends that trail.
+	"""
+	if error := result.get("error"):
+		return f"Workspace lookup for '{query}' found nothing: {error}"
+	lines = []
+	if answer := result.get("answer"):
+		lines.append(answer)
+	elif failure := result.get("answer_error"):
+		lines.append(f"(could not summarise the records: {failure})")
+	if records := result.get("records"):
+		lines.append("\nRead from the project's knowledge base: "
+					 + ", ".join(f"{r['id']} ({r['kind']})" for r in records))
+	if unknown := result.get("unknown_ids"):
+		lines.append(f"Not in the workspace: {', '.join(unknown)}")
+	if not result.get("answer"):
+		# No answer means the LLM step did not run or failed. The records themselves are
+		# still the finding, and dropping them would report an empty result over a full one.
+		lines.append("\n" + result.get("text", ""))
+	return "\n".join(lines).strip()
+
+
 def paper_node(state: InvestigatorState) -> dict:
 	workspace_key = state.get("workspace_key", state["session_id"])
 	_ensure_workspace(workspace_key)
@@ -1184,6 +1327,9 @@ def _deterministic_evaluate(mode: str, result: dict) -> tuple[bool, str]:
 	feedback = ""
 	if result.get("error"):
 		feedback = f"The {mode} route failed: {result['error']}"
+	elif mode == "workspace" and not result.get("records"):
+		feedback = ("The workspace holds nothing matching that. Try different terms, or go "
+					"to the web if the answer is not something this project would have stored.")
 	elif mode == "paper" and result.get("status") != "ok":
 		feedback = result.get("message") or f"The paper workflow ended with status {result.get('status', 'unknown')}."
 	elif mode == "paper" and not result.get("answer"):
@@ -1315,7 +1461,9 @@ def _route_after_evaluate(state: InvestigatorState) -> str:
 
 def render(state: InvestigatorState) -> dict:
 	mode = state["mode"]
-	if mode == "paper":
+	if mode == "workspace":
+		output = _workspace_to_text(state["research_result"], state["query"])
+	elif mode == "paper":
 		output = _paper_to_text(state["research_result"], state["query"])
 	elif mode == "paper_search":
 		output = _multi_paper_to_text(state["research_result"], state["query"])
@@ -1329,6 +1477,7 @@ def render(state: InvestigatorState) -> dict:
 def build_investigator_graph():
 	g = StateGraph(InvestigatorState)
 	g.add_node("actor", actor)
+	g.add_node("workspace", workspace_node)
 	g.add_node("paper", paper_node)
 	g.add_node("paper_search", paper_search_node)
 	g.add_node("download_papers", download_papers_node)
@@ -1340,7 +1489,9 @@ def build_investigator_graph():
 
 	g.add_edge(START, "actor")
 	g.add_conditional_edges("actor", _route_after_interpret,
-							{"paper": "paper", "paper_search": "paper_search", "web": "web", "url": "url"})
+							{"workspace": "workspace", "paper": "paper",
+							 "paper_search": "paper_search", "web": "web", "url": "url"})
+	g.add_edge("workspace", "evaluate")
 	g.add_edge("paper", "evaluate")
 	g.add_edge("paper_search", "download_papers")
 	g.add_edge("download_papers", "evaluate")
@@ -1395,6 +1546,9 @@ def run(
 	inputs = {"text": text, "session_id": session_id}
 	if category_slug is not None:
 		inputs["workspace_key"] = workspace_key
+		# The bare slug, so the workspace route can read the category's own gaps/papers/ideas.
+		# Without it that route has nothing to read and says so.
+		inputs["category_slug"] = category_slug
 	if max_attempts != _DEFAULT_MAX_ATTEMPTS:
 		inputs["max_attempts"] = max_attempts
 	if not stream:

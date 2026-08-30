@@ -1,0 +1,277 @@
+{
+  "idea_id": "idea_268d62da",
+  "title": "The oscillation is the message: per-filter support tracking instead of a global divergence",
+  "state": "root",
+  "one_liner": "Filter collapse is not a leftover dynamics bug to regularize after fixing the loss — it is the generator discovering the region where the global JS/KL objective degenerates on low-dimensional supports, so the fix is per-filter, empirically finite training signals, not another divergence.",
+  "description": "The paper's two gaps are one gap. The load-bearing assumption is that the right training signal is a single global divergence between two full distributions, and that the remaining collapse is an independent dynamics problem to be regularized away once the divergence is fixed. But the remaining collapse appears exactly where the global divergence goes degenerate on low-dimensional supports: a subset of filters stops receiving informative gradient, and their dynamics are then governed by residual optimizer noise, which shows up as oscillation. Instead of swapping in yet another globally-defined distance, drop the global scalar: give each filter a training signal that is locally defined and always finite because it is computed on the actual samples (k-NN style) rather than on assumed densities. The inversion is that oscillation is not a failure to suppress — it is the per-filter signature of support non-overlap, so the same mechanism that addresses gap B also diagnoses and stops gap A. Validation stops where the paper's method still collapses after long training; that is precisely the regime where the assumption must be dropped.\n\n**addresses gaps:** gap_4ec20593, gap_09d1e3fa",
+  "problem": "",
+  "addresses": [
+    "gap_4ec20593",
+    "gap_09d1e3fa"
+  ],
+  "relations": [],
+  "inherited_from": null,
+  "sections": {
+    "technique": "For each discriminator filter f, collect activation vectors on the real batch and the fake batch, and define a per-filter cost as the mean k-th-nearest-neighbor distance from fake activations to real activations — an empirical quantity that is finite even when the two supports are disjoint low-dimensional manifolds. The discriminator maximizes the sum of per-filter costs and the generator minimizes it, replacing the single global divergence. A support-collapse monitor tracks, per filter, the nearest-neighbor cost over time together with the periodicity of the filter's activations (autocorrelation peak at lag > 1); a filter whose cost is growing while its activations become periodic is flagged as collapsed, and its input weights are frozen or re-seeded instead of being left to oscillate. Compare against a WGAN-GP / spectral-normalization baseline on a setup where partial filter collapse is observed only after long training, and test whether per-filter costs stop the collapse earlier.",
+    "open_questions": [
+      "Whether per-filter costs saturate toward zero as batches converge, letting a sum objective be satisfied by easy filters while others go silent and evade the periodicity monitor — and whether rank-based/scale-normalized costs plus a silence detector fix this.",
+      "Whether the oscillation-is-support-non-overlap claim can be distinguished from generic adversarial limit cycles, via a near-optimal-critic-per-step control experiment.",
+      "Unchanged from before: differentiability of k-NN, which network's filters collapse, and whether collapse is contagious across filters."
+    ],
+    "rationale": "My stance: the field treats gap B as a loss-design problem (pick a divergence defined on disjoint supports, e.g. Wasserstein) and gap A as a leftover dynamics problem (regularize or renormalize), and the load-bearing premise is that a single global scalar divergence is the right unit of training signal. I relax that premise by making the signal per-filter and empirically finite, and I invert the direction of explanation: oscillation is not the thing to suppress, it is the observable signature of the low-dimensional-support degeneracy, so one mechanism addresses both gaps. This is not a dismissal of WGAN — it identifies the one premise (global scalar loss) doing the work and shows what becomes possible once it is dropped: collapse can be detected and stopped per filter before it spreads, using the instability itself as signal. Unverified claims: that the observed oscillating collapse is specifically caused by degenerate gradients in non-overlapping regions, and that per-filter k-NN costs remain trainable at scale; both are hypotheses the experiment would test, not facts I have established."
+  },
+  "section_order": [
+    "technique",
+    "open_questions",
+    "rationale"
+  ],
+  "evaluation": {
+    "novelty": null,
+    "feasibility": null,
+    "significance": null
+  },
+  "provenance": [],
+  "origin": {
+    "run_id": "run_9472281b",
+    "node_id": "run_9472281b:n1",
+    "node_path": [
+      "run_9472281b:n0",
+      "run_9472281b:n1"
+    ],
+    "style": "skeptic",
+    "mode": "generation",
+    "parent_idea_id": null,
+    "suggested": null,
+    "inherited_from": null,
+    "inherited_upto_run": null
+  },
+  "runs": [
+    {
+      "run_id": "run_9472281b",
+      "session_id": null,
+      "timestamp": "2026-08-21T08:50:04Z",
+      "header": {
+        "mode": "generation",
+        "width": 3,
+        "depth": 1,
+        "model": "reasoner",
+        "agent_styles": [
+          "skeptic",
+          "combiner",
+          "neutral"
+        ],
+        "context_ids": [
+          "gap_4ec20593",
+          "gap_09d1e3fa",
+          "user_input"
+        ],
+        "triggering_action": "session sess_ead7d351",
+        "tool_use": false,
+        "task": "Propose 3 ideas to solve both gaps/problems"
+      },
+      "nodes": [
+        {
+          "node_id": "run_9472281b:n0",
+          "parent_id": null,
+          "text": "# (untitled idea)",
+          "style": "-",
+          "score": null,
+          "status": "kept",
+          "depth": 0,
+          "kind": "root",
+          "title": "(brief)",
+          "comparison": "",
+          "question": null,
+          "sources": []
+        },
+        {
+          "node_id": "run_9472281b:n1",
+          "parent_id": "run_9472281b:n0",
+          "text": "The oscillation is the message: per-filter support tracking instead of a global divergence\nFilter collapse is not a leftover dynamics bug to regularize after fixing the loss — it is the generator discovering the region where the global JS/KL objective degenerates on low-dimensional supports, so the fix is per-filter, empirically finite training signals, not another divergence.\nThe paper's two gaps are one gap. The load-bearing assumption is that the right training signal is a single global divergence between two full distributions, and that the remaining collapse is an independent dynamics problem to be regularized away once the divergence is fixed. But the remaining collapse appears exactly where the global divergence goes degenerate on low-dimensional supports: a subset of filters stops receiving informative gradient, and their dynamics are then governed by residual optimizer noise, which shows up as oscillation. Instead of swapping in yet another globally-defined distance, drop the global scalar: give each filter a training signal that is locally defined and always finite because it is computed on the actual samples (k-NN style) rather than on assumed densities. The inversion is that oscillation is not a failure to suppress — it is the per-filter signature of support non-overlap, so the same mechanism that addresses gap B also diagnoses and stops gap A. Validation stops where the paper's method still collapses after long training; that is precisely the regime where the assumption must be dropped.\nFor each discriminator filter f, collect activation vectors on the real batch and the fake batch, and define a per-filter cost as the mean k-th-nearest-neighbor distance from fake activations to real activations — an empirical quantity that is finite even when the two supports are disjoint low-dimensional manifolds. The discriminator maximizes the sum of per-filter costs and the generator minimizes it, replacing the single global divergence. A support-collapse monitor tracks, per filter, the nearest-neighbor cost over time together with the periodicity of the filter's activations (autocorrelation peak at lag > 1); a filter whose cost is growing while its activations become periodic is flagged as collapsed, and its input weights are frozen or re-seeded instead of being left to oscillate. Compare against a WGAN-GP / spectral-normalization baseline on a setup where partial filter collapse is observed only after long training, and test whether per-filter costs stop the collapse earlier.",
+          "style": "skeptic",
+          "score": 0.678,
+          "status": "accepted",
+          "depth": 1,
+          "kind": "candidate",
+          "title": "The oscillation is the message: per-filter support tracking instead of a global divergence",
+          "comparison": "rank 2/3",
+          "question": null,
+          "sources": []
+        }
+      ],
+      "edges": [
+        {
+          "from": "run_9472281b:n0",
+          "to": "run_9472281b:n1",
+          "type": "expanded-into"
+        }
+      ],
+      "outcome": {
+        "accepted_node": "run_9472281b:n1",
+        "escalation": null,
+        "truncated": false,
+        "escalation_node": null,
+        "escalation_diagnosis": "",
+        "status": "completed",
+        "reason": "3 candidates survived deduplication",
+        "limit": null,
+        "accepted_nodes": [
+          "run_9472281b:n1"
+        ],
+        "summary": {
+          "objective": "Propose 3 ideas to solve both gaps/problems",
+          "accepted": "carved from run_9472281b on acceptance: SlowCritic-WGAN: an EMA-gated temporal damper on a Wasserstein critic; The oscillation is the message: per-filter support tracking instead of a global divergence; FilterBank Sinkhorn: entropic OT over the joint (image, activation) distribution",
+          "rejected": "",
+          "open": [
+            "Which side's filters collapse — the gap says 'a subset of filters' without naming the model; if the collapse is in the generator, the damper must move into the generator update and the composition changes.",
+            "Does damping the critic make it lag behind a fast-improving generator, and is a lag-1 autocorrelation detector sufficient to catch slower or aperiodic oscillatory modes?",
+            "Is a weight-EMA copy the right slow target, or should the target be an EMA of critic outputs on fixed anchors, since weight-space averaging across modes is not obviously equivalent to output-space smoothing?",
+            "How sensitive is the result to λ_t and gate hysteresis — too strong a damper could drive the critic toward a constant function and destroy the Wasserstein signal.",
+            "Are the original GAN paper's 'oscillating mode' failure and WGAN-GP's known oscillatory training the same phenomenon, or two different instabilities?"
+          ]
+        },
+        "answer": ""
+      }
+    },
+    {
+      "run_id": "run_48cd3e7e",
+      "session_id": null,
+      "timestamp": "2026-08-21T08:58:04Z",
+      "header": {
+        "mode": "refinement",
+        "width": 2,
+        "depth": 2,
+        "model": "reasoner",
+        "agent_styles": [
+          "skeptic"
+        ],
+        "context_ids": [
+          "user_input"
+        ],
+        "triggering_action": "session sess_3c03695f",
+        "tool_use": false,
+        "task": "What do you think are more open questions to this idea?"
+      },
+      "nodes": [
+        {
+          "node_id": "run_48cd3e7e:n0",
+          "parent_id": null,
+          "text": "# The oscillation is the message: per-filter support tracking instead of a global divergence\n_Filter collapse is not a leftover dynamics bug to regularize after fixing the loss — it is the generator discovering the region where the global JS/KL objective degenerates on low-dimensional supports, so the fix is per-filter, empirically finite training signals, not another divergence._\n\n## description\nThe paper's two gaps are one gap. The load-bearing assumption is that the right training signal is a single global divergence between two full distributions, and that the remaining collapse is an independent dynamics problem to be regularized away once the divergence is fixed. But the remaining collapse appears exactly where the global divergence goes degenerate on low-dimensional supports: a subset of filters stops receiving informative gradient, and their dynamics are then governed by residual optimizer noise, which shows up as oscillation. Instead of swapping in yet another globally-defined distance, drop the global scalar: give each filter a training signal that is locally defined and always finite because it is computed on the actual samples (k-NN style) rather than on assumed densities. The inversion is that oscillation is not a failure to suppress — it is the per-filter signature of support non-overlap, so the same mechanism that addresses gap B also diagnoses and stops gap A. Validation stops where the paper's method still collapses after long training; that is precisely the regime where the assumption must be dropped.\n\n**addresses gaps:** gap_4ec20593, gap_09d1e3fa\n\n## technique\nFor each discriminator filter f, collect activation vectors on the real batch and the fake batch, and define a per-filter cost as the mean k-th-nearest-neighbor distance from fake activations to real activations — an empirical quantity that is finite even when the two supports are disjoint low-dimensional manifolds. The discriminator maximizes the sum of per-filter costs and the generator minimizes it, replacing the single global divergence. A support-collapse monitor tracks, per filter, the nearest-neighbor cost over time together with the periodicity of the filter's activations (autocorrelation peak at lag > 1); a filter whose cost is growing while its activations become periodic is flagged as collapsed, and its input weights are frozen or re-seeded instead of being left to oscillate. Compare against a WGAN-GP / spectral-normalization baseline on a setup where partial filter collapse is observed only after long training, and test whether per-filter costs stop the collapse earlier.\n\n## open_questions\n- Is the oscillation actually driven by degenerate/vanishing gradient in non-overlapping regions, or by adversarial feedback loops that produce limit cycles even with fully informative gradients — if the latter, the per-filter fix will not stop it. k-NN is not differentiable; does a soft nearest-neighbor surrogate preserve the finite-on-low-dimensional-manifolds property while training stably? Which network's filters collapse — the discriminator's, the generator's, or both — and does the monitor need to be placed differently depending on which? Does freezing or re-seeding a collapsed filter destabilize the surviving filters, i.e., is collapse contagious?\n\n## rationale\nMy stance: the field treats gap B as a loss-design problem (pick a divergence defined on disjoint supports, e.g. Wasserstein) and gap A as a leftover dynamics problem (regularize or renormalize), and the load-bearing premise is that a single global scalar divergence is the right unit of training signal. I relax that premise by making the signal per-filter and empirically finite, and I invert the direction of explanation: oscillation is not the thing to suppress, it is the observable signature of the low-dimensional-support degeneracy, so one mechanism addresses both gaps. This is not a dismissal of WGAN — it identifies the one premise (global scalar loss) doing the work and shows what becomes possible once it is dropped: collapse can be detected and stopped per filter before it spreads, using the instability itself as signal. Unverified claims: that the observed oscillating collapse is specifically caused by degenerate gradients in non-overlapping regions, and that per-filter k-NN costs remain trainable at scale; both are hypotheses the experiment would test, not facts I have established.",
+          "style": "-",
+          "score": null,
+          "status": "kept",
+          "depth": 0,
+          "kind": "root",
+          "title": "The oscillation is the message: per-filter support tracking instead of a global divergence",
+          "comparison": "",
+          "question": null,
+          "sources": []
+        },
+        {
+          "node_id": "run_48cd3e7e:n1",
+          "parent_id": "run_48cd3e7e:n0",
+          "text": "The premise worth attacking is not the global divergence but the inference that a finite per-filter cost has an informative gradient. As batches converge, k-th nearest-neighbor distances shrink and the per-filter cost saturates toward zero, so the vanishing-gradient regime the idea blames on the global divergence reappears at the level of the cost — and because the discriminator maximizes a sum, it can satisfy the objective on a few easy filters while the rest go silent. A silent filter is not oscillating, so the monitor keyed to periodicity will not flag it, and this second-order filter-collapse of the loss becomes invisible. What must change: rank-based or scale-normalized per-filter costs, plus a silence detector alongside the oscillation detector — otherwise the method has moved the degeneracy rather than removed it.",
+          "style": "skeptic",
+          "score": 1.0,
+          "status": "kept",
+          "depth": 1,
+          "kind": "branch",
+          "title": "Ask whether the per-filter fix recreates the degeneracy one level down: finite costs can be flat, and the sum can be satisfied by a subset of filters.",
+          "comparison": "Branch 0 attacks the load-bearing premise that per-filter costs give informative, finite signals: finite costs can still be flat, the sum objective can be satisfied by a few filters, and silent (non-oscillating) collapse evades the periodicity monitor — so if true, the method moves the degeneracy down a level rather than removing it, and no amount of detector tuning rescues it. Branch 1 is a genuine precision problem but is about the monitor's engineering and the framing claim, which only matters once Branch 0's question is settled.",
+          "question": null,
+          "sources": []
+        },
+        {
+          "node_id": "run_48cd3e7e:n2",
+          "parent_id": "run_48cd3e7e:n0",
+          "text": "The recorded questions ask whether oscillation is caused by degeneracy, but not whether the detector can tell collapse apart from healthy periodicity. On image data, periodic activation structure is normal (texture, stripes), so an autocorrelation peak at lag > 1 will flag healthy filters; conversely, a fully collapsed filter that emits a constant delta produces flat autocorrelation with no peak, so the detector misses the worst case. The inversion 'oscillation is the message' only holds if oscillation is both necessary and sufficient for collapse, and the current monitor assumes both. What must change: a precision experiment measuring monitor false-positive and false-negative rates on data with known support structure, plus separate detectors for oscillatory versus static collapse.",
+          "style": "skeptic",
+          "score": null,
+          "status": "pruned",
+          "depth": 1,
+          "kind": "branch",
+          "title": "Ask whether the collapse diagnostic has acceptable precision: periodicity conflates collapse with healthy data structure, and static collapse is invisible to a lag>1 detector.",
+          "comparison": "Loses narrowly: a real and concrete objection — healthy periodicity (texture/stripes) will false-positive and constant collapse will false-negative — but it concerns detector precision and the strength of the 'oscillation is the message' framing, not whether the per-filter training signal is informative, so it is best developed after Branch 0 is resolved.",
+          "question": null,
+          "sources": []
+        },
+        {
+          "node_id": "run_48cd3e7e:n3",
+          "parent_id": "run_48cd3e7e:n1",
+          "text": "The per-filter k-NN cost is only as meaningful as the filter space it is measured in, and that space is co-trained with the generator: every discriminator update changes the geometry in which real-vs-fake distances are computed, so the generator can lower per-filter costs by steering the filters into configurations that make distances small rather than by matching the data. The moving-target problem is thereby relocated from the global divergence to the per-filter embedding, and the finite-ness of the cost buys nothing. What must change is an anchor: compute costs in a fixed reference space (frozen filters, a pretrained backbone, or input-space neighborhoods) with per-filter normalization calibrated on a fixed batch, so the ruler does not change while it grades the generator. The open question is whether the collapse the monitor flags is support non-overlap or an artifact of a drifting measurement space.",
+          "style": "skeptic",
+          "score": null,
+          "status": "pruned",
+          "depth": 2,
+          "kind": "branch",
+          "title": "Anchor the measurement space: the per-filter cost is computed in coordinates the adversary itself controls, so the ruler drifts while it is used.",
+          "comparison": "A genuine concern about the moving-target measurement space, but it is a downstream design refinement (fixed reference space, frozen backbone) that assumes the mechanism is real; it does not adjudicate the idea's central unverified claim.",
+          "question": null,
+          "sources": []
+        },
+        {
+          "node_id": "run_48cd3e7e:n4",
+          "parent_id": "run_48cd3e7e:n1",
+          "text": "The central inversion — oscillation is the signature of support non-overlap — jumps from an observed pattern to a mechanism, but periodic activations with growing cost are also what an ordinary zero-sum game shows when critic updates outpace generator updates, and every filter's cost grows in early healthy training, so the monitor lacks a baseline that separates collapse from progress. The open question is not which hypothesis is true but which experiment adjudicates it: train with an exactly or near-optimal critic at every generator step, so gradients are fully informative by construction, and check whether per-filter oscillation persists. If it does, the per-filter fix is treating a symptom of game dynamics, not a support degeneracy, and the paper's own diagnostic premise fails. This forces the mechanism claim to be tested rather than assumed before any comparison against WGAN baselines is meaningful.",
+          "style": "skeptic",
+          "score": 1.0,
+          "status": "accepted",
+          "depth": 2,
+          "kind": "branch",
+          "title": "Make the mechanism falsifiable: observed oscillation cannot distinguish degenerate-gradient collapse from generic adversarial limit cycles without a control experiment.",
+          "comparison": "Added the two surviving open questions to the idea: second-order degeneracy (per-filter costs saturating to zero, sum satisfied by easy filters, silent filters invisible to the periodicity monitor) and a falsifiability control for the oscillation-mechanism claim (near-optimal critic at every generator step). Reorganized open_questions into a clean list; no other sections changed.",
+          "question": null,
+          "sources": []
+        }
+      ],
+      "edges": [
+        {
+          "from": "run_48cd3e7e:n0",
+          "to": "run_48cd3e7e:n1",
+          "type": "expanded-into"
+        },
+        {
+          "from": "run_48cd3e7e:n0",
+          "to": "run_48cd3e7e:n2",
+          "type": "expanded-into"
+        },
+        {
+          "from": "run_48cd3e7e:n1",
+          "to": "run_48cd3e7e:n3",
+          "type": "expanded-into"
+        },
+        {
+          "from": "run_48cd3e7e:n1",
+          "to": "run_48cd3e7e:n4",
+          "type": "expanded-into"
+        }
+      ],
+      "outcome": {
+        "accepted_node": "run_48cd3e7e:n4",
+        "escalation": "create-variant",
+        "truncated": false,
+        "escalation_node": "run_48cd3e7e:n3",
+        "escalation_diagnosis": "A genuine concern about the moving-target measurement space, but it is a downstream design refinement (fixed reference space, frozen backbone) that assumes the mechanism is real; it does not adjudicate the idea's central unverified claim.",
+        "status": "completed",
+        "reason": "reached the requested depth 2",
+        "limit": null,
+        "accepted_nodes": [
+          "run_48cd3e7e:n4"
+        ],
+        "summary": {
+          "objective": "What do you think are more open questions to this idea?",
+          "accepted": "Added the two surviving open questions to the idea: second-order degeneracy (per-filter costs saturating to zero, sum satisfied by easy filters, silent filters invisible to the periodicity monitor) and a falsifiability control for the oscillation-mechanism claim (near-optimal critic at every generator step). Reorganized open_questions into a clean list; no other sections changed.",
+          "rejected": "Ask whether the collapse diagnostic has acceptable precision: periodicity conflates collapse with healthy data structure, and static collapse is invisible to a lag>1 detector.: Loses narrowly: a real and concrete objection — healthy periodicity (texture/stripes) will false-positive and constant collapse will false-negative — but it concerns detector precision and the strength of the 'oscillation is the message' framing, not whether the per-filter training signal is informative, so it is best developed after Branch 0 is resolved.; Anchor the measurement space: the per-filter cost is computed in coordinates the adversary itself controls, so the ruler drifts while it is used.: A genuine concern about the moving-target measurement space, but it is a downstream design refinement (fixed reference space, frozen backbone) that assumes the mechanism is real; it does not adjudicate the idea's central unverified claim.",
+          "open": [
+            "Whether per-filter costs saturate toward zero as batches converge, letting a sum objective be satisfied by easy filters while others go silent and evade the periodicity monitor — and whether rank-based/scale-normalized costs plus a silence detector fix this.",
+            "Whether the oscillation-is-support-non-overlap claim can be distinguished from generic adversarial limit cycles, via a near-optimal-critic-per-step control experiment.",
+            "Unchanged from before: differentiability of k-NN, which network's filters collapse, and whether collapse is contagious across filters."
+          ]
+        },
+        "answer": "Two further open questions survived. First, the per-filter fix may recreate the degeneracy one level down: as batches converge, k-NN costs shrink toward zero, and because the discriminator maximizes a sum, a few easy filters can satisfy it while the rest go silent — and a silent filter does not oscillate, so the periodicity-keyed monitor would miss this second-order collapse; the open question is whether rank-based/scale-normalized costs plus a silence detector remove it rather than move it. Second, the central inversion needs a falsifiability control: growing cost with periodic activations is also what a generic zero-sum game shows when the critic outpaces the generator, and every filter's cost grows in healthy early training, so the monitor lacks a baseline separating collapse from progress; the adjudicating experiment is a near-optimal critic at every generator step, checking whether per-filter oscillation persists when gradients are fully informative by construction. Both are testable, and both should gate any comparison against WGAN baselines."
+      }
+    }
+  ],
+  "created_at": "2026-08-21T08:55:33Z",
+  "updated_at": "2026-08-21T09:13:25Z"
+}

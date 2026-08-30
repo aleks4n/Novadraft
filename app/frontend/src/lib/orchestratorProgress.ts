@@ -2,6 +2,26 @@ import type { RunEvent, RunState } from "./types";
 
 export type OrchestratorStepStatus = "pending" | "active" | "done" | "failed";
 
+/**
+ * What a step actually had in scope, as opposed to what it was asked to do.
+ *
+ * The plan's arguments say what the planner wanted; this says what the subagent could
+ * see when it went and did it. They are different questions, and only the second one
+ * answers "why is this candidate so thin" — which is usually "it never had the paper".
+ */
+export interface StepHandover {
+  gaps: string[];
+  papers: string[];
+  relatedIdeas: string[];
+  userInput: string[];
+  missingIds: string[];
+  /** How many records the workspace holds that this step did NOT load, by kind. */
+  catalogCounts: Record<string, number>;
+  /** The literal context markdown the subagent's prompt carried. */
+  markdown: string;
+  chars: number;
+}
+
 export interface OrchestratorStepProgress {
   number: number;
   tool: string;
@@ -13,6 +33,8 @@ export interface OrchestratorStepProgress {
   needs: number[];
   status: OrchestratorStepStatus;
   error: string;
+  /** What this step was handed, once it has run. Null until then. */
+  handover: StepHandover | null;
 }
 
 export interface OrchestratorProgressState {
@@ -79,6 +101,36 @@ function dictString(raw: string, key: string): string {
   return "";
 }
 
+function stringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.map(string).filter(Boolean) : [];
+}
+
+function countMap(value: unknown): Record<string, number> {
+  const source = object(value) || {};
+  const out: Record<string, number> = {};
+  for (const [key, raw] of Object.entries(source)) {
+    const count = number(raw);
+    if (count !== null) out[key] = count;
+  }
+  return out;
+}
+
+function handoverFromEvent(data: unknown): StepHandover | null {
+  const payload = object(data);
+  if (!payload) return null;
+  const inventory = object(payload.inventory) || {};
+  return {
+    gaps: stringList(inventory.gaps),
+    papers: stringList(inventory.papers),
+    relatedIdeas: stringList(inventory.related_ideas),
+    userInput: stringList(inventory.user_input),
+    missingIds: stringList(inventory.missing_ids),
+    catalogCounts: countMap(inventory.catalog_counts),
+    markdown: string(payload.context_md),
+    chars: number(payload.context_chars) ?? 0,
+  };
+}
+
 function stepTitle(tool: string, args: Record<string, unknown>, why: string): string {
   if (tool === "investigator") return string(args.query) || why || "Research the question";
   if (tool === "creative_thinker") {
@@ -98,7 +150,7 @@ function structuredPlan(value: unknown): ParsedPlan | null {
     return {
       number: index + 1, tool, title: stepTitle(tool, args, why), why,
       args, needs: Array.isArray(step.needs) ? step.needs.map(Number) : [],
-      status: "pending" as const, error: "",
+      status: "pending" as const, error: "", handover: null,
     };
   });
   const criteria = Array.isArray(plan.done_criteria)
@@ -126,7 +178,7 @@ function legacyPlan(value: unknown): ParsedPlan | null {
     return {
       number: index + 1, tool, title: stepTitle(tool, args, why), why,
       args, needs: [],
-      status: "pending" as const, error: "",
+      status: "pending" as const, error: "", handover: null,
     };
   });
   return { goal: quotedAfter(value, "goal="), criteria: [], steps };
@@ -149,6 +201,7 @@ function investigatorDetail(event: RunEvent): string {
   const result = object(event.result);
   if (event.node === "actor") {
     const mode = string(result?.mode);
+    if (mode === "workspace") return "Reading what this project already holds";
     if (mode === "paper_search") return "Searching for relevant papers";
     if (mode === "paper") return "Retrieving and analysing the paper";
     if (mode === "web") return "Searching the web";
@@ -230,11 +283,22 @@ export function progressForRun(run: RunState): OrchestratorProgressState {
   const events = lastPlanIndex >= 0 ? run.events.slice(lastPlanIndex + 1) : run.events;
   let sawExplicitLifecycle = false;
 
+  // The handover event is emitted from inside the running step and carries no step
+  // number of its own — the step it belongs to is whichever one last started. Tracked
+  // here rather than added to the event because the tool that emits it does not know
+  // its own position in the plan.
+  let runningStep = 0;
+
   for (const event of events) {
     if (event.kind !== "event") continue;
     const stepNumber = number(event.data?.step);
+    if (event.name === "context handed to creative thinker") {
+      const step = steps.find((candidate) => candidate.number === runningStep);
+      if (step) step.handover = handoverFromEvent(event.data);
+    }
     if (event.name === "orchestrator step started" && stepNumber) {
       sawExplicitLifecycle = true;
+      runningStep = stepNumber;
       steps.forEach((step) => {
         if (step.number < stepNumber && step.status === "pending") step.status = "done";
         if (step.number === stepNumber) step.status = "active";

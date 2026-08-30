@@ -20,9 +20,16 @@ What goes in:
 
 Exactly one hop. Two would pull in most of the workspace and stop being focus.
 
-What deliberately does not go in: the workspace's whole paper library, and any paper's
-full text (~60k chars each — the summary is what's useful for ideation, and the
-investigator can fetch the rest on purpose).
+  - **the catalog**: everything one hop did *not* reach, as an index — id, title, one
+    marker, no body. A step that only ever sees its own slice cannot know the workspace
+    holds a hundred other gaps, so it never thinks to ask for one. The index is what makes
+    asking possible; the record behind an entry is fetched by handing the investigator its
+    id, which is a step the plan shows rather than a silent widening of scope. See
+    `src.common.tools.catalog`.
+
+What deliberately does not go in: any paper's full text (~60k chars each — the summary is
+what's useful for ideation, and the investigator can fetch the rest on purpose), and the
+*bodies* of anything reached only through the catalog.
 
 Records that fail validation are named in `missing_ids` rather than raising — a stale id,
 or a file written by an earlier prototype, shouldn't kill a turn.
@@ -43,7 +50,7 @@ from src.common.schemas.context import Context, UserInput
 from src.common.schemas.gap import GapRecord
 from src.common.schemas.idea import IdeaRecord
 from src.common.schemas.idea_compat import normalize
-from src.common.tools import paper_access
+from src.common.tools import catalog, paper_access
 from src.common.utils import storage
 from src.agents.orchestrator_agent import session
 from src.agents.orchestrator_agent.schemas import FocusSelection
@@ -276,12 +283,19 @@ def assemble_context(state: OrchestratorState) -> dict:
     for fetched in _session_papers(category, session_id):
         papers.setdefault(fetched.get("paper_id", f"session_{len(papers)}"), fetched)
 
+    # 4. everything the hops did not reach, as titles only. Loaded records are excluded so
+    #    the same gap is not both the subject of the turn and a line in the index — a
+    #    reader shown both has to work out they are one record, and sometimes does not.
+    index = catalog.build(category,
+                          exclude_ids=set(gaps) | set(ideas) | set(papers))
+
     return {
         "context": Context(
             gaps=list(gaps.values()),
             ideas=list(ideas.values()),
             papers=list(papers.values()),
             user_input=_user_input(category, session_id),
+            catalog=index,
             missing_ids=missing,
         ),
         "history": [{"message": r.get("message", ""), "answer": r.get("answer", "")}

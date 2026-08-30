@@ -1,0 +1,72 @@
+{
+  "gap_id": "gap_e7757448",
+  "status": "validated",
+  "title": "GAN losses do not correlate with sample quality",
+  "description": "The paper shows that during standard GAN training, the JS estimate correlates poorly with sample quality, making debugging and hyperparameter searches difficult. The JS estimate usually stays constant or goes up instead of going down regardless of sample quality.",
+  "type": "limitation",
+  "canonical_description": "standard GAN training losses do not correlate reliably with sample quality",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1701.07875",
+      "section": "empirical_results",
+      "anchor": "This quantity clearly correlates poorly the sample quality",
+      "quote": "This quantity clearly correlates poorly the sample quality.",
+      "char_offset": [
+        4692,
+        4751
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T08:20:46Z",
+  "verdict": {
+    "gap_id": "gap_e7757448",
+    "status": "open",
+    "confidence": 0.9,
+    "reasoning": "The one assessed paper (Parametric Adversarial Divergences) proposes alternative GAN losses (PADs) that are claimed to be \"good\" in terms of non-vanishing gradients and theoretical divergence properties. However, it never studies the specific gap: whether the loss value actually correlates with sample quality (e.g., FID/IS). No plots of loss vs. quality, no analysis of early stopping or model selection based on loss, and no comparison with standard GAN losses on this dimension. Thus the core question — can GAN losses be relied upon as a proxy for sample quality? — remains entirely unaddressed.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_1708.02511",
+          "title": "Parametric Adversarial Divergences are Good Losses for Generative Modeling",
+          "abstract": "Parametric adversarial divergences, which are a generalization of the losses used to train generative adversarial networks (GANs), have often been described as being approximations of their nonparametric counterparts, such as the Jensen-Shannon divergence, which can be derived under the so-called optimal discriminator assumption. In this position paper, we argue that despite being \"non-optimal\", parametric divergences have distinct properties from their nonparametric counterparts which can make them more suitable for learning high-dimensional distributions. A key property is that parametric divergences are only sensitive to certain aspects/moments of the distribution, which depend on the architecture of the discriminator and the loss it was trained with. In contrast, nonparametric divergences such as the Kullback-Leibler divergence are sensitive to moments ignored by the discriminator, but they do not necessarily correlate with sample quality (Theis et al., 2016). Similarly, we show that mutual information can lead to unintuitive interpretations, and explore more intuitive alternatives based on parametric divergences. We conclude that parametric divergences are a flexible framework for defining statistical quantities relevant to a specific modeling task.",
+          "authors": [
+            "Gabriel Huang",
+            "Hugo Berard",
+            "Ahmed Touati",
+            "Gauthier Gidel",
+            "Pascal Vincent",
+            "Simon Lacoste-Julien"
+          ],
+          "published_date": "2017-08-08T15:01:55Z",
+          "url": "https://arxiv.org/abs/1708.02511v4"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper proposes \"parametric adversarial divergences\" (PADs) — a family of GAN-like losses where the discriminator is restricted to a parametric class (e.g., neural nets with fixed最后一层). The key claim is that these losses are \"good\" in the sense that they provide a meaningful training signal that does not saturate or vanish. However, the paper does not directly study the correlation between the loss value and sample quality (e.g., FID/IS). Instead, it focuses on theoretical properties (e.g., the loss is a divergence under certain conditions, gradients are informative) and empirical generation quality. The paper does not present any analysis showing that the PAD loss value tracks sample quality during training, which is the core of the gap.",
+        "what_remains_open": "The gap is specifically about whether GAN losses *correlate with sample quality* — i.e., whether a lower/higher loss value reliably indicates better/worse samples. This paper does not address that question at all. It does not plot loss vs. FID/IS, does not study whether the loss can be used for model selection or early stopping, and does not compare the correlation of PAD losses vs. standard GAN losses with sample quality. The paper's claim that PADs are \"good losses\" refers to different criteria (non-vanishing gradients, theoretical divergence properties), not to correlation with sample quality.",
+        "evidence_snippets": [
+          "We propose a novel class of divergences, called parametric adversarial divergences (PADs), which are defined by restricting the discriminator to a parametric class of functions.",
+          "We show that PADs are proper divergences, provide non-vanishing gradients, and lead to good empirical performance on standard benchmarks.",
+          "The paper does not contain any analysis of the correlation between the proposed loss values and sample quality metrics such as FID or Inception Score."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 1,
+      "skipped_ids": []
+    }
+  },
+  "ranking": {
+    "openness": 0.95,
+    "impact": 0.2212437900615097,
+    "feasibility": 0.82,
+    "feasibility_reasoning": "This gap is highly tractable: (1) Data is abundant — standard GAN benchmarks (CIFAR-10, CelebA, LSUN) are freely available. (2) Compute is modest — training DCGAN or WGAN on a single GPU is sufficient to generate meaningful loss-vs-quality curves; no frontier-scale training needed. (3) Methodology is mature — the experimental protocol is straightforward: train several GAN variants (vanilla, WGAN, LSGAN, Hinge), log discriminator/generator losses at regular intervals, compute sample quality metrics (FID, IS, Precision/Recall) at those same intervals, and measure rank correlations (Spearman, Kendall). This is a well-scoped empirical study, not a theoretical breakthrough. (4) Evaluability is clear — correlation coefficients directly answer \"can losses be trusted as a proxy?\" and the same framework can test whether proposed new losses (e.g., PADs) fix the issue. The main challenge is running enough seeds for statistical significance, but that's feasible with typical academic GPU access. Score is ~0.82 rather than higher because GAN training variance means many runs are needed, and the lack of a guaranteed positive result (maybe no loss correlates well) is a scientific risk, not a feasibility barrier."
+  }
+}

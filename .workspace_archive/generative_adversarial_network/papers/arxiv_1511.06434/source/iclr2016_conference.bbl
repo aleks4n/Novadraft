@@ -1,0 +1,250 @@
+\begin{thebibliography}{37}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Bergstra \& Bengio(2012)Bergstra and Bengio]{bergstra2012hpopt}
+Bergstra, James and Bengio, Yoshua.
+\newblock Random search for hyper-parameter optimization.
+\newblock \emph{JMLR}, 2012.
+
+\bibitem[Coates \& Ng(2011)Coates and Ng]{coates2011selecting}
+Coates, Adam and Ng, Andrew.
+\newblock Selecting receptive fields in deep networks.
+\newblock \emph{NIPS}, 2011.
+
+\bibitem[Coates \& Ng(2012)Coates and Ng]{coates2012learning}
+Coates, Adam and Ng, Andrew~Y.
+\newblock Learning feature representations with k-means.
+\newblock In \emph{Neural Networks: Tricks of the Trade}, pp.\  561--580.
+  Springer, 2012.
+
+\bibitem[Deng et~al.(2009)Deng, Dong, Socher, Li, Li, and
+  Fei-Fei]{deng2009imagenet}
+Deng, Jia, Dong, Wei, Socher, Richard, Li, Li-Jia, Li, Kai, and Fei-Fei, Li.
+\newblock Imagenet: A large-scale hierarchical image database.
+\newblock In \emph{Computer Vision and Pattern Recognition, 2009. CVPR 2009.
+  IEEE Conference on}, pp.\  248--255. IEEE, 2009.
+
+\bibitem[Denton et~al.(2015)Denton, Chintala, Szlam, and
+  Fergus]{denton2015deep}
+Denton, Emily, Chintala, Soumith, Szlam, Arthur, and Fergus, Rob.
+\newblock Deep generative image models using a laplacian pyramid of adversarial
+  networks.
+\newblock \emph{arXiv preprint arXiv:1506.05751}, 2015.
+
+\bibitem[Dosovitskiy et~al.(2014)Dosovitskiy, Springenberg, and
+  Brox]{dosovitskiy2014learning}
+Dosovitskiy, Alexey, Springenberg, Jost~Tobias, and Brox, Thomas.
+\newblock Learning to generate chairs with convolutional neural networks.
+\newblock \emph{arXiv preprint arXiv:1411.5928}, 2014.
+
+\bibitem[Dosovitskiy et~al.(2015)Dosovitskiy, Fischer, Springenberg,
+  Riedmiller, and Brox]{dosovitskiy2014discriminative}
+Dosovitskiy, Alexey, Fischer, Philipp, Springenberg, Jost~Tobias, Riedmiller,
+  Martin, and Brox, Thomas.
+\newblock Discriminative unsupervised feature learning with exemplar
+  convolutional neural networks.
+\newblock In \emph{Pattern Analysis and Machine Intelligence, IEEE Transactions
+  on}, volume~99. IEEE, 2015.
+
+\bibitem[Efros et~al.(1999)Efros, Leung, et~al.]{efros1999texture}
+Efros, Alexei, Leung, Thomas~K, et~al.
+\newblock Texture synthesis by non-parametric sampling.
+\newblock In \emph{Computer Vision, 1999. The Proceedings of the Seventh IEEE
+  International Conference on}, volume~2, pp.\  1033--1038. IEEE, 1999.
+
+\bibitem[Freeman et~al.(2002)Freeman, Jones, and Pasztor]{freeman2002example}
+Freeman, William~T, Jones, Thouis~R, and Pasztor, Egon~C.
+\newblock Example-based super-resolution.
+\newblock \emph{Computer Graphics and Applications, IEEE}, 22\penalty0
+  (2):\penalty0 56--65, 2002.
+
+\bibitem[Goodfellow et~al.(2013)Goodfellow, Warde-Farley, Mirza, Courville, and
+  Bengio]{goodfellow2013maxout}
+Goodfellow, Ian~J, Warde-Farley, David, Mirza, Mehdi, Courville, Aaron, and
+  Bengio, Yoshua.
+\newblock Maxout networks.
+\newblock \emph{arXiv preprint arXiv:1302.4389}, 2013.
+
+\bibitem[Goodfellow et~al.(2014)Goodfellow, Pouget{-}Abadie, Mirza, Xu,
+  Warde{-}Farley, Ozair, Courville, and Bengio]{Goodfellow2014}
+Goodfellow, Ian~J., Pouget{-}Abadie, Jean, Mirza, Mehdi, Xu, Bing,
+  Warde{-}Farley, David, Ozair, Sherjil, Courville, Aaron~C., and Bengio,
+  Yoshua.
+\newblock Generative adversarial nets.
+\newblock \emph{NIPS}, 2014.
+
+\bibitem[Gregor et~al.(2015)Gregor, Danihelka, Graves, and
+  Wierstra]{gregor2015draw}
+Gregor, Karol, Danihelka, Ivo, Graves, Alex, and Wierstra, Daan.
+\newblock Draw: A recurrent neural network for image generation.
+\newblock \emph{arXiv preprint arXiv:1502.04623}, 2015.
+
+\bibitem[Hardt et~al.(2015)Hardt, Recht, and Singer]{hardt2015train}
+Hardt, Moritz, Recht, Benjamin, and Singer, Yoram.
+\newblock Train faster, generalize better: Stability of stochastic gradient
+  descent.
+\newblock \emph{arXiv preprint arXiv:1509.01240}, 2015.
+
+\bibitem[Hauberg et~al.(2015)Hauberg, Freifeld, Larsen, Fisher~III, and
+  Hansen]{Hauberg2015}
+Hauberg, Søren, Freifeld, Oren, Larsen, Anders Boesen~Lindbo, Fisher~III,
+  John~W., and Hansen, Lars~Kair.
+\newblock Dreaming more data: Class-dependent distributions over
+  diffeomorphisms for learned data augmentation.
+\newblock \emph{arXiv preprint arXiv:1510.02795}, 2015.
+
+\bibitem[Hays \& Efros(2007)Hays and Efros]{hays2007scene}
+Hays, James and Efros, Alexei~A.
+\newblock Scene completion using millions of photographs.
+\newblock \emph{ACM Transactions on Graphics (TOG)}, 26\penalty0 (3):\penalty0
+  4, 2007.
+
+\bibitem[Ioffe \& Szegedy(2015)Ioffe and Szegedy]{ioffe2015batch}
+Ioffe, Sergey and Szegedy, Christian.
+\newblock Batch normalization: Accelerating deep network training by reducing
+  internal covariate shift.
+\newblock \emph{arXiv preprint arXiv:1502.03167}, 2015.
+
+\bibitem[Kingma \& Ba(2014)Kingma and Ba]{kingma2014adam}
+Kingma, Diederik~P and Ba, Jimmy~Lei.
+\newblock Adam: A method for stochastic optimization.
+\newblock \emph{arXiv preprint arXiv:1412.6980}, 2014.
+
+\bibitem[Kingma \& Welling(2013)Kingma and Welling]{kingma2013auto}
+Kingma, Diederik~P and Welling, Max.
+\newblock Auto-encoding variational bayes.
+\newblock \emph{arXiv preprint arXiv:1312.6114}, 2013.
+
+\bibitem[Lee et~al.(2009)Lee, Grosse, Ranganath, and Ng]{lee2009convolutional}
+Lee, Honglak, Grosse, Roger, Ranganath, Rajesh, and Ng, Andrew~Y.
+\newblock Convolutional deep belief networks for scalable unsupervised learning
+  of hierarchical representations.
+\newblock In \emph{Proceedings of the 26th Annual International Conference on
+  Machine Learning}, pp.\  609--616. ACM, 2009.
+
+\bibitem[Loosli et~al.(2007)Loosli, Canu, and Bottou]{loosli-canu-bottou-2006}
+Loosli, Ga\"{e}lle, Canu, St\'{e}phane, and Bottou, L\'{e}on.
+\newblock Training invariant support vector machines using selective sampling.
+\newblock In Bottou, L\'{e}on, Chapelle, Olivier, {DeCoste}, Dennis, and
+  Weston, Jason (eds.), \emph{Large Scale Kernel Machines}, pp.\  301--320. MIT
+  Press, Cambridge, MA., 2007.
+\newblock URL \url{http://leon.bottou.org/papers/loosli-canu-bottou-2006}.
+
+\bibitem[Maas et~al.(2013)Maas, Hannun, and Ng]{maas2013rectifier}
+Maas, Andrew~L, Hannun, Awni~Y, and Ng, Andrew~Y.
+\newblock Rectifier nonlinearities improve neural network acoustic models.
+\newblock In \emph{Proc. ICML}, volume~30, 2013.
+
+\bibitem[Mikolov et~al.(2013)Mikolov, Sutskever, Chen, Corrado, and
+  Dean]{mikolov2013distributed}
+Mikolov, Tomas, Sutskever, Ilya, Chen, Kai, Corrado, Greg~S, and Dean, Jeff.
+\newblock Distributed representations of words and phrases and their
+  compositionality.
+\newblock In \emph{Advances in neural information processing systems}, pp.\
+  3111--3119, 2013.
+
+\bibitem[Mordvintsev et~al.()Mordvintsev, Olah, and Tyka]{Inceptionism2015}
+Mordvintsev, Alexander, Olah, Christopher, and Tyka, Mike.
+\newblock {Inceptionism} : Going deeper into neural networks.
+\newblock
+  \url{http://googleresearch.blogspot.com/2015/06/inceptionism-going-deeper-into-neural.html}.
+\newblock Accessed: 2015-06-17.
+
+\bibitem[Nair \& Hinton(2010)Nair and Hinton]{nair2010rectified}
+Nair, Vinod and Hinton, Geoffrey~E.
+\newblock Rectified linear units improve restricted boltzmann machines.
+\newblock In \emph{Proceedings of the 27th International Conference on Machine
+  Learning (ICML-10)}, pp.\  807--814, 2010.
+
+\bibitem[Netzer et~al.(2011)Netzer, Wang, Coates, Bissacco, Wu, and
+  Ng]{netzer2011reading}
+Netzer, Yuval, Wang, Tao, Coates, Adam, Bissacco, Alessandro, Wu, Bo, and Ng,
+  Andrew~Y.
+\newblock Reading digits in natural images with unsupervised feature learning.
+\newblock In \emph{NIPS workshop on deep learning and unsupervised feature
+  learning}, volume 2011, pp.\ ~5. Granada, Spain, 2011.
+
+\bibitem[Oquab et~al.(2014)Oquab, Bottou, Laptev, and Sivic]{Oquab14}
+Oquab, M., Bottou, L., Laptev, I., and Sivic, J.
+\newblock Learning and transferring mid-level image representations using
+  convolutional neural networks.
+\newblock In \emph{CVPR}, 2014.
+
+\bibitem[Portilla \& Simoncelli(2000)Portilla and
+  Simoncelli]{portilla2000parametric}
+Portilla, Javier and Simoncelli, Eero~P.
+\newblock A parametric texture model based on joint statistics of complex
+  wavelet coefficients.
+\newblock \emph{International Journal of Computer Vision}, 40\penalty0
+  (1):\penalty0 49--70, 2000.
+
+\bibitem[Rasmus et~al.(2015)Rasmus, Valpola, Honkala, Berglund, and
+  Raiko]{rasmus2015semi}
+Rasmus, Antti, Valpola, Harri, Honkala, Mikko, Berglund, Mathias, and Raiko,
+  Tapani.
+\newblock Semi-supervised learning with ladder network.
+\newblock \emph{arXiv preprint arXiv:1507.02672}, 2015.
+
+\bibitem[Sohl-Dickstein et~al.(2015)Sohl-Dickstein, Weiss, Maheswaranathan, and
+  Ganguli]{sohl2015deep}
+Sohl-Dickstein, Jascha, Weiss, Eric~A, Maheswaranathan, Niru, and Ganguli,
+  Surya.
+\newblock Deep unsupervised learning using nonequilibrium thermodynamics.
+\newblock \emph{arXiv preprint arXiv:1503.03585}, 2015.
+
+\bibitem[Springenberg et~al.(2014)Springenberg, Dosovitskiy, Brox, and
+  Riedmiller]{springenberg2014striving}
+Springenberg, Jost~Tobias, Dosovitskiy, Alexey, Brox, Thomas, and Riedmiller,
+  Martin.
+\newblock Striving for simplicity: The all convolutional net.
+\newblock \emph{arXiv preprint arXiv:1412.6806}, 2014.
+
+\bibitem[Srivastava et~al.(2014)Srivastava, Masci, Gomez, and
+  Schmidhuber]{srivastava2014understanding}
+Srivastava, Rupesh~Kumar, Masci, Jonathan, Gomez, Faustino, and Schmidhuber,
+  J{\"u}rgen.
+\newblock Understanding locally competitive networks.
+\newblock \emph{arXiv preprint arXiv:1410.1165}, 2014.
+
+\bibitem[Theis et~al.(2015)Theis, van~den Oord, and Bethge]{Theis2015d}
+Theis, L., van~den Oord, A., and Bethge, M.
+\newblock A note on the evaluation of generative models.
+\newblock arXiv:1511.01844, Nov 2015.
+\newblock URL \url{http://arxiv.org/abs/1511.01844}.
+
+\bibitem[Vincent et~al.(2010)Vincent, Larochelle, Lajoie, Bengio, and
+  Manzagol]{vincent2010stacked}
+Vincent, Pascal, Larochelle, Hugo, Lajoie, Isabelle, Bengio, Yoshua, and
+  Manzagol, Pierre-Antoine.
+\newblock Stacked denoising autoencoders: Learning useful representations in a
+  deep network with a local denoising criterion.
+\newblock \emph{The Journal of Machine Learning Research}, 11:\penalty0
+  3371--3408, 2010.
+
+\bibitem[Xu et~al.(2015)Xu, Wang, Chen, and Li]{xu2015empirical}
+Xu, Bing, Wang, Naiyan, Chen, Tianqi, and Li, Mu.
+\newblock Empirical evaluation of rectified activations in convolutional
+  network.
+\newblock \emph{arXiv preprint arXiv:1505.00853}, 2015.
+
+\bibitem[Yu et~al.(2015)Yu, Zhang, Song, Seff, and Xiao]{yu2015construction}
+Yu, Fisher, Zhang, Yinda, Song, Shuran, Seff, Ari, and Xiao, Jianxiong.
+\newblock Construction of a large-scale image dataset using deep learning with
+  humans in the loop.
+\newblock \emph{arXiv preprint arXiv:1506.03365}, 2015.
+
+\bibitem[Zeiler \& Fergus(2014)Zeiler and Fergus]{zeiler2014visualizing}
+Zeiler, Matthew~D and Fergus, Rob.
+\newblock Visualizing and understanding convolutional networks.
+\newblock In \emph{Computer Vision--ECCV 2014}, pp.\  818--833. Springer, 2014.
+
+\bibitem[Zhao et~al.(2015)Zhao, Mathieu, Goroshin, and Lecun]{zhao2015stacked}
+Zhao, Junbo, Mathieu, Michael, Goroshin, Ross, and Lecun, Yann.
+\newblock Stacked what-where auto-encoders.
+\newblock \emph{arXiv preprint arXiv:1506.02351}, 2015.
+
+\end{thebibliography}

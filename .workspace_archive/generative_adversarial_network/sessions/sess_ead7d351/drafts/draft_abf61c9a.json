@@ -1,0 +1,60 @@
+{
+ "idea_id": null,
+ "title": "The oscillation is the message: per-filter support tracking instead of a global divergence",
+ "state": "provisional",
+ "one_liner": "Filter collapse is not a leftover dynamics bug to regularize after fixing the loss \u2014 it is the generator discovering the region where the global JS/KL objective degenerates on low-dimensional supports, so the fix is per-filter, empirically finite training signals, not another divergence.",
+ "description": "The paper's two gaps are one gap. The load-bearing assumption is that the right training signal is a single global divergence between two full distributions, and that the remaining collapse is an independent dynamics problem to be regularized away once the divergence is fixed. But the remaining collapse appears exactly where the global divergence goes degenerate on low-dimensional supports: a subset of filters stops receiving informative gradient, and their dynamics are then governed by residual optimizer noise, which shows up as oscillation. Instead of swapping in yet another globally-defined distance, drop the global scalar: give each filter a training signal that is locally defined and always finite because it is computed on the actual samples (k-NN style) rather than on assumed densities. The inversion is that oscillation is not a failure to suppress \u2014 it is the per-filter signature of support non-overlap, so the same mechanism that addresses gap B also diagnoses and stops gap A. Validation stops where the paper's method still collapses after long training; that is precisely the regime where the assumption must be dropped.",
+ "problem": "",
+ "addresses": [
+  "gap_4ec20593",
+  "gap_09d1e3fa"
+ ],
+ "relations": [],
+ "inherited_from": null,
+ "sections": {
+  "technique": "For each discriminator filter f, collect activation vectors on the real batch and the fake batch, and define a per-filter cost as the mean k-th-nearest-neighbor distance from fake activations to real activations \u2014 an empirical quantity that is finite even when the two supports are disjoint low-dimensional manifolds. The discriminator maximizes the sum of per-filter costs and the generator minimizes it, replacing the single global divergence. A support-collapse monitor tracks, per filter, the nearest-neighbor cost over time together with the periodicity of the filter's activations (autocorrelation peak at lag > 1); a filter whose cost is growing while its activations become periodic is flagged as collapsed, and its input weights are frozen or re-seeded instead of being left to oscillate. Compare against a WGAN-GP / spectral-normalization baseline on a setup where partial filter collapse is observed only after long training, and test whether per-filter costs stop the collapse earlier.",
+  "open_questions": [
+   "Is the oscillation actually driven by degenerate/vanishing gradient in non-overlapping regions, or by adversarial feedback loops that produce limit cycles even with fully informative gradients \u2014 if the latter, the per-filter fix will not stop it. k-NN is not differentiable; does a soft nearest-neighbor surrogate preserve the finite-on-low-dimensional-manifolds property while training stably? Which network's filters collapse \u2014 the discriminator's, the generator's, or both \u2014 and does the monitor need to be placed differently depending on which? Does freezing or re-seeding a collapsed filter destabilize the surviving filters, i.e., is collapse contagious?"
+  ],
+  "rationale": "My stance: the field treats gap B as a loss-design problem (pick a divergence defined on disjoint supports, e.g. Wasserstein) and gap A as a leftover dynamics problem (regularize or renormalize), and the load-bearing premise is that a single global scalar divergence is the right unit of training signal. I relax that premise by making the signal per-filter and empirically finite, and I invert the direction of explanation: oscillation is not the thing to suppress, it is the observable signature of the low-dimensional-support degeneracy, so one mechanism addresses both gaps. This is not a dismissal of WGAN \u2014 it identifies the one premise (global scalar loss) doing the work and shows what becomes possible once it is dropped: collapse can be detected and stopped per filter before it spreads, using the instability itself as signal. Unverified claims: that the observed oscillating collapse is specifically caused by degenerate gradients in non-overlapping regions, and that per-filter k-NN costs remain trainable at scale; both are hypotheses the experiment would test, not facts I have established."
+ },
+ "section_order": [
+  "technique",
+  "open_questions",
+  "rationale"
+ ],
+ "evaluation": {
+  "novelty": null,
+  "feasibility": null,
+  "significance": null
+ },
+ "provenance": [],
+ "origin": {
+  "run_id": "run_9472281b",
+  "node_id": "run_9472281b:n1",
+  "node_path": [
+   "run_9472281b:n0",
+   "run_9472281b:n1"
+  ],
+  "style": "skeptic",
+  "mode": "generation",
+  "parent_idea_id": null,
+  "suggested": null,
+  "inherited_from": null,
+  "inherited_upto_run": null
+ },
+ "runs": [],
+ "created_at": "",
+ "updated_at": "",
+ "_session": {
+  "draft_id": "draft_abf61c9a",
+  "session_id": "sess_ead7d351",
+  "kind": "create",
+  "run_id": "20260821_105004_propose-3-ideas-to-solve-both-gaps-probl",
+  "source_index": 1,
+  "target_idea_id": null,
+  "label": "The oscillation is the message: per-filter support tracking instead of a global divergence",
+  "status": "open",
+  "created_at": "2026-08-21T08:56:37Z"
+ }
+}

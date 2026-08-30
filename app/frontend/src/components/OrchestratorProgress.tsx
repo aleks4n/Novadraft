@@ -3,6 +3,7 @@ import { StepArgs, useToolSpecs } from "./PlanReview";
 import { NodeInspector, ThoughtTree } from "./ThoughtTree";
 import { treeForRun } from "../lib/thoughts";
 import { progressForRun } from "../lib/orchestratorProgress";
+import type { StepHandover } from "../lib/orchestratorProgress";
 import { useWorkspace } from "../lib/store";
 import type { RunState, ThoughtNode } from "../lib/types";
 
@@ -10,6 +11,58 @@ function timeLabel(value: string | null): string {
   if (!value) return "";
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "" : date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+/**
+ * What a step was handed, under the step it was handed to.
+ *
+ * Collapsed by default and summarised by counts: the question "did it have the paper"
+ * is answered by the summary line alone, and only the follow-up — "then why is the
+ * candidate wrong" — needs the literal prompt text underneath.
+ */
+function StepContext({ handover }: { handover: StepHandover }) {
+  const parts = [
+    [handover.gaps.length, "gap"],
+    [handover.papers.length, "paper"],
+    [handover.relatedIdeas.length, "related idea"],
+    [handover.userInput.length, "user input"],
+  ] as const;
+  const summary = parts
+    .filter(([count]) => count > 0)
+    .map(([count, label]) => `${count} ${label}${count === 1 ? "" : "s"}`)
+    .join(" · ") || "nothing loaded";
+  const notLoaded = Object.entries(handover.catalogCounts)
+    .filter(([, count]) => count > 0)
+    .map(([kind, count]) => `${count} ${kind}`)
+    .join(", ");
+
+  return (
+    <details className="step-context">
+      <summary className="step-context-summary">
+        Context it had: {summary}
+        {notLoaded && <span className="step-context-rest"> · {notLoaded} not loaded</span>}
+      </summary>
+      <div className="step-context-body">
+        {handover.gaps.length > 0 && <div><b>gaps:</b> {handover.gaps.join(", ")}</div>}
+        {handover.papers.length > 0 && <div><b>papers:</b> {handover.papers.join(", ")}</div>}
+        {handover.relatedIdeas.length > 0 && (
+          <div><b>related ideas:</b> {handover.relatedIdeas.join(", ")}</div>
+        )}
+        {handover.userInput.length > 0 && (
+          <div><b>from you:</b> {handover.userInput.join(", ")}</div>
+        )}
+        {handover.missingIds.length > 0 && (
+          <div className="step-context-missing">
+            <b>could not load:</b> {handover.missingIds.join(", ")}
+          </div>
+        )}
+        <details className="step-context-raw">
+          <summary>The exact text it was given ({handover.chars.toLocaleString()} chars)</summary>
+          <pre>{handover.markdown}</pre>
+        </details>
+      </div>
+    </details>
+  );
 }
 
 export function OrchestratorProgress({ run }: { run: RunState }) {
@@ -67,6 +120,10 @@ export function OrchestratorProgress({ run }: { run: RunState }) {
                     this step, so "creative thinker" is not the whole story. */}
                 <StepArgs step={{ tool: step.tool, args: step.args, why: step.why,
                   needs: step.needs }} specs={specs} />
+                {/* And what it could see while doing it — a different question from the
+                    arguments above, and the one a thin result usually turns out to be
+                    about. */}
+                {step.handover && <StepContext handover={step.handover} />}
                 {step.error && <span className="orchestrator-step-error">{step.error}</span>}
               </span>
             </li>

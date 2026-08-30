@@ -65,6 +65,14 @@ class Context(BaseModel):
         description="What an earlier step in this turn reported back — the investigator's "
                     "prose, carried into a later step that declared it as a dependency.",
     )
+    catalog: dict[str, Any] = Field(
+        default_factory=dict,
+        description="The rest of the workspace as an index — id, title and one marker per "
+                    "record, for everything NOT loaded above. This is what a step reads to "
+                    "learn that something exists; the record behind an entry is fetched by "
+                    "asking the investigator for it by id. Built by "
+                    "`src.common.tools.catalog.build`.",
+    )
     missing_ids: list[str] = Field(
         default_factory=list, description="Focus ids that could not be loaded."
     )

@@ -1,0 +1,160 @@
+{
+  "gap_id": "gap_d0f4b8bd",
+  "status": "validated",
+  "title": "Limited research on understanding and visualizing GAN internals",
+  "description": "The paper states there has been very limited published research on understanding and visualizing what GANs learn, and the intermediate representations of multi-layer GANs have not been studied.",
+  "type": "open_problem",
+  "canonical_description": "limited research on understanding and visualizing what GANs learn internally",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1511.06434",
+      "section": "introduction",
+      "anchor": "limited published research in trying to understand and visualize what GANs learn",
+      "quote": "There has been very limited published research in trying to understand and visualize what GANs learn, and the intermediate representations of multi-layer GANs.",
+      "char_offset": [
+        987,
+        1146
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T08:20:44Z",
+  "verdict": {
+    "gap_id": "gap_d0f4b8bd",
+    "status": "solved",
+    "confidence": 0.9,
+    "reasoning": "Papers 1 (GAN Dissection) and 2 (On the Units of GANs) together directly and comprehensively solve the gap. GAN Dissection provides a systematic framework for visualizing and understanding GANs at unit, object, and scene level, explicitly studying intermediate layer representations across multiple layers and architectures. On the Units of GANs independently confirms and extends this by causally analyzing individual units across layers, showing how intermediate layers encode interpretable concepts. Both papers explicitly state they are the first systematic analyses of GAN internals. Paper 3 (InterFaceGAN) provides additional supporting evidence for face-domain GANs with layer-wise latent analysis. Paper 4 only studies input latent space, not intermediate representations, and Paper 5 is a survey with no new contribution. The core gap — limited research on understanding and visualizing GAN internal representations, including intermediate layers — is fully closed by Papers 1 and 2.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_1811.10597",
+          "title": "GAN Dissection: Visualizing and Understanding Generative Adversarial Networks",
+          "abstract": "Generative Adversarial Networks (GANs) have recently achieved impressive results for many real-world applications, and many GAN variants have emerged with improvements in sample quality and training stability. However, they have not been well visualized or understood. How does a GAN represent our visual world internally? What causes the artifacts in GAN results? How do architectural choices affect GAN learning? Answering such questions could enable us to develop new insights and better models. In this work, we present an analytic framework to visualize and understand GANs at the unit-, object-, and scene-level. We first identify a group of interpretable units that are closely related to object concepts using a segmentation-based network dissection method. Then, we quantify the causal effect of interpretable units by measuring the ability of interventions to control objects in the output. We examine the contextual relationship between these units and their surroundings by inserting the discovered object concepts into new images. We show several practical applications enabled by our framework, from comparing internal representations across different layers, models, and datasets, to improving GANs by locating and removing artifact-causing units, to interactively manipulating objects in a scene. We provide open source interpretation tools to help researchers and practitioners better understand their GAN models.",
+          "authors": [
+            "David Bau",
+            "Jun-Yan Zhu",
+            "Hendrik Strobelt",
+            "Bolei Zhou",
+            "Joshua B. Tenenbaum",
+            "William T. Freeman",
+            "Antonio Torralba"
+          ],
+          "published_date": "2018-11-26T18:59:07Z",
+          "url": "https://arxiv.org/abs/1811.10597v2"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper presents a systematic framework (GAN Dissection) for visualizing and understanding the internal representations of GANs at the unit, object, and scene level. It identifies interpretable units that correlate with semantic concepts using segmentation-based network dissection, quantifies causal effects of units via intervention (ablation/insertion), and examines contextual relationships between objects. The paper provides methods to compare representations across layers, models, and datasets, diagnose artifacts, and interactively manipulate generated images. It explicitly states this is \"the first systematic analysis for understanding the internal representations of GANs.\"",
+        "what_remains_open": "The paper fully addresses the gap. It directly tackles the problem of limited research on understanding and visualizing GAN internals by providing a comprehensive framework for analyzing intermediate representations of multi-layer GANs. The paper acknowledges some remaining questions (e.g., why doors cannot be inserted in the sky, how later layers suppress signals), but these are open research questions within the now-established paradigm, not unaddressed parts of the original gap.",
+        "evidence_snippets": [
+          "In this work, we present an analytic framework to visualize and understand GANs at the unit-, object-, and scene-level.",
+          "To our knowledge, our work provides the first systematic analysis for understanding the internal representations of GANs.",
+          "Despite this tremendous success, many questions remain to be answered. For example, to produce a church image, what knowledge does a GAN need to learn? ... In this work, we study the internal representations of GANs."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_1901.09887",
+          "title": "On the Units of GANs (Extended Abstract)",
+          "abstract": "Generative Adversarial Networks (GANs) have achieved impressive results for many real-world applications. As an active research topic, many GAN variants have emerged with improvements in sample quality and training stability. However, visualization and understanding of GANs is largely missing. How does a GAN represent our visual world internally? What causes the artifacts in GAN results? How do architectural choices affect GAN learning? Answering such questions could enable us to develop new insights and better models. In this work, we present an analytic framework to visualize and understand GANs at the unit-, object-, and scene-level. We first identify a group of interpretable units that are closely related to concepts with a segmentation-based network dissection method. We quantify the causal effect of interpretable units by measuring the ability of interventions to control objects in the output. Finally, we examine the contextual relationship between these units and their surrounding by inserting the discovered concepts into new images. We show several practical applications enabled by our framework, from comparing internal representations across different layers, models, and datasets, to improving GANs by locating and removing artifact-causing units, to interactively manipulating objects in the scene. We will open source our interactive tools to help researchers and practitioners better understand their models.",
+          "authors": [
+            "David Bau",
+            "Jun-Yan Zhu",
+            "Hendrik Strobelt",
+            "Bolei Zhou",
+            "Joshua B. Tenenbaum",
+            "William T. Freeman",
+            "Antonio Torralba"
+          ],
+          "published_date": "2019-01-29T14:16:54Z",
+          "url": "https://arxiv.org/abs/1901.09887v3"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper systematically analyzes the internal representations of GANs by examining individual units (channels) in intermediate layers. It develops methods to: (1) identify which units correspond to semantic object classes by measuring IoU with segmentation masks, (2) causally intervene by ablating or inserting units to measure their causal effects on generated outputs, and (3) trace how interventions propagate through layers. The paper studies units across different layers, different GAN architectures, and different scene types, showing that mid-level layers contain interpretable object-part units, early layers are entangled, and later layers encode materials/shapes. It also demonstrates practical applications like debugging artifacts and modifying GAN outputs.",
+        "what_remains_open": "The paper fully addresses the stated gap. It directly studies and visualizes the internal representations of multi-layer GANs, which the gap says had not been studied. The authors explicitly acknowledge some open questions remain (e.g., why doors can't be inserted in sky, how later layers suppress signals), but these are deeper mechanistic questions beyond the scope of the stated gap. The core gap — limited research on understanding and visualizing GAN internals — is substantially solved by this work.",
+        "evidence_snippets": [
+          "We analyze the internal GAN representations by decomposing the featuremap at a layer into positions and unit channels.",
+          "In classifier networks, the type of information explicitly represented changes from layer to layer. We find a similar phenomenon in a GAN.",
+          "By carefully examining representation units, we have found that many parts of GAN representations can be interpreted, not only as signals that correlate with object concepts but as variables that have a causal effect on the synthesis of semantic objects in the output."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2005.09635",
+          "title": "InterFaceGAN: Interpreting the Disentangled Face Representation Learned by GANs",
+          "abstract": "Although Generative Adversarial Networks (GANs) have made significant progress in face synthesis, there lacks enough understanding of what GANs have learned in the latent representation to map a random code to a photo-realistic image. In this work, we propose a framework called InterFaceGAN to interpret the disentangled face representation learned by the state-of-the-art GAN models and study the properties of the facial semantics encoded in the latent space. We first find that GANs learn various semantics in some linear subspaces of the latent space. After identifying these subspaces, we can realistically manipulate the corresponding facial attributes without retraining the model. We then conduct a detailed study on the correlation between different semantics and manage to better disentangle them via subspace projection, resulting in more precise control of the attribute manipulation. Besides manipulating the gender, age, expression, and presence of eyeglasses, we can even alter the face pose and fix the artifacts accidentally made by GANs. Furthermore, we perform an in-depth face identity analysis and a layer-wise analysis to evaluate the editing results quantitatively. Finally, we apply our approach to real face editing by employing GAN inversion approaches and explicitly training feed-forward models based on the synthetic data established by InterFaceGAN. Extensive experimental results suggest that learning to synthesize faces spontaneously brings a disentangled and controllable face representation.",
+          "authors": [
+            "Yujun Shen",
+            "Ceyuan Yang",
+            "Xiaoou Tang",
+            "Bolei Zhou"
+          ],
+          "published_date": "2020-05-18T18:01:22Z",
+          "url": "https://arxiv.org/abs/2005.09635v2"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "InterFaceGAN proposes a framework to interpret the disentangled face representation learned by GANs. It systematically studies how facial semantics (gender, age, pose, expression, eyeglasses) are encoded as linear subspaces in the latent space of GANs (PGGAN and StyleGAN), visualizes these subspaces, analyzes entanglement between semantics, performs layer-wise analysis of StyleGAN's per-layer representations, and studies how identity is affected by semantic manipulation. The paper directly addresses the lack of understanding of what GANs learn internally by providing both theoretical analysis and empirical visualization of the latent representation.",
+        "what_remains_open": "The paper fully addresses the gap of understanding and visualizing GAN internals for the specific case of face generation models (PGGAN and StyleGAN). However, the gap as stated is broader — the paper does not address understanding GAN internals for non-face domains (e.g., scene generation, object generation, or other image modalities), nor does it study intermediate layer activations in a general sense beyond the specific layer-wise analysis of StyleGAN's style-based generator. The paper also acknowledges this limitation, stating \"it will be interesting to look into the generative models trained to synthesize generic objects and scenes\" as future work.",
+        "evidence_snippets": [
+          "Despite the appealing synthesis quality, it remains much less explored about what knowledge GANs learn in the latent representation and how we can reuse such knowledge to control the generation process.",
+          "little work has been done on understanding how GANs learn to connect the latent representation with the semantics in the real visual world.",
+          "the studies on how a well-trained GAN can encode different semantics in the latent space and reuse this semantic knowledge to control the generation process are still missing."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2006.10132",
+          "title": "Interpreting the Latent Space of GANs via Correlation Analysis for Controllable Concept Manipulation",
+          "abstract": "Generative adversarial nets (GANs) have been successfully applied in many fields like image generation, inpainting, super-resolution and drug discovery, etc., by now, the inner process of GANs is far from been understood. To get deeper insight of the intrinsic mechanism of GANs, in this paper, a method for interpreting the latent space of GANs by analyzing the correlation between latent variables and the corresponding semantic contents in generated images is proposed. Unlike previous methods that focus on dissecting models via feature visualization, the emphasis of this work is put on the variables in latent space, i.e. how the latent variables affect the quantitative analysis of generated results. Given a pretrained GAN model with weights fixed, the latent variables are intervened to analyze their effect on the semantic content in generated images. A set of controlling latent variables can be derived for specific content generation, and the controllable semantic content manipulation be achieved. The proposed method is testified on the datasets Fashion-MNIST and UT Zappos50K, experiment results show its effectiveness.",
+          "authors": [
+            "Ziqiang Li",
+            "Rentuo Tao",
+            "Hongjing Niu",
+            "Bin Li"
+          ],
+          "published_date": "2020-05-23T03:50:27Z",
+          "url": "https://arxiv.org/abs/2006.10132v2"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "This paper proposes a method to interpret the latent space of GANs by analyzing correlations between latent variables and semantic content in generated images. It uses a pre-trained classifier to quantify how changes to individual latent dimensions affect class-specific content in generated images, and derives \"controlling sets\" of latent dimensions for controllable concept manipulation. This contributes to understanding one aspect of GAN internals — the role of input latent variables — but does not address intermediate layer representations.",
+        "what_remains_open": "The gap specifically calls out that \"intermediate representations of multi-layer GANs have not been studied.\" This paper does not study intermediate layer representations at all — it only analyzes the input latent space (z-space) and output image space, using an external classifier to quantify semantic changes. It does not visualize or interpret what happens inside the generator's hidden layers, nor does it analyze unit-level or feature-map-level representations within the GAN architecture. The broader gap of understanding and visualizing GAN internals beyond the latent-input-to-output mapping remains largely open.",
+        "evidence_snippets": [
+          "Unlike previous methods that focus on dissecting models via feature visualization, the emphasis of this work is put on the variables in latent space, i.e. how the latent variables affect the quantitative analysis of generated results.",
+          "In this paper, we propose to interpreting the latent space of GANs by analyzing the correlation between latent dimensions and the corresponding content changes in generated images.",
+          "Given a pre-trained generator $\\mathbf{G}\\left(\\mathbf{z}\\right)$, the target was to analyze the latent space and quantify the importance of different latent dimensions for a generation."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2108.04896",
+          "title": "Interpreting Generative Adversarial Networks for Interactive Image Generation",
+          "abstract": "Significant progress has been made by the advances in Generative Adversarial Networks (GANs) for image generation. However, there lacks enough understanding of how a realistic image is generated by the deep representations of GANs from a random vector. This chapter gives a summary of recent works on interpreting deep generative models. The methods are categorized into the supervised, the unsupervised, and the embedding-guided approaches. We will see how the human-understandable concepts that emerge in the learned representation can be identified and used for interactive image generation and editing.",
+          "authors": [
+            "Bolei Zhou"
+          ],
+          "published_date": "2021-08-10T19:42:20Z",
+          "url": "https://arxiv.org/abs/2108.04896v2"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "This paper is a survey chapter that reviews and categorizes existing methods (supervised, unsupervised, and embedding-guided) for interpreting GANs. It summarizes work such as GAN Dissection, HiGAN, SeFa, StyleCLIP, and others that have been developed to understand and visualize GAN representations. However, it does not present any new research, methods, or experiments that directly contribute to understanding or visualizing GAN internals.",
+        "what_remains_open": "The paper is a survey, not original research. It does not itself conduct any new investigation into understanding or visualizing GAN internals, nor does it study the intermediate representations of multi-layer GANs. The gap — limited research on understanding and visualizing what GANs learn internally — remains entirely open as a research contribution. The paper merely catalogs what others have done, without adding new knowledge or methods.",
+        "evidence_snippets": [
+          "This chapter gives a summary of recent works on interpreting deep generative models.",
+          "This chapter will introduce the recent progress of the interpretable machine learning for deep generative models.",
+          "We have introduced representative methods from three approaches: the supervised approach, the unsupervised approach, and the embedding-guided approach."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 5,
+      "skipped_ids": []
+    }
+  },
+  "ranking": null
+}

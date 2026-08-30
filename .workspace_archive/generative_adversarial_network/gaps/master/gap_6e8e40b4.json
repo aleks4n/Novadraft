@@ -1,0 +1,70 @@
+{
+  "gap_id": "gap_6e8e40b4",
+  "status": "validated",
+  "title": "WGAN instability with momentum-based optimizers",
+  "description": "As a negative result, the authors report that WGAN training becomes unstable when using momentum-based optimizers like Adam with beta1 > 0 on the critic, or when using high learning rates. They identified momentum as a potential cause because the cosine between the Adam step and the gradient turned negative in instability situations.",
+  "type": "negative_result",
+  "canonical_description": "Wasserstein GAN training is unstable with momentum-based optimizers and high learning rates",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1701.07875",
+      "section": "empirical_results",
+      "anchor": "WGAN training becomes unstable at times when one uses a momentum based optimizer",
+      "quote": "Finally, as a negative result, we report that WGAN training becomes unstable\nat times when one uses a momentum based optimizer such as Adam [CITE:Kingma-ea-Adam] (with $\\beta_1 > 0$)",
+      "char_offset": [
+        5633,
+        5815
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T08:20:46Z",
+  "verdict": {
+    "gap_id": "gap_6e8e40b4",
+    "status": "partially_solved",
+    "confidence": 0.65,
+    "reasoning": "The single paper (Training GANs with Optimism) is relevant and provides an alternative optimizer (OMD/Optimistic Adam) that avoids the instability that momentum-based optimizers cause in WGAN training. However, it does not directly address the gap's core question: why momentum (Adam with beta1 > 0) leads to instability and the negative cosine between Adam step and gradient. Instead of diagnosing or fixing the momentum instability, it sidesteps the problem with a different approach. Thus the gap is partially addressed in practice but the specific mechanism remains unexamined and unresolved.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_1711.00141",
+          "title": "Training GANs with Optimism",
+          "abstract": "We address the issue of limit cycling behavior in training Generative Adversarial Networks and propose the use of Optimistic Mirror Decent (OMD) for training Wasserstein GANs. Recent theoretical results have shown that optimistic mirror decent (OMD) can enjoy faster regret rates in the context of zero-sum games. WGANs is exactly a context of solving a zero-sum game with simultaneous no-regret dynamics. Moreover, we show that optimistic mirror decent addresses the limit cycling problem in training WGANs. We formally show that in the case of bi-linear zero-sum games the last iterate of OMD dynamics converges to an equilibrium, in contrast to GD dynamics which are bound to cycle. We also portray the huge qualitative difference between GD and OMD dynamics with toy examples, even when GD is modified with many adaptations proposed in the recent literature, such as gradient penalty or momentum. We apply OMD WGAN training to a bioinformatics problem of generating DNA sequences. We observe that models trained with OMD achieve consistently smaller KL divergence with respect to the true underlying distribution, than models trained with GD variants. Finally, we introduce a new algorithm, Optimistic Adam, which is an optimistic variant of Adam. We apply it to WGAN training on CIFAR10 and observe improved performance in terms of inception score as compared to Adam.",
+          "authors": [
+            "Constantinos Daskalakis",
+            "Andrew Ilyas",
+            "Vasilis Syrgkanis",
+            "Haoyang Zeng"
+          ],
+          "published_date": "2017-10-31T23:09:08Z",
+          "url": "https://arxiv.org/abs/1711.00141v2"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper proposes Optimistic Mirror Descent (OMD) and Optimistic Adam as alternatives to standard gradient descent and Adam for training Wasserstein GANs. It shows theoretically that OMD achieves last-iterate convergence in bilinear games (where GD diverges/cycles), and empirically demonstrates that OMD and Optimistic Adam outperform GD variants (including momentum, Nesterov momentum, and Adam) on toy examples, DNA sequence generation, and CIFAR-10 image generation. The paper also shows that even with momentum modifications, GD still exhibits limit cycles in a simple mean-learning WGAN example, while OMD converges.",
+        "what_remains_open": "The paper does not directly address the specific gap about why momentum-based optimizers (Adam with beta1 > 0) cause instability in WGAN training, nor does it analyze the negative cosine between Adam step and gradient that was identified as the cause. Instead, it proposes a completely different optimizer (OMD/Optimistic Adam) that avoids the problem by design, without diagnosing or fixing the momentum instability itself. The paper does not investigate whether Optimistic Adam (which still uses momentum-like exponential averaging) suffers from similar instability issues, nor does it provide guidance on how to make standard Adam with momentum stable for WGAN training.",
+        "evidence_snippets": [
+          "We see that even though these modifications do improve the stability of the GD dynamics, in the sense that they narrow the band of the limit cycle, they still lead to a non-vanishing limit cycle, unlike OMD.",
+          "We apply OMD WGAN training to a bioinformatics problem of generating DNA sequences. We observe that models trained with OMD achieve consistently smaller KL divergence with respect to the true underlying distribution, than models trained with GD variants.",
+          "Finally, we introduce a new algorithm, Optimistic Adam, which is an optimistic variant of Adam. We apply it to WGAN training on CIFAR10 and observe improved performance in terms of inception score as compared to Adam."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 1,
+      "skipped_ids": []
+    }
+  },
+  "ranking": {
+    "openness": 0.27499999999999997,
+    "impact": 0.2212437900615097,
+    "feasibility": 0.65,
+    "feasibility_reasoning": "The core question — why momentum (Adam beta1>0) causes WGAN instability, specifically the negative cosine between Adam step and gradient — is moderately tractable but nontrivial. On the plus side: (1) all needed data can be generated by running WGAN training on standard datasets (CIFAR, LSUN, etc.) with different optimizers — no expensive collection or labeling; (2) compute requirements are modest (single GPU, days of training); (3) the phenomenon is directly observable and measurable (cosine angle, gradient norms, loss curves); (4) the scope is well-defined and focused — a single mechanism in a specific setting. However, the gap is fundamentally a theoretical/diagnostic one: it likely requires analyzing the interaction between the Wasserstein loss landscape's curvature, the Lipschitz constraint (weight clipping or gradient penalty), and momentum dynamics. That kind of analysis is harder to definitively \"solve\" than an engineering fix. There is no obvious existing theoretical toolkit that directly applies — one would need to either extend convergence theory for non-convex min-max optimization under Lipschitz constraints, or conduct careful empirical diagnostics that isolate the cause. This is doable but demands insight, not just engineering effort. Score: 0.65 — tractable with moderate effort, but requires theoretical creativity rather than just scaling existing methods."
+  }
+}

@@ -777,6 +777,31 @@ body.col-resizing .gaps-row:hover { background: transparent; }
 }
 .orchestrator-step--pending .orchestrator-step-copy { opacity: .58; }
 .orchestrator-step-error { font-size: 10.5px; color: var(--accent-warm); }
+
+/* What a step could see, under the step. Quiet by default: it is diagnostic, and the
+   plan row's job is still to say what is running. */
+.step-context { margin-top: 2px; font-size: 10.5px; color: var(--text-4); }
+.step-context-summary { cursor: pointer; list-style: none; }
+.step-context-summary::-webkit-details-marker { display: none; }
+.step-context-summary::before { content: "▸ "; color: var(--text-5); }
+.step-context[open] > .step-context-summary::before { content: "▾ "; }
+.step-context-summary:hover { color: var(--text-3); }
+.step-context-rest { color: var(--text-5); }
+.step-context-body {
+  display: flex; flex-direction: column; gap: 2px;
+  margin: 3px 0 0 10px; padding-left: 7px; border-left: 1px solid var(--border-soft);
+  line-height: 1.45; word-break: break-word;
+}
+.step-context-body b { font-weight: 600; color: var(--text-3); }
+.step-context-missing { color: var(--accent-warm); }
+.step-context-raw > summary { cursor: pointer; color: var(--text-5); }
+.step-context-raw > summary:hover { color: var(--text-3); }
+.step-context-raw pre {
+  max-height: 260px; overflow: auto; margin: 4px 0 0;
+  padding: 6px 7px; border-radius: 5px; background: var(--bg-inset);
+  font-family: var(--font-mono);
+  font-size: 10px; line-height: 1.45; white-space: pre-wrap; color: var(--text-3);
+}
 .orchestrator-plan-wait {
   display: flex; align-items: center; gap: 7px; min-height: 28px;
   font-size: 11.5px; color: var(--text-4);

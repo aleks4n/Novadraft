@@ -11,8 +11,9 @@ module decides what an LLM reads. Three rules hold in both:
    get wrong.
 
 These two views feed the planner and reflect, which route and check structure. They are
-not what the creative thinker reads: it receives the whole `Context` object, so nothing
-left out here is withheld from the step that thinks about it.
+not what the creative thinker reads: it receives the whole `Context` object and renders it
+per record type (`creative_thinker.tools.context`), so nothing left out here is withheld
+from the step that thinks about it.
 """
 
 from __future__ import annotations
@@ -113,8 +114,9 @@ def _paper_block(paper: dict) -> list[str]:
     The paper agent's full structured summary — what the UI calls the paper's "survey" —
     runs ~6k chars, and rendering it here costs plan accuracy: a wall of literature detail
     makes the planner plan literature work, and buries the rules it should be following.
-    The thinker receives every paper record in full through the `Context` object, so the
-    summary is not withheld from the step that reasons over it.
+    The thinker renders the same record's summary in full (`_paper_lines` in
+    `creative_thinker.tools.context`), so it is not withheld from the step that reasons
+    over it — only from the one that routes.
     """
     pid = paper.get("paper_id", "")
     year = paper.get("year")
@@ -130,6 +132,39 @@ def _paper_block(paper: dict) -> list[str]:
         lines.append(f"    problem: {statement}")
     for thread in summary.get("open_threads") or []:
         lines.append(f"    open thread: {_entry(thread)}")
+    return lines
+
+
+def _catalog_block(index: dict) -> list[str]:
+    """What the workspace holds that this turn did not load — id and title, no bodies.
+
+    The planner needs this more than any other step does, because it is the only one that
+    can act on it: an entry here is not context, it is a thing an investigator step could
+    go and fetch. Without the index the planner cannot know there is anything to fetch, so
+    it plans over the selection alone and the run silently answers a narrower question
+    than the user asked.
+
+    Titles only, and counts stated outright. The bodies are what the ceiling exists to
+    keep out — sixty gap descriptions would be the largest thing in the planner's prompt
+    and would turn routing into reading.
+    """
+    counts = index.get("counts") or {}
+    omitted = index.get("omitted") or {}
+    lines: list[str] = []
+    for key, label in (("gaps", "gap"), ("papers", "paper"), ("ideas", "idea")):
+        entries = index.get(key) or []
+        if not entries:
+            continue
+        total = counts.get(key, len(entries))
+        lines.append(f"- {total} {label}(s) in the workspace, NOT loaded. Fetch one with an "
+                     f"investigator step naming its id:")
+        for entry in entries:
+            marker = " · ".join(str(x) for x in (entry.get("type"), entry.get("marker")) if x)
+            lines.append(f"    {entry.get('id')}  {entry.get('title') or '(untitled)'}"
+                         + (f"  [{marker}]" if marker else ""))
+        if dropped := omitted.get(key, 0):
+            lines.append(f"    (…and {dropped} more not listed. The investigator can search "
+                         f"for what is not here.)")
     return lines
 
 
@@ -174,6 +209,10 @@ def context_view(ctx: Context) -> str:
         lines.append(f"- findings from an earlier step this turn:\n    {finding}")
     if ctx.missing_ids:
         lines.append(f"- (could not load: {', '.join(ctx.missing_ids)})")
+    # Last, and after the "could not load" line: everything above is what the turn has,
+    # this is what it could ask for. Putting the index first reads as though the workspace
+    # were the context.
+    lines.extend(_catalog_block(ctx.catalog or {}))
     return "\n".join(lines) or "- (nothing selected)"
 
 

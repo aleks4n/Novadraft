@@ -1,0 +1,203 @@
+\begin{thebibliography}{}
+
+\bibitem[Bastien {\em et~al.}(2012)Bastien, Lamblin, Pascanu, Bergstra,
+  Goodfellow, Bergeron, Bouchard, and Bengio]{Bastien-Theano-2012}
+Bastien, F., Lamblin, P., Pascanu, R., Bergstra, J., Goodfellow, I.~J.,
+  Bergeron, A., Bouchard, N., and Bengio, Y. (2012).
+\newblock Theano: new features and speed improvements.
+\newblock Deep Learning and Unsupervised Feature Learning NIPS 2012 Workshop.
+
+\bibitem[Bengio(2009)Bengio]{Bengio-2009-book}
+Bengio, Y. (2009).
+\newblock {\em Learning deep architectures for {AI}\/}.
+\newblock Now Publishers.
+
+\bibitem[Bengio {\em et~al.}(2013a)Bengio, Mesnil, Dauphin, and
+  Rifai]{Bengio-et-al-ICML2013}
+Bengio, Y., Mesnil, G., Dauphin, Y., and Rifai, S. (2013a).
+\newblock Better mixing via deep representations.
+\newblock In {\em ICML'13\/}.
+
+\bibitem[Bengio {\em et~al.}(2013b)Bengio, Yao, Alain, and
+  Vincent]{Bengio-et-al-NIPS2013}
+Bengio, Y., Yao, L., Alain, G., and Vincent, P. (2013b).
+\newblock Generalized denoising auto-encoders as generative models.
+\newblock In {\em NIPS26\/}. Nips Foundation.
+
+\bibitem[Bengio {\em et~al.}(2014a)Bengio, Thibodeau-Laufer, and
+  Yosinski]{Bengio-et-al-ICML2014}
+Bengio, Y., Thibodeau-Laufer, E., and Yosinski, J. (2014a).
+\newblock Deep generative stochastic networks trainable by backprop.
+\newblock In {\em ICML'14\/}.
+
+\bibitem[Bengio {\em et~al.}(2014b)Bengio, Thibodeau-Laufer, Alain, and
+  Yosinski]{Bengio-et-al-ICML-2014}
+Bengio, Y., Thibodeau-Laufer, E., Alain, G., and Yosinski, J. (2014b).
+\newblock Deep generative stochastic networks trainable by backprop.
+\newblock In {\em Proceedings of the 30th International Conference on Machine
+  Learning (ICML'14)\/}.
+
+\bibitem[Bergstra {\em et~al.}(2010)Bergstra, Breuleux, Bastien, Lamblin,
+  Pascanu, Desjardins, Turian, Warde-Farley, and
+  Bengio]{bergstra+al:2010-scipy}
+Bergstra, J., Breuleux, O., Bastien, F., Lamblin, P., Pascanu, R., Desjardins,
+  G., Turian, J., Warde-Farley, D., and Bengio, Y. (2010).
+\newblock Theano: a {CPU} and {GPU} math expression compiler.
+\newblock In {\em Proceedings of the Python for Scientific Computing Conference
+  ({SciPy})\/}.
+\newblock Oral Presentation.
+
+\bibitem[Breuleux {\em et~al.}(2011)Breuleux, Bengio, and
+  Vincent]{Breuleux+Bengio-2011}
+Breuleux, O., Bengio, Y., and Vincent, P. (2011).
+\newblock Quickly generating representative samples from an {RBM}-derived
+  process.
+\newblock {\em Neural Computation\/}, {\bf 23}(8), 2053--2073.
+
+\bibitem[Glorot {\em et~al.}(2011)Glorot, Bordes, and
+  Bengio]{Glorot+al-AI-2011-small}
+Glorot, X., Bordes, A., and Bengio, Y. (2011).
+\newblock Deep sparse rectifier neural networks.
+\newblock In {\em AISTATS'2011\/}.
+
+\bibitem[Goodfellow {\em et~al.}(2013a)Goodfellow, Warde-Farley, Mirza,
+  Courville, and Bengio]{Goodfellow_maxout_2013}
+Goodfellow, I.~J., Warde-Farley, D., Mirza, M., Courville, A., and Bengio, Y.
+  (2013a).
+\newblock Maxout networks.
+\newblock In {\em ICML'2013\/}.
+
+\bibitem[Goodfellow {\em et~al.}(2013b)Goodfellow, Mirza, Courville, and
+  Bengio]{Goodfellow-et-al-NIPS2013-small}
+Goodfellow, I.~J., Mirza, M., Courville, A., and Bengio, Y. (2013b).
+\newblock Multi-prediction deep {Boltzmann} machines.
+\newblock In {\em NIPS'2013\/}.
+
+\bibitem[Goodfellow {\em et~al.}(2013c)Goodfellow, Warde-Farley, Lamblin,
+  Dumoulin, Mirza, Pascanu, Bergstra, Bastien, and Bengio]{pylearn2_arxiv_2013}
+Goodfellow, I.~J., Warde-Farley, D., Lamblin, P., Dumoulin, V., Mirza, M.,
+  Pascanu, R., Bergstra, J., Bastien, F., and Bengio, Y. (2013c).
+\newblock Pylearn2: a machine learning research library.
+\newblock {\em arXiv preprint arXiv:1308.4214\/}.
+
+\bibitem[Gutmann and Hyvarinen(2010)Gutmann and
+  Hyvarinen]{Gutmann+Hyvarinen-2010-small}
+Gutmann, M. and Hyvarinen, A. (2010).
+\newblock Noise-contrastive estimation: A new estimation principle for
+  unnormalized statistical models.
+\newblock In {\em AISTATS'2010\/}.
+
+\bibitem[Hinton {\em et~al.}(2012a)Hinton, Deng, Dahl, Mohamed, Jaitly, Senior,
+  Vanhoucke, Nguyen, Sainath, and Kingsbury]{Hinton-et-al-2012}
+Hinton, G., Deng, L., Dahl, G.~E., Mohamed, A., Jaitly, N., Senior, A.,
+  Vanhoucke, V., Nguyen, P., Sainath, T., and Kingsbury, B. (2012a).
+\newblock Deep neural networks for acoustic modeling in speech recognition.
+\newblock {\em {IEEE} Signal Processing Magazine\/}, {\bf 29}(6), 82--97.
+
+\bibitem[Hinton {\em et~al.}(1995)Hinton, Dayan, Frey, and Neal]{Hinton95}
+Hinton, G.~E., Dayan, P., Frey, B.~J., and Neal, R.~M. (1995).
+\newblock The wake-sleep algorithm for unsupervised neural networks.
+\newblock {\em Science\/}, {\bf 268}, 1558--1161.
+
+\bibitem[Hinton {\em et~al.}(2006)Hinton, Osindero, and Teh]{Hinton06}
+Hinton, G.~E., Osindero, S., and Teh, Y. (2006).
+\newblock A fast learning algorithm for deep belief nets.
+\newblock {\em Neural Computation\/}, {\bf 18}, 1527--1554.
+
+\bibitem[Hinton {\em et~al.}(2012b)Hinton, Srivastava, Krizhevsky, Sutskever,
+  and Salakhutdinov]{Hinton-et-al-arxiv2012}
+Hinton, G.~E., Srivastava, N., Krizhevsky, A., Sutskever, I., and
+  Salakhutdinov, R. (2012b).
+\newblock Improving neural networks by preventing co-adaptation of feature
+  detectors.
+\newblock Technical report, arXiv:1207.0580.
+
+\bibitem[Hyv{\"{a}}rinen(2005)Hyv{\"{a}}rinen]{Hyvarinen-2005-small}
+Hyv{\"{a}}rinen, A. (2005).
+\newblock Estimation of non-normalized statistical models using score matching.
+\newblock {\em J. Machine Learning Res.}, {\bf 6}.
+
+\bibitem[Jarrett {\em et~al.}(2009)Jarrett, Kavukcuoglu, Ranzato, and
+  {LeCun}]{Jarrett-ICCV2009}
+Jarrett, K., Kavukcuoglu, K., Ranzato, M., and {LeCun}, Y. (2009).
+\newblock What is the best multi-stage architecture for object recognition?
+\newblock In {\em Proc. International Conference on Computer Vision
+  (ICCV'09)\/}, pages 2146--2153. IEEE.
+
+\bibitem[Kingma and Welling(2014)Kingma and Welling]{Kingma+Welling-ICLR2014}
+Kingma, D.~P. and Welling, M. (2014).
+\newblock Auto-encoding variational bayes.
+\newblock In {\em Proceedings of the International Conference on Learning
+  Representations (ICLR)\/}.
+
+\bibitem[Krizhevsky and Hinton(2009)Krizhevsky and
+  Hinton]{KrizhevskyHinton2009}
+Krizhevsky, A. and Hinton, G. (2009).
+\newblock Learning multiple layers of features from tiny images.
+\newblock Technical report, University of Toronto.
+
+\bibitem[Krizhevsky {\em et~al.}(2012)Krizhevsky, Sutskever, and
+  Hinton]{Krizhevsky-2012-small}
+Krizhevsky, A., Sutskever, I., and Hinton, G. (2012).
+\newblock {ImageNet} classification with deep convolutional neural networks.
+\newblock In {\em NIPS'2012\/}.
+
+\bibitem[{LeCun} {\em et~al.}(1998){LeCun}, Bottou, Bengio, and
+  Haffner]{LeCun+98}
+{LeCun}, Y., Bottou, L., Bengio, Y., and Haffner, P. (1998).
+\newblock Gradient-based learning applied to document recognition.
+\newblock {\em Proceedings of the {IEEE}\/}, {\bf 86}(11), 2278--2324.
+
+\bibitem[Rezende {\em et~al.}(2014)Rezende, Mohamed, and
+  Wierstra]{Rezende-et-al-arxiv2014}
+Rezende, D.~J., Mohamed, S., and Wierstra, D. (2014).
+\newblock Stochastic backpropagation and approximate inference in deep
+  generative models.
+\newblock Technical report, arXiv:1401.4082.
+
+\bibitem[Rifai {\em et~al.}(2012)Rifai, Bengio, Dauphin, and
+  Vincent]{Rifai-icml2012}
+Rifai, S., Bengio, Y., Dauphin, Y., and Vincent, P. (2012).
+\newblock A generative process for sampling contractive auto-encoders.
+\newblock In {\em ICML'12\/}.
+
+\bibitem[Salakhutdinov and Hinton(2009)Salakhutdinov and
+  Hinton]{Salakhutdinov+Hinton-2009-small}
+Salakhutdinov, R. and Hinton, G.~E. (2009).
+\newblock Deep {Boltzmann} machines.
+\newblock In {\em AISTATS'2009\/}, pages 448--455.
+
+\bibitem[Smolensky(1986)Smolensky]{Smolensky86}
+Smolensky, P. (1986).
+\newblock Information processing in dynamical systems: Foundations of harmony
+  theory.
+\newblock In D.~E. Rumelhart and J.~L. McClelland, editors, {\em Parallel
+  Distributed Processing\/}, volume~1, chapter~6, pages 194--281. MIT Press,
+  Cambridge.
+
+\bibitem[Susskind {\em et~al.}(2010)Susskind, Anderson, and
+  Hinton]{Susskind2010}
+Susskind, J., Anderson, A., and Hinton, G.~E. (2010).
+\newblock The {T}oronto face dataset.
+\newblock Technical Report UTML TR 2010-001, U. Toronto.
+
+\bibitem[Tieleman(2008)Tieleman]{Tieleman08}
+Tieleman, T. (2008).
+\newblock Training restricted {B}oltzmann machines using approximations to the
+  likelihood gradient.
+\newblock In W.~W. Cohen, A.~McCallum, and S.~T. Roweis, editors, {\em {ICML}
+  2008\/}, pages 1064--1071. ACM.
+
+\bibitem[Vincent {\em et~al.}(2008)Vincent, Larochelle, Bengio, and
+  Manzagol]{VincentPLarochelleH2008-small}
+Vincent, P., Larochelle, H., Bengio, Y., and Manzagol, P.-A. (2008).
+\newblock Extracting and composing robust features with denoising autoencoders.
+\newblock In {\em ICML 2008\/}.
+
+\bibitem[Younes(1999)Younes]{Younes1999}
+Younes, L. (1999).
+\newblock On the convergence of {M}arkovian stochastic algorithms with rapidly
+  decreasing ergodicity rates.
+\newblock {\em Stochastics and Stochastic Reports\/}, {\bf 65}(3), 177--228.
+
+\end{thebibliography}

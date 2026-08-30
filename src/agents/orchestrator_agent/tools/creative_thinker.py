@@ -16,8 +16,10 @@ from pydantic import BaseModel, Field
 
 from src.agents.creative_thinker.schemas import AgentStyle, Budget, Envelope, ThinkerCall
 from src.agents.creative_thinker.styles import ROSTER, DEFAULT_REFINEMENT_STYLE
+from src.agents.creative_thinker.tools.context import render_context as render_thinker_context
 from src.common.schemas.context import Context
 from src.common.schemas.idea import IdeaRecord
+from src.common.utils.logging import trace
 from src.agents.orchestrator_agent.schemas import ToolResult, parse_step_ref, step_ref
 from src.agents.orchestrator_agent.tools.base import Tool, ToolEnv
 
@@ -39,9 +41,15 @@ _MAX_WIDTH = len(ROSTER)  # six distinct stances; beyond that the fan-out repeat
 class ThinkerArgs(BaseModel):
     """What the *planner* supplies — a deliberate subset of `ThinkerCall`.
 
-    `context` and `idea` are absent because they are assembled deterministically from what
-    the session holds; the planner decides what to do, never what is in scope. `work_on`
-    is how it says *which* idea, by an id it can see in its own context.
+    `context` and `idea` are absent because they are assembled from what the session holds;
+    the planner cannot edit that bundle directly. `work_on` is how it says *which* idea, by
+    an id it can see in its own context.
+
+    That is a narrower rule than it used to be. The planner *can* widen what a later step
+    sees — by planning an investigator step that fetches a record and declaring it in
+    `needs`, which folds the answer in as a finding. What it still cannot do is reach into
+    the workspace silently: every widening is a step on the plan, approved at the plan gate
+    and visible in the run. Auditable, rather than fixed.
 
     `budget` is absent because a per-turn ceiling is the orchestrator's to divide, not a
     number a plan may raise.
@@ -208,6 +216,53 @@ def _investigator(env: ToolEnv) -> Callable[[str], dict]:
     return ask
 
 
+def _trace_handover(call: ThinkerCall, subject: IdeaRecord, around: Context) -> None:
+    """Record what this step is handing the thinker, before it runs.
+
+    Nothing logged what the thinker could see. The step's own log line carries the tool
+    name and the planner's `why`, and the UI's plan row shows the planner's arguments —
+    all of which describe what was *asked for*, none of which describes what was *in
+    scope*. So the one question a disappointing run raises first — "did it even have the
+    paper?" — could not be answered from the run at all, only by re-deriving the assembly
+    by hand.
+
+    Emitted rather than returned because it is evidence about the run, not an input to it:
+    it lands in the same `.jsonl` the agent streams, so a replayed run shows the same
+    handover a live one did.
+
+    The rendered markdown goes in whole. It is the literal text the thinker's prompt
+    carries, and a count of records is not a substitute — "1 gap, 1 paper" reads as
+    sufficient context right up until you see that the paper block was one truncated line.
+    """
+    inventory = {
+        "gaps": [g.gap_id for g in around.gaps],
+        "papers": [str(p.get("paper_id", "?")) for p in around.papers],
+        "related_ideas": [i.idea_id or "(draft)" for i in around.ideas],
+        "user_input": [u.title or u.id for u in around.user_input],
+        "findings": len(around.findings),
+        "missing_ids": list(around.missing_ids),
+        "catalog_counts": (around.catalog or {}).get("counts") or {},
+    }
+    rendered = render_thinker_context(call.context)
+    trace.emit({
+        "type": "event",
+        "name": "context handed to creative thinker",
+        "data": {
+            "mode": call.mode,
+            "task": call.task,
+            "subject_idea": subject.idea_id or ("(new — generation)" if not subject.title
+                                                else "(draft)"),
+            "styles": [s.name for s in call.styles],
+            "width": call.width,
+            "depth": call.depth,
+            "tool_use": call.tool_use,
+            "inventory": inventory,
+            "context_chars": len(rendered),
+            "context_md": rendered,
+        },
+    })
+
+
 def run(args: ThinkerArgs, ctx: Context, env: ToolEnv) -> ToolResult:
     """Planner args + assembled context -> the subagent's typed call.
 
@@ -232,6 +287,8 @@ def run(args: ThinkerArgs, ctx: Context, env: ToolEnv) -> ToolResult:
         session_id=env.session_id or None,
         run_id=env.run_id or None,
     )
+
+    _trace_handover(call, subject, around)
 
     from src.agents.creative_thinker import think
 

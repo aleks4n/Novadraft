@@ -1,0 +1,144 @@
+{
+  "gap_id": "gap_cf2a2b61",
+  "status": "validated",
+  "title": "Single-sample vector arithmetic is unstable",
+  "description": "Experiments working with only single samples per visual concept for latent vector arithmetic were unstable; averaging three exemplars was needed for consistent results.",
+  "type": "caveat",
+  "canonical_description": "latent vector arithmetic is unstable with single samples and requires averaging",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1511.06434",
+      "section": "investigating_and_visualizing_the_internals_of_the_networks",
+      "anchor": "Experiments working on only single samples per concept were unstable",
+      "quote": "Experiments working on only single samples per concept were unstable, but averaging the $Z$ vector for three examplars showed consistent and stable generations that semantically obeyed the arithmetic.",
+      "char_offset": [
+        5891,
+        6091
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T08:20:44Z",
+  "verdict": {
+    "gap_id": "gap_cf2a2b61",
+    "status": "solved",
+    "confidence": 0.9,
+    "reasoning": "Paper 2 (FLAME) directly addresses the gap. It explicitly shows that single-pair vector arithmetic is unstable (editing multiple attributes at once, inaccuracy), demonstrates that using multiple exemplars resolves the issue, and provides a principled aggregation method (SVD-based dominant direction estimation) that outperforms simple averaging. The remaining four papers are not_addressed — they either learn directions from large datasets (InterFaceGAN), operate in different spaces (parameter space), or tackle unrelated problems (face aging, bias mitigation). Paper 2's finding aligns precisely with the gap's core claim and solves it with a concrete, validated method.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2005.09635",
+          "title": "InterFaceGAN: Interpreting the Disentangled Face Representation Learned by GANs",
+          "abstract": "Although Generative Adversarial Networks (GANs) have made significant progress in face synthesis, there lacks enough understanding of what GANs have learned in the latent representation to map a random code to a photo-realistic image. In this work, we propose a framework called InterFaceGAN to interpret the disentangled face representation learned by the state-of-the-art GAN models and study the properties of the facial semantics encoded in the latent space. We first find that GANs learn various semantics in some linear subspaces of the latent space. After identifying these subspaces, we can realistically manipulate the corresponding facial attributes without retraining the model. We then conduct a detailed study on the correlation between different semantics and manage to better disentangle them via subspace projection, resulting in more precise control of the attribute manipulation. Besides manipulating the gender, age, expression, and presence of eyeglasses, we can even alter the face pose and fix the artifacts accidentally made by GANs. Furthermore, we perform an in-depth face identity analysis and a layer-wise analysis to evaluate the editing results quantitatively. Finally, we apply our approach to real face editing by employing GAN inversion approaches and explicitly training feed-forward models based on the synthetic data established by InterFaceGAN. Extensive experimental results suggest that learning to synthesize faces spontaneously brings a disentangled and controllable face representation.",
+          "authors": [
+            "Yujun Shen",
+            "Ceyuan Yang",
+            "Xiaoou Tang",
+            "Bolei Zhou"
+          ],
+          "published_date": "2020-05-18T18:01:22Z",
+          "url": "https://arxiv.org/abs/2005.09635v2"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "InterFaceGAN proposes a framework to interpret the disentangled face representation learned by GANs. It identifies linear subspaces (hyperplanes) in the latent space corresponding to binary facial attributes by training linear SVM classifiers on large datasets (500K synthesized images, using 20K high-confidence samples per attribute). It then manipulates attributes by moving latent codes along the learned normal vectors, and proposes conditional manipulation via subspace projection to disentangle correlated attributes. The approach is fundamentally based on learning semantic directions from many samples, not on single-sample vector arithmetic.",
+        "what_remains_open": "The paper does not address the instability of single-sample vector arithmetic at all. The gap concerns the unreliability of using individual exemplar samples (e.g., one \"king\" image, one \"man\" image, one \"woman\" image) for latent vector arithmetic operations like \"king - man + woman\". InterFaceGAN instead learns semantic directions by training linear SVMs on thousands of labeled samples, which is a fundamentally different approach that avoids the single-sample instability problem entirely. The question of whether and how single-sample vector arithmetic can be made stable remains completely open.",
+        "evidence_snippets": [
+          "To find the semantic boundaries in the latent space, we use the pre-trained attribute prediction model to assign attribute scores for all 500K synthesized images. We sort the corresponding scores for each attribute and choose 10K samples with the highest scores and 10K with the lowest ones as candidates.",
+          "We then randomly choose 70% samples from the candidates as the training set to learn a linear SVM, resulting in a decision boundary.",
+          "According to Eq. [REF:eq:linear-dependency], to manipulate the attribute of a synthesized image, we can easily edit the original latent code z with z_{edit}=z + α n."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2207.09855",
+          "title": "Everything is There in Latent Space: Attribute Editing and Attribute Style Manipulation by StyleGAN Latent Space Exploration",
+          "abstract": "Unconstrained Image generation with high realism is now possible using recent Generative Adversarial Networks (GANs). However, it is quite challenging to generate images with a given set of attributes. Recent methods use style-based GAN models to perform image editing by leveraging the semantic hierarchy present in the layers of the generator. We present Few-shot Latent-based Attribute Manipulation and Editing (FLAME), a simple yet effective framework to perform highly controlled image editing by latent space manipulation. Specifically, we estimate linear directions in the latent space (of a pre-trained StyleGAN) that controls semantic attributes in the generated image. In contrast to previous methods that either rely on large-scale attribute labeled datasets or attribute classifiers, FLAME uses minimal supervision of a few curated image pairs to estimate disentangled edit directions. FLAME can perform both individual and sequential edits with high precision on a diverse set of images while preserving identity. Further, we propose a novel task of Attribute Style Manipulation to generate diverse styles for attributes such as eyeglass and hair. We first encode a set of synthetic images of the same identity but having different attribute styles in the latent space to estimate an attribute style manifold. Sampling a new latent from this manifold will result in a new attribute style in the generated image. We propose a novel sampling method to sample latent from the manifold, enabling us to generate a diverse set of attribute styles beyond the styles present in the training set. FLAME can generate diverse attribute styles in a disentangled manner. We illustrate the superior performance of FLAME against previous image editing methods by extensive qualitative and quantitative comparisons. FLAME also generalizes well on multiple datasets such as cars and churches.",
+          "authors": [
+            "Rishubh Parihar",
+            "Ankit Dhiman",
+            "Tejan Karmali",
+            "R. Venkatesh Babu"
+          ],
+          "published_date": "2022-07-20T12:40:32Z",
+          "url": "https://arxiv.org/abs/2207.09855v1"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "The paper proposes FLAME, a method for estimating linear edit directions in StyleGAN's latent space using multiple (≈10) curated image pairs. It explicitly demonstrates that using a single image pair is insufficient for stable vector arithmetic (the direction becomes entangled and inaccurate), and that using multiple pairs with SVD-based dominant direction estimation yields robust, disentangled edit directions. This directly addresses the gap about single-sample instability by showing that multiple samples are needed and providing a principled way to aggregate them.",
+        "what_remains_open": "The paper fully addresses the gap: it confirms that single-sample vector arithmetic is unstable and demonstrates that using multiple samples (≈10 pairs) with SVD aggregation solves the instability problem. The gap is specifically about the observation that single samples are unstable and averaging helps — the paper both validates this observation and provides a working solution. No part of the gap remains unaddressed.",
+        "evidence_snippets": [
+          "We observe that taking only one image pair is not sufficient as it often results in editing multiple attributes at once and is also not accurate, e.g., changing the pose attribute in another direction.",
+          "We then compute the difference direction for each latent pair as d^k_j = w^k_p - w^k_n and normalize it to unit length. Note that, all the d^k_j vectors correspond to the same attribute edit but from different image pairs. We want to estimate a direction d̂_j which aligns closely with all of these difference vectors d^k_j.",
+          "One can also use the mean vector as the dominant direction, however we found SVD to perform better as it is more robust to outlier directions than mean vector."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_1702.01983",
+          "title": "Face Aging With Conditional Generative Adversarial Networks",
+          "abstract": "It has been recently shown that Generative Adversarial Networks (GANs) can produce synthetic images of exceptional visual fidelity. In this work, we propose the GAN-based method for automatic face aging. Contrary to previous works employing GANs for altering of facial attributes, we make a particular emphasize on preserving the original person's identity in the aged version of his/her face. To this end, we introduce a novel approach for \"Identity-Preserving\" optimization of GAN's latent vectors. The objective evaluation of the resulting aged and rejuvenated face images by the state-of-the-art face recognition and age estimation solutions demonstrate the high potential of the proposed method.",
+          "authors": [
+            "Grigory Antipov",
+            "Moez Baccouche",
+            "Jean-Luc Dugelay"
+          ],
+          "published_date": "2017-02-07T12:40:35Z",
+          "url": "https://arxiv.org/abs/1702.01983v2"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "The paper proposes Age-cGAN, a conditional GAN for face aging, and introduces an \"Identity-Preserving\" latent vector optimization approach that uses a face recognition network (FaceNet) to optimize a single latent vector so that a reconstructed face preserves the original person's identity. The method involves training an encoder for initial latent approximation, then refining via L-BFGS-B optimization against FaceNet embeddings. This is about face reconstruction and aging, not about vector arithmetic operations in latent space.",
+        "what_remains_open": "The paper does not address the gap at all. The gap concerns the instability of single-sample latent vector arithmetic (e.g., vector addition/subtraction for semantic manipulation), where averaging multiple exemplars was found necessary for consistent results. This paper focuses on a completely different problem: finding a single optimal latent vector to reconstruct a face image for identity-preserving aging. It does not perform or evaluate any vector arithmetic operations, does not compare single-sample vs. multi-sample approaches, and does not discuss the stability of arithmetic in latent space.",
+        "evidence_snippets": []
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2202.04040",
+          "title": "Self-Conditioned Generative Adversarial Networks for Image Editing",
+          "abstract": "Generative Adversarial Networks (GANs) are susceptible to bias, learned from either the unbalanced data, or through mode collapse. The networks focus on the core of the data distribution, leaving the tails - or the edges of the distribution - behind. We argue that this bias is responsible not only for fairness concerns, but that it plays a key role in the collapse of latent-traversal editing methods when deviating away from the distribution's core. Building on this observation, we outline a method for mitigating generative bias through a self-conditioning process, where distances in the latent-space of a pre-trained generator are used to provide initial labels for the data. By fine-tuning the generator on a re-sampled distribution drawn from these self-labeled data, we force the generator to better contend with rare semantic attributes and enable more realistic generation of these properties. We compare our models to a wide range of latent editing methods, and show that by alleviating the bias they achieve finer semantic control and better identity preservation through a wider range of transformations. Our code and models will be available at https://github.com/yzliu567/sc-gan",
+          "authors": [
+            "Yunzhe Liu",
+            "Rinon Gal",
+            "Amit H. Bermano",
+            "Baoquan Chen",
+            "Daniel Cohen-Or"
+          ],
+          "published_date": "2022-02-08T18:08:24Z",
+          "url": "https://arxiv.org/abs/2202.04040v1"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "This paper proposes a self-conditioned GAN framework to mitigate Generative Bias (the tendency of GANs to perform poorly on rare/minority attributes). It converts a pre-trained generator into a conditional model by using latent-space distances as continuous labels, adding conditional constants, and fine-tuning with re-sampled data. The goal is to improve the robustness and identity preservation of latent-based image editing, especially for minority attributes and large manipulations.",
+        "what_remains_open": "The paper does not address the gap of single-sample vector arithmetic instability. It does not investigate whether single exemplars produce stable editing directions, nor does it propose any method to make single-sample vector arithmetic more reliable. The paper focuses on improving editing quality by fine-tuning the generator to reduce bias, not on the stability of arithmetic operations with individual latent vectors. The question of whether averaging multiple exemplars is still needed for stable results remains entirely open.",
+        "evidence_snippets": []
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2011.13786",
+          "title": "Navigating the GAN Parameter Space for Semantic Image Editing",
+          "abstract": "Generative Adversarial Networks (GANs) are currently an indispensable tool for visual editing, being a standard component of image-to-image translation and image restoration pipelines. Furthermore, GANs are especially useful for controllable generation since their latent spaces contain a wide range of interpretable directions, well suited for semantic editing operations. By gradually changing latent codes along these directions, one can produce impressive visual effects, unattainable without GANs. In this paper, we significantly expand the range of visual effects achievable with the state-of-the-art models, like StyleGAN2. In contrast to existing works, which mostly operate by latent codes, we discover interpretable directions in the space of the generator parameters. By several simple methods, we explore this space and demonstrate that it also contains a plethora of interpretable directions, which are an excellent source of non-trivial semantic manipulations. The discovered manipulations cannot be achieved by transforming the latent codes and can be used to edit both synthetic and real images. We release our code and models and hope they will serve as a handy tool for further efforts on GAN-based image editing.",
+          "authors": [
+            "Anton Cherepkov",
+            "Andrey Voynov",
+            "Artem Babenko"
+          ],
+          "published_date": "2020-11-27T15:38:56Z",
+          "url": "https://arxiv.org/abs/2011.13786v3"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "This paper proposes discovering interpretable directions in the GAN generator's parameter space (weights) rather than the latent space for semantic image editing. It develops optimization-based, spectrum-based, and hybrid methods to find parameter-space directions that produce visual effects (e.g., changing nose length, wheel size) that cannot be achieved by latent code manipulations. The paper does not address the stability of single-sample latent vector arithmetic.",
+        "what_remains_open": "The paper does not address the gap at all. The gap concerns instability in single-sample latent vector arithmetic and the need for averaging multiple exemplars for consistent results. This paper operates in the generator parameter space (not the latent space) and does not study, compare, or propose any method related to single-sample vs. averaged-sample stability in latent vector arithmetic. The entire problem of unstable single-sample latent arithmetic remains completely open.",
+        "evidence_snippets": []
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 5,
+      "skipped_ids": []
+    }
+  },
+  "ranking": null
+}

@@ -149,6 +149,26 @@ def read_paper_json(category_slug: str, paper_id: str) -> dict | None:
     return json.loads(p.read_text())
 
 
+def list_paper_ids(category_slug: str) -> list[str]:
+    """Every paper in the workspace, by id.
+
+    One directory per paper — the pdf and the extracted source live beside the record —
+    so the id is the directory name and a `*.json` glob at the top of `papers/` matches
+    nothing. Only directories that actually hold a `paper.json` count: a fetch that died
+    after `mkdir` leaves a folder behind, and listing it would name a paper nothing can
+    read."""
+    d = papers_dir(category_slug)
+    if not d.exists():
+        return []
+    return sorted(p.name for p in d.iterdir() if (p / "paper.json").exists())
+
+
+def paper_json_path(category_slug: str, paper_id: str) -> Path:
+    """Where a paper's record lives. Exposed for callers that need the file's mtime to
+    decide whether a derived index is stale, without reading the record itself."""
+    return paper_dir(category_slug, paper_id) / "paper.json"
+
+
 # --- ideas/<idea_id>.json ----------------------------------------------------
 
 def write_idea_json(category_slug: str, record: dict) -> Path:
@@ -194,6 +214,14 @@ GAP_STAGES: tuple[GapStage, ...] = ("pending", "to_validate", "to_rank", "master
 
 def gap_stage_dir(category_slug: str, stage: GapStage) -> Path:
     return category_dir(category_slug) / "gaps" / stage
+
+
+def gap_json_path(category_slug: str, gap_id: str, stage: GapStage) -> Path:
+    """Where a gap's record lives, in a given stage.
+
+    Exposed for callers that need the file's mtime to decide whether a derived index is
+    stale, without reading the record itself."""
+    return gap_stage_dir(category_slug, stage) / f"{gap_id}.json"
 
 
 def read_gap_json(category_slug: str, gap_id: str, stage: GapStage) -> dict | None:

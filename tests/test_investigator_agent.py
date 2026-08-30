@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from src.agents.investigator_agent import agent
+from src.common.utils import storage
 from src.llm import registry
 
 
@@ -413,6 +414,10 @@ def test_run_places_category_session_in_nested_workspace(monkeypatch):
 		"text": "search the web for transformers",
 		"session_id": "session-123",
 		"workspace_key": "machine-learning/sessions/session-123",
+		# The bare slug travels beside the session path: fetches write under
+		# `workspace_key`, while the workspace route reads the category's own
+		# gaps/papers/ideas, which are its siblings rather than its children.
+		"category_slug": "machine-learning",
 	}
 
 
@@ -563,3 +568,90 @@ def test_web_node_attaches_evidence_and_citation_claims(monkeypatch):
 	assert [item["source_id"] for item in result["evidence"]] == ["web-1", "page-1"]
 	assert result["claims"][0]["source_ids"] == ["page-1"]
 	assert "Citations:" in agent._web_to_text(result, "question")
+
+
+# --- workspace route ---------------------------------------------------------
+# The investigator's fourth source: what the project already holds. These cover the
+# routing decision, the lookup itself, and the one case that used to be silent — a run
+# with no category attached, which has no workspace to read and must say so rather than
+# answering from nothing.
+
+
+def test_decide_request_routes_workspace_lookup(monkeypatch):
+	decision = SimpleNamespace(
+		action="workspace",
+		workspace_ids=["gap_04e60ada"],
+		section="",
+		should_fetch_pages=False,
+		query="what does this gap say",
+		url="",
+		save_requested=False,
+		reason="the request names a gap id",
+	)
+	monkeypatch.setattr(agent, "chat_with_structured_output", lambda *a, **k: decision)
+	monkeypatch.setattr(agent, "get_llm", lambda *a, **k: object())
+
+	result = agent._decide_request("what does gap_04e60ada say?")
+
+	assert result["mode"] == "workspace"
+	assert result["workspace_ids"] == ["gap_04e60ada"]
+	assert result["save_requested"] is False
+
+
+def test_heuristic_routes_record_ids_to_workspace():
+	"""No LLM needed: an id names something on disk, and no web search will find it."""
+	result = agent._heuristic_decide_request("summarise gap_04e60ada and arxiv_1706.03762")
+
+	assert result["mode"] == "workspace"
+	assert result["workspace_ids"] == ["gap_04e60ada", "arxiv_1706.03762"]
+
+
+def test_workspace_node_without_category_reports_rather_than_inventing(monkeypatch):
+	"""A standalone run has no category, so there is nothing of the project's to read.
+
+	It must fail loudly: the evaluator reads this as an unusable attempt and sends the
+	actor to the web, where a silent empty answer would have ended the run instead.
+	"""
+	state = {"text": "what gaps do we have", "query": "gaps", "mode": "workspace",
+			 "session_id": "s1"}
+
+	out = agent.workspace_node(state)
+
+	assert "error" in out["research_result"]
+	assert not out["research_result"].get("answer")
+
+
+def test_workspace_lookup_reads_gaps_papers_and_reports_unknown_ids(tmp_path, monkeypatch):
+	import json
+	from src.agents.investigator_agent import workspace_lookup
+
+	monkeypatch.setattr(storage, "workspace_root", lambda: tmp_path)
+	category = tmp_path / "cat"
+	(category / "gaps" / "master").mkdir(parents=True)
+	(category / "papers" / "arxiv_1").mkdir(parents=True)
+	(category / "meta.json").write_text("{}")
+	(category / "gaps" / "master" / "gap_a.json").write_text(json.dumps({
+		"gap_id": "gap_a", "title": "Attention is quadratic", "type": "limitation",
+		"description": "cost grows with sequence length",
+		"evidence": [{"paper_id": "arxiv_1", "section": "results", "quote": "it is quadratic"}],
+	}))
+	(category / "papers" / "arxiv_1" / "paper.json").write_text(json.dumps({
+		"paper_id": "arxiv_1", "metadata": {"title": "A Paper", "year": 2017},
+		"content": {"sections": {"results": "the results section body"}},
+	}))
+
+	found = workspace_lookup.lookup("cat", ids=["gap_a", "gap_missing"])
+	assert [r["id"] for r in found["records"]] == ["gap_a"]
+	assert found["unknown_ids"] == ["gap_missing"]
+	assert "it is quadratic" in found["text"]  # the evidence quote, not just the claim
+
+	# A query finds the same gap by its words, without anyone knowing its id.
+	searched = workspace_lookup.lookup("cat", query="quadratic attention cost")
+	assert "gap_a" in [r["id"] for r in searched["records"]]
+
+	# A named section is rendered; the summary alone would not carry it.
+	sectioned = workspace_lookup.lookup("cat", ids=["arxiv_1"], section="results")
+	assert "the results section body" in sectioned["text"]
+
+	# Nothing matching is an answerable outcome, not an exception.
+	assert workspace_lookup.lookup("cat", query="zzzznothing")["error"]

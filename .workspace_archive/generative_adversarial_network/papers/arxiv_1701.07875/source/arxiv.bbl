@@ -1,0 +1,156 @@
+\begin{thebibliography}{10}
+
+\bibitem{Arj-ea-Princ}
+Martin Arjovsky and L\'eon Bottou.
+\newblock Towards principled methods for training generative adversarial
+  networks.
+\newblock In {\em International Conference on Learning Representations}, 2017.
+\newblock Under review.
+
+\bibitem{Dz-ea-GMMD}
+Gintare~Karolina Dziugaite, Daniel~M. Roy, and Zoubin Ghahramani.
+\newblock Training generative neural networks via maximum mean discrepancy
+  optimization.
+\newblock {\em CoRR}, abs/1505.03906, 2015.
+
+\bibitem{Gen-ea-LSOpt}
+Aude Genevay, Marco Cuturi, Gabriel Peyr\'{e}, and Francis Bach.
+\newblock Stochastic optimization for large-scale optimal transport.
+\newblock In D.~D. Lee, M.~Sugiyama, U.~V. Luxburg, I.~Guyon, and R.~Garnett,
+  editors, {\em Advances in Neural Information Processing Systems 29}, pages
+  3440--3448. Curran Associates, Inc., 2016.
+
+\bibitem{Good-ea-GAN}
+Ian~J. Goodfellow, Jean Pouget-Abadie, Mehdi Mirza, Bing Xu, David
+  Warde-Farley, Sherjil Ozair, Aaron Courville, and Yoshua Bengio.
+\newblock Generative adversarial nets.
+\newblock In {\em Advances in Neural Information Processing Systems 27}, pages
+  2672--2680. Curran Associates, Inc., 2014.
+
+\bibitem{Gretton-ea-MMD}
+Arthur Gretton, Karsten~M. Borgwardt, Malte~J. Rasch, Bernhard Sch\"{o}lkopf,
+  and Alexander Smola.
+\newblock A kernel two-sample test.
+\newblock {\em J. Mach. Learn. Res.}, 13:723--773, 2012.
+
+\bibitem{Ferenc15}
+Ferenc Huszar.
+\newblock How (not) to train your generative model: Scheduled sampling,
+  likelihood, adversary?
+\newblock {\em CoRR}, abs/1511.05101, 2015.
+
+\bibitem{Kakutani-Riesz}
+Shizuo Kakutani.
+\newblock Concrete representation of abstract (m)-spaces (a characterization of
+  the space of continuous functions).
+\newblock {\em Annals of Mathematics}, 42(4):994--1024, 1941.
+
+\bibitem{Kingma-ea-Adam}
+Diederik~P. Kingma and Jimmy Ba.
+\newblock Adam: {A} method for stochastic optimization.
+\newblock {\em CoRR}, abs/1412.6980, 2014.
+
+\bibitem{Kingma-ea-VAE}
+Diederik~P. Kingma and Max Welling.
+\newblock Auto-encoding variational bayes.
+\newblock {\em CoRR}, abs/1312.6114, 2013.
+
+\bibitem{Li-ea-GMMN}
+Yujia Li, Kevin Swersky, and Rich Zemel.
+\newblock Generative moment matching networks.
+\newblock In {\em Proceedings of the 32nd International Conference on Machine
+  Learning (ICML-15)}, pages 1718--1727. JMLR Workshop and Conference
+  Proceedings, 2015.
+
+\bibitem{Metz-ea-UG}
+Luke Metz, Ben Poole, David Pfau, and Jascha Sohl-Dickstein.
+\newblock Unrolled generative adversarial networks.
+\newblock {\em Corr}, abs/1611.02163, 2016.
+
+\bibitem{Milgrom-ea-envelope}
+Paul Milgrom and Ilya Segal.
+\newblock Envelope theorems for arbitrary choice sets.
+\newblock {\em Econometrica}, 70(2):583--601, 2002.
+
+\bibitem{Mnih-ea-A3C}
+Volodymyr Mnih, Adri{\`{a}}~Puigdom{\`{e}}nech Badia, Mehdi Mirza, Alex Graves,
+  Timothy~P. Lillicrap, Tim Harley, David Silver, and Koray Kavukcuoglu.
+\newblock Asynchronous methods for deep reinforcement learning.
+\newblock In {\em Proceedings of the 33nd International Conference on Machine
+  Learning, {ICML} 2016, New York City, NY, USA, June 19-24, 2016}, pages
+  1928--1937, 2016.
+
+\bibitem{Mont-ea-WRBM}
+Gr\'{e}goire Montavon, Klaus-Robert M\"{u}ller, and Marco Cuturi.
+\newblock Wasserstein training of restricted boltzmann machines.
+\newblock In D.~D. Lee, M.~Sugiyama, U.~V. Luxburg, I.~Guyon, and R.~Garnett,
+  editors, {\em Advances in Neural Information Processing Systems 29}, pages
+  3718--3726. Curran Associates, Inc., 2016.
+
+\bibitem{Muller-IPM}
+Alfred M\"uller.
+\newblock Integral probability metrics and their generating classes of
+  functions.
+\newblock {\em Advances in Applied Probability}, 29(2):429--443, 1997.
+
+\bibitem{Neal-AIS}
+Radford~M. Neal.
+\newblock Annealed importance sampling.
+\newblock {\em Statistics and Computing}, 11(2):125--139, April 2001.
+
+\bibitem{Nowo-ea-fgan}
+Sebastian Nowozin, Botond Cseke, and Ryota Tomioka.
+\newblock f-gan: Training generative neural samplers using variational
+  divergence minimization.
+\newblock pages 271--279, 2016.
+
+\bibitem{Rad-ea-DCGAN}
+Alec Radford, Luke Metz, and Soumith Chintala.
+\newblock Unsupervised representation learning with deep convolutional
+  generative adversarial networks.
+\newblock {\em CoRR}, abs/1511.06434, 2015.
+
+\bibitem{Ramdas-ea-hdk}
+Aaditya Ramdas, Sashank~J. Reddi, Barnabas Poczos, Aarti Singh, and Larry
+  Wasserman.
+\newblock On the high-dimensional power of linear-time kernel two-sample
+  testing under mean-difference alternatives.
+\newblock {\em Corr}, abs/1411.6314, 2014.
+
+\bibitem{South-ea-MMD}
+Dougal~J Sutherland, Hsiao-Yu Tung, Heiko Strathmann, Soumyajit De, Aaditya
+  Ramdas, Alex Smola, and Arthur Gretton.
+\newblock Generative models and model criticism via optimized maximum mean
+  discrepancy.
+\newblock In {\em International Conference on Learning Representations}, 2017.
+\newblock Under review.
+
+\bibitem{Tieleman2012}
+T.~Tieleman and G.~Hinton.
+\newblock {Lecture 6.5---RmsProp: Divide the gradient by a running average of
+  its recent magnitude}.
+\newblock COURSERA: Neural Networks for Machine Learning, 2012.
+
+\bibitem{Vil}
+C\'edric Villani.
+\newblock {\em Optimal Transport: Old and New}.
+\newblock Grundlehren der mathematischen Wissenschaften. Springer, Berlin,
+  2009.
+
+\bibitem{Wu-ea-AIS}
+Yuhuai Wu, Yuri Burda, Ruslan Salakhutdinov, and Roger~B. Grosse.
+\newblock On the quantitative analysis of decoder-based generative models.
+\newblock {\em CoRR}, abs/1611.04273, 2016.
+
+\bibitem{LSUN}
+Fisher Yu, Yinda Zhang, Shuran Song, Ari Seff, and Jianxiong Xiao.
+\newblock {LSUN}: Construction of a large-scale image dataset using deep
+  learning with humans in the loop.
+\newblock {\em Corr}, abs/1506.03365, 2015.
+
+\bibitem{Zhao-ea-EBGAN}
+Junbo Zhao, Michael Mathieu, and Yann LeCun.
+\newblock Energy-based generative adversarial network.
+\newblock {\em Corr}, abs/1609.03126, 2016.
+
+\end{thebibliography}

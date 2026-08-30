@@ -1,0 +1,89 @@
+{
+  "gap_id": "gap_09d1e3fa",
+  "status": "validated",
+  "title": "KL and JS divergences unsuitable for low-dimensional manifolds",
+  "description": "The paper states that KL, JS, and TV distances are not sensible cost functions when learning distributions supported by low-dimensional manifolds, as they are not defined or are infinite when supports do not have a non-negligible intersection.",
+  "type": "limitation",
+  "canonical_description": "KL, JS, and TV divergences are not well-defined or are unsuitable when distributions are supported on low-dimensional manifolds",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1701.07875",
+      "section": "different_distances",
+      "anchor": "KL, JS, and TV distances are not sensible cost functions when learning distributions supported by low dimensional manifolds",
+      "quote": "the KL, JS, and TV distances are not sensible\ncost functions when learning distributions\nsupported by low dimensional manifolds.",
+      "char_offset": [
+        13544,
+        13672
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-07-21T08:20:46Z",
+  "verdict": {
+    "gap_id": "gap_09d1e3fa",
+    "status": "partially_solved",
+    "confidence": 0.65,
+    "reasoning": "Paper 1 (gradient-norm regularization for f-GANs) provides a practical workaround: by convolving distributions with Gaussian noise (approximated via a regularizer), f-divergences become well-defined even for originally low-dimensional supports. It demonstrates this theoretically and empirically on a 2D-in-3D misspecification scenario — directly addressing the dimensional mismatch the gap describes. However, this is a mitigation, not a resolution of the fundamental issue: the divergences are now computed between smoothed (full-support) distributions, not the original low-dimensional ones, introducing dependence on the ambient metric and a tunable noise scale. The core unsuitability of KL/JS/TV for comparing truly low-dimensional distributions remains. Paper 2 simply avoids the problem by switching to Hölder IPMs (including Wasserstein distance) and does not address KL/JS/TV divergence behavior on manifolds at all. Together, the evidence shows the gap is partially addressed — a useful practical patch exists, but the deeper theoretical problem is left open.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_1705.09367",
+          "title": "Stabilizing Training of Generative Adversarial Networks through Regularization",
+          "abstract": "Deep generative models based on Generative Adversarial Networks (GANs) have demonstrated impressive sample quality but in order to work they require a careful choice of architecture, parameter initialization, and selection of hyper-parameters. This fragility is in part due to a dimensional mismatch or non-overlapping support between the model distribution and the data distribution, causing their density ratio and the associated f-divergence to be undefined. We overcome this fundamental limitation and propose a new regularization approach with low computational cost that yields a stable GAN training procedure. We demonstrate the effectiveness of this regularizer across several architectures trained on common benchmark image generation tasks. Our regularization turns GAN models into reliable building blocks for deep learning.",
+          "authors": [
+            "Kevin Roth",
+            "Aurelien Lucchi",
+            "Sebastian Nowozin",
+            "Thomas Hofmann"
+          ],
+          "published_date": "2017-05-25T21:17:50Z",
+          "url": "https://arxiv.org/abs/1705.09367v2"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper proposes a gradient-norm regularization for f-GANs that approximates convolving the data and model distributions with Gaussian noise. This convolution gives the distributions full support in the ambient space, making f-divergences (including JS) well-defined even when the original distributions are supported on low-dimensional manifolds. The paper demonstrates empirically that this stabilizes GAN training on a 2D submanifold embedded in 3D space, which is exactly the dimensional misspecification scenario described in the gap.",
+        "what_remains_open": "The paper does not propose a fundamentally new divergence that is natively well-defined for low-dimensional manifolds. Instead, it works around the problem by smoothing the distributions via noise convolution (approximated by a regularizer), which changes the problem: the divergences are now computed between smoothed (full-support) distributions rather than the original low-dimensional ones. This introduces dependence on the ambient space metric and a tunable length scale (noise variance γ). The fundamental unsuitability of KL/JS/TV divergences for comparing distributions on truly low-dimensional manifolds remains; the paper only mitigates it by making the distributions no longer low-dimensional.",
+        "evidence_snippets": [
+          "As pointed out in~[CITE:arjovsky2017towards], a geometric mismatch can be detrimental for $f$-GAN models as the resulting $f$-divergence is not finite (the $\\sup$ in Eq.~[REF:eq:f-objective] is $+\\infty$).",
+          "Technically, applying this to both $\\p$ and $\\q$ makes the resulting generalized $f$-divergence well-defined, even when the generative model is dimensionally misspecified.",
+          "We will provide evidence (analytically and experimentally) that the noise-induced regularization method proposed in this paper effectively makes $f$-GAN models robust against dimensional misspecifications."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2506.19587",
+          "title": "Generative model for optimal density estimation on unknown manifold",
+          "abstract": "We propose a generative model that achieves minimax-optimal convergence rates for estimating probability distributions supported on unknown low-dimensional manifolds. Building on Fefferman's solution to the geometric Whitney problem, our estimator is itself supported on a submanifold that matches the regularity of the data's support. This geometric adaptation enables the estimator to be simultaneously minimax-optimal for all \\( γ\\)-Hölder Integral Probability Metrics (IPMs) with \\( γ\\geq 1 \\). We validate our approach through experiments on synthetic and real datasets, demonstrating competitive or superior performance compared to Wasserstein GAN and score-based generative models.",
+          "authors": [
+            "Arthur Stéphanovitch"
+          ],
+          "published_date": "2025-06-24T12:55:34Z",
+          "url": "https://arxiv.org/abs/2506.19587v1"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "The paper proposes a generative model for density estimation on unknown low-dimensional manifolds that achieves minimax-optimal convergence rates under Hölder Integral Probability Metrics (IPMs). It constructs an estimator that is itself supported on a submanifold matching the data's support regularity, using a combination of Fefferman's manifold reconstruction and adversarial training. The estimator is designed to work with Hölder IPMs (including Wasserstein distance as a special case) rather than KL or JS divergences.",
+        "what_remains_open": "The paper does not address the unsuitability of KL and JS divergences for low-dimensional manifolds. It simply avoids the problem by using different metrics (Hölder IPMs) that are well-defined even when distributions are supported on low-dimensional manifolds. The fundamental issue that KL, JS, and TV divergences are not defined or are infinite when supports do not have non-negligible intersection remains entirely unaddressed. The paper offers no method to make these divergences work, no modification to them, and no theoretical analysis of their behavior on manifolds.",
+        "evidence_snippets": [
+          "The original formulation was later refined by~[CITE:arjovsky2017wasserstein], who introduced the Wasserstein GAN (WGAN), significantly improving training stability by replacing the Jensen–Shannon divergence with the Wasserstein distance.",
+          "Our objective is to construct a tractable and generative estimator $\\hat{\\mu}$ of the target distribution $\\mu^\\star$ ... such that $\\hat{\\mu}$ achieves the minimax convergence rates for the Hölder IPMs $d_{\\mathcal{H}^\\gamma_1}$, uniformly over all $\\gamma \\geq 1$."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 2,
+      "skipped_ids": []
+    }
+  },
+  "ranking": {
+    "openness": 0.27499999999999997,
+    "impact": 0.2212437900615097,
+    "feasibility": 0.55,
+    "feasibility_reasoning": "Tractability is moderate. On the plus side: (1) no data or compute barriers — it's a theoretical/methodological problem that can be studied analytically or with small synthetic experiments; (2) a clear path forward exists: analyzing the smoothing approach's limitations, developing manifold-adaptive variants of KL/JS using intrinsic geometry, or characterizing regimes where practical workarounds are reliable; (3) progress is measurable (e.g., is the proposed quantity finite, geometrically meaningful, and does it recover standard KL/JS in the full-support limit?). On the minus side: the *fundamental* mathematical issue — KL requires absolute continuity, JS is constant when supports don't overlap — cannot be \"solved\" without changing the definition or the distributions. The best one can do is mitigate or reformulate. This ceiling on what's achievable caps feasibility around the mid-range."
+  }
+}
