@@ -694,7 +694,8 @@ def writeback(state: CreativeThinkerState) -> dict:
         # is the write-up of *what happened*, not a reward for having succeeded.
         edit = apply_edits(style=style, idea_md=state["idea_md"], task=spec.task,
                            path_md=_path_md(state) if len(path) > 1 else "",
-                           findings="\n".join(state.get("findings") or []))
+                           findings="\n".join(state.get("findings") or []),
+                           fast=spec.depth == 1)
         ledger.spend_llm()
         answer = edit.answer.strip()
         if len(path) > 1:

@@ -111,7 +111,8 @@ def _invoke_with_retry(invoke, *, call_id: str = "", operation: str = "llm",
 
 
 def get_llm(role: str, temperature: float = 0.2,
-            reasoning_effort: str | None = None):
+            reasoning_effort: str | None = None,
+            max_tokens: int | None = None):
     """Return a chat model for `role`.
 
     The `reasoner` model is wrapped with a fallback to the `cheap` model, so a
@@ -128,6 +129,8 @@ def get_llm(role: str, temperature: float = 0.2,
     model_options = {"temperature": temperature}
     if reasoning_effort is not None:
         model_options["reasoning_effort"] = reasoning_effort
+    if max_tokens is not None:
+        model_options["max_tokens"] = max_tokens
     llm = init_chat_model(MODELS[role], **model_options)
     if role == "reasoner":
         cheap = init_chat_model(MODELS["cheap"], **model_options)
