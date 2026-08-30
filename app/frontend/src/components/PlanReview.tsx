@@ -61,12 +61,21 @@ function chipValue(value: unknown): string {
 // The arguments that read as prose belong in the step's title, not repeated as a chip.
 const TITLE_ARGS = new Set(["instruction", "query", "task"]);
 
+function relevantArg(step: PlanStep, name: string): boolean {
+  if (step.tool !== "creative_thinker") return true;
+  const mode = step.args?.thinking_mode ?? "generation";
+  if (name === "depth") return mode === "refinement";
+  if (name === "width") return mode === "generation";
+  return true;
+}
+
 /** Every argument of one step as a row of chips — the "which parameters" half. */
 export function StepArgs({ step, specs }: { step: PlanStep; specs: ToolSpec[] }) {
   const spec = specs.find((s) => s.name === step.tool);
   const order = spec ? spec.args.map((a) => a.name) : Object.keys(step.args || {});
   const shown = order
-    .filter((name) => !TITLE_ARGS.has(name) && meaningful((step.args || {})[name]));
+    .filter((name) => !TITLE_ARGS.has(name) && relevantArg(step, name)
+      && meaningful((step.args || {})[name]));
   if (!shown.length && !step.needs?.length) return null;
   return (
     <div className="plan-args">
@@ -178,6 +187,21 @@ function withoutStep(steps: PlanStep[], index: number): PlanStep[] {
     }));
 }
 
+/** Width/depth are decisions for the researcher, not planner defaults. Remove both
+ * generated values while a plan is proposed so mode changes still require a fresh pick. */
+function awaitingManualThinkerSettings(plan: AgentPlan): AgentPlan {
+  return {
+    ...plan,
+    steps: plan.steps.map((step) => {
+      if (step.tool !== "creative_thinker") return step;
+      const args = { ...(step.args || {}) };
+      delete args.width;
+      delete args.depth;
+      return { ...step, args };
+    }),
+  };
+}
+
 export function PlanReview({
   plan, status, busy, onStart, onCancel,
 }: {
@@ -188,11 +212,14 @@ export function PlanReview({
   onCancel: () => void;
 }) {
   const specs = useToolSpecs();
-  const [draft, setDraft] = useState<AgentPlan>(plan);
+  const [draft, setDraft] = useState<AgentPlan>(
+    status === "proposed" ? awaitingManualThinkerSettings(plan) : plan);
   const [open, setOpen] = useState<number | null>(null);
   // A plan that has been started is a record of what ran, so it follows the stored one
   // rather than whatever the editor had in it.
-  useEffect(() => { setDraft(plan); }, [plan]);
+  useEffect(() => {
+    setDraft(status === "proposed" ? awaitingManualThinkerSettings(plan) : plan);
+  }, [plan, status]);
 
   const editable = status === "proposed";
   const steps = editable ? draft.steps : plan.steps;
@@ -205,6 +232,13 @@ export function PlanReview({
 
   const specFor = useMemo(
     () => (tool: string) => specs.find((s) => s.name === tool) || null, [specs]);
+
+  const missingManualChoice = editable && steps.some((step) => {
+    if (step.tool !== "creative_thinker") return false;
+    const setting = (step.args?.thinking_mode ?? "generation") === "refinement"
+      ? "depth" : "width";
+    return typeof step.args?.[setting] !== "number";
+  });
 
   return (
     <div className={"plan-card plan-card--" + status}>
@@ -258,6 +292,34 @@ export function PlanReview({
                 )}
                 <StepArgs step={step} specs={specs} />
 
+                {editable && step.tool === "creative_thinker" && (() => {
+                  const mode = step.args?.thinking_mode ?? "generation";
+                  const name = mode === "refinement" ? "depth" : "width";
+                  const arg = spec?.args.find((item) => item.name === name);
+                  if (!arg) return null;
+                  const value = step.args?.[name];
+                  const low = arg.min ?? 1;
+                  const high = arg.max ?? low;
+                  return (
+                    <label className="plan-manual-setting" title={arg.description}>
+                      <span>
+                        Choose {name}
+                        <small>{mode === "generation"
+                          ? "Number of candidate branches"
+                          : "Levels of refinement"}</small>
+                      </span>
+                      <select value={typeof value === "number" ? String(value) : ""}
+                        onChange={(event) => setStep(index, {
+                          args: { ...step.args, [name]: Number(event.target.value) },
+                        })}>
+                        <option value="" disabled>Select…</option>
+                        {Array.from({ length: high - low + 1 }, (_, offset) => low + offset)
+                          .map((number) => <option key={number} value={number}>{number}</option>)}
+                      </select>
+                    </label>
+                  );
+                })()}
+
                 {editable && expanded && (
                   <div className="plan-fields">
                     {spec ? spec.args.map((arg) => (
@@ -289,7 +351,8 @@ export function PlanReview({
 
       {status === "proposed" && (
         <div className="plan-actions">
-          <button className="btn btn--primary" disabled={busy || !steps.length}
+          <button className="btn btn--primary"
+            disabled={busy || !steps.length || missingManualChoice}
             onClick={() => onStart(draft)}>
             <Icon name={busy ? "clock" : "arrow-right"} size={13} />
             {busy ? "Starting…" : "Start"}
@@ -298,7 +361,9 @@ export function PlanReview({
             Discard
           </button>
           <span className="plan-actions-note">
-            Nothing runs until you start it — adjust any step first.
+            {missingManualChoice
+              ? "Choose the Creative Thinker width or depth before starting."
+              : "Nothing runs until you start it — adjust any step first."}
           </span>
         </div>
       )}

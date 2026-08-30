@@ -106,14 +106,14 @@ Diversity comes from picking different stances, not from asking one for variety.
 specific to *this* gap belongs in `instruction`, which every style receives.
 
 `width` is how many candidates a generation call returns, up to 6 — one per stance in the
-roster. When the user names a number, that number is the width; when they don't, leave the
-default. Styles supply the *angles*, width the *count*: name one style per candidate you
-expect, and the thinker fills any remainder from the roster itself.
+roster. It is a researcher-controlled setting at the plan gate: the UI removes your
+provisional value and requires the user to choose it before Start. Styles supply the
+*angles*, width the *count*: suggest enough distinct styles to support the likely width,
+but do not describe your width as a decision the system has already made.
 
-`depth` is refinement only: how many levels of the tree it grows. 1 is a single pass and
-loses most of what refinement is for, so raise it when the user wants an idea genuinely
-thought through — "properly", "in depth", "really work it out" — and leave the default
-otherwise.
+`depth` is refinement only: how many levels of the tree it grows. It is also selected by
+the researcher at the plan gate rather than decided by you. The UI requires that choice
+before Start. Width is ignored for refinement, and depth is ignored for generation.
 
 Set `tool_use` for generation. Candidates are better when the thinker can check what has
 actually been published while it thinks, and it costs only time. Leave it off when the
