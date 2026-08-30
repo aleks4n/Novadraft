@@ -328,10 +328,32 @@ def test_web_node_fetches_pages_only_when_llm_requests_it(monkeypatch):
 	assert with_fetch["research_result"]["answer"] == "Grounded answer"
 
 
+def test_web_node_falls_back_to_arxiv_when_duckduckgo_is_empty(monkeypatch):
+	monkeypatch.setattr(agent, "_search_web", lambda *_args, **_kwargs: [])
+	monkeypatch.setattr(
+		agent, "_search_arxiv",
+		lambda *_args, **_kwargs: [
+			agent.SearchResult("Attention scaling", "https://arxiv.org/abs/2401.00001", "abstract"),
+		],
+	)
+
+	result = agent.web_node({
+		"query": "attention scaling", "session_id": "session-1",
+		"should_fetch_pages": False,
+	})["research_result"]
+
+	assert [item["provider"] for item in result["provider_attempts"]] == ["duckduckgo", "arxiv"]
+	assert result["search_results"][0]["url"] == "https://arxiv.org/abs/2401.00001"
+
+
 def test_answer_from_fetched_pages_sends_query_and_content_to_deepseek(monkeypatch):
 	request = {}
 
-	monkeypatch.setattr(agent, "get_llm", lambda role, temperature: (role, temperature))
+	model_request = {}
+	monkeypatch.setattr(
+		agent, "get_llm",
+		lambda role, temperature, **kwargs: model_request.update(kwargs) or (role, temperature),
+	)
 	monkeypatch.setattr(
 		agent,
 		"chat",
@@ -345,9 +367,37 @@ def test_answer_from_fetched_pages_sends_query_and_content_to_deepseek(monkeypat
 
 	assert answer == "Answer from pages"
 	assert request["llm"] == ("cheap", 0)
+	assert model_request == {"reasoning_effort": "low", "max_tokens": 2_500}
 	assert "What happened?" in request["user"]
 	assert "The event happened yesterday." in request["user"]
 	assert "https://example.com/source" in request["user"]
+
+
+def test_web_fetch_continues_after_blocked_result(monkeypatch):
+	results = [
+		agent.SearchResult(title="One", url="https://example.com/1"),
+		agent.SearchResult(title="Blocked", url="https://example.com/2"),
+		agent.SearchResult(title="Three", url="https://example.com/3"),
+	]
+	monkeypatch.setattr(agent, "_search_web", lambda *_args, **_kwargs: results)
+
+	def scrape(url, **_kwargs):
+		if url.endswith("/2"):
+			raise RuntimeError("403")
+		return {"url": url, "title": url, "text": "usable page"}
+
+	monkeypatch.setattr(agent, "_scrape_url", scrape)
+	monkeypatch.setattr(agent, "_answer_from_fetched_pages", lambda *_args: "answer")
+	monkeypatch.setattr(agent, "_claims_from_answer", lambda *_args: [])
+
+	result = agent.web_node({
+		"query": "topic", "session_id": "session", "should_fetch_pages": True,
+	})["research_result"]
+
+	assert [page["url"] for page in result["pages"]] == [
+		"https://example.com/1", "https://example.com/2", "https://example.com/3",
+	]
+	assert "error" in result["pages"][1]
 
 
 def test_paper_node_uses_session_workspace(monkeypatch):
@@ -429,6 +479,62 @@ def test_run_uses_injected_graph(monkeypatch):
 
 	assert result == "ok"
 	assert fake_graph.inputs == {"text": "search the web for transformers", "session_id": "session-123"}
+
+
+def test_lightweight_run_requests_direct_mode_without_actor_or_reflection_llms(monkeypatch):
+	class FakeGraph:
+		def __init__(self):
+			self.inputs = None
+
+		def invoke(self, inputs):
+			self.inputs = inputs
+			return {"result": "ok"}
+
+	fake_graph = FakeGraph()
+	monkeypatch.setattr(agent, "_get_graph", lambda: fake_graph)
+
+	assert agent.run(
+		"CEM warm start prior work", session_id="session-123", mode="web",
+		lightweight=True, stream=False,
+	) == "ok"
+	assert fake_graph.inputs == {
+		"text": "CEM warm start prior work", "session_id": "session-123",
+		"requested_mode": "web", "lightweight": True,
+	}
+
+
+def test_lightweight_retry_keeps_route_and_uses_evaluator_feedback_without_llm(monkeypatch):
+	monkeypatch.setattr(
+		agent, "_decide_request",
+		lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("routing LLM called")),
+	)
+	state = {
+		"text": "Has this been proposed before? Re-seeded CEM elite carry-over",
+		"session_id": "session-1", "requested_mode": "web", "lightweight": True,
+		"attempt": 1, "query": "Re-seeded CEM elite carry-over",
+		"evaluation": {"feedback": "Look specifically for MPC warm start prior work"},
+	}
+
+	decision = agent.actor(state)
+
+	assert decision["mode"] == "web"
+	assert decision["attempt"] == 2
+	assert "CEM" in decision["query"]
+	assert len(decision["query"].split()) <= 14
+
+
+def test_lightweight_reflection_is_deterministic(monkeypatch):
+	monkeypatch.setattr(
+		agent, "chat_with_structured_output",
+		lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("reflection LLM called")),
+	)
+
+	update = agent.reflect({
+		"session_id": "session-1", "lightweight": True, "attempt": 1,
+		"evaluation": {"feedback": "Try a narrower warm-start query"},
+	})
+
+	assert update["reflections"] == ["Try a narrower warm-start query"]
 
 
 def test_run_places_category_session_in_nested_workspace(monkeypatch):
@@ -513,7 +619,10 @@ def test_evaluate_uses_llm_when_available(monkeypatch):
 			"attempt": 1,
 			"text": "find a summary of the paper",
 			"query": "summary of the paper",
-			"research_result": {"search_results": [], "pages": []},
+			"research_result": {
+				"search_results": [{"title": "A source", "url": "https://example.com"}],
+				"pages": [],
+			},
 		}
 	)
 
@@ -521,6 +630,27 @@ def test_evaluate_uses_llm_when_available(monkeypatch):
 	assert evaluation["evaluation"]["feedback"] == "The page was too sparse."
 	assert "summary of the paper" in captured["prompt"]
 	assert models == ["cheap"]
+
+
+def test_evaluate_rejects_empty_web_retrieval_without_an_llm(monkeypatch):
+	monkeypatch.setattr(
+		agent, "chat_with_structured_output",
+		lambda *_args, **_kwargs: pytest.fail("empty retrieval should be checked deterministically"),
+	)
+
+	result = agent.evaluate({
+		"mode": "web", "attempt": 1,
+		"research_result": {
+			"search_results": [], "pages": [],
+			"provider_attempts": [
+				{"provider": "duckduckgo", "results": 0},
+				{"provider": "arxiv", "results": 0},
+			],
+		},
+	})
+
+	assert result["evaluation"]["success"] is False
+	assert "no parsed results" in result["evaluation"]["feedback"]
 
 
 def test_evaluator_routes_failed_attempt_to_reflection_then_stops_at_limit(monkeypatch):

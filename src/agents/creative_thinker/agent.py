@@ -99,6 +99,7 @@ from src.common.utils.logging.trace import log_event
 # candidate's rank, it never removes it from the batch.
 _RATING_VERIFIED = 0.7
 _RATING_UNVERIFIED = 0.5
+_MAX_INVESTIGATION_CONTEXT_CHARS = 12_000
 
 
 # --- shared helpers ----------------------------------------------------------
@@ -116,6 +117,20 @@ def _candidate_text(c: Candidate) -> str:
         parts.append("\n".join(str(v) for v in value) if isinstance(value, list)
                      else str(value))
     return "\n".join(p for p in parts if p)
+
+
+def _candidate_investigation_question(candidate: Candidate,
+                                      state: CreativeThinkerState) -> str:
+    """Give grounding the actual candidate, task, gap and loaded paper context."""
+    return (
+        "Assess this candidate against prior work and technical evidence. Determine "
+        "whether its specific mechanism has already been proposed and whether it is "
+        "technically plausible. Read relevant sources; do not judge from result titles.\n\n"
+        f"Candidate:\n{_candidate_text(candidate)}\n\n"
+        f"Original task and gap:\n{state['spec'].task or '_(not separately stated)_'}\n\n"
+        "Already loaded project context, including selected papers:\n"
+        f"{state.get('context_md', '')[:_MAX_INVESTIGATION_CONTEXT_CHARS]}"
+    )
 
 
 def _map_styles(styles: list[AgentStyle], fn: Callable[[AgentStyle], Any],
@@ -283,8 +298,7 @@ def generate(state: CreativeThinkerState) -> dict:
     if spec.tool_use and state.get("investigator") is not None:
         for index in dd.kept:
             finding = investigate.ask(
-                f"Has this been proposed before, and does it hold up? "
-                f"{candidates[index].title}: {candidates[index].one_liner}",
+                _candidate_investigation_question(candidates[index], state),
                 investigator=state.get("investigator"), tool_use=spec.tool_use,
                 ledger=ledger,
             )

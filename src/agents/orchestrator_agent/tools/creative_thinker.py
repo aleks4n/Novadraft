@@ -11,6 +11,7 @@ an `Envelope`. Nothing here writes; persisting an accepted result is
 from __future__ import annotations
 
 import uuid
+import sys
 from typing import Callable, Literal
 
 from pydantic import BaseModel, Field
@@ -230,6 +231,12 @@ def _investigator(env: ToolEnv) -> Callable[[str], dict]:
         from src.agents.investigator_agent import run as run_investigator
 
         call_id = f"investigator_{uuid.uuid4().hex[:10]}"
+        print(
+            f"[investigator] call {call_id} input from creative thinker:\n{question}\n"
+            f"[investigator] end input {call_id}",
+            file=sys.stderr,
+            flush=True,
+        )
         trace.emit({
             "type": "event", "name": "investigator call started",
             "data": {"call_id": call_id, "question": question},
@@ -238,6 +245,8 @@ def _investigator(env: ToolEnv) -> Callable[[str], dict]:
             answer = run_investigator(question,
                                       session_id=env.session_id or "session-adhoc",
                                       category_slug=env.category_slug or None,
+                                      mode="web",
+                                      lightweight=True,
                                       stream=False)
         except Exception as exc:
             trace.emit({
@@ -248,12 +257,17 @@ def _investigator(env: ToolEnv) -> Callable[[str], dict]:
             raise
         trace.emit({
             "type": "event", "name": "investigator call finished",
-            "data": {"call_id": call_id, "ok": True, "has_answer": bool(answer)},
+            "data": {
+                "call_id": call_id,
+                "ok": bool(answer) and "No results found." not in answer and "\nError:" not in answer,
+                "has_answer": bool(answer) and "No results found." not in answer and "\nError:" not in answer,
+            },
         })
         # `sources` is the thinker's field for citations. The investigator reports its
         # findings as prose and exposes no structured source list, so this stays empty
         # rather than being invented from the text.
-        return {"answer": str(answer or ""), "sources": []}
+        usable = bool(answer) and "No results found." not in answer and "\nError:" not in answer
+        return {"answer": str(answer or "") if usable else "", "sources": []}
 
     return ask
 

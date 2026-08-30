@@ -2,7 +2,8 @@ from src.agents.creative_thinker.schemas import AgentStyle, Branch, BranchSet, C
 from src.agents.creative_thinker.subagents.expand_branch import agent as expand_agent
 from src.agents.creative_thinker.subagents.generate_candidate import agent as generate_agent
 from src.agents.creative_thinker.subagents.apply_edits import agent as edits_agent
-from src.agents.creative_thinker.schemas import IdeaEdit
+from src.agents.creative_thinker.schemas import IdeaEdit, ThinkerCall
+from src.agents.creative_thinker import agent as thinker_agent
 
 
 def test_rough_candidate_uses_flash_with_low_reasoning(monkeypatch):
@@ -75,3 +76,21 @@ def test_one_pass_writeback_uses_bounded_flash_low_effort(monkeypatch):
 
     assert result.answer == "Written back"
     assert requested == [("cheap", "low", 6_000)]
+
+
+def test_grounding_question_contains_candidate_task_and_loaded_paper():
+    candidate = Candidate(
+        title="Re-seeded CEM", one_liner="Carry the prior elite mean forward.",
+        description="Warm-start the next planning horizon.",
+    )
+    state = {
+        "spec": ThinkerCall(mode="generation", task="Address CEM dimensionality"),
+        "context_md": "Paper arxiv_2603.19312: LeWorldModel uses CEM.",
+    }
+
+    question = thinker_agent._candidate_investigation_question(candidate, state)
+
+    assert "Re-seeded CEM" in question
+    assert "Carry the prior elite mean" in question
+    assert "Address CEM dimensionality" in question
+    assert "arxiv_2603.19312" in question

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import html as html_module
 import json
+import sys
 import os
 import re
 from concurrent.futures import ThreadPoolExecutor
@@ -186,6 +187,7 @@ class InvestigatorState(TypedDict, total=False):
 	text: str
 	session_id: str
 	requested_mode: str
+	lightweight: bool
 	sources: list[str]
 	# ``workspace_key`` is the category-relative location used by downstream
 	# agents, e.g. ``machine-learning/sessions/session-42``.
@@ -770,6 +772,11 @@ def _search_web(query: str, max_results: int = _MAX_RESULT_COUNT) -> list[Search
 	)
 	response.raise_for_status()
 	html_text = response.text
+	page_title = _html_title(html_text)
+	challenge = bool(re.search(
+		r"captcha|challenge|automated quer|unusual traffic|verify you are human",
+		f"{page_title}\n{html_text[:4000]}", flags=re.IGNORECASE,
+	))
 
 	results: list[SearchResult] = []
 	pattern = re.compile(
@@ -794,6 +801,15 @@ def _search_web(query: str, max_results: int = _MAX_RESULT_COUNT) -> list[Search
 			results.append(SearchResult(title=title, url=href, snippet=snippet))
 		if len(results) >= max_results:
 			break
+	trace.log_event(
+		"investigator search provider finished",
+		provider="duckduckgo",
+		status_code=response.status_code,
+		response_bytes=len(response.content),
+		page_title=page_title,
+		challenge=challenge,
+		results=len(results),
+	)
 	return results
 
 
@@ -1103,13 +1119,20 @@ def actor(state: InvestigatorState) -> dict:
 	if attempt == 1:
 		reflections = _load_reflections(workspace_key, state["text"])
 	requested_mode = state.get("requested_mode")
-	if attempt == 1 and requested_mode:
+	if requested_mode and (attempt == 1 or state.get("lightweight")):
 		# The orchestrator already chose the source type. Avoid spending another LLM call
 		# rediscovering the same route; Reflexion may still choose a different route after
 		# a failed first attempt.
+		query = (_lightweight_initial_query(state["text"])
+				 if state.get("lightweight") else state["text"])
+		if attempt > 1:
+			query = _lightweight_retry_query(
+				state.get("query") or state["text"],
+				(state.get("evaluation") or {}).get("feedback", ""),
+			)
 		decision = {
 			"mode": requested_mode,
-			"query": state["text"],
+			"query": query,
 			"workspace_ids": [],
 			"section": "",
 			"paper_count": int(state.get("paper_count", 1)),
@@ -1120,8 +1143,50 @@ def actor(state: InvestigatorState) -> dict:
 		}
 	else:
 		decision = _decide_request(state["text"], reflections)
+	print(
+		f"[investigator] attempt {attempt} routed as {decision['mode']} query:\n"
+		f"{decision.get('query') or decision.get('url') or state['text']}\n"
+		f"[investigator] end routed query attempt {attempt}",
+		file=sys.stderr,
+		flush=True,
+	)
 	trace.log_event("investigator_actor", attempt=attempt, reflections=len(reflections), mode=decision["mode"])
 	return {**decision, "attempt": attempt, "reflections": reflections}
+
+
+_RETRY_STOPWORDS = frozenset({
+	"the", "a", "an", "and", "or", "of", "to", "in", "for", "from", "with",
+	"this", "that", "it", "is", "are", "was", "were", "be", "been", "has",
+	"have", "had", "does", "did", "do", "not", "no", "result", "results",
+	"search", "query", "attempt", "answer", "evidence", "source", "sources",
+})
+
+
+def _lightweight_retry_query(previous: str, feedback: str) -> str:
+	"""Build a bounded second query without another routing/reflection LLM call."""
+	text = f"{previous} {feedback}"
+	tokens = re.findall(r"[A-Za-z0-9][A-Za-z0-9_.+-]*", text)
+	selected: list[str] = []
+	seen: set[str] = set()
+	for token in tokens:
+		lower = token.lower()
+		if lower in _RETRY_STOPWORDS or lower in seen:
+			continue
+		seen.add(lower)
+		selected.append(token)
+		if len(selected) >= 14:
+			break
+	return " ".join(selected) or previous
+
+
+def _lightweight_initial_query(text: str) -> str:
+	"""Extract a concise search query while retaining the full text for evaluation."""
+	candidate = text
+	match = re.search(r"Candidate:\s*(.*?)(?:\n\nOriginal task|$)", text,
+				  flags=re.IGNORECASE | re.DOTALL)
+	if match:
+		candidate = match.group(1)
+	return _lightweight_retry_query(candidate, "")
 
 
 def interpret(state: InvestigatorState) -> dict:
@@ -1146,7 +1211,11 @@ def _answer_from_fetched_pages(query: str, pages: list[dict]) -> str | None:
 		return None
 
 	user_prompt = f"Query:\n{query}\n\nFetched pages:\n\n" + "\n\n---\n\n".join(page_sections)
-	return chat(get_llm("cheap", temperature=0), _WEB_ANSWER_SYSTEM_PROMPT, user_prompt).strip()
+	return chat(
+		get_llm("cheap", temperature=0, reasoning_effort="low", max_tokens=2_500),
+		_WEB_ANSWER_SYSTEM_PROMPT,
+		user_prompt,
+	).strip()
 
 
 _WORKSPACE_ANSWER_SYSTEM_PROMPT = (
@@ -1351,19 +1420,54 @@ def download_papers_node(state: InvestigatorState) -> dict:
 def web_node(state: InvestigatorState) -> dict:
 	query = state["query"]
 	session_id = state.get("workspace_key", state["session_id"])
+	provider_attempts: list[dict] = []
 	try:
 		results = _search_web(query)
 	except Exception as exc:  # noqa: BLE001 - return a readable text error
-		return {"research_result": {"error": f"{type(exc).__name__}: {exc}"}}
-	result = {"search_results": [r.__dict__ for r in results], "pages": []}
+		results = []
+		provider_attempts.append({"provider": "duckduckgo", "error": f"{type(exc).__name__}: {exc}"})
+	else:
+		provider_attempts.append({"provider": "duckduckgo", "results": len(results)})
+
+	# DuckDuckGo's HTML endpoint sometimes returns a successful challenge page or
+	# changes markup without raising an HTTP error.  An empty parsed list is therefore
+	# a provider failure, not evidence that the literature contains no matches.
+	if not results:
+		try:
+			results = _search_arxiv(query)
+		except Exception as exc:  # noqa: BLE001 - retain both provider diagnostics
+			provider_attempts.append({"provider": "arxiv", "error": f"{type(exc).__name__}: {exc}"})
+		else:
+			provider_attempts.append({"provider": "arxiv", "results": len(results)})
+		trace.log_event(
+			"investigator search fallback finished",
+			provider="arxiv", results=len(results), attempts=provider_attempts,
+		)
+
+	result = {
+		"search_results": [r.__dict__ for r in _deduplicate_search_results(results)],
+		"pages": [],
+		"provider_attempts": provider_attempts,
+	}
+	if not results and all(item.get("error") for item in provider_attempts):
+		result["error"] = "All search providers failed: " + "; ".join(
+			f"{item['provider']}: {item['error']}" for item in provider_attempts
+		)
 
 	should_fetch_pages = bool(state.get("should_fetch_pages"))
 	if should_fetch_pages and results:
-		for item in results[:2]:
+		successful_pages = 0
+		for item in results[:5]:
 			try:
-				result["pages"].append(_scrape_url(item.url, session_id=session_id, save_requested=state.get("save_requested", False)))
+				page = _scrape_url(item.url, session_id=session_id,
+								 save_requested=state.get("save_requested", False))
+				result["pages"].append(page)
+				if _normalize(str(page.get("text") or "")):
+					successful_pages += 1
 			except Exception as exc:  # noqa: BLE001 - keep partial progress
 				result["pages"].append({"url": item.url, "title": item.title, "error": f"{type(exc).__name__}: {exc}"})
+			if successful_pages >= 2:
+				break
 		try:
 			answer = _answer_from_fetched_pages(query, result["pages"])
 			if answer:
@@ -1371,7 +1475,7 @@ def web_node(state: InvestigatorState) -> dict:
 		except Exception as exc:  # noqa: BLE001 - preserve fetched pages if the LLM is unavailable
 			result["answer_error"] = f"{type(exc).__name__}: {exc}"
 	result["evidence"] = _web_evidence(result["search_results"], result["pages"])
-	if result.get("answer"):
+	if result.get("answer") and not state.get("lightweight"):
 		result["claims"] = _claims_from_answer(result["answer"], result["evidence"])
 	return {"research_result": result}
 
@@ -1447,6 +1551,22 @@ def evaluate(state: InvestigatorState) -> dict:
 	result = state.get("research_result") or {}
 	user_request = _normalize(state.get("text") or "")
 	query = _normalize(state.get("query") or "")
+	# Empty retrieval is mechanically unusable. Avoid paying for an LLM to restate
+	# that fact; the graph can immediately revise the query and retry. The provider
+	# diagnostics tell the next attempt whether this was an empty response or an error.
+	if mode == "web" and not result.get("search_results"):
+		attempts = result.get("provider_attempts") or []
+		evaluation = {
+			"success": False,
+			"feedback": (
+				"Web retrieval returned no parsed results. Retry with a shorter query and "
+				"a different provider or search strategy."
+			),
+			"reason": f"empty retrieval after provider attempts: {attempts}",
+			"attempt": state.get("attempt", 1),
+		}
+		trace.log_event("investigator_evaluator", **evaluation, deterministic=True)
+		return {"evaluation": evaluation}
 	if ENABLE_DETERMINISTIC_FETCH_FALLBACK and _fetch_failed(mode, result):
 		evaluation = {
 			"success": True,
@@ -1465,7 +1585,7 @@ def evaluate(state: InvestigatorState) -> dict:
 
 	try:
 		judgment = chat_with_structured_output(
-			get_llm("cheap", temperature=0),
+			get_llm("cheap", temperature=0, reasoning_effort="low", max_tokens=800),
 			_EVALUATION_SYSTEM_PROMPT,
 			json.dumps(payload, ensure_ascii=False, default=str),
 			InvestigatorEvaluation,
@@ -1499,6 +1619,14 @@ def _fallback_reflection(state: InvestigatorState) -> str:
 def reflect(state: InvestigatorState) -> dict:
 	"""Convert evaluator feedback into a concise lesson and persist it as memory."""
 	feedback = (state.get("evaluation") or {}).get("feedback") or "The result was unusable."
+	if state.get("lightweight"):
+		lesson = _normalize(feedback)
+		reflections = list(state.get("reflections") or [])
+		if lesson and lesson not in reflections:
+			reflections.append(lesson)
+		trace.log_event("investigator_reflection", attempt=state.get("attempt", 1),
+						lesson=lesson, deterministic=True)
+		return {"reflections": reflections[-_MAX_REFLECTIONS_PER_TASK:]}
 	try:
 		reflection = chat_with_structured_output(
 			get_llm("cheap", temperature=0),
@@ -1595,6 +1723,7 @@ def run(
 	stream: bool = True,
 	echo: bool | None = None,
 	max_attempts: int = _DEFAULT_MAX_ATTEMPTS,
+	lightweight: bool = False,
 ) -> str:
 	"""Route a free-text instruction to paper reading or web research.
 
@@ -1622,6 +1751,8 @@ def run(
 	inputs = {"text": text, "session_id": session_id}
 	if mode is not None:
 		inputs["requested_mode"] = mode
+	if lightweight:
+		inputs["lightweight"] = True
 	if sources is not None:
 		inputs["sources"] = [_normalize(source) for source in sources if _normalize(source)]
 	if paper_count is not None:
