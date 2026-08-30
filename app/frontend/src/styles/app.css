@@ -1115,6 +1115,13 @@ body.is-panel-dragging .panel-grip { opacity: 1; cursor: grabbing; }
    shrink the content, and remove the scrollbar again — an oscillation that React
    ends with "Maximum update depth exceeded". Reserving the gutter breaks it. */
 .panel-body { flex: 1; min-height: 0; overflow: auto; scrollbar-gutter: stable; }
+/* The window's own bottom rail — one line a kind wants readable whatever the body is
+   scrolled to. Outside the body on purpose: inside it, a pinned row paints over the
+   block's rounded corners. `.panel` clips it to the radius. */
+.panel-foot {
+  flex-shrink: 0; padding: 7px 12px; background: var(--bg);
+  border-top: 1px solid var(--border-soft);
+}
 
 /* a divider drag passes over panel content — suppress selection for its duration */
 body.is-row-resizing { user-select: none; -webkit-user-select: none; cursor: row-resize; }
@@ -1378,7 +1385,11 @@ body.is-row-resizing { user-select: none; -webkit-user-select: none; cursor: row
 /* The Agent plan window — the same step rows, read-only, on a rail, with a live
    status per step. Read top to bottom as a sequence: where the run is, what each
    step calls and with what, and what it is being judged against. */
-.plan-panel { display: flex; flex-direction: column; gap: 11px; min-height: 100%; }
+.plan-panel {
+  /* Inset from the window's edges, like every other panel's content. */
+  padding: 10px 12px 12px;
+  display: flex; flex-direction: column; gap: 11px;
+}
 .plan-panel-top { display: flex; flex-direction: column; gap: 6px; }
 .plan-panel-goal {
   margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--text);
@@ -1442,19 +1453,16 @@ body.is-row-resizing { user-select: none; -webkit-user-select: none; cursor: row
 .plan-panel .plan-criteria {
   padding: 7px 9px; border-radius: var(--radius-sm); background: var(--bg-inset);
 }
-/* Pinned to the foot of the window: what the run is doing *now* is the one line
-   worth reading without scrolling back to it. */
-.plan-panel-now {
-  position: sticky; bottom: 0; margin-top: auto;
-  display: flex; align-items: baseline; gap: 7px;
-  border-top: 1px solid var(--border-soft); padding: 8px 0 2px;
-  background: var(--bg); font-size: 11.5px; color: var(--text-3);
-  /* Only visible when the steps run on under it — the one cue that says the window
-     has more in it than the line pinned to its foot. */
-  box-shadow: 0 -7px 9px -9px rgba(28, 28, 26, .35);
-}
-.plan-panel-now-label {
+
+/* What the run is doing now — the window's bottom rail, always readable. */
+.plan-now { display: flex; align-items: baseline; gap: 7px; }
+.plan-now-label {
   flex: 0 0 auto;
   font-size: 9px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
   color: var(--accent-ai);
+}
+.plan-now-detail {
+  min-width: 0; font-size: 11.5px; line-height: 1.4; color: var(--text-3);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
 }

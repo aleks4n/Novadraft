@@ -412,11 +412,19 @@ function PanelBody({
   );
 }
 
-export function Window({ head, children }: { head: ReactNode; children: ReactNode }) {
+export function Window({
+  head, children, foot,
+}: { head: ReactNode; children: ReactNode; foot?: ReactNode }) {
   return (
     <div className="panel">
       {head}
       <div className="panel-body">{children}</div>
+      {/* A footer belongs to the window's chrome, not to its scrolling content: pinned
+          inside the body it paints its own square bar over the block's rounded corners
+          and has to fake a shadow to admit that content runs underneath it. Here the
+          panel's own `overflow: hidden` clips it to the corner radius, and the body
+          simply ends above it. */}
+      {foot && <div className="panel-foot">{foot}</div>}
     </div>
   );
 }
@@ -479,7 +487,15 @@ function PlanPanel({
   ) : null;
 
   return (
-    <Window head={head(controls)}>
+    <Window
+      head={head(controls)}
+      foot={progress && (
+        <div className="plan-now">
+          <span className="plan-now-label">Now</span>
+          <span className="plan-now-detail">{progress.detail}</span>
+        </div>
+      )}
+    >
       {!progress ? (
         <div className="empty-state empty-state--inline">
           No planned turn in this session yet. Ask for something and the plan appears
@@ -553,11 +569,6 @@ function PlanPanel({
               <ul>{progress.criteria.map((c, i) => <li key={i}>{c}</li>)}</ul>
             </div>
           )}
-
-          <div className="plan-panel-now">
-            <span className="plan-panel-now-label">Now</span>
-            <span>{progress.detail}</span>
-          </div>
         </div>
       )}
     </Window>
