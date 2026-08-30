@@ -203,6 +203,15 @@ instead of the score?"* asks the run to evaluate that, not to adopt it. The desc
 and problem are rewritten in exactly two cases — the task asked for it, or the run made
 what is written there **wrong**. "It could be sharper now" is a `proposed_change`.
 
+**`title` and `one_liner` are editable, and only on request.** `IdeaEdit` carries both,
+empty meaning *leave it alone*, and `merge_edit` writes them when they are not. They were
+missing from the schema while the prompt already described them as fields of their own,
+so *"rewrite the one-liner"* was a task the write-up could not carry out: the model put
+the new sentence in `answer`, nothing applied it, and the run returned a record identical
+to the one it started from — a change the user asked for, reported as done, and never
+made. A run that was not asked still leaves both alone; a line that no longer fits the
+idea is a `proposed_change`, not a retitle on the run's own initiative.
+
 Before the split, writeback rewrote the description unconditionally: across every logged
 run it did so 5 times out of 5, including for *"what problem does this idea attack"*,
 which needed no edit at all and had its `problem` rewritten too. A question came back as

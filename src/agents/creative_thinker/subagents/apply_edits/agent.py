@@ -124,18 +124,23 @@ def _append(existing: Any, value: Any) -> Any:
 
 
 def merge_edit(idea: IdeaRecord, edit: IdeaEdit) -> IdeaRecord:
-    """Apply the edit to the idea copy — deterministic, and never to the spine.
+    """Apply the edit to the idea copy — deterministic, and only where it was written.
 
-    ``description`` and ``problem`` are rewritten only when the model actually wrote
-    them; the rest of the spine (title, gaps addressed, relations) is untouched here,
-    and ``runs[]`` is appended elsewhere. Open questions are stored in the
-    ``open_questions`` section so they survive into the next run's prompt.
+    ``title``, ``one_liner``, ``description`` and ``problem`` are rewritten only when
+    the model actually wrote them, which the prompt reserves for a task that asked; the
+    rest of the spine (gaps addressed, relations) is untouched here, and ``runs[]`` is
+    appended elsewhere. Open questions are stored in the ``open_questions`` section so
+    they survive into the next run's prompt.
 
     ``problem`` additionally never leaves here empty. The prompt asks for it on every
     run — restated when the run did not sharpen it — so an empty one means the model
     skipped a spine field rather than that the idea has no problem; the one-liner
     stands in until a later run writes a real one.
     """
+    if edit.title.strip():
+        idea.title = edit.title.strip()
+    if edit.one_liner.strip():
+        idea.one_liner = edit.one_liner.strip()
     if edit.description.strip():
         idea.description = edit.description.strip()
     if edit.problem.strip():

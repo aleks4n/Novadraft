@@ -77,6 +77,17 @@ Sections you do not mention are kept exactly as they are.
 fields; they are not section slugs. A `set` naming one of them is dropped — write the
 field instead.
 
+# When the title and one-liner may change
+
+The **title** and **one_liner** are the idea's two title-field lines. Write them only
+when the task asked for it — *rewrite the one-liner · give it a shorter name · make the
+summary line plain enough for a non-expert*. Then writing them **is** the job, and
+answering in prose without filling the field leaves the idea untouched.
+
+Otherwise leave both empty and they are kept exactly as they are. A run that changed the
+mechanism does not get to retitle the idea on its own initiative; if the line no longer
+fits what the idea says, that is a `proposed_changes` entry.
+
 # When the description and problem may change
 
 The **description** and **problem** are the idea's spine. Rewrite them in exactly two
@@ -93,8 +104,8 @@ outcome for a question.
 
 # What you may not change
 
-Not the title, not the gaps it addresses, not its relations to other ideas, and never a
-second idea. You write up **this** idea only.
+Not the gaps it addresses, not its relations to other ideas, and never a second idea. You
+write up **this** idea only.
 
 # proposed_changes — recommend without acting
 
@@ -144,6 +155,10 @@ are not deciding anything — the user is asked whether to keep both.
 # Output
 
 - **answer** — the reply to the task, in prose.
+- **title** — the rewritten title, or **empty to leave it alone**.
+- **one_liner** — the rewritten one-sentence summary line, or **empty to leave it
+  alone**. A task that asked for a new one-liner is answered *here*; a new sentence that
+  appears only in **answer** never reaches the idea.
 - **description** — the rewritten description, or **empty to leave it alone**.
 - **problem** — the sharpened problem statement, or **empty to leave it alone**.
 - **edits** — the list of section operations.

@@ -25,13 +25,14 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
+from src.common.schemas.idea import IdeaRecord
 from src.common.utils import storage
 from src.agents.orchestrator_agent.schemas import Plan, ReflectJudgment, ToolCall
 
 # The recorder, and a workspace with one gap and two committed ideas in it. Imported
 # rather than rebuilt so there is one definition of what the subagents pretend to be.
 from tests.test_orchestrator_flows import (  # noqa: F401 — fixtures used by name
-    CATEGORY, GAP_ID, candidate, envelope, rec, workspace,
+    CATEGORY, GAP_ID, IDEA_A, candidate, envelope, rec, workspace,
 )
 
 
@@ -180,6 +181,38 @@ def test_landing_twice_does_not_duplicate_the_cards(client, rec):  # noqa: F811
     assert len(second["drafts"]) == 1
     agent_messages = [m for m in second["session"]["messages"] if m["role"] == "agent"]
     assert len(agent_messages) == 1
+
+
+def test_refining_the_same_idea_twice_files_a_card_for_each_turn(client, rec):  # noqa: F811
+    """Two refinements of one idea in one session, and both must be decidable.
+
+    An offer that changes an existing record is addressed by that record's id, which does
+    not change between turns. Deduplicating on the handle alone therefore made every
+    refinement after the first look like a card that was already filed, and the turn
+    landed with a reply and nothing to accept — which reads as "the run changed nothing".
+    """
+    def _refine(text: str, description: str) -> dict:
+        rec.plans = [Plan(goal="Refine it.", done_criteria=["the idea is updated"],
+                          steps=[ToolCall(tool="creative_thinker",
+                                          args={"thinking_mode": "refinement",
+                                                "idea_id": IDEA_A})])]
+        stored = IdeaRecord.model_validate(storage.read_idea_json(CATEGORY, IDEA_A))
+        rec.envelopes = [envelope(idea=stored.model_copy(
+            update={"description": description}))]
+        rec.judgments = [ReflectJudgment(route="finish", answer="Done.")]
+        started = _send(client, session_id, text, context=[{"kind": "idea", "id": IDEA_A}])
+        _finished(client, started["run"]["run_id"])
+        return _land(client, session_id, started["run"]["run_id"])
+
+    session_id = _session(client)
+    _refine("sharpen it", "First rewrite.")
+    landed = _refine("sharpen it again", "Second rewrite.")
+
+    cards = [d for d in landed["drafts"] if d["_session"]["target_idea_id"] == IDEA_A]
+    assert len(cards) == 2, "each turn offers its own card"
+    assert {c["description"] for c in cards} == {"First rewrite.", "Second rewrite."}
+    # Each card is diffable on its own: the record it would overwrite is frozen onto it.
+    assert all(c["_session"]["baseline_idea"] for c in cards)
 
 
 # --- the plan gate ------------------------------------------------------------

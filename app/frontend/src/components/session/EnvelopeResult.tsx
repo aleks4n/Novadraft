@@ -34,7 +34,13 @@ export interface DraftActions {
 /** Planned turns have one reply but may contain offers from several thinker calls,
  * so there is no single Envelope to render. Their working copies are already the
  * exact records the user must decide on; render those under the turn's reply. */
-export function OfferedDrafts({ runId, drafts }: { runId: string; drafts: DraftActions }) {
+export function OfferedDrafts({ runId, drafts, ideas = [] }: {
+  runId: string; drafts: DraftActions;
+  /** The workspace's live ideas — the fallback baseline for a copy offered before
+   *  `baseline_idea` was frozen onto it. Only correct until that idea is overwritten,
+   *  which is exactly why newer copies carry their own. */
+  ideas?: Idea[];
+}) {
   const copies = drafts.forRun(runId);
   if (!copies.length) return null;
   return (
@@ -46,7 +52,8 @@ export function OfferedDrafts({ runId, drafts }: { runId: string; drafts: DraftA
       <div className="env-drafts">
         {copies.map((copy) => (
           <DraftCard key={copy._session.draft_id}
-            draft={recordToIdea(copy, copy._session.draft_id)} copy={copy} actions={drafts} />
+            draft={recordToIdea(copy, copy._session.draft_id)} copy={copy} actions={drafts}
+            ideas={ideas} />
         ))}
       </div>
     </div>
@@ -286,19 +293,48 @@ function OperationCard({ op }: { op: SuggestedOperation }) {
 }
 
 function DraftCard({
-  draft, copy, actions,
-}: { draft: Idea; copy?: SessionDraft; actions?: DraftActions }) {
-  const [open, setOpen] = useState(false);
+  draft, copy, actions, ideas = [],
+}: { draft: Idea; copy?: SessionDraft; actions?: DraftActions; ideas?: Idea[] }) {
+  // An "update" copy has a frozen baseline_idea (the record it would overwrite, as it
+  // stood when offered) to diff against; a "create" copy has nothing prior — CREATED_DIFF
+  // marks nothing rather than badging every part of a brand-new idea as "changed".
+  //
+  // Copies offered before that field existed have no frozen baseline, and falling back to
+  // the live record is better than the alternative: without it the card renders as a page
+  // of unmarked prose, which reads as "the run changed nothing". The fallback goes stale
+  // the moment that record is overwritten — the reason the freeze exists — so it is only
+  // ever a fallback.
+  const before = copy?._session.kind === "update"
+    ? copy._session.baseline_idea
+      ? recordToIdea(copy._session.baseline_idea)
+      : ideas.find((i) => i.id === copy._session.target_idea_id) ?? null
+    : null;
+  const diff = before ? diffIdea(before, draft) : CREATED_DIFF;
+  const changed = diff.fields.size + diff.sections.size;
+  // Open a rewrite by default. A card that has to be clicked open shows a title and a
+  // one-liner, which is precisely not the thing being decided — the whole reason to
+  // render the copy is that the changed parts are marked inside it.
+  const [open, setOpen] = useState(changed > 0);
   return (
     <div className="env-draft">
       <button className="env-draft-head" onClick={() => setOpen(!open)}>
         <Icon name={open ? "chevron-down" : "chevron-right"} />
         <span className="env-draft-title">{draft.title}</span>
+        {copy?._session.kind === "update" && before && (
+          // Only when a baseline was actually resolved. Saying "unchanged" off a diff
+          // that had nothing to compare against would state as fact the very thing the
+          // reader is here to find out.
+          <span className="env-draft-note">
+            {changed
+              ? `${changed} part${changed === 1 ? "" : "s"} changed`
+              : "unchanged"}
+          </span>
+        )}
       </button>
       {!open && draft.oneLiner && <p className="env-draft-line">{draft.oneLiner}</p>}
       {open && (
         <div className="env-draft-body">
-          <IdeaContent idea={draft} diff={CREATED_DIFF} />
+          <IdeaContent idea={draft} diff={diff} />
         </div>
       )}
       {copy && actions && (

@@ -933,10 +933,11 @@ body.col-resizing .gaps-row:hover { background: transparent; }
   align-items: center; justify-content: center; color: var(--accent);
 }
 
-/* The grid: a row of columns, each a stack of windows. No padding of its own —
-   the app shell's 10px inset already frames the field, and the splitters and
-   dividers are the gutters between the blocks. */
-.session-grid { position: relative; flex: 1; min-height: 0; display: flex; gap: 0; }
+/* The grid: a vertical stack of rows, each a row of columns, each a stack of
+   windows. No padding of its own — the app shell's 10px inset already frames
+   the field, and the splitters and dividers are the gutters between the blocks. */
+.session-rows { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0; }
+.session-row { position: relative; display: flex; min-height: 0; flex-basis: 0; flex-shrink: 1; }
 .session-col {
   display: flex; flex-direction: column;
   min-width: 220px; min-height: 0;
@@ -947,15 +948,22 @@ body.col-resizing .gaps-row:hover { background: transparent; }
 .session-splitter span { width: 2px; height: 36px; border-radius: 2px; background: var(--border-strong); }
 .session-splitter:hover span { background: var(--accent); height: 72px; }
 
+.row-splitter { height: 10px; cursor: row-resize; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.row-splitter span { height: 2px; width: 36px; border-radius: 2px; background: var(--border-strong); }
+.row-splitter:hover span { background: var(--accent); width: 72px; }
+
 /* Where the dragged window would land. Drawn on the slot the pointer is over:
    a bar along the edge it would join, so "above this one" and "beside this one"
-   are told apart before the mouse comes up. */
+   are told apart before the mouse comes up. The row lines are drawn on the
+   grid itself rather than one slot, since a new row spans the full width. */
 .panel-slot { position: relative; }
 .drop-line { position: absolute; z-index: 25; background: var(--accent); border-radius: 3px; pointer-events: none; }
 .drop-line--top    { left: 0; right: 0; top: -3px; height: 4px; }
 .drop-line--bottom { left: 0; right: 0; bottom: -3px; height: 4px; }
 .drop-line--left   { top: 0; bottom: 0; left: -3px; width: 4px; }
 .drop-line--right  { top: 0; bottom: 0; right: -3px; width: 4px; }
+.drop-line--row-top    { left: 0; right: 0; top: -3px; height: 4px; }
+.drop-line--row-bottom { left: 0; right: 0; bottom: -3px; height: 4px; }
 
 /* ---------- chat (a window like any other) ---------- */
 
@@ -1280,6 +1288,7 @@ body.is-row-resizing { user-select: none; -webkit-user-select: none; cursor: row
 .env-draft { border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); padding: 8px 10px; background: var(--bg-soft); }
 .env-draft-head { width: 100%; display: flex; align-items: center; gap: 8px; background: none; border: 0; cursor: pointer; text-align: left; padding: 0; }
 .env-draft-title { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--text); }
+.env-draft-note { font-size: 11px; color: var(--text-5); white-space: nowrap; }
 .env-draft-line { margin: 5px 0 0 22px; font-size: 12px; color: var(--text-3); line-height: 1.5; }
 .env-draft-body { margin-top: 10px; }
 

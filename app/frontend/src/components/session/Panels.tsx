@@ -24,7 +24,7 @@ import { IdeaContent } from "../views/IdeaContent";
 import { useFullIdea } from "../views/Ideas";
 import { treeForRun } from "../../lib/thoughts";
 import type {
-  AgentPlan, Column, ContextRef, Gap, Idea, Panel, PanelKind, PlanStatus, RunState,
+  AgentPlan, Column, ContextRef, Gap, Idea, Panel, PanelKind, PlanStatus, Row, RunState,
   ThoughtNode,
 } from "../../lib/types";
 
@@ -45,22 +45,28 @@ export const KIND_LABEL: Record<PanelKind, string> = {
   thoughts: "Tree of thoughts",
 };
 
-/** Where a dragged window would land. Columns are addressed by index; `newCol`
- *  means "open a fresh column here" rather than "join the one at this index". */
+/** Where a dragged window would land. `newRow` opens a fresh row (spanning the
+ *  full width) at the given index; `newCol` opens a fresh column within an
+ *  existing row; otherwise it joins an existing column at a given position. */
 type Drop =
-  | { newCol: false; col: number; at: number }
-  | { newCol: true; at: number };
+  | { newRow: false; newCol: false; row: number; col: number; at: number }
+  | { newRow: false; newCol: true; row: number; at: number }
+  | { newRow: true; at: number };
 
-const sameDrop = (a: Drop | null, b: Drop | null) =>
-  a === b || (!!a && !!b && a.newCol === b.newCol && a.at === b.at
-    && (a.newCol || b.newCol || a.col === b.col));
+const sameDrop = (a: Drop | null, b: Drop | null) => {
+  if (a === b) return true;
+  if (!a || !b || a.at !== b.at) return false;
+  if (a.newRow || b.newRow) return a.newRow === b.newRow;
+  if (a.newCol || b.newCol) return a.newCol === b.newCol && a.row === b.row;
+  return a.row === b.row && a.col === b.col;
+};
 
 export function PanelGrid({
-  columns, onChange, gaps, ideas, runs, planned, marks, loaded,
+  rows, onChange, gaps, ideas, runs, planned, marks, loaded,
   onToggleMark, onOpenNode, onUnload, onOpenIdea, renderChat,
 }: {
-  columns: Column[];
-  onChange: (columns: Column[]) => void;
+  rows: Row[];
+  onChange: (rows: Row[]) => void;
   gaps: Gap[];
   ideas: Idea[];
   runs: RunState[];
@@ -80,89 +86,131 @@ export function PanelGrid({
   const [drop, setDrop] = useState<Drop | null>(null);
   // A drag reads and writes the layout many times between renders, so it works
   // off the latest props rather than the ones its mousedown closed over.
-  const latest = useRef({ columns, onChange });
-  useEffect(() => { latest.current = { columns, onChange }; });
+  const latest = useRef({ rows, onChange });
+  useEffect(() => { latest.current = { rows, onChange }; });
 
   const setPanel = (uid: string, patch: Partial<Panel>) =>
-    onChange(columns.map((c) => ({
-      ...c, panels: c.panels.map((p) => (p.uid === uid ? { ...p, ...patch } : p)),
+    onChange(rows.map((r) => ({
+      ...r,
+      columns: r.columns.map((c) => ({
+        ...c, panels: c.panels.map((p) => (p.uid === uid ? { ...p, ...patch } : p)),
+      })),
     })));
 
   const remove = (uid: string) =>
-    onChange(prune(columns.map((c) => ({ ...c, panels: c.panels.filter((p) => p.uid !== uid) }))));
+    onChange(pruneRows(rows.map((r) => ({
+      ...r, columns: pruneCols(r.columns.map((c) => ({ ...c, panels: c.panels.filter((p) => p.uid !== uid) }))),
+    }))));
 
-  /** Drop any column that lost its last window. */
-  const prune = (cols: Column[]) => cols.filter((c) => c.panels.length > 0);
+  /** Drop any column that lost its last window, and any row that lost its last column. */
+  const pruneCols = (cols: Column[]) => cols.filter((c) => c.panels.length > 0);
+  const pruneRows = (rs: Row[]) => rs.filter((r) => r.columns.length > 0);
 
   // --- moving a window ---------------------------------------------------------
 
-  /** Which slot the pointer is over, and which quarter of it — the edges open a
-   *  new column, the middle stacks above or below. */
+  /** Which slot the pointer is over, and which band of it — the top/bottom bands
+   *  open a new row spanning the full width, the left/right bands open a new
+   *  column within the row, and the middle stacks above or below in place. */
   const hitTest = (x: number, y: number): Drop | null => {
     const grid = gridRef.current;
     if (!grid) return null;
-    const cols = latest.current.columns;
+    const rs = latest.current.rows;
     const slots = Array.from(grid.querySelectorAll<HTMLElement>(".panel-slot"));
     for (const slot of slots) {
       const r = slot.getBoundingClientRect();
       if (x < r.left || x > r.right || y < r.top || y > r.bottom) continue;
+      const ri = Number(slot.dataset.row);
       const ci = Number(slot.dataset.col);
       const pi = Number(slot.dataset.idx);
       const relX = (x - r.left) / r.width;
-      // A narrow window has no room for three zones side by side, so the edge
+      const relY = (y - r.top) / r.height;
+      // A narrow or short window has no room for all the zones, so the edge
       // bands are capped in pixels as well as in fractions.
-      const edge = Math.min(0.28, 90 / r.width);
-      if (relX < edge) return { newCol: true, at: ci };
-      if (relX > 1 - edge) return { newCol: true, at: ci + 1 };
-      return { newCol: false, col: ci, at: (y - r.top) / r.height < 0.5 ? pi : pi + 1 };
+      const edgeX = Math.min(0.28, 90 / r.width);
+      const edgeY = Math.min(0.24, 70 / r.height);
+      if (relY < edgeY) return { newRow: true, at: ri };
+      if (relY > 1 - edgeY) return { newRow: true, at: ri + 1 };
+      if (relX < edgeX) return { newRow: false, newCol: true, row: ri, at: ci };
+      if (relX > 1 - edgeX) return { newRow: false, newCol: true, row: ri, at: ci + 1 };
+      return { newRow: false, newCol: false, row: ri, col: ci, at: relY < 0.5 ? pi : pi + 1 };
     }
-    // Past the ends of the row — drop into a new column there.
     const gr = grid.getBoundingClientRect();
-    if (y >= gr.top && y <= gr.bottom) {
-      if (x < gr.left + 40) return { newCol: true, at: 0 };
-      if (x > gr.right - 40) return { newCol: true, at: cols.length };
+    if (x < gr.left || x > gr.right || y < gr.top || y > gr.bottom) return null;
+    // Past the top/bottom of the whole grid — drop into a new row there.
+    if (y < gr.top + 40) return { newRow: true, at: 0 };
+    if (y > gr.bottom - 40) return { newRow: true, at: rs.length };
+    // Past the left/right ends of whichever row the pointer is over — drop into
+    // a new column there.
+    const rowEls = Array.from(grid.querySelectorAll<HTMLElement>(".session-row"));
+    for (const rowEl of rowEls) {
+      const rr = rowEl.getBoundingClientRect();
+      if (y < rr.top || y > rr.bottom) continue;
+      const ri = Number(rowEl.dataset.row);
+      if (x < gr.left + 40) return { newRow: false, newCol: true, row: ri, at: 0 };
+      if (x > gr.right - 40) return { newRow: false, newCol: true, row: ri, at: rs[ri].columns.length };
+      break;
     }
     return null;
   };
 
   /** Apply a drop: pull the window out of wherever it was, then put it back. */
   const applyDrop = (uid: string, target: Drop) => {
-    const cols = latest.current.columns;
-    let from = { col: -1, idx: -1 };
-    cols.forEach((c, ci) => c.panels.forEach((p, pi) => {
-      if (p.uid === uid) from = { col: ci, idx: pi };
-    }));
-    if (from.col < 0) return;
-    const panel = cols[from.col].panels[from.idx];
+    const rs = latest.current.rows;
+    let from = { row: -1, col: -1, idx: -1 };
+    rs.forEach((row, ri) => row.columns.forEach((c, ci) => c.panels.forEach((p, pi) => {
+      if (p.uid === uid) from = { row: ri, col: ci, idx: pi };
+    })));
+    if (from.row < 0) return;
+    const panel = rs[from.row].columns[from.col].panels[from.idx];
 
     // A no-op drop (back where it came from, or the slot just after itself)
     // must not churn the layout.
-    if (!target.newCol && target.col === from.col
+    if (!target.newRow && !target.newCol && target.row === from.row && target.col === from.col
       && (target.at === from.idx || target.at === from.idx + 1)) return;
 
-    const next = cols.map((c) => ({ ...c, panels: [...c.panels] }));
-    next[from.col].panels.splice(from.idx, 1);
+    const next = rs.map((row) => ({
+      ...row, columns: row.columns.map((c) => ({ ...c, panels: [...c.panels] })),
+    }));
+    next[from.row].columns[from.col].panels.splice(from.idx, 1);
 
-    if (target.newCol) {
-      // Removing the window may have emptied its column, which shifts every
-      // index to the right of it — including where this new column belongs.
-      const emptied = next[from.col].panels.length === 0;
-      const at = emptied && target.at > from.col ? target.at - 1 : target.at;
-      const pruned = prune(next);
+    if (target.newRow) {
+      // Removing the window may have emptied its column, and that its row —
+      // either shifts every row index to the right of it, including where
+      // this new row belongs.
+      next[from.row].columns = pruneCols(next[from.row].columns);
+      const rowEmptied = next[from.row].columns.length === 0;
+      const at = rowEmptied && target.at > from.row ? target.at - 1 : target.at;
+      const pruned = pruneRows(next);
       pruned.splice(at, 0, {
-        uid: `c${Date.now()}`,
+        uid: `r${Date.now()}`,
         weight: 1,
-        panels: [{ ...panel, weight: 1 }],
+        columns: [{ uid: `c${Date.now()}`, weight: 1, panels: [{ ...panel, weight: 1 }] }],
       });
       onChange(pruned);
       return;
     }
 
-    const col = next[target.col];
+    if (target.newCol) {
+      // Removing the window may have emptied its column, which shifts every
+      // index to the right of it within the same row — including where this
+      // new column belongs.
+      const emptied = target.row === from.row && next[from.row].columns[from.col].panels.length === 0;
+      const at = emptied && target.at > from.col ? target.at - 1 : target.at;
+      next[target.row].columns.splice(at, 0, {
+        uid: `c${Date.now()}`,
+        weight: 1,
+        panels: [{ ...panel, weight: 1 }],
+      });
+      onChange(pruneRows(next.map((row) => ({ ...row, columns: pruneCols(row.columns) }))));
+      return;
+    }
+
+    const col = next[target.row].columns[target.col];
     // Within the same column, taking the window out shifts everything below it.
-    const at = target.col === from.col && target.at > from.idx ? target.at - 1 : target.at;
+    const at = target.row === from.row && target.col === from.col && target.at > from.idx
+      ? target.at - 1 : target.at;
     col.panels.splice(at, 0, panel);
-    onChange(prune(next));
+    onChange(pruneRows(next.map((row) => ({ ...row, columns: pruneCols(row.columns) }))));
   };
 
   const onGripDown = (uid: string) => (e: React.MouseEvent) => {
@@ -199,11 +247,11 @@ export function PanelGrid({
   // are flex-basis 0, so their rendered heights and their weights are the same
   // ratio, and `(hA + hB) / (a + b)` is exactly how many pixels one unit of
   // weight is worth right now.
-  const onDividerDown = (ci: number, index: number) => (e: React.MouseEvent) => {
+  const onDividerDown = (ri: number, ci: number, index: number) => (e: React.MouseEvent) => {
     e.preventDefault();
     const slotA = (e.currentTarget as HTMLElement).parentElement;
     const slotB = slotA?.nextElementSibling as HTMLElement | null;
-    const panels = columns[ci].panels;
+    const panels = rows[ri].columns[ci].panels;
     const a = panels[index].weight;
     const b = panels[index + 1].weight;
     const span = (slotA?.offsetHeight || 0) + (slotB?.offsetHeight || 0);
@@ -215,12 +263,15 @@ export function PanelGrid({
       const total = d.a + d.b;
       const shift = (ev.clientY - d.y) / pxPerWeight;
       const at = Math.max(0.18, Math.min(total - 0.18, d.a + shift));
-      const cur = latest.current.columns;
-      latest.current.onChange(cur.map((c, i) => (i !== ci ? c : {
-        ...c,
-        panels: c.panels.map((p, j) =>
-          j === index ? { ...p, weight: at }
-            : j === index + 1 ? { ...p, weight: total - at } : p),
+      const cur = latest.current.rows;
+      latest.current.onChange(cur.map((row, i) => (i !== ri ? row : {
+        ...row,
+        columns: row.columns.map((c, j) => (j !== ci ? c : {
+          ...c,
+          panels: c.panels.map((p, k) =>
+            k === index ? { ...p, weight: at }
+              : k === index + 1 ? { ...p, weight: total - at } : p),
+        })),
       })));
     };
     const up = () => {
@@ -236,14 +287,15 @@ export function PanelGrid({
     window.addEventListener("mouseup", up);
   };
 
-  /** The same trade, horizontally, between two columns. */
-  const onSplitterDown = (index: number) => (e: React.MouseEvent) => {
+  /** The same trade, horizontally, between two columns in the same row. */
+  const onSplitterDown = (ri: number, index: number) => (e: React.MouseEvent) => {
     e.preventDefault();
     const splitter = e.currentTarget as HTMLElement;
     const colA = splitter.previousElementSibling as HTMLElement | null;
     const colB = splitter.nextElementSibling as HTMLElement | null;
-    const a = columns[index].weight;
-    const b = columns[index + 1].weight;
+    const cols = rows[ri].columns;
+    const a = cols[index].weight;
+    const b = cols[index + 1].weight;
     const span = (colA?.offsetWidth || 0) + (colB?.offsetWidth || 0);
     const pxPerWeight = span > 0 ? span / (a + b) : 400;
     const x0 = e.clientX;
@@ -251,10 +303,13 @@ export function PanelGrid({
       const total = a + b;
       const shift = (ev.clientX - x0) / pxPerWeight;
       const at = Math.max(0.22, Math.min(total - 0.22, a + shift));
-      const cur = latest.current.columns;
-      latest.current.onChange(cur.map((c, i) =>
-        i === index ? { ...c, weight: at }
-          : i === index + 1 ? { ...c, weight: total - at } : c));
+      const cur = latest.current.rows;
+      latest.current.onChange(cur.map((row, i) => (i !== ri ? row : {
+        ...row,
+        columns: row.columns.map((c, j) =>
+          j === index ? { ...c, weight: at }
+            : j === index + 1 ? { ...c, weight: total - at } : c),
+      })));
     };
     const up = () => {
       document.body.classList.remove("is-col-resizing");
@@ -266,22 +321,52 @@ export function PanelGrid({
     window.addEventListener("mouseup", up);
   };
 
+  /** The same trade again, vertically, between two rows. */
+  const onRowSplitterDown = (index: number) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    const splitter = e.currentTarget as HTMLElement;
+    const rowA = splitter.previousElementSibling as HTMLElement | null;
+    const rowB = splitter.nextElementSibling as HTMLElement | null;
+    const a = rows[index].weight;
+    const b = rows[index + 1].weight;
+    const span = (rowA?.offsetHeight || 0) + (rowB?.offsetHeight || 0);
+    const pxPerWeight = span > 0 ? span / (a + b) : 200;
+    const y0 = e.clientY;
+    const move = (ev: MouseEvent) => {
+      const total = a + b;
+      const shift = (ev.clientY - y0) / pxPerWeight;
+      const at = Math.max(0.18, Math.min(total - 0.18, a + shift));
+      const cur = latest.current.rows;
+      latest.current.onChange(cur.map((row, i) =>
+        i === index ? { ...row, weight: at }
+          : i === index + 1 ? { ...row, weight: total - at } : row));
+    };
+    const up = () => {
+      document.body.classList.remove("is-row-resizing");
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+    };
+    document.body.classList.add("is-row-resizing");
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+  };
+
   // --- render ------------------------------------------------------------------
 
   const grip = (uid: string) => (
     <span
       className="panel-grip"
       onMouseDown={onGripDown(uid)}
-      title="Drag to move — edges of a window open a new column"
+      title="Drag to move — edges of a window open a new column, top/bottom open a new row"
       aria-label="Move window"
     >
       <Icon name="grip" />
     </span>
   );
 
-  if (!columns.length) {
+  if (!rows.length) {
     return (
-      <div className="session-grid" ref={gridRef}>
+      <div className="session-rows" ref={gridRef}>
         <div className="panel-empty">
           <p>No windows open.</p>
           <p className="panel-empty-hint">Pick one from <b>Windows</b> in the bar above.</p>
@@ -291,71 +376,88 @@ export function PanelGrid({
   }
 
   return (
-    <div className="session-grid" ref={gridRef}>
-      {columns.map((col, ci) => (
-        <Fragment key={col.uid}>
-          {ci > 0 && (
-            <div className="session-splitter" onMouseDown={onSplitterDown(ci - 1)}
+    <div className="session-rows" ref={gridRef}>
+      {rows.map((row, ri) => (
+        <Fragment key={row.uid}>
+          {ri > 0 && (
+            <div className="row-splitter" onMouseDown={onRowSplitterDown(ri - 1)}
               title="Drag to resize"><span /></div>
           )}
-          <div className="session-col" style={{ flexGrow: col.weight }}>
-            {col.panels.map((panel, pi) => (
-              <div
-                className={"panel-slot" + (dragging === panel.uid ? " panel-slot--dragging" : "")}
-                key={panel.uid}
-                data-col={ci}
-                data-idx={pi}
-                style={{ flexGrow: panel.weight }}
-              >
-                {drop && !drop.newCol && drop.col === ci && drop.at === pi && (
-                  <div className="drop-line drop-line--top" />
-                )}
-                {drop && !drop.newCol && drop.col === ci && drop.at === pi + 1
-                  && pi === col.panels.length - 1 && <div className="drop-line drop-line--bottom" />}
-                {drop?.newCol && drop.at === ci && pi === 0 && <div className="drop-line drop-line--left" />}
-                {drop?.newCol && drop.at === ci + 1 && pi === 0
-                  && ci === columns.length - 1 && <div className="drop-line drop-line--right" />}
-
-                {panel.kind === "chat" ? (
-                  renderChat(grip(panel.uid))
-                ) : (
-                  <PanelBody
-                    panel={panel} gaps={gaps} ideas={ideas} runs={runs} planned={planned}
-                    marks={marks}
-                    loaded={loaded} onToggleMark={onToggleMark} onOpenNode={onOpenNode}
-                    onUnload={onUnload}
-                    head={(controls) => (
-                      <div className="panel-head">
-                        {grip(panel.uid)}
-                        <span className="panel-kind">{KIND_LABEL[panel.kind]}</span>
-                        {panel.kind === "idea" && (
-                          <select className="panel-ref" value={panel.ref ?? ""}
-                            onChange={(e) => setPanel(panel.uid, { ref: e.target.value || null })}>
-                            <option value="">pick an idea…</option>
-                            {ideas.map((idea) => (
-                              <option key={idea.id} value={idea.id}>{idea.short}</option>
-                            ))}
-                          </select>
-                        )}
-                        {controls}
-                        <div className="panel-head-right">
-                          {panel.kind === "idea" && panel.ref && (
-                            <button className="ghost-btn" title="Open its page"
-                              onClick={() => onOpenIdea(panel.ref!)}><Icon name="arrow-up-right" /></button>
-                          )}
-                          <button className="ghost-btn" title="Close window"
-                            onClick={() => remove(panel.uid)}><Icon name="x" /></button>
-                        </div>
-                      </div>
-                    )}
-                  />
-                )}
-
-                {pi < col.panels.length - 1 && (
-                  <div className="panel-divider" onMouseDown={onDividerDown(ci, pi)}
+          <div className="session-row" data-row={ri} style={{ flexGrow: row.weight }}>
+            {drop?.newRow && drop.at === ri && <div className="drop-line drop-line--row-top" />}
+            {drop?.newRow && drop.at === ri + 1 && ri === rows.length - 1
+              && <div className="drop-line drop-line--row-bottom" />}
+            {row.columns.map((col, ci) => (
+              <Fragment key={col.uid}>
+                {ci > 0 && (
+                  <div className="session-splitter" onMouseDown={onSplitterDown(ri, ci - 1)}
                     title="Drag to resize"><span /></div>
                 )}
-              </div>
+                <div className="session-col" style={{ flexGrow: col.weight }}>
+                  {col.panels.map((panel, pi) => (
+                    <div
+                      className={"panel-slot" + (dragging === panel.uid ? " panel-slot--dragging" : "")}
+                      key={panel.uid}
+                      data-row={ri}
+                      data-col={ci}
+                      data-idx={pi}
+                      style={{ flexGrow: panel.weight }}
+                    >
+                      {drop && !drop.newRow && !drop.newCol && drop.row === ri && drop.col === ci
+                        && drop.at === pi && <div className="drop-line drop-line--top" />}
+                      {drop && !drop.newRow && !drop.newCol && drop.row === ri && drop.col === ci
+                        && drop.at === pi + 1 && pi === col.panels.length - 1
+                        && <div className="drop-line drop-line--bottom" />}
+                      {drop && !drop.newRow && drop.newCol && drop.row === ri && drop.at === ci && pi === 0
+                        && <div className="drop-line drop-line--left" />}
+                      {drop && !drop.newRow && drop.newCol && drop.row === ri && drop.at === ci + 1 && pi === 0
+                        && ci === row.columns.length - 1 && <div className="drop-line drop-line--right" />}
+
+                      {panel.kind === "chat" ? (
+                        renderChat(grip(panel.uid))
+                      ) : (
+                        <PanelBody
+                          panel={panel} gaps={gaps} ideas={ideas} runs={runs} planned={planned}
+                          marks={marks}
+                          loaded={loaded} onToggleMark={onToggleMark} onOpenNode={onOpenNode}
+                          onUnload={onUnload}
+                          head={(controls) => (
+                            <div className="panel-head">
+                              {grip(panel.uid)}
+                              <span className="panel-kind">{KIND_LABEL[panel.kind]}</span>
+                              {panel.kind === "idea" && (
+                                <select className="panel-ref" value={panel.ref ?? ""}
+                                  onChange={(e) => setPanel(panel.uid, { ref: e.target.value || null })}>
+                                  <option value="">pick an idea…</option>
+                                  {ideas.map((idea) => (
+                                    <option key={idea.id} value={idea.id}>{idea.short}</option>
+                                  ))}
+                                </select>
+                              )}
+                              {controls}
+                              <div className="panel-head-right">
+                                {panel.kind === "idea" && panel.ref && (
+                                  <button className="ghost-btn" title="Open its page"
+                                    onClick={() => onOpenIdea(panel.ref!)}>
+                                    <Icon name="arrow-up-right" />
+                                  </button>
+                                )}
+                                <button className="ghost-btn" title="Close window"
+                                  onClick={() => remove(panel.uid)}><Icon name="x" /></button>
+                              </div>
+                            </div>
+                          )}
+                        />
+                      )}
+
+                      {pi < col.panels.length - 1 && (
+                        <div className="panel-divider" onMouseDown={onDividerDown(ri, ci, pi)}
+                          title="Drag to resize"><span /></div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </Fragment>
             ))}
           </div>
         </Fragment>

@@ -19,29 +19,35 @@ import { sessionApi } from "../../lib/api";
 import { graphGaps } from "../../lib/graphdata";
 import { useWorkspace } from "../../lib/store";
 import type {
-  AgentPlan, Column, ContextRef, PanelKind, Session, SessionDraft,
+  AgentPlan, ContextRef, PanelKind, Row, Session, SessionDraft,
 } from "../../lib/types";
 
 // Chat on the left, the two workspace windows stacked on the right — the layout
 // this session had before any of it could be rearranged. Every window here,
 // chat included, can be dragged anywhere in the grid.
-const DEFAULT_COLUMNS: Column[] = [
-  { uid: "c-chat", weight: 0.85, panels: [{ uid: "p-chat", kind: "chat", ref: null, weight: 1 }] },
+const DEFAULT_ROWS: Row[] = [
   {
-    uid: "c-work",
-    weight: 1.15,
-    panels: [
-      // The plan first: it is what the run is *about to do*, and the window the Start
-      // button in the chat refers to.
-      { uid: "p-plan", kind: "plan", ref: null, weight: 1 },
-      { uid: "p-graph", kind: "graph", ref: null, weight: 1.2 },
-      { uid: "p-thoughts", kind: "thoughts", ref: null, weight: 1 },
+    uid: "r-main",
+    weight: 1,
+    columns: [
+      { uid: "c-chat", weight: 0.85, panels: [{ uid: "p-chat", kind: "chat", ref: null, weight: 1 }] },
+      {
+        uid: "c-work",
+        weight: 1.15,
+        panels: [
+          // The plan first: it is what the run is *about to do*, and the window the Start
+          // button in the chat refers to.
+          { uid: "p-plan", kind: "plan", ref: null, weight: 1 },
+          { uid: "p-graph", kind: "graph", ref: null, weight: 1.2 },
+          { uid: "p-thoughts", kind: "thoughts", ref: null, weight: 1 },
+        ],
+      },
     ],
   },
 ];
 
 /** Every window in the grid, left to right, top to bottom. */
-const allPanels = (cols: Column[]) => cols.flatMap((c) => c.panels);
+const allPanels = (rows: Row[]) => rows.flatMap((r) => r.columns.flatMap((c) => c.panels));
 
 export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
   const {
@@ -50,7 +56,7 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
 
   const [session, setSession] = useState<Session | null>(null);
   const [staged, setStaged] = useState<ContextRef[]>([]);
-  const [columns, setColumns] = useState<Column[]>(DEFAULT_COLUMNS);
+  const [rows, setRows] = useState<Row[]>(DEFAULT_ROWS);
   const [sending, setSending] = useState(false);
   // The session's unaccepted working copies — real records in its own folder,
   // one per draft the runs produced plus one per idea a run modified.
@@ -265,24 +271,37 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
     busy: deciding,
   }), [activeSlug, sessionId, drafts, deciding, refresh]);
 
-  /** Put a new window at the bottom of the last column — the far side from the
-   *  chat in the default layout, and never on top of what you were reading. */
+  /** Put a new window at the bottom of the last column of the last row — the
+   *  far side from the chat in the default layout, and never on top of what
+   *  you were reading. */
   const addPanel = (kind: PanelKind, ref: string | null) =>
-    setColumns((cols) => {
-      if (!cols.length) {
-        return [{ uid: `c${Date.now()}`, weight: 1,
-          panels: [{ uid: `p${Date.now()}`, kind, ref, weight: 1 }] }];
+    setRows((rs) => {
+      if (!rs.length) {
+        return [{ uid: `r${Date.now()}`, weight: 1,
+          columns: [{ uid: `c${Date.now()}`, weight: 1,
+            panels: [{ uid: `p${Date.now()}`, kind, ref, weight: 1 }] }] }];
       }
-      const last = cols.length - 1;
-      return cols.map((c, i) => (i !== last ? c : {
-        ...c, panels: [...c.panels, { uid: `p${Date.now()}`, kind, ref, weight: 1 }],
-      }));
+      const lastRow = rs.length - 1;
+      return rs.map((r, ri) => {
+        if (ri !== lastRow) return r;
+        if (!r.columns.length) {
+          return { ...r, columns: [{ uid: `c${Date.now()}`, weight: 1,
+            panels: [{ uid: `p${Date.now()}`, kind, ref, weight: 1 }] }] };
+        }
+        const lastCol = r.columns.length - 1;
+        return {
+          ...r,
+          columns: r.columns.map((c, ci) => (ci !== lastCol ? c : {
+            ...c, panels: [...c.panels, { uid: `p${Date.now()}`, kind, ref, weight: 1 }],
+          })),
+        };
+      });
     });
 
   // Adds a window, unless one of that kind is already open — a second identical
   // window is never what "show me this" meant.
   const openPanel = (kind: PanelKind, ref: string | null) => {
-    if (allPanels(columns).some((p) => p.kind === kind && p.ref === ref)) return;
+    if (allPanels(rows).some((p) => p.kind === kind && p.ref === ref)) return;
     addPanel(kind, ref);
   };
 
@@ -290,10 +309,15 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
   // session bar. Ticking a kind opens it, unticking closes every window of that
   // kind — the windows themselves no longer choose what they are.
   const toggleKind = (kind: PanelKind) => {
-    if (!allPanels(columns).some((p) => p.kind === kind)) { addPanel(kind, null); return; }
-    setColumns((cols) => cols
-      .map((c) => ({ ...c, panels: c.panels.filter((p) => p.kind !== kind) }))
-      .filter((c) => c.panels.length > 0));
+    if (!allPanels(rows).some((p) => p.kind === kind)) { addPanel(kind, null); return; }
+    setRows((rs) => rs
+      .map((r) => ({
+        ...r,
+        columns: r.columns
+          .map((c) => ({ ...c, panels: c.panels.filter((p) => p.kind !== kind) }))
+          .filter((c) => c.panels.length > 0),
+      }))
+      .filter((r) => r.columns.length > 0));
   };
 
   return (
@@ -315,7 +339,7 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
         )}
         <div className="session-bar-right">
           <TopSearch />
-          <WindowsMenu open={allPanels(columns).map((p) => p.kind)} onToggle={toggleKind} />
+          <WindowsMenu open={allPanels(rows).map((p) => p.kind)} onToggle={toggleKind} />
           <button className="btn btn--ghost" onClick={() => setNav({ view: "idea-graph", id: null })}>
             <Icon name="share" /> Full graph
           </button>
@@ -323,8 +347,8 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
       </div>
 
       <PanelGrid
-        columns={columns}
-        onChange={setColumns}
+        rows={rows}
+        onChange={setRows}
         gaps={gaps}
         ideas={ideas}
         runs={sessionRuns}

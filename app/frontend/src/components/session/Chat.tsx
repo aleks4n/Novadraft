@@ -10,6 +10,7 @@ import { RichText } from "../RichText";
 import { ContextPicker } from "./ContextPicker";
 import { EnvelopeResult, OfferedDrafts } from "./EnvelopeResult";
 import type { DraftActions } from "./EnvelopeResult";
+import { recordToIdea } from "../../lib/ideadiff";
 import { PlanReview } from "../PlanReview";
 import { StepContext } from "../OrchestratorProgress";
 import { handoverFromEvent } from "../../lib/orchestratorProgress";
@@ -260,9 +261,16 @@ function MessageBubble({
     );
   }
 
-  const baseline = message.envelope?.idea.idea_id
-    ? ideas.find((i) => i.id === message.envelope!.idea.idea_id) ?? null
-    : null;
+  // The pre-run snapshot is frozen on the message at landing time (`baseline_idea`),
+  // so it survives a later accept overwriting the live record — an accepted diff
+  // must keep showing what changed, not collapse once the idea it's diffed against
+  // becomes identical to the "after" it's diffing to. Messages from before this field
+  // existed fall back to a live lookup, which is only correct until the next accept.
+  const baseline = "baseline_idea" in message
+    ? (message.baseline_idea ? recordToIdea(message.baseline_idea) : null)
+    : message.envelope?.idea.idea_id
+      ? ideas.find((i) => i.id === message.envelope!.idea.idea_id) ?? null
+      : null;
 
   return (
     <div className="msg msg--agent">
@@ -294,7 +302,9 @@ function MessageBubble({
           <div className={"msg-body" + (message.failed ? " msg-body--failed" : "")}>
             <RichText>{message.text}</RichText>
           </div>
-          {message.run_id && <OfferedDrafts runId={message.run_id} drafts={drafts} />}
+          {message.run_id && (
+            <OfferedDrafts runId={message.run_id} drafts={drafts} ideas={ideas} />
+          )}
         </>
       )}
       {/* What the thinker could see while producing the reply above. The live plan

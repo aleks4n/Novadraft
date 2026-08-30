@@ -489,6 +489,11 @@ export interface ChatMessage {
   context?: ContextRef[];     // what this turn added to the loaded context
   run_id?: string;
   envelope?: Envelope;
+  // The idea's stored state at the moment this envelope landed, frozen there so the
+  // diff it renders survives a later accept overwriting the live record. `null` means
+  // the run created the idea from nothing; absent on messages from before this field
+  // existed, which fall back to a live lookup.
+  baseline_idea?: IdeaRecordRaw | null;
   // Set on the agent message of a turn that stopped at its plan.
   plan?: AgentPlan;
   plan_status?: PlanStatus;
@@ -526,6 +531,10 @@ export interface SessionDraft extends IdeaRecordRaw {
     handle?: string;
     offer_run?: string;
     target_idea_id: string | null;
+    // `target_idea_id`'s record as it stood when this copy was offered, frozen so a
+    // diff against it survives an eventual accept overwriting that same record.
+    // `null` for a "create" copy, which has no prior version to diff against.
+    baseline_idea?: IdeaRecordRaw | null;
     label: string;
     // "open" until the user decides; then "accepted" or "dismissed" — the decision
     // is stored, so a reloaded transcript shows what was chosen rather than
@@ -635,13 +644,22 @@ export interface Panel {
   weight: number;
 }
 
-/** A vertical stack of windows. The session is a row of these, which is what
- *  lets windows sit side by side as well as above one another. */
+/** A vertical stack of windows. A Row is a horizontal band of these, which is
+ *  what lets windows sit side by side as well as above one another. */
 export interface Column {
   uid: string;
   // Flex weight within the row — the same proportional scheme as Panel.weight.
   weight: number;
   panels: Panel[];
+}
+
+/** A horizontal band of columns. The session is a vertical stack of these, which
+ *  is what lets a full-width window sit below a row of side-by-side windows. */
+export interface Row {
+  uid: string;
+  // Flex weight among rows — the same proportional scheme as Panel.weight.
+  weight: number;
+  columns: Column[];
 }
 
 export type NavView =

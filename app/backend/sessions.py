@@ -348,7 +348,8 @@ def _draft_path(slug: str, session_id: str, draft_id: str) -> Path:
 def save_draft(slug: str, session_id: str, *, record: dict, kind: DraftKind,
                run_id: str, source_index: int | None = None,
                target_idea_id: str | None = None, label: str = "",
-               handle: str = "", offer_run: str = "") -> dict:
+               handle: str = "", offer_run: str = "",
+               baseline_idea: dict | None = None) -> dict:
     """Write one working copy into the session folder.
 
     The stored file is the `idea.json` **plus** a small `_session` block naming
@@ -360,6 +361,12 @@ def save_draft(slug: str, session_id: str, *, record: dict, kind: DraftKind,
     `handle` and `offer_run` are set for a copy a planned turn offered. `run_id`
     names the backend run shown in the transcript; `offer_run` names the result file
     the orchestrator replays when the copy is accepted.
+
+    `baseline_idea` is the "update" target's record as it stood the moment this copy
+    was offered, frozen here so the diff the UI renders survives an eventual accept
+    overwriting that same record — without it, a diff computed after acceptance would
+    compare the record against itself and show nothing changed. `None` for a "create"
+    copy, which has no prior version to diff against.
     """
     draft_id = new_draft_id()
     payload = dict(record)
@@ -372,6 +379,7 @@ def save_draft(slug: str, session_id: str, *, record: dict, kind: DraftKind,
         "handle": handle,                  # what a planned turn offered it as
         "offer_run": offer_run,            # orchestrator result containing the offer
         "target_idea_id": target_idea_id,  # the record an "update" would overwrite
+        "baseline_idea": baseline_idea,    # that record's state before this copy, frozen
         "label": label or record.get("title", ""),
         "status": "open",                  # open | accepted | dismissed
         "created_at": _now(),
@@ -466,15 +474,26 @@ def draft_for_run(slug: str, session_id: str, run_id: str, kind: str,
     return None
 
 
-def draft_for_handle(slug: str, session_id: str, handle: str) -> dict | None:
+def draft_for_handle(slug: str, session_id: str, handle: str,
+                     offer_run: str = "") -> dict | None:
     """The working copy already saved for one offer of a planned turn, if any.
 
     Same idempotence as :func:`draft_for_run`, keyed on the handle instead: a planned
     turn may have thought several times, so the index alone does not identify a record.
+
+    Scoped to ``offer_run``, because a handle is only unique *within* a turn. An offer
+    that refines an existing idea is handled by that idea's id, which does not change
+    between turns — so a session-wide match made every refinement after the first look
+    like a copy already filed, and the turn landed with no card at all. The user read
+    that as "the run changed nothing".
     """
     if not handle:
         return None
     for d in list_drafts(slug, session_id):
-        if (d.get("_session") or {}).get("handle") == handle:
-            return d
+        meta = d.get("_session") or {}
+        if meta.get("handle") != handle:
+            continue
+        if offer_run and meta.get("offer_run") != offer_run:
+            continue
+        return d
     return None

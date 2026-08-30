@@ -444,6 +444,13 @@ class IdeaEdit(BaseModel):
     suggested split.
     """
 
+    # The two title-field lines. Empty leaves them alone, which is the usual case —
+    # they change only when the task asked for it. They exist as fields because the
+    # prompt has always told the model they do: without them a task like "rewrite the
+    # one-liner" is unsatisfiable, and the model does the only thing left to it and
+    # puts the new sentence in the prose answer, where nothing applies it.
+    title: str = ""
+    one_liner: str = ""
     description: str = ""
     problem: str = ""
     edits: list[SectionEdit] = Field(default_factory=list)

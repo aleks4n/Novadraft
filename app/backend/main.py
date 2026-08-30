@@ -580,7 +580,8 @@ def _save_working_copies(slug: str, session_id: str, run_id: str, envelope: dict
         if stored and _differs(stored, idea):
             saved.append(sessions.save_draft(
                 slug, session_id, record=idea, kind="update", run_id=run_id,
-                target_idea_id=target, label=idea.get("title", "")))
+                target_idea_id=target, label=idea.get("title", ""),
+                baseline_idea=stored))
     return saved
 
 
@@ -657,13 +658,19 @@ def _save_offered_copies(slug: str, session_id: str, run_id: str,
     saved = []
     for index, record in enumerate(turn.get("ideas") or []):
         handle = offer_handle(offer_run, index, record.get("idea_id"))
-        if sessions.draft_for_handle(slug, session_id, handle):
+        if sessions.draft_for_handle(slug, session_id, handle, offer_run):
             continue  # a reload, or a second tab: the card is already filed
+        target = record.get("idea_id")
+        # Frozen here, before an accept can overwrite `target`'s stored record — the
+        # UI diffs the offered copy against this rather than the live idea, so the
+        # diff it renders doesn't collapse to "unchanged" once the copy is accepted.
+        baseline = storage.read_idea_json(slug, target) if target else None
         saved.append(sessions.save_draft(
             slug, session_id, record=record,
-            kind="update" if record.get("idea_id") else "create",
+            kind="update" if target else "create",
             run_id=run_id, source_index=index, handle=handle, offer_run=offer_run,
-            target_idea_id=record.get("idea_id"), label=record.get("title", "")))
+            target_idea_id=target, label=record.get("title", ""),
+            baseline_idea=baseline))
     return saved
 
 
@@ -730,9 +737,15 @@ def api_session_land(slug: str, session_id: str, req: SessionLandRequest):
             rec, role="agent", text=meta.get("error") or "The run produced no envelope.",
             run_id=req.runId, failed=True)
     else:
+        # Frozen at landing time, before any accept can touch the real record — so a
+        # later accept (which overwrites the stored idea) never erases the diff this
+        # message renders. Without it, the transcript would recompute "before" against
+        # whatever the idea currently is, which collapses to "unchanged" once accepted.
+        idea_id = (envelope.get("idea") or {}).get("idea_id")
+        baseline_idea = storage.read_idea_json(slug, idea_id) if idea_id else None
         message = sessions.append_message(
             rec, role="agent", text=envelope.get("answer", ""), run_id=req.runId,
-            envelope=envelope)
+            envelope=envelope, baseline_idea=baseline_idea)
     sessions.write_session(slug, rec)
     return {"session": rec, "message": message,
             "drafts": sessions.list_drafts(slug, session_id)}
