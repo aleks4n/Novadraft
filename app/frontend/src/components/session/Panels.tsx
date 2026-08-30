@@ -62,8 +62,8 @@ const sameDrop = (a: Drop | null, b: Drop | null) => {
 };
 
 export function PanelGrid({
-  rows, onChange, gaps, ideas, runs, planned, marks, loaded,
-  onToggleMark, onOpenNode, onUnload, onOpenIdea, renderChat,
+  rows, onChange, gaps, ideas, runs, planned, marks, loaded, active,
+  onToggleMark, onToggleActive, onOpenNode, onUnload, onOpenIdea, renderChat,
 }: {
   rows: Row[];
   onChange: (rows: Row[]) => void;
@@ -73,7 +73,10 @@ export function PanelGrid({
   planned: PlannedTurn[];
   marks: Map<string, Mark>;
   loaded: ContextRef[];
+  /** The gap/idea this session's turns are currently about. */
+  active: ContextRef | null;
   onToggleMark: (kind: "gap" | "idea", id: string) => void;
+  onToggleActive: (ref: ContextRef) => void;
   onOpenNode: (kind: "gap" | "idea", id: string) => void;
   onUnload: (ref: ContextRef) => void;
   onOpenIdea: (id: string) => void;
@@ -419,7 +422,8 @@ export function PanelGrid({
                         <PanelBody
                           panel={panel} gaps={gaps} ideas={ideas} runs={runs} planned={planned}
                           marks={marks}
-                          loaded={loaded} onToggleMark={onToggleMark} onOpenNode={onOpenNode}
+                          loaded={loaded} active={active} onToggleMark={onToggleMark}
+                          onToggleActive={onToggleActive} onOpenNode={onOpenNode}
                           onUnload={onUnload}
                           head={(controls) => (
                             <div className="panel-head">
@@ -469,20 +473,23 @@ export function PanelGrid({
 /** One window. `head` is a render prop so each kind can put its own controls into
  *  the *single* header row rather than growing a toolbar of its own underneath. */
 function PanelBody({
-  panel, gaps, ideas, runs, planned, marks, loaded, head, onToggleMark, onOpenNode,
-  onUnload,
+  panel, gaps, ideas, runs, planned, marks, loaded, active, head, onToggleMark,
+  onToggleActive, onOpenNode, onUnload,
 }: {
   panel: Panel; gaps: Gap[]; ideas: Idea[]; runs: RunState[]; planned: PlannedTurn[];
-  marks: Map<string, Mark>; loaded: ContextRef[];
+  marks: Map<string, Mark>; loaded: ContextRef[]; active: ContextRef | null;
   head: (controls: ReactNode) => ReactNode;
   onToggleMark: (kind: "gap" | "idea", id: string) => void;
+  onToggleActive: (ref: ContextRef) => void;
   onOpenNode: (kind: "gap" | "idea", id: string) => void;
   onUnload: (ref: ContextRef) => void;
 }) {
   if (panel.kind === "graph") {
+    const graphActive = active && (active.kind === "gap" || active.kind === "idea")
+      ? { kind: active.kind, id: active.id } : null;
     return (
       <IdeaGraph
-        compact gaps={gaps} ideas={ideas} marks={marks}
+        compact gaps={gaps} ideas={ideas} marks={marks} active={graphActive}
         onToggleMark={onToggleMark} onOpen={onOpenNode}
         chrome={head}
       />
@@ -509,7 +516,8 @@ function PanelBody({
 
   return (
     <Window head={head(null)}>
-      <LoadedContext loaded={loaded} onUnload={onUnload} />
+      <LoadedContext loaded={loaded} active={active} onUnload={onUnload}
+        onToggleActive={onToggleActive} />
     </Window>
   );
 }
@@ -746,8 +754,14 @@ function PinnedIdea({ id }: { id: string }) {
 /** The Loaded Context window — the single source of truth for what the model can
  *  see. Entries are references: an id, a label and a digest. */
 function LoadedContext({
-  loaded, onUnload,
-}: { loaded: ContextRef[]; onUnload: (ref: ContextRef) => void }) {
+  loaded, active, onUnload, onToggleActive,
+}: {
+  loaded: ContextRef[];
+  /** The gap/idea this session's turns are currently about. */
+  active: ContextRef | null;
+  onUnload: (ref: ContextRef) => void;
+  onToggleActive: (ref: ContextRef) => void;
+}) {
   if (!loaded.length) {
     return (
       <div className="empty-state empty-state--inline">
@@ -758,18 +772,34 @@ function LoadedContext({
   }
   return (
     <div className="ctx-list">
-      {loaded.map((c) => (
-        <div className={"ctx-item ctx-item--" + c.kind} key={`${c.kind}:${c.id}`}>
-          <div className="ctx-item-head">
-            <span className={"ctx-kind ctx-kind--" + c.kind}>{c.kind}</span>
-            <span className="ctx-item-label">{c.label}</span>
-            <button className="ghost-btn" title="Remove from context"
-              onClick={() => onUnload(c)}><Icon name="x" /></button>
+      {loaded.map((c) => {
+        const isActive = active?.kind === c.kind && active.id === c.id;
+        const pinnable = c.kind === "gap" || c.kind === "idea";
+        return (
+          <div className={"ctx-item ctx-item--" + c.kind + (isActive ? " ctx-item--active" : "")}
+            key={`${c.kind}:${c.id}`}>
+            <div className="ctx-item-head">
+              <span className={"ctx-kind ctx-kind--" + c.kind}>{c.kind}</span>
+              <span className="ctx-item-label">{c.label}</span>
+              <span className="ctx-item-actions">
+                {pinnable && (
+                  <button className={"ctx-item-pin" + (isActive ? " ctx-item-pin--on" : "")}
+                    onClick={() => onToggleActive(c)}
+                    title={isActive
+                      ? "This is what the conversation is about — click to unpin"
+                      : "Pin: the conversation is about this one"}>
+                    <Icon name="target" />
+                  </button>
+                )}
+                <button className="ghost-btn" title="Remove from context"
+                  onClick={() => onUnload(c)}><Icon name="x" /></button>
+              </span>
+            </div>
+            {c.digest && <p className="ctx-item-digest">{c.digest}</p>}
+            <div className="ctx-item-id">{c.id}</div>
           </div>
-          {c.digest && <p className="ctx-item-digest">{c.digest}</p>}
-          <div className="ctx-item-id">{c.id}</div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

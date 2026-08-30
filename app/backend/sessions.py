@@ -41,6 +41,7 @@ from __future__ import annotations
 import json
 import re
 import shutil
+import threading
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -53,6 +54,10 @@ from src.common.utils import storage
 KINDS = ("gap", "idea", "paper", "file", "note")
 
 _MAX_DIGEST = 400
+
+# The name a session carries until its first task names it.
+UNTITLED = "New session"
+_MAX_TITLE = 60
 
 
 def _now() -> str:
@@ -167,16 +172,38 @@ def summarize(rec: dict) -> dict:
 
 
 def create_session(slug: str, title: str = "") -> dict:
+    named = title.strip()
     rec = {
         "session_id": new_session_id(),
         "category_slug": slug,
-        "title": title.strip() or "New session",
+        "title": named or UNTITLED,
+        # Whether the name is still the app's to choose. A session opened without
+        # one gets named from its first task; the moment a human renames it, it is
+        # theirs and nothing generated overwrites it again.
+        "title_auto": not named,
         "created_at": _now(),
         "updated_at": _now(),
         "messages": [],
         "context": [],
         "touched": [],
     }
+    write_session(slug, rec)
+    return rec
+
+
+def rename_session(slug: str, session_id: str, title: str) -> dict | None:
+    """A human names the session — and it stays named.
+
+    Clearing ``title_auto`` is the whole point: an in-flight autoname for the
+    first turn must not land on top of a name the user just typed.
+    """
+    rec = read_session(slug, session_id)
+    if rec is None:
+        return None
+    named = (title or "").strip()
+    if named:
+        rec["title"] = named[:_MAX_TITLE]
+        rec["title_auto"] = False
     write_session(slug, rec)
     return rec
 
@@ -193,6 +220,127 @@ def delete_session(slug: str, session_id: str) -> bool:
         return False
     shutil.rmtree(d)
     return True
+
+
+# --- naming ------------------------------------------------------------------
+# A session is found again by its name, so the name has to say what the session
+# was for. The first task is the only thing that knows that — but verbatim it is
+# a paragraph, and truncating a paragraph gives a row that reads "Look at the
+# three gaps I dropped in and tell me whether the second o…". So the first task is
+# *summarised* into a few words, the way every chat surface names a thread.
+
+_TITLE_SYSTEM = """You name research-ideation chat sessions.
+
+Given the first task a researcher sent in a session, reply with a title for that
+session and nothing else.
+
+Rules:
+- 2 to 6 words, under 60 characters.
+- Name the subject of the task, not the act of asking: "Contrastive pretraining
+  gaps", not "Request to analyse gaps".
+- Sentence case. No quotes, no trailing period, no preamble."""
+
+
+def clean_title(text: str) -> str:
+    """A model's answer → something that fits a sidebar row, or "" if it doesn't.
+
+    Anything multi-line or over-long is a model that ignored the brief (an
+    explanation, a refusal, a whole plan), and a bad name is worse than the
+    fallback — so it is rejected here rather than filed.
+    """
+    # A chatty model answers "Here is a title:\n<title>" — the title is the last
+    # non-empty line, never the preamble above it.
+    lines = [ln.strip() for ln in str(text or "").splitlines() if ln.strip()]
+    if not lines:
+        return ""
+    line = re.sub(r"\s+", " ", lines[-1]).strip("\"'`*#_ ")
+    line = re.sub(r"^(?:title|session)\s*[:\-]\s*", "", line, flags=re.I)
+    line = line.strip("\"'`*#_ ")
+    line = re.sub(r"[.\s]+$", "", line)
+    # Well over the brief is a model that answered something else — a sentence, a
+    # refusal, a plan. Truncating that gives a worse row than the task's own words,
+    # so it is rejected and the fallback stands.
+    if not line or len(line) > _MAX_TITLE + 20:
+        return ""
+    return line if len(line) <= _MAX_TITLE else fallback_title(line)
+
+
+def fallback_title(task: str) -> str:
+    """The name to show immediately: the task's own opening, trimmed to a word."""
+    text = re.sub(r"\s+", " ", str(task or "")).strip()
+    if len(text) <= _MAX_TITLE:
+        return text
+    cut = text[:_MAX_TITLE]
+    head, _, _tail = cut.rpartition(" ")
+    return f"{(head or cut).rstrip(',;:-')}…"
+
+
+def generate_title(task: str) -> str:
+    """Summarise the first task into a session name. "" when the model can't."""
+    from src.llm.registry import chat, get_llm
+
+    # Two attempts, because the cheap model is a reasoner and now and then spends the
+    # whole answer on thinking and returns empty content. Nothing here is worth a
+    # third: the fallback name is already on the record, and a session that keeps its
+    # task's opening words is a small loss compared to a turn that waits to start.
+    # `max_tokens` is generous for the same reason — a budget sized to the title is
+    # spent before the model writes one.
+    for _ in range(2):
+        try:
+            answer = chat(get_llm("cheap", temperature=0.3, max_tokens=200),
+                          _TITLE_SYSTEM, str(task or "")[:1500])
+        except Exception:  # naming a session never breaks the turn that started it
+            return ""
+        title = clean_title(answer)
+        if title:
+            return title
+    return ""
+
+
+def autoname(slug: str, session_id: str, task: str) -> str:
+    """Name a session from its first task, re-reading the record before writing.
+
+    Runs off the request thread (:func:`autoname_async`), so by the time the model
+    answers the session on disk has moved on — the turn's own write has landed, and
+    the user may have renamed it in the meantime. The record is therefore re-read
+    and the name applied only if it is still the app's to choose.
+    """
+    title = generate_title(task)
+    if not title:
+        return ""
+    rec = read_session(slug, session_id)
+    if rec is None or not rec.get("title_auto", False):
+        return ""
+    rec["title"] = title
+    write_session(slug, rec)
+    return title
+
+
+def autoname_async(slug: str, session_id: str, task: str) -> None:
+    """Kick :func:`autoname` in the background — a turn does not wait to be named."""
+    threading.Thread(target=autoname, args=(slug, session_id, task),
+                     daemon=True).start()
+
+
+def name_from_first_task(rec: dict, task: str) -> str:
+    """Set a session's fallback name from the turn being sent, on the record in hand.
+
+    Returns the task the summariser should run on, or ``""`` when this turn does not
+    name the session (it already has a human's name, or it is not the first one).
+
+    Deliberately does *not* start that summariser: the caller has not written the
+    record yet, and a generated name landing on disk before the turn's own write
+    would simply be overwritten by it. The send path writes, then calls
+    :func:`autoname_async` with what this returned.
+    """
+    task = (task or "").strip()
+    if not task or not rec.get("title_auto", rec.get("title") in ("", UNTITLED)):
+        return ""
+    if len(rec.get("messages") or []) > 1:  # not the first task any more
+        return ""
+    rec["title"] = fallback_title(task)
+    rec["title_auto"] = True
+    return task
 
 
 # --- context -----------------------------------------------------------------

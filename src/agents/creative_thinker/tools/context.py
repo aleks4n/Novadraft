@@ -91,7 +91,7 @@ def _bullets(label: str, values: object, pad: str = "  ") -> list[str]:
     return [f"{pad}{label}:"] + [f"{pad}  - {t}" for t in items]
 
 
-def _gap_lines(gap: dict) -> list[str]:
+def _gap_lines(gap: dict, active: bool = False) -> list[str]:
     """One gap in full, including the sentences in the papers that it rests on.
 
     The evidence quotes are the reason this is not a one-liner. A gap's own text says
@@ -105,7 +105,8 @@ def _gap_lines(gap: dict) -> list[str]:
     with.
     """
     lines = [f"### gap {gap.get('gap_id', '?')}"
-             + (f"  [{gap['type']}]" if gap.get("type") else "")]
+             + (f"  [{gap['type']}]" if gap.get("type") else "")
+             + ("  ← the user is currently focused on this one" if active else "")]
     if title := gap.get("title"):
         lines.append(f"**{title}**")
     if canonical := gap.get("canonical_description"):
@@ -190,14 +191,15 @@ def _paper_lines(paper: dict) -> list[str]:
     return lines
 
 
-def _idea_lines(idea: dict) -> list[str]:
+def _idea_lines(idea: dict, active: bool = False) -> list[str]:
     """One related idea — enough to recognise and not duplicate it, not enough to work on.
 
     These are background: the idea under work arrives separately as the subject. What a
     run needs from them is "this ground is taken", so the spine is rendered and `runs`,
     `evaluation` and `provenance` are not.
     """
-    lines = [f"### idea {idea.get('idea_id') or '(draft)'}"]
+    lines = [f"### idea {idea.get('idea_id') or '(draft)'}"
+             + ("  ← the user is currently focused on this one" if active else "")]
     if title := idea.get("title"):
         lines.append(f"**{title}**")
     for key in ("one_liner", "problem", "description"):
@@ -300,8 +302,12 @@ def render_context(context: dict[str, Any]) -> str:
     material.
     """
     context = context or {}
+    # `active_id` is a plain string, not a list of records — it steers the gap/idea
+    # blocks below rather than getting a section of its own.
+    active_id = context.get("active_id")
     keys = [k for k in _ORDER if k in context]
-    keys += [k for k in context if k not in _HEADINGS]  # unrecognised, generic fallback
+    keys += [k for k in context
+             if k not in _HEADINGS and k != "active_id"]  # unrecognised, generic fallback
 
     blocks: list[str] = []
     for key in keys:
@@ -332,7 +338,11 @@ def render_context(context: dict[str, Any]) -> str:
         if not items:
             continue
         lines = [f"## {heading}"]
-        if block := _BLOCKS.get(key):
+        if key in ("gaps", "ideas") and active_id:
+            for item in items:
+                lines.extend(_BLOCKS[key](item, active=_pick(item, _ID_KEYS) == active_id))
+                lines.append("")
+        elif block := _BLOCKS.get(key):
             for item in items:
                 lines.extend(block(item))
                 lines.append("")

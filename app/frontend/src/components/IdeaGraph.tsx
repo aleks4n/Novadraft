@@ -234,15 +234,18 @@ const EDGE_STYLE: Record<Link["type"], { color: string; dash?: string }> = {
 };
 
 export function IdeaGraph({
-  gaps, ideas, selectedId, marks, onOpen, onToggleMark, compact, chrome,
+  gaps, ideas, selectedId, marks, active, onOpen, onToggleMark, compact, chrome,
 }: {
   gaps: Gap[];
   ideas: Idea[];
   selectedId?: string | null;
   // Session surfaces pass a `${kind}:${id}` → mark map; the page passes nothing.
   marks?: Map<string, Mark>;
+  // The one node (already loaded or staged) this session's turns are about.
+  active?: { kind: GraphNodeKind; id: string } | null;
   onOpen?: (kind: GraphNodeKind, id: string) => void;
-  // Present only on the session panel: clicking a node stages/unstages it.
+  // Present only on the session panel: clicking a node not yet in scope stages it;
+  // clicking one already loaded or staged pins it as what the turn is about.
   onToggleMark?: (kind: GraphNodeKind, id: string) => void;
   compact?: boolean;
   // In a session the graph is a *window*, and a window has one header row. The
@@ -435,6 +438,7 @@ export function IdeaGraph({
           {nodes.map((n) => {
             const k = key(n.kind, n.id);
             const mark = marks?.get(k) ?? "none";
+            const isActive = active?.kind === n.kind && active.id === n.id;
             return (
               <div
                 key={k}
@@ -443,6 +447,7 @@ export function IdeaGraph({
                   (n.loose ? " graph-node--loose" : "") +
                   (n.id === selectedId ? " graph-node--selected" : "") +
                   (mark !== "none" ? ` graph-node--${mark}` : "") +
+                  (isActive ? " graph-node--active" : "") +
                   (n.state === "provisional" ? " graph-node--provisional" : "")
                 }
                 style={{ left: n.x, top: n.y, width: NODE_W, height: NODE_H }}
@@ -473,6 +478,7 @@ export function IdeaGraph({
                       {mark === "loaded" ? "in context" : "staged"}
                     </span>
                   )}
+                  {isActive && <span className="graph-mark graph-mark--active">active</span>}
                 </div>
                 <div className="graph-node-title">{n.title}</div>
               </div>
@@ -482,7 +488,8 @@ export function IdeaGraph({
       </div>
       {onToggleMark && (
         <div className="graph-hint">
-          Click a node to stage it · double-click to open its page
+          Click a node to stage it, or to pin it as active once it's in scope ·
+          double-click to open its page
         </div>
       )}
     </>

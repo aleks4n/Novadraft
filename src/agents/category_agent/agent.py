@@ -10,12 +10,15 @@ agent does. Given a topic like ``"Machine Learning"`` it:
    it as a research category. The *slug* (and thus the workspace folder) is
    still derived from the raw input topic, so a typo doesn't change which
    folder gets written to — only the displayed ``name`` is corrected.
-2. **write_category** — slugifies the topic and writes ``workspace/<slug>/meta.json``,
+2. **find_seminal_papers** — asks the LLM (also the ``cheap`` role) for a short
+   list of foundational/seminal papers for the category, given the name and
+   description from ``describe``.
+3. **write_category** — slugifies the topic and writes ``workspace/<slug>/meta.json``,
    the record the rest of the pipeline depends on. Re-running an existing category
-   refreshes name/description while preserving ``created_at``.
+   refreshes name/description/seminal_papers while preserving ``created_at``.
 
-Built as a tiny LangGraph (``describe → write_category``) so it streams and logs
-through the shared ``GraphRunLog`` like every other agent.
+Built as a tiny LangGraph (``describe → find_seminal_papers → write_category``)
+so it streams and logs through the shared ``GraphRunLog`` like every other agent.
 
 The description written here is only a starting point — the app UI lets the user
 edit it by hand afterwards (``PATCH /api/topics/{slug}``).
@@ -56,6 +59,28 @@ class CategoryProfile(BaseModel):
     description: str = Field(description="A 2-3 sentence technical description.")
 
 
+_SEMINAL_PAPERS_SYSTEM_PROMPT = (
+    "You identify foundational/seminal papers for a research field, for a "
+    "research ideation tool. Given a category name and description, list the "
+    "papers a researcher entering this field should read first: the papers "
+    "that introduced its core ideas, defined its standard methods, or are "
+    "most frequently cited as its origin. Prefer well-known, real, "
+    "verifiable papers over obscure ones. If you are not confident a paper "
+    "exists, do not include it."
+)
+
+
+class SeminalPaper(BaseModel):
+    title: str = Field(description="The paper's title.")
+    authors: str = Field(default="", description="Author names, comma-separated (e.g. 'Sutton, Barto').")
+    year: int | None = Field(default=None, description="Publication year, if known.")
+    why: str = Field(description="One sentence on why this paper is foundational to the category.")
+
+
+class SeminalPapersResponse(BaseModel):
+    papers: list[SeminalPaper] = Field(default_factory=list)
+
+
 def _slugify(value: str) -> str:
     cleaned = "".join(ch.lower() if ch.isalnum() else "_" for ch in value.strip())
     while "__" in cleaned:
@@ -90,6 +115,25 @@ def describe(state: CategoryState) -> dict:
     }
 
 
+def find_seminal_papers(state: CategoryState) -> dict:
+    """Ask the LLM (the fast ``cheap`` role) for a short list of foundational
+    papers for the category, using the name/description from ``describe``."""
+    name = state.get("name") or state.get("topic") or ""
+    description = state.get("description") or ""
+
+    llm = get_llm("cheap")
+    response = chat_with_structured_output(
+        llm,
+        _SEMINAL_PAPERS_SYSTEM_PROMPT,
+        f"Category: {name}\nDescription: {description}",
+        SeminalPapersResponse,
+    )
+    papers = [paper.model_dump() for paper in response.papers]
+    log_event(f"found {len(papers)} seminal papers for '{name}'")
+
+    return {"seminal_papers": papers}
+
+
 def write_category(state: CategoryState) -> dict:
     """Write ``workspace/<slug>/meta.json`` — the record the rest of the pipeline
     requires. Preserves ``created_at`` when refreshing an existing category."""
@@ -109,6 +153,7 @@ def write_category(state: CategoryState) -> dict:
         "category_slug": slug,
         "name": state.get("name") or slug,
         "description": state.get("description") or "",
+        "seminal_papers": state.get("seminal_papers") or [],
         "created_at": created_at,
         "updated_at": now,
     }
@@ -123,18 +168,21 @@ def write_category(state: CategoryState) -> dict:
         "category_slug": slug,
         "name": meta["name"],
         "description": meta["description"],
+        "seminal_papers": meta["seminal_papers"],
         "meta_file": str(meta_path),
     }}
 
 
 def build_category_graph():
-    """Compile the graph: describe → write_category."""
+    """Compile the graph: describe → find_seminal_papers → write_category."""
     g = StateGraph(CategoryState)
     g.add_node("describe", describe)
+    g.add_node("find_seminal_papers", find_seminal_papers)
     g.add_node("write_category", write_category)
 
     g.add_edge(START, "describe")
-    g.add_edge("describe", "write_category")
+    g.add_edge("describe", "find_seminal_papers")
+    g.add_edge("find_seminal_papers", "write_category")
     g.add_edge("write_category", END)
     return g.compile()
 

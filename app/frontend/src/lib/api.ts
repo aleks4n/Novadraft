@@ -244,6 +244,10 @@ export const agentApi = {
 export interface SendBody {
   text: string;
   context: { kind: string; id: string }[];
+  // Orchestrator only: the gap/idea id (already loaded, or arriving in `context` on
+  // this same turn) this turn is actually about — set when more than one thing is in
+  // scope and the message would otherwise be ambiguous about which.
+  activeId?: string | null;
   // Who runs the turn. "orchestrator" reads the message and decides what to call —
   // it may generate, refine, look something up, or just answer. "creative_thinker"
   // is the direct surface, where the fields below are the call.

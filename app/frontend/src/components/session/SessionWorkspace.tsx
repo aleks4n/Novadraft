@@ -52,10 +52,15 @@ const allPanels = (rows: Row[]) => rows.flatMap((r) => r.columns.flatMap((c) => 
 export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
   const {
     activeSlug, bundle, runs, sessions, setNav, refreshSessions, attachRun, refresh,
+    renameSession, deleteSession,
   } = useWorkspace();
 
   const [session, setSession] = useState<Session | null>(null);
   const [staged, setStaged] = useState<ContextRef[]>([]);
+  // The one gap/idea (already loaded, or staged for this same turn) the conversation
+  // is currently about — distinct from what's in scope, which is everything loaded.
+  // Sticky across turns: it names "what we're discussing", not "what's new this turn".
+  const [active, setActiveRef] = useState<ContextRef | null>(null);
   const [rows, setRows] = useState<Row[]>(DEFAULT_ROWS);
   const [sending, setSending] = useState(false);
   // The session's unaccepted working copies — real records in its own folder,
@@ -64,10 +69,30 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
   const [deciding, setDeciding] = useState<string | null>(null);
   // The proposed plan currently being started, by the run id that proposed it.
   const [starting, setStarting] = useState<string | null>(null);
+  // The session's name while it is being edited in the bar, or null when it isn't.
+  const [renaming, setRenaming] = useState<string | null>(null);
 
   const ideas = bundle?.ideas ?? [];
   const gaps = useMemo(() => graphGaps(bundle), [bundle]);
   const summary = sessions.find((s) => s.session_id === sessionId);
+  // The summary wins over the loaded record for the *name*: a new session is named
+  // from its first task in the background, and the session list is what re-reads
+  // while the run is live — the record in hand still carries the placeholder.
+  const title = summary?.title || session?.title || "New session";
+
+  const commitRename = useCallback((next: string) => {
+    const name = next.trim();
+    setRenaming(null);
+    if (!sessionId || !name || name === title) return;
+    renameSession(sessionId, name);
+    setSession((cur) => (cur ? { ...cur, title: name } : cur));
+  }, [renameSession, sessionId, title]);
+
+  const removeSession = useCallback(() => {
+    if (!sessionId) return;
+    if (confirm(`Delete "${title}"? Its transcript, loaded context and unaccepted drafts go with it.`))
+      deleteSession(sessionId);  // the store navigates back to a new session
+  }, [deleteSession, sessionId, title]);
 
   // --- loading -----------------------------------------------------------------
 
@@ -79,6 +104,7 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
 
   useEffect(() => {
     setStaged([]);
+    setActiveRef(null);
     reload();
   }, [reload]);
 
@@ -118,14 +144,29 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
     });
   }, [session]);
 
-  const unstage = (ref: ContextRef) =>
+  const unstage = (ref: ContextRef) => {
     setStaged((cur) => cur.filter((c) => !(c.kind === ref.kind && c.id === ref.id)));
+    clearActiveIfMatches(ref);
+  };
+
+  // Only gap/idea can be "what this turn is about" — the orchestrator's focus has no
+  // slot for pinning a paper, note or file.
+  const toggleActive = (ref: ContextRef) => {
+    if (ref.kind !== "gap" && ref.kind !== "idea") return;
+    setActiveRef((cur) => (cur && cur.kind === ref.kind && cur.id === ref.id ? null : ref));
+  };
+
+  const clearActiveIfMatches = (ref: ContextRef) =>
+    setActiveRef((cur) => (cur && cur.kind === ref.kind && cur.id === ref.id ? null : cur));
 
   const toggleMark = (kind: "gap" | "idea", id: string) => {
     const k = `${kind}:${id}`;
-    if ((session?.context ?? []).some((c) => `${c.kind}:${c.id}` === k)) return; // already loaded
-    if (staged.some((c) => `${c.kind}:${c.id}` === k)) {
-      unstage({ kind, id, label: "", digest: "" });
+    // Already loaded or staged — clicking it again can't mean "add it", so it means
+    // "this is what I'm talking about" instead. Removing it from scope still goes
+    // through its own chip's ✕, in the composer or the Loaded Context panel.
+    if ((session?.context ?? []).some((c) => `${c.kind}:${c.id}` === k)
+        || staged.some((c) => `${c.kind}:${c.id}` === k)) {
+      toggleActive({ kind, id, label: "", digest: "" });
       return;
     }
     const label = kind === "gap"
@@ -137,6 +178,7 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
   const unload = async (ref: ContextRef) => {
     if (!activeSlug || !sessionId) return;
     await sessionApi.removeContext(activeSlug, sessionId, ref.kind, ref.id);
+    clearActiveIfMatches(ref);
     reload();
   };
 
@@ -184,6 +226,7 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
       const res = await sessionApi.send(activeSlug, id!, {
         text,
         context: staged.map((c) => ({ kind: c.kind, id: c.id })),
+        activeId: active?.id ?? null,
         agent: "orchestrator",
       });
       setSession(res.session);
@@ -325,9 +368,22 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
       <div className="session-bar">
         <NavHistory />
         <Icon name="msg" />
-        <span className="session-title">
-          {session?.title || summary?.title || "New session"}
-        </span>
+        {renaming === null ? (
+          <span
+            className={"session-title" + (sessionId ? " session-title--editable" : "")}
+            onDoubleClick={() => sessionId && setRenaming(title)}
+            title={sessionId ? "Double-click to rename" : undefined}
+          >
+            {title}
+          </span>
+        ) : (
+          <SessionRename
+            value={renaming}
+            onChange={setRenaming}
+            onCommit={() => commitRename(renaming)}
+            onCancel={() => setRenaming(null)}
+          />
+        )}
         {session ? (
           <span className="session-stats">
             {session.messages.length} turn{session.messages.length === 1 ? "" : "s"} ·{" "}
@@ -343,6 +399,12 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
           <button className="btn btn--ghost" onClick={() => setNav({ view: "idea-graph", id: null })}>
             <Icon name="share" /> Full graph
           </button>
+          {sessionId && (
+            <SessionMenu
+              onRename={() => setRenaming(title)}
+              onDelete={removeSession}
+            />
+          )}
         </div>
       </div>
 
@@ -355,6 +417,8 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
         planned={planned}
         marks={marks}
         loaded={session?.context ?? []}
+        active={active}
+        onToggleActive={toggleActive}
         onToggleMark={toggleMark}
         onOpenNode={(kind, id) => setNav({ view: kind === "gap" ? "gap" : "idea", id })}
         onUnload={unload}
@@ -364,6 +428,8 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
             grip={grip}
             session={session}
             staged={staged}
+            active={active}
+            onToggleActive={toggleActive}
             runs={sessionRuns}
             ideas={ideas}
             sending={sending}
@@ -378,6 +444,76 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
           />
         )}
       />
+    </div>
+  );
+}
+
+/** The session's name, being edited in place in the bar. */
+function SessionRename({
+  value, onChange, onCommit, onCancel,
+}: {
+  value: string; onChange: (v: string) => void; onCommit: () => void; onCancel: () => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => { ref.current?.focus(); ref.current?.select(); }, []);
+  return (
+    <input
+      ref={ref}
+      className="session-title-input"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={onCancel}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") onCommit();
+        else if (e.key === "Escape") onCancel();
+      }}
+    />
+  );
+}
+
+/** Rename and delete for the open session — the two things you can do *to* a
+ *  session rather than in it, behind one button so neither is a stray click away
+ *  from the transcript. */
+function SessionMenu({ onRename, onDelete }: { onRename: () => void; onDelete: () => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="windows-menu" ref={ref}>
+      <button
+        className={"btn btn--ghost" + (open ? " btn--ghost-open" : "")}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        title="Session"
+      >
+        <Icon name="more" />
+      </button>
+      {open && (
+        <div className="windows-menu-list windows-menu-list--narrow">
+          <button className="windows-menu-row"
+            onClick={() => { setOpen(false); onRename(); }}>
+            <Icon name="edit" /> Rename session
+          </button>
+          <button className="windows-menu-row windows-menu-row--danger"
+            onClick={() => { setOpen(false); onDelete(); }}>
+            <Icon name="x" /> Delete session
+          </button>
+        </div>
+      )}
     </div>
   );
 }

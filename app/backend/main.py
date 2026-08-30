@@ -359,6 +359,7 @@ class SessionSendRequest(BaseModel):
     """
     text: str = ""
     context: list[dict] = []          # items staged above the composer this turn
+    activeId: str | None = None       # orchestrator only: gap/idea id this turn is about
     agent: str = "orchestrator"       # orchestrator | creative_thinker
     mode: str = "generation"          # generation | refinement
     ideaId: str | None = None         # refinement: the idea under work
@@ -405,10 +406,13 @@ def api_session(slug: str, session_id: str):
 
 @app.patch("/api/topics/{slug}/sessions/{session_id}")
 def api_session_patch(slug: str, session_id: str, req: SessionPatchRequest):
-    rec = _require_session(slug, session_id)
-    if req.title is not None:
-        rec["title"] = req.title.strip() or rec["title"]
-    sessions.write_session(slug, rec)
+    """Rename a session. A typed name is the user's and is never generated over."""
+    _require_session(slug, session_id)
+    if req.title is None:
+        return _require_session(slug, session_id)
+    rec = sessions.rename_session(slug, session_id, req.title)
+    if rec is None:
+        raise HTTPException(404, f"session '{session_id}' not found in '{slug}'")
     return rec
 
 
@@ -464,7 +468,8 @@ async def api_session_file(slug: str, session_id: str, file: UploadFile = File(.
 
 
 def _send_to_orchestrator(slug: str, session_id: str, rec: dict, text: str,
-                          added: list[dict], *, require_approval: bool = True) -> dict:
+                          added: list[dict], *, active_id: str | None = None,
+                          require_approval: bool = True) -> dict:
     """Start a planned turn, and record the user's message against it.
 
     The orchestrator takes the *selection*, not the composer's settings: which gaps and
@@ -486,15 +491,17 @@ def _send_to_orchestrator(slug: str, session_id: str, rec: dict, text: str,
         "message": text,
         "gap_ids": [c["id"] for c in loaded if c.get("kind") == "gap"],
         "idea_ids": [c["id"] for c in loaded if c.get("kind") == "idea"],
+        "active_id": active_id,
         "require_approval": require_approval,
     }
     run = MANAGER.start(slug, "orchestrator_agent", "idea", inputs,
                         text[:80] or f"context +{len(added)}", session_id=session_id)
     message = sessions.append_message(rec, role="user", text=text, context=added,
                                       run_id=run["run_id"], settings={"agent": "orchestrator"})
-    if rec.get("title") in ("", "New session") and text:
-        rec["title"] = text[:60]
+    naming = sessions.name_from_first_task(rec, text)
     sessions.write_session(slug, rec)
+    if naming:
+        sessions.autoname_async(slug, session_id, naming)
     return {"session": rec, "message": message, "run": run}
 
 
@@ -517,6 +524,7 @@ def api_session_send(slug: str, session_id: str, req: SessionSendRequest):
 
     if req.agent == "orchestrator":
         return _send_to_orchestrator(slug, session_id, rec, text, added,
+                                     active_id=req.activeId,
                                      require_approval=req.requirePlanApproval)
 
     mode = "refinement" if str(req.mode).lower().startswith("r") else "generation"
@@ -544,11 +552,12 @@ def api_session_send(slug: str, session_id: str, req: SessionSendRequest):
         settings={"mode": mode, "ideaId": req.ideaId, "width": req.width,
                   "depth": req.depth, "styles": req.styles, "toolUse": req.toolUse},
     )
-    # The title of an untitled session is its first message — same convention as
-    # every chat surface, and it makes the session list readable without work.
-    if rec.get("title") in ("", "New session") and text:
-        rec["title"] = text[:60]
+    # An untitled session is named after its first task — same convention as every
+    # chat surface, and it makes the session list readable without work.
+    naming = sessions.name_from_first_task(rec, text)
     sessions.write_session(slug, rec)
+    if naming:
+        sessions.autoname_async(slug, session_id, naming)
     return {"session": rec, "message": message, "run": run}
 
 

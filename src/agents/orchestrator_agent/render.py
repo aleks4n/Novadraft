@@ -26,7 +26,7 @@ from src.agents.orchestrator_agent.schemas import ToolCall, ToolResult
 _MAX_PAPERS = 3  # papers run ~6k chars each; see context_view for why only these are capped
 
 
-def _idea_block(idea: IdeaRecord, with_id: bool = False) -> list[str]:
+def _idea_block(idea: IdeaRecord, with_id: bool = False, active: bool = False) -> list[str]:
     """One idea, in full.
 
     Omits `runs` (the thinker's thought graph — unbounded, and no structural criterion can
@@ -41,10 +41,11 @@ def _idea_block(idea: IdeaRecord, with_id: bool = False) -> list[str]:
     marks it — and inventing one for display would put an id in front of a model that
     could echo it into a sentence reading as though something was saved.
     """
+    marker = "  ← the user is currently focused on this one" if active else ""
     if with_id and idea.idea_id:
-        lines, pad = [f'- idea {idea.idea_id}: "{idea.title}"'], "    "
+        lines, pad = [f'- idea {idea.idea_id}: "{idea.title}"' + marker], "    "
     else:
-        lines, pad = [f'  · "{idea.title}"'], "      "
+        lines, pad = [f'  · "{idea.title}"' + marker], "      "
     for text in (idea.one_liner, idea.problem, idea.description):
         if text:
             lines.append(f"{pad}{text}")
@@ -71,7 +72,7 @@ def _entry(item: object) -> str:
     return str(item)
 
 
-def _gap_block(gap: GapRecord) -> list[str]:
+def _gap_block(gap: GapRecord, active: bool = False) -> list[str]:
     """One gap: what it claims, the sentence in the paper it rests on, and whether it is
     still open.
 
@@ -88,7 +89,8 @@ def _gap_block(gap: GapRecord) -> list[str]:
     out here still reaches the thinker through the `Context` object.
     """
     g = gap.model_dump(mode="json")
-    lines = [f"- gap {g['gap_id']}" + (f"  [{g['type']}]" if g.get("type") else "")]
+    lines = [f"- gap {g['gap_id']}" + (f"  [{g['type']}]" if g.get("type") else "")
+             + ("  ← the user is currently focused on this one" if active else "")]
     if g.get("title"):
         lines.append(f"    {g['title']}")
     if g.get("canonical_description"):
@@ -190,9 +192,9 @@ def context_view(ctx: Context) -> str:
     """What was loaded for this turn, for the planner and for reflect."""
     lines: list[str] = []
     for gap in ctx.gaps:
-        lines.extend(_gap_block(gap))
+        lines.extend(_gap_block(gap, active=gap.gap_id == ctx.active_id))
     for idea in ctx.ideas:
-        lines.extend(_idea_block(idea, with_id=True))
+        lines.extend(_idea_block(idea, with_id=True, active=idea.idea_id == ctx.active_id))
     # Papers are capped, gaps and ideas are not: the user chose those, and dropping a
     # chosen record answers a different question than the one asked. Papers arrive
     # implicitly, one hop out from each gap. The cap announces itself.

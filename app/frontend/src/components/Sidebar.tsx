@@ -42,6 +42,10 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
   // than on the session's own header, where a stray click is one pixel away from
   // the thing you were reading.
   const [menu, setMenu] = useState<{ id: string; title: string; x: number; y: number } | null>(null);
+  // The session row being renamed, if any. Renaming happens in the row itself
+  // rather than in a `prompt()` box: the name is read in this list, so it should
+  // be edited where it is read, with the neighbouring names still on screen.
+  const [renaming, setRenaming] = useState<{ id: string; draft: string } | null>(null);
   const [open, setOpen] = useState({ papers: true, gaps: true, ideas: true, sessions: true });
   const [pickerOpen, setPickerOpen] = useState(false);
   // New-topic creation: inline field in the picker; `creating` shows the field,
@@ -284,19 +288,34 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
           }
         >
           {sessions.map((sess) => (
-            <SidebarItem
-              key={sess.session_id}
-              active={isActive({ view: "session", id: sess.session_id })}
-              onClick={() => setNav({ view: "session", id: sess.session_id })}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                setMenu({ id: sess.session_id, title: sess.title, x: e.clientX, y: e.clientY });
-              }}
-              icon={<Icon name="msg" />}
-              label={sess.title}
-              busy={runs.some((r) => r.sessionId === sess.session_id && r.status === "running")}
-              meta={<span className="item-year">{sess.contextCount || ""}</span>}
-            />
+            renaming?.id === sess.session_id ? (
+              <RenameRow
+                key={sess.session_id}
+                value={renaming.draft}
+                onChange={(draft) => setRenaming({ id: sess.session_id, draft })}
+                onCancel={() => setRenaming(null)}
+                onCommit={() => {
+                  const next = renaming.draft.trim();
+                  if (next && next !== sess.title) renameSession(sess.session_id, next);
+                  setRenaming(null);
+                }}
+              />
+            ) : (
+              <SidebarItem
+                key={sess.session_id}
+                active={isActive({ view: "session", id: sess.session_id })}
+                onClick={() => setNav({ view: "session", id: sess.session_id })}
+                onDoubleClick={() => setRenaming({ id: sess.session_id, draft: sess.title })}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setMenu({ id: sess.session_id, title: sess.title, x: e.clientX, y: e.clientY });
+                }}
+                icon={<Icon name="msg" />}
+                label={sess.title}
+                busy={runs.some((r) => r.sessionId === sess.session_id && r.status === "running")}
+                meta={<span className="item-year">{sess.contextCount || ""}</span>}
+              />
+            )
           ))}
         </Section>
       </div>
@@ -307,10 +326,7 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
           items={[
             {
               label: "Rename…",
-              onClick: () => {
-                const next = prompt("Session name", menu.title);
-                if (next && next.trim()) renameSession(menu.id, next.trim());
-              },
+              onClick: () => setRenaming({ id: menu.id, draft: menu.title }),
             },
             {
               label: "Delete session",
@@ -352,9 +368,10 @@ function Section({
 }
 
 function SidebarItem({
-  active, onClick, onContextMenu, icon, label, meta, busy, drag,
+  active, onClick, onDoubleClick, onContextMenu, icon, label, meta, busy, drag,
 }: {
   active: boolean; onClick: () => void;
+  onDoubleClick?: () => void;
   onContextMenu?: (e: React.MouseEvent) => void;
   icon: ReactNode; label: string; meta?: ReactNode;
   busy?: boolean;
@@ -366,6 +383,7 @@ function SidebarItem({
     <button
       className={"sidebar-item" + (active ? " sidebar-item--active" : "") + (busy ? " sidebar-item--busy" : "")}
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
       {...(drag ? refDragProps(drag) : {})}
     >
@@ -376,6 +394,33 @@ function SidebarItem({
   );
 }
 
+
+/** A session row while its name is being edited — the row, with a field in it.
+ *  Enter keeps the new name, Escape and clicking away abandon it. */
+function RenameRow({
+  value, onChange, onCommit, onCancel,
+}: {
+  value: string; onChange: (v: string) => void; onCommit: () => void; onCancel: () => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => { ref.current?.focus(); ref.current?.select(); }, []);
+  return (
+    <div className="sidebar-item sidebar-item--renaming">
+      <span className="sidebar-item-icon"><Icon name="msg" /></span>
+      <input
+        ref={ref}
+        className="sidebar-rename-input"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onCancel}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") onCommit();
+          else if (e.key === "Escape") onCancel();
+        }}
+      />
+    </div>
+  );
+}
 
 /** A small right-click menu, positioned at the cursor and closed by anything else.
  *  Rendered inline rather than in a portal: the sidebar is not clipped, and one

@@ -365,6 +365,16 @@ body.col-resizing .gaps-row:hover { background: transparent; }
   animation: spin 0.7s linear infinite;
 }
 .sidebar-item--busy .sidebar-item-label { color: var(--accent); }
+/* A session row while its name is being edited — the row's own frame, with a
+   field where the label was, so the list does not shift as you type. */
+.sidebar-item--renaming { cursor: default; }
+.sidebar-item--renaming:hover { background: transparent; }
+.sidebar-rename-input {
+  flex: 1; min-width: 0; padding: 2px 6px;
+  font: inherit; font-size: 13px; color: var(--text);
+  background: var(--bg-inset); border: 1px solid var(--accent-ai);
+  border-radius: var(--radius-sm); outline: none;
+}
 /* Overall score shown after a gap's name in the nav tree. */
 .sidebar-score {
   font-family: var(--font-mono);
@@ -549,6 +559,9 @@ body.col-resizing .gaps-row:hover { background: transparent; }
    not sent yet. Two different marks, because that difference is the whole point. */
 .graph-node--loaded { border-color: var(--accent); background: var(--accent-soft); }
 .graph-node--staged { border-color: var(--accent-ai); border-style: dashed; background: var(--accent-ai-soft); }
+/* Active = the one loaded/staged node this session's turns are currently about —
+   layered on top of loaded/staged rather than replacing it. */
+.graph-node--active { box-shadow: 0 0 0 2px var(--accent-amber); }
 
 .graph-node-head { display: flex; align-items: center; gap: 5px; }
 .graph-node-kind { font-size: 10px; color: var(--text-4); text-transform: lowercase; }
@@ -567,6 +580,7 @@ body.col-resizing .gaps-row:hover { background: transparent; }
 }
 .graph-mark--loaded { color: var(--accent); background: #fff; }
 .graph-mark--staged { color: var(--accent-ai); background: #fff; }
+.graph-mark--active { color: var(--accent-amber); background: #fff; }
 .graph-hint {
   padding: 5px 10px; font-size: 11px; color: var(--text-4);
   border-top: 1px solid var(--border-soft); background: var(--bg-soft); flex-shrink: 0;
@@ -900,6 +914,14 @@ body.col-resizing .gaps-row:hover { background: transparent; }
 }
 .session-bar > .icon { color: var(--text-4); flex-shrink: 0; }
 .session-title { font-size: 13.5px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 46%; }
+.session-title--editable { cursor: text; border-radius: var(--radius-sm); padding: 2px 4px; margin: -2px -4px; }
+.session-title--editable:hover { background: var(--bg-soft); }
+.session-title-input {
+  font-size: 13.5px; font-weight: 600; color: var(--text); font-family: inherit;
+  width: min(46%, 380px); padding: 3px 7px;
+  background: var(--bg-inset); border: 1px solid var(--accent-ai);
+  border-radius: var(--radius-sm); outline: none;
+}
 .session-stats { font-size: 11.5px; color: var(--text-4); white-space: nowrap; }
 .session-new-pip {
   font-size: 10.5px; font-weight: 600; color: var(--accent-ai); background: var(--accent-ai-soft);
@@ -928,6 +950,9 @@ body.col-resizing .gaps-row:hover { background: transparent; }
 }
 .windows-menu-row:hover { background: var(--bg-soft); color: var(--text); }
 .windows-menu-row--on { color: var(--text); font-weight: 500; }
+.windows-menu-row--danger { color: var(--accent-warm); }
+.windows-menu-row--danger:hover { background: #fbeaea; color: #a03b3b; }
+.windows-menu-list--narrow { min-width: 178px; }
 .windows-menu-check {
   width: 14px; flex-shrink: 0; display: inline-flex;
   align-items: center; justify-content: center; color: var(--accent);
@@ -1037,6 +1062,17 @@ body.col-resizing .gaps-row:hover { background: transparent; }
 .ctx-chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }
 .ctx-chip-x { border: 0; background: none; cursor: pointer; color: var(--text-5); display: flex; padding: 0 2px; }
 .ctx-chip-x:hover { color: var(--accent-warm); }
+
+/* The gap/idea a turn is pinned to — a marker on top of "in context", not a
+   replacement for it. */
+.ctx-chip-pin, .ctx-item-pin {
+  border: 0; background: none; cursor: pointer; color: var(--text-5); display: flex; padding: 0 2px;
+}
+.ctx-chip-pin:hover, .ctx-item-pin:hover { color: var(--accent-amber); }
+.ctx-chip-pin--on, .ctx-item-pin--on { color: var(--accent-amber); }
+.ctx-chip--active, .ctx-item--active {
+  border-color: var(--accent-amber); box-shadow: 0 0 0 1px var(--accent-amber) inset;
+}
 
 /* ---------- composer ---------- */
 
@@ -1217,7 +1253,7 @@ body.is-row-resizing { user-select: none; -webkit-user-select: none; cursor: row
 .ctx-list { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
 .ctx-item { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; background: var(--bg-soft); }
 .ctx-item-head { display: flex; align-items: center; gap: 8px; }
-.ctx-item-head .ghost-btn { margin-left: auto; }
+.ctx-item-actions { display: flex; align-items: center; gap: 4px; margin-left: auto; }
 .ctx-item-label { font-size: 12.5px; font-weight: 500; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ctx-item-digest { margin: 5px 0 0; font-size: 11.5px; color: var(--text-3); line-height: 1.5; }
 .ctx-item-id { margin-top: 5px; font-family: var(--font-mono); font-size: 10.5px; color: var(--text-5); }
