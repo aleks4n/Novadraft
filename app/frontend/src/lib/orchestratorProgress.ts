@@ -218,6 +218,18 @@ function investigatorDetail(event: RunEvent): string {
 function latestDetail(events: RunEvent[]): string {
   const last = events[events.length - 1];
   if (!last) return "Loading the selected context";
+  // Nested LangGraph nodes for both tools live under an `execute:*` namespace. The
+  // namespace alone therefore cannot tell Investigator from Creative Thinker; follow
+  // the latest explicit orchestrator lifecycle event instead.
+  let activeTool = "";
+  for (const event of events) {
+    if (event.kind !== "event") continue;
+    if (event.name === "orchestrator step started") {
+      activeTool = string(event.data?.tool);
+    } else if (event.name === "orchestrator step finished") {
+      activeTool = "";
+    }
+  }
   if (last.kind === "event") {
     if (last.name === "orchestrator planning") return "Choosing the agents and their order";
     if (last.name === "orchestrator plan") return "The plan is ready; starting its first step";
@@ -250,10 +262,16 @@ function latestDetail(events: RunEvent[]): string {
       return "Creative thinker · developing candidate branches";
     }
   }
+  if (activeTool === "creative_thinker" && last.ns?.startsWith("execute:")) {
+    if (last.node === "prepare") return "Creative thinker · developing candidate branches";
+    return `Creative thinker · ${labelNode(last.node || "working")}`;
+  }
   if (last.ns?.includes("/")) {
     return `Creative thinker · ${labelNode(last.node || "working")}`;
   }
-  if (last.ns?.startsWith("execute:")) return investigatorDetail(last);
+  if (activeTool === "investigator" && last.ns?.startsWith("execute:")) {
+    return investigatorDetail(last);
+  }
   if (last.node === "execute") return "Checking the results against the plan";
   if (last.node === "reflect") return "Review complete";
   if (last.node === "finish" || last.kind === "run_end") return "Finished";

@@ -202,6 +202,14 @@ function awaitingManualThinkerSettings(plan: AgentPlan): AgentPlan {
   };
 }
 
+function criteriaForWidth(criteria: string[], width: number): string[] {
+  const count = /^\s*\d+\s+(?:further\s+)?candidates?\s+returned\s*$/i;
+  return [
+    `${width} candidate${width === 1 ? "" : "s"} returned`,
+    ...criteria.filter((criterion) => !count.test(criterion)),
+  ];
+}
+
 export function PlanReview({
   plan, status, busy, onStart, onCancel,
 }: {
@@ -228,6 +236,15 @@ export function PlanReview({
     setDraft((cur) => ({
       ...cur,
       steps: cur.steps.map((step, i) => (i === index ? { ...step, ...patch } : step)),
+    }));
+
+  const setManualSetting = (index: number, name: "width" | "depth", value: number) =>
+    setDraft((cur) => ({
+      ...cur,
+      steps: cur.steps.map((step, i) => i === index
+        ? { ...step, args: { ...step.args, [name]: value } } : step),
+      done_criteria: name === "width"
+        ? criteriaForWidth(cur.done_criteria || [], value) : cur.done_criteria,
     }));
 
   const specFor = useMemo(
@@ -294,7 +311,7 @@ export function PlanReview({
 
                 {editable && step.tool === "creative_thinker" && (() => {
                   const mode = step.args?.thinking_mode ?? "generation";
-                  const name = mode === "refinement" ? "depth" : "width";
+                  const name: "width" | "depth" = mode === "refinement" ? "depth" : "width";
                   const arg = spec?.args.find((item) => item.name === name);
                   if (!arg) return null;
                   const value = step.args?.[name];
@@ -309,9 +326,8 @@ export function PlanReview({
                           : "Levels of refinement"}</small>
                       </span>
                       <select value={typeof value === "number" ? String(value) : ""}
-                        onChange={(event) => setStep(index, {
-                          args: { ...step.args, [name]: Number(event.target.value) },
-                        })}>
+                        onChange={(event) => setManualSetting(
+                          index, name, Number(event.target.value))}>
                         <option value="" disabled>Select…</option>
                         {Array.from({ length: high - low + 1 }, (_, offset) => low + offset)
                           .map((number) => <option key={number} value={number}>{number}</option>)}
@@ -342,10 +358,11 @@ export function PlanReview({
         })}
       </ol>
 
-      {plan.done_criteria?.length > 0 && (
+      {(editable ? draft : plan).done_criteria?.length > 0 && (
         <div className="plan-criteria">
           <span className="plan-criteria-label">Done when</span>
-          <ul>{plan.done_criteria.map((c, i) => <li key={i}>{c}</li>)}</ul>
+          <ul>{(editable ? draft : plan).done_criteria.map(
+            (c, i) => <li key={i}>{c}</li>)}</ul>
         </div>
       )}
 

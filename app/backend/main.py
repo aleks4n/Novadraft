@@ -34,6 +34,7 @@ import asyncio  # noqa: E402
 from typing import Any  # noqa: E402
 import io  # noqa: E402
 import json  # noqa: E402
+import re  # noqa: E402
 import tarfile  # noqa: E402
 import uuid  # noqa: E402
 import zipfile  # noqa: E402
@@ -729,6 +730,23 @@ class PlanApproveRequest(BaseModel):
     doneCriteria: list[str] = []
 
 
+def _sync_generation_criteria(criteria: list[str], steps: list[dict]) -> list[str]:
+    """Make an edited width authoritative over the planner's original count criterion."""
+    expected = sum(
+        int(step["args"]["width"])
+        for step in steps
+        if step["tool"] == "creative_thinker"
+        and step["args"].get("thinking_mode", "generation") == "generation"
+    )
+    if not expected:
+        return list(criteria)
+    count_pattern = re.compile(
+        r"^\s*\d+\s+(?:further\s+)?candidates?\s+returned\s*$", re.IGNORECASE
+    )
+    synced = [criterion for criterion in criteria if not count_pattern.match(criterion)]
+    return [f"{expected} candidate{'s' if expected != 1 else ''} returned", *synced]
+
+
 @app.get("/api/agents/orchestrator/tools")
 def api_orchestrator_tools():
     """What the orchestrator can call, and the arguments each call takes.
@@ -790,7 +808,8 @@ def api_session_plan_approve(slug: str, session_id: str, req: PlanApproveRequest
         raise HTTPException(400, f"the edited plan is not valid: {exc}") from exc
 
     plan = {"goal": req.goal, "steps": steps,
-            "done_criteria": req.doneCriteria, "answer": ""}
+            "done_criteria": _sync_generation_criteria(req.doneCriteria, steps),
+            "answer": ""}
     inputs = dict(proposed.get("inputs") or {})
     inputs.update(run_id=f"run_{uuid.uuid4().hex[:8]}", require_approval=False,
                   approved_plan=plan)

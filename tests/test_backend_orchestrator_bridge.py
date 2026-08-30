@@ -240,6 +240,7 @@ def test_starting_an_edited_plan_runs_it_with_the_edited_arguments(client, rec):
     edited["steps"][0]["args"]["width"] = 3
     approved = _approve(client, session_id, started["run"]["run_id"], edited)
     assert approved["message"]["plan_status"] == "approved"
+    assert approved["message"]["plan"]["done_criteria"][0] == "3 candidates returned"
 
     _finished(client, approved["run"]["run_id"])
     landed = _land(client, session_id, approved["run"]["run_id"])
