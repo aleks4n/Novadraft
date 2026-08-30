@@ -801,14 +801,6 @@ def api_session_plan_approve(slug: str, session_id: str, req: PlanApproveRequest
                 step.args["paper_count"] = max(
                     1, min(5, int(step.args.get("paper_count") or 1))
                 )
-            if step.tool != "creative_thinker":
-                continue
-            mode = step.args.get("thinking_mode", "generation")
-            required = "depth" if mode == "refinement" else "width"
-            if required not in step.args:
-                raise ValueError(
-                    f"creative_thinker {mode} requires the user to choose {required}"
-                )
         steps = [{"tool": step.tool, "args": validate_args(step.tool, step.args),
                   "why": step.why, "needs": step.needs} for step in req.steps]
     except Exception as exc:  # noqa: BLE001 — a bad edit is a 400, not a 500

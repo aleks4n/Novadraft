@@ -187,21 +187,6 @@ function withoutStep(steps: PlanStep[], index: number): PlanStep[] {
     }));
 }
 
-/** Width/depth are decisions for the researcher, not planner defaults. Remove both
- * generated values while a plan is proposed so mode changes still require a fresh pick. */
-function awaitingManualThinkerSettings(plan: AgentPlan): AgentPlan {
-  return {
-    ...plan,
-    steps: plan.steps.map((step) => {
-      if (step.tool !== "creative_thinker") return step;
-      const args = { ...(step.args || {}) };
-      delete args.width;
-      delete args.depth;
-      return { ...step, args };
-    }),
-  };
-}
-
 function criteriaForWidth(criteria: string[], width: number): string[] {
   const count = /^\s*\d+\s+(?:further\s+)?candidates?\s+returned\s*$/i;
   return [
@@ -220,18 +205,15 @@ export function PlanReview({
   onCancel: () => void;
 }) {
   const specs = useToolSpecs();
-  const [draft, setDraft] = useState<AgentPlan>(
-    status === "proposed" ? awaitingManualThinkerSettings(plan) : plan);
+  const [draft, setDraft] = useState<AgentPlan>(plan);
   const [open, setOpen] = useState<number | null>(null);
   // A plan that has been started is a record of what ran, so it follows the stored one
   // rather than whatever the editor had in it.
-  useEffect(() => {
-    setDraft(status === "proposed" ? awaitingManualThinkerSettings(plan) : plan);
-  }, [plan, status]);
+  useEffect(() => { setDraft(plan); }, [plan]);
 
   // Planner output is free-form until tool validation. Clamp any integer it supplied
   // as soon as the catalogue arrives, so an untouched out-of-range value cannot make
-  // Start fail. Missing values stay missing (notably the manual width/depth choices).
+  // Start fail.
   useEffect(() => {
     if (!specs.length || status !== "proposed") return;
     setDraft((cur) => ({
@@ -255,29 +237,22 @@ export function PlanReview({
   const steps = editable ? draft.steps : plan.steps;
 
   const setStep = (index: number, patch: Partial<PlanStep>) =>
-    setDraft((cur) => ({
-      ...cur,
-      steps: cur.steps.map((step, i) => (i === index ? { ...step, ...patch } : step)),
-    }));
-
-  const setManualSetting = (index: number, name: "width" | "depth", value: number) =>
-    setDraft((cur) => ({
-      ...cur,
-      steps: cur.steps.map((step, i) => i === index
-        ? { ...step, args: { ...step.args, [name]: value } } : step),
-      done_criteria: name === "width"
-        ? criteriaForWidth(cur.done_criteria || [], value) : cur.done_criteria,
-    }));
+    setDraft((cur) => {
+      const steps = cur.steps.map((step, i) => (i === index ? { ...step, ...patch } : step));
+      // An edited width is authoritative over the count the planner wrote into the
+      // criteria, so the two never disagree on the card.
+      const width = steps[index].tool === "creative_thinker"
+        ? steps[index].args?.width : undefined;
+      return {
+        ...cur,
+        steps,
+        done_criteria: typeof width === "number" && width !== cur.steps[index].args?.width
+          ? criteriaForWidth(cur.done_criteria || [], width) : cur.done_criteria,
+      };
+    });
 
   const specFor = useMemo(
     () => (tool: string) => specs.find((s) => s.name === tool) || null, [specs]);
-
-  const missingManualChoice = editable && steps.some((step) => {
-    if (step.tool !== "creative_thinker") return false;
-    const setting = (step.args?.thinking_mode ?? "generation") === "refinement"
-      ? "depth" : "width";
-    return typeof step.args?.[setting] !== "number";
-  });
 
   return (
     <div className={"plan-card plan-card--" + status}>
@@ -331,33 +306,6 @@ export function PlanReview({
                 )}
                 <StepArgs step={step} specs={specs} />
 
-                {editable && step.tool === "creative_thinker" && (() => {
-                  const mode = step.args?.thinking_mode ?? "generation";
-                  const name: "width" | "depth" = mode === "refinement" ? "depth" : "width";
-                  const arg = spec?.args.find((item) => item.name === name);
-                  if (!arg) return null;
-                  const value = step.args?.[name];
-                  const low = arg.min ?? 1;
-                  const high = arg.max ?? low;
-                  return (
-                    <label className="plan-manual-setting" title={arg.description}>
-                      <span>
-                        Choose {name}
-                        <small>{mode === "generation"
-                          ? "Number of candidate branches"
-                          : "Refinement levels · 1 produces one candidate"}</small>
-                      </span>
-                      <select value={typeof value === "number" ? String(value) : ""}
-                        onChange={(event) => setManualSetting(
-                          index, name, Number(event.target.value))}>
-                        <option value="" disabled>Select…</option>
-                        {Array.from({ length: high - low + 1 }, (_, offset) => low + offset)
-                          .map((number) => <option key={number} value={number}>{number}</option>)}
-                      </select>
-                    </label>
-                  );
-                })()}
-
                 {editable && expanded && (
                   <div className="plan-fields">
                     {spec ? spec.args.map((arg) => (
@@ -390,8 +338,7 @@ export function PlanReview({
 
       {status === "proposed" && (
         <div className="plan-actions">
-          <button className="btn btn--primary"
-            disabled={busy || !steps.length || missingManualChoice}
+          <button className="btn btn--primary" disabled={busy || !steps.length}
             onClick={() => onStart(draft)}>
             <Icon name={busy ? "clock" : "arrow-right"} size={13} />
             {busy ? "Starting…" : "Start"}
@@ -400,9 +347,7 @@ export function PlanReview({
             Discard
           </button>
           <span className="plan-actions-note">
-            {missingManualChoice
-              ? "Choose the Creative Thinker width or depth before starting."
-              : "Nothing runs until you start it — adjust any step first."}
+            Nothing runs until you start it — adjust any step first.
           </span>
         </div>
       )}

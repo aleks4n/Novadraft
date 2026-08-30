@@ -273,29 +273,6 @@ def test_an_edit_the_tool_would_reject_is_refused_before_anything_runs(client, r
     assert rec.to("creative_thinker") == []
 
 
-def test_creative_thinker_setting_must_be_chosen_before_start(client, rec):  # noqa: F811
-    """The API enforces the same manual choice as the plan editor."""
-    rec.plans = [Plan(goal="Generate.", steps=[ToolCall(
-        tool="creative_thinker", args={"thinking_mode": "generation", "width": 3},
-    )])]
-
-    session_id = _session(client)
-    started = _send(client, session_id, "ideas", gate=True)
-    _finished(client, started["run"]["run_id"])
-    plan = _land(client, session_id, started["run"]["run_id"])["message"]["plan"]
-    del plan["steps"][0]["args"]["width"]
-
-    refused = client.post(
-        f"/api/topics/{CATEGORY}/sessions/{session_id}/plan/approve",
-        json={"runId": started["run"]["run_id"], "goal": plan["goal"],
-              "steps": plan["steps"], "doneCriteria": plan["done_criteria"]},
-    )
-
-    assert refused.status_code == 400
-    assert "choose width" in refused.text
-    assert rec.to("creative_thinker") == []
-
-
 def test_a_conversational_turn_is_never_gated(client, rec):  # noqa: F811
     """Nothing to approve: the planner answered, so the reply lands straight away."""
     rec.plans = [Plan(goal="Say what this does.", steps=[],
