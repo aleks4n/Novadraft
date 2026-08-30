@@ -5,8 +5,47 @@ from types import SimpleNamespace
 import pytest
 
 from src.agents.investigator_agent import agent
+from src.common.tools.paper_fetch.classify import classify
 from src.common.utils import storage
 from src.llm import registry
+
+
+def test_direct_mode_skips_actor_llm_on_first_attempt(monkeypatch):
+	monkeypatch.setattr(agent, "_ensure_workspace", lambda _key: None)
+	monkeypatch.setattr(agent, "_load_reflections", lambda *_args: [])
+	monkeypatch.setattr(
+		agent, "_decide_request",
+		lambda *_args: pytest.fail("direct mode should skip the routing LLM"),
+	)
+
+	result = agent.actor({
+		"text": "compare these papers", "session_id": "session-1",
+		"requested_mode": "paper_search", "paper_count": 2,
+		"sources": ["2511.08544", "2603.19312"],
+	})
+
+	assert result["mode"] == "paper_search"
+	assert result["attempt"] == 1
+
+
+def test_paper_search_uses_direct_sources_without_search(monkeypatch):
+	monkeypatch.setattr(
+		agent, "_search_web", lambda *_args, **_kwargs: pytest.fail("must not search"),
+	)
+	result = agent.paper_search_node({
+		"query": "compare", "paper_count": 2,
+		"sources": ["2511.08544", "https://doi.org/10.1000/example"],
+	})["research_result"]
+
+	assert [item["url"] for item in result["search_results"]] == [
+		"2511.08544", "https://doi.org/10.1000/example",
+	]
+
+
+def test_classifier_prefers_embedded_exact_identifier_over_title_search():
+	assert classify("Bishop Bayesian PCA arXiv:physics/9905028").input_type == "arxiv_id"
+	assert classify("Bishop Bayesian PCA arXiv:physics/9905028").value == "physics/9905028"
+	assert classify("paper DOI:10.1162/089976699300016728").input_type == "doi"
 
 
 def test_decide_request_routes_paper_query(monkeypatch):

@@ -22,6 +22,12 @@ class Classified:
 _ARXIV_NEW = re.compile(r"^(arxiv:)?(\d{4}\.\d{4,5})(v\d+)?$", re.IGNORECASE)
 _ARXIV_OLD = re.compile(r"^([a-z\-]+(\.[A-Z]{2})?/\d{7})(v\d+)?$")
 _DOI = re.compile(r"^10\.\d{4,9}/\S+$")
+_ARXIV_EMBEDDED = re.compile(
+    r"(?:\barxiv\s*:\s*|arxiv\.org/(?:abs|pdf)/)"
+    r"([a-z\-]+(?:\.[A-Z]{2})?/\d{7}|\d{4}\.\d{4,5})(?:v\d+)?",
+    re.IGNORECASE,
+)
+_DOI_EMBEDDED = re.compile(r"(?:\bdoi\s*:\s*|doi\.org/)(10\.\d{4,9}/\S+)", re.IGNORECASE)
 _LANDING_HOSTS = {
     "arxiv.org", "www.arxiv.org",
     "openreview.net",
@@ -76,6 +82,13 @@ def classify(query: str) -> Classified:
             return Classified("landing_url", q, q)
 
         return Classified("url", q, q)
+
+    # A caller may include a helpful title beside an exact identifier. The identifier is
+    # still the fastest and least ambiguous route, so do not fall through to title search.
+    if match := _ARXIV_EMBEDDED.search(q):
+        return Classified("arxiv_id", match.group(1), q)
+    if match := _DOI_EMBEDDED.search(q):
+        return Classified("doi", match.group(1).rstrip(".,);"), q)
 
     # Fall through: treat as title
     return Classified("title", q, q)

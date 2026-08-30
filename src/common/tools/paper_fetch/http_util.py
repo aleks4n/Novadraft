@@ -25,7 +25,12 @@ def _is_arxiv(url: str) -> bool:
 
 
 def _open(url: str, timeout: int = DEFAULT_TIMEOUT, accept: str | None = None,
-          retries: int = 4, backoff: float = 4.0):
+          retries: int = 2, backoff: float = 2.0):
+    """Open an interactive fetch with bounded retry latency.
+
+    Two retries still absorb transient failures, while avoiding the former 4+8+16+32s
+    wait on one provider. Higher-level fetchers can then fail over to another source.
+    """
     req = urllib.request.Request(url, headers={"User-Agent": _UA})
     if accept:
         req.add_header("Accept", accept)

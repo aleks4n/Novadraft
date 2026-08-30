@@ -130,6 +130,18 @@ Use it on its own when the user asks something answerable from sources rather th
 thinking. Use it as a first step, with a later step declaring `needs`, when ideas should
 be grounded in what is already out there.
 
+Use **at most one investigator step in a plan**. Combine related literature questions,
+named papers, retrieval, comparison, and synthesis into that one call. The investigator
+can fetch several papers concurrently and synthesize them itself; a later investigator
+step whose purpose is only to combine earlier investigator findings repeats the entire
+research workflow and is forbidden.
+
+When the route is already clear, set `mode` so the investigator skips a redundant routing
+LLM call. Use `paper` for one exact paper, `paper_search` for several papers or a field
+search, `web` for non-paper web research, and `workspace` for records already held by the
+project. When exact arXiv IDs, DOI values, or URLs are known, put them in `sources`; do not
+embed them in a title-like query and ask the investigator to rediscover them.
+
 ## Rules
 
 - Never plan to write to the idea graph. Nothing you do creates or edits an idea — the

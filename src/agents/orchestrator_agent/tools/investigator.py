@@ -6,6 +6,8 @@ takes a free-text instruction and returns plain text.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from src.common.schemas.context import Context
@@ -15,6 +17,20 @@ from src.agents.orchestrator_agent.tools.base import Tool, ToolEnv
 
 class InvestigatorArgs(BaseModel):
     query: str = Field(default="", description="What to find out, as a plain question.")
+    mode: Literal["workspace", "paper", "paper_search", "web", "url"] | None = Field(
+        default=None,
+        description="Optional direct route. Set it when the required source type is "
+                    "already clear so the investigator can skip its routing LLM.",
+    )
+    sources: list[str] = Field(
+        default_factory=list,
+        description="Exact arXiv IDs, DOI values, or URLs to fetch directly. Use this "
+                    "for named papers instead of searching for them again.",
+    )
+    paper_count: int = Field(
+        default=3, ge=1, le=5,
+        description="Maximum papers to retrieve for paper_search.",
+    )
 
 
 def run(args: InvestigatorArgs, _ctx: Context, env: ToolEnv) -> ToolResult:
@@ -36,6 +52,9 @@ def run(args: InvestigatorArgs, _ctx: Context, env: ToolEnv) -> ToolResult:
     text = run_investigator(args.query,
                             session_id=env.session_id or "session-adhoc",
                             category_slug=env.category_slug or None,
+                            mode=args.mode,
+                            sources=args.sources,
+                            paper_count=args.paper_count,
                             stream=False)
     return ToolResult(tool=TOOL.name, text=str(text))
 

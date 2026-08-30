@@ -32,6 +32,7 @@ from src.common.utils import storage
 
 from src.agents.orchestrator_agent import session
 from src.agents.orchestrator_agent.agent import build_orchestrator_graph
+from src.agents.orchestrator_agent.subagents.plan.agent import _consolidate_investigator_steps
 from src.agents.orchestrator_agent.state import (
     MAX_LLM_CALLS_PER_TURN,
     UNMETERED_TOOL_LLM_CHARGE,
@@ -45,6 +46,27 @@ GAP_ID = "gap_testflow"
 IDEA_A = "idea_testaaa"
 IDEA_B = "idea_testbbb"
 CATEGORY = "flowtest"
+
+
+def test_repeated_investigator_steps_are_consolidated_and_dependencies_remapped():
+    planned = Plan(goal="Research and generate", steps=[
+        ToolCall(tool="investigator", args={
+            "query": "read paper one", "mode": "paper", "sources": ["2511.08544"],
+        }),
+        ToolCall(tool="investigator", args={
+            "query": "read paper two", "mode": "paper", "sources": ["2603.19312"],
+        }),
+        ToolCall(tool="creative_thinker", needs=[1, 2], args={
+            "thinking_mode": "generation",
+        }),
+    ])
+
+    result = _consolidate_investigator_steps(planned)
+
+    assert [step.tool for step in result.steps] == ["investigator", "creative_thinker"]
+    assert result.steps[0].args["mode"] == "paper_search"
+    assert result.steps[0].args["sources"] == ["2511.08544", "2603.19312"]
+    assert result.steps[1].needs == [1]
 
 
 # --- the recorder -------------------------------------------------------------

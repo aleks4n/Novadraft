@@ -185,6 +185,8 @@ _EVALUATION_SYSTEM_PROMPT = (
 class InvestigatorState(TypedDict, total=False):
 	text: str
 	session_id: str
+	requested_mode: str
+	sources: list[str]
 	# ``workspace_key`` is the category-relative location used by downstream
 	# agents, e.g. ``machine-learning/sessions/session-42``.
 	workspace_key: str
@@ -323,8 +325,51 @@ def _clip_paper_text(text: str, budget: int) -> str:
 	return f"{text[:head]}\n\n[... paper truncated ...]\n\n{text[-(budget - head):]}"
 
 
-def _fetch_extract_paper(workspace_key: str, query: str) -> dict:
+def _cached_paper(cache_keys: list[str], query: str) -> tuple[str, dict, str] | None:
+	"""Find an already extracted paper by identifier, source URL, or exact title."""
+	query_norm = _normalize(query).lower()
+	arxiv_match = re.search(
+		r"(?:arxiv:\s*|arxiv\.org/(?:abs|pdf)/)?([a-z\-]+(?:\.[A-Z]{2})?/\d{7}|\d{4}\.\d{4,5})(?:v\d+)?",
+		query, re.IGNORECASE,
+	)
+	doi_match = re.search(r"10\.\d{4,9}/[-._;()/:A-Z0-9]+", query, re.IGNORECASE)
+	for cache_key in [key for key in cache_keys if key]:
+		for paper_id in storage.list_paper_ids(cache_key):
+			paper = storage.read_paper_json(cache_key, paper_id) or {}
+			metadata = paper.get("metadata") or {}
+			identifiers = metadata.get("identifiers") or {}
+			source = paper.get("source") or {}
+			matched = bool(
+				(arxiv_match and _normalize(identifiers.get("arxiv_id") or "").lower()
+				 == arxiv_match.group(1).lower())
+				or (doi_match and _normalize(identifiers.get("doi") or "").lower()
+					== doi_match.group(0).rstrip(".,);").lower())
+				or (_normalize(source.get("source_url") or "").lower() == query_norm)
+				or (_normalize(metadata.get("title") or "").lower() == query_norm)
+			)
+			if not matched:
+				continue
+			full_text = get_full_text(cache_key, paper_id) or ""
+			if full_text.strip():
+				trace.log_event("investigator cache hit", paper_id=paper_id,
+								workspace=cache_key)
+				return paper_id, paper, full_text
+	return None
+
+
+def _fetch_extract_paper(workspace_key: str, query: str,
+							 *, cache_keys: list[str] | None = None) -> dict:
 	"""Download and extract one paper without invoking the paper/gap pipeline."""
+	inferred_keys = [workspace_key]
+	if "/sessions/" in workspace_key:
+		inferred_keys.append(workspace_key.split("/sessions/", 1)[0])
+	if cached := _cached_paper([*inferred_keys, *(cache_keys or [])], query):
+		paper_id, paper, full_text = cached
+		return {
+			"status": "ok", "paper_id": paper_id,
+			"fetch": {"status": "ok", "paper": paper, "cached": True},
+			"extract": {"status": "ok", "cached": True}, "full_text": full_text,
+		}
 	try:
 		fetched = fetch_paper(workspace_key, query)
 	except PaperAlreadyExistsError as exc:
@@ -1057,7 +1102,24 @@ def actor(state: InvestigatorState) -> dict:
 	reflections = list(state.get("reflections") or [])
 	if attempt == 1:
 		reflections = _load_reflections(workspace_key, state["text"])
-	decision = _decide_request(state["text"], reflections)
+	requested_mode = state.get("requested_mode")
+	if attempt == 1 and requested_mode:
+		# The orchestrator already chose the source type. Avoid spending another LLM call
+		# rediscovering the same route; Reflexion may still choose a different route after
+		# a failed first attempt.
+		decision = {
+			"mode": requested_mode,
+			"query": state["text"],
+			"workspace_ids": [],
+			"section": "",
+			"paper_count": int(state.get("paper_count", 1)),
+			"url": (state.get("sources") or [None])[0] if requested_mode == "url" else None,
+			"save_requested": requested_mode in {"paper", "paper_search", "url"},
+			"should_fetch_pages": requested_mode == "web",
+			"decision_reason": "caller supplied direct route",
+		}
+	else:
+		decision = _decide_request(state["text"], reflections)
 	trace.log_event("investigator_actor", attempt=attempt, reflections=len(reflections), mode=decision["mode"])
 	return {**decision, "attempt": attempt, "reflections": reflections}
 
@@ -1172,7 +1234,8 @@ def _workspace_to_text(result: dict, query: str) -> str:
 def paper_node(state: InvestigatorState) -> dict:
 	workspace_key = state.get("workspace_key", state["session_id"])
 	_ensure_workspace(workspace_key)
-	result = _fetch_extract_paper(workspace_key, state["query"])
+	query = (state.get("sources") or [state["query"]])[0]
+	result = _fetch_extract_paper(workspace_key, query)
 	answer, evidence, claims = _answer_from_papers(state.get("text") or state["query"], [result])
 	result.pop("full_text", None)  # keep full text on disk, not in the run log/state
 	return {"research_result": {**result, "answer": answer, "evidence": evidence, "claims": claims}}
@@ -1180,6 +1243,17 @@ def paper_node(state: InvestigatorState) -> dict:
 
 def paper_search_node(state: InvestigatorState) -> dict:
 	"""Find paper landing pages before the bounded sequential download step."""
+	direct_sources = [_normalize(source) for source in (state.get("sources") or [])
+				  if _normalize(source)]
+	if direct_sources:
+		return {"research_result": {
+			"requested_count": min(len(direct_sources), state["paper_count"]),
+			"search_results": [
+				{"title": source, "url": source, "snippet": "direct source"}
+				for source in direct_sources
+			],
+			"papers": [],
+		}}
 	search_query = f"{state['query']} research paper site:arxiv.org"
 	web_error: str | None = None
 	try:
@@ -1223,10 +1297,7 @@ def download_papers_node(state: InvestigatorState) -> dict:
 	requested_count = max(1, min(int(state.get("paper_count", 1)), _MAX_PAPER_DOWNLOADS))
 	# Respect the user's requested count strictly: investigate only the top-N
 	# candidates instead of expanding the attempt pool.
-	candidates = [
-		candidate for candidate in (result.get("search_results") or [])
-		if _is_arxiv_url(candidate.get("url") or "")
-	][:requested_count]
+	candidates = list(result.get("search_results") or [])[:requested_count]
 	trace.log_event(
 		"investigator downloads started",
 		count=len(candidates),
@@ -1518,6 +1589,9 @@ def run(
 	*,
 	session_id: str,
 	category_slug: str | None = None,
+	mode: Literal["workspace", "paper", "paper_search", "web", "url"] | None = None,
+	sources: list[str] | None = None,
+	paper_count: int | None = None,
 	stream: bool = True,
 	echo: bool | None = None,
 	max_attempts: int = _DEFAULT_MAX_ATTEMPTS,
@@ -1541,9 +1615,17 @@ def run(
 	graph = _get_graph()
 	if max_attempts < 1:
 		raise ValueError("max_attempts must be at least 1.")
+	if paper_count is not None and not 1 <= paper_count <= _MAX_PAPER_DOWNLOADS:
+		raise ValueError(f"paper_count must be between 1 and {_MAX_PAPER_DOWNLOADS}.")
 	# Keep the historical graph input shape for the common/default call; the
 	# evaluator supplies its own default when this optional control is absent.
 	inputs = {"text": text, "session_id": session_id}
+	if mode is not None:
+		inputs["requested_mode"] = mode
+	if sources is not None:
+		inputs["sources"] = [_normalize(source) for source in sources if _normalize(source)]
+	if paper_count is not None:
+		inputs["paper_count"] = paper_count
 	if category_slug is not None:
 		inputs["workspace_key"] = workspace_key
 		# The bare slug, so the workspace route can read the category's own gaps/papers/ideas.
