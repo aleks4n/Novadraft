@@ -1,6 +1,7 @@
 import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkMath from "remark-math";
+import remarkBreaks from "remark-breaks";
 import "katex/dist/katex.min.css";
 
 // remark-math uses dollar delimiters. Models also commonly return TeX's
@@ -15,7 +16,7 @@ function normalizeMathDelimiters(text: string): string {
 export function RichText({ children }: { children: string }) {
   return (
     <div className="rich-text">
-      <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+      <ReactMarkdown remarkPlugins={[remarkMath, remarkBreaks]} rehypePlugins={[rehypeKatex]}>
         {normalizeMathDelimiters(children)}
       </ReactMarkdown>
     </div>

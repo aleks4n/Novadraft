@@ -13,6 +13,7 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Icon } from "../Icon";
+import { RichText } from "../RichText";
 import type { Idea, IdeaSection } from "../../lib/types";
 import type { ChangeKind, IdeaDiff } from "../../lib/ideadiff";
 import { EMPTY_DIFF } from "../../lib/ideadiff";
@@ -158,8 +159,10 @@ function Field({
         </>
       ) : change === "changed" && before !== undefined ? (
         <DiffBody before={before} after={value} kind="markdown" />
+      ) : value ? (
+        <div className="card-body"><RichText>{value}</RichText></div>
       ) : (
-        <p className={"card-body" + (value ? "" : " card-body--empty")}>{value || placeholder}</p>
+        <p className="card-body card-body--empty">{placeholder}</p>
       )}
       {hint && !editing && <div className="idea-field-hint">{hint}</div>}
     </div>
@@ -238,8 +241,10 @@ function SectionBlock({
                 ))}
               </ul>
             ) : <p className="card-body card-body--empty">Empty</p>
+          ) : section.value ? (
+            <div className="card-body"><RichText>{section.value as string}</RichText></div>
           ) : (
-            <p className="card-body">{(section.value as string) || <span className="card-body--empty">Empty</span>}</p>
+            <p className="card-body card-body--empty">Empty</p>
           )}
         </div>
       )}
