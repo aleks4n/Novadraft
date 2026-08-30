@@ -24,6 +24,45 @@ from src.agents.orchestrator_agent.state import MAX_ITERATIONS, OrchestratorStat
 _SYSTEM = load_prompt(__file__, "../voice.md") + "\n" + load_prompt(__file__)
 
 
+def _format_failure(exc: ValueError) -> bool:
+    """True only for the registry's exhausted structured-output re-asks."""
+    return "model returned no parseable structured output" in str(exc)
+
+
+def _fallback_judgment(results) -> ReflectJudgment:
+    """Finish safely when review formatting fails after the actual work succeeded.
+
+    Reflect is advisory: it decides whether another round is worthwhile and writes the
+    short accompanying message. Its inability to serialize that decision must not throw
+    away candidates or findings that the expensive tool steps already completed.
+    """
+    successful = [result for result in results if result.ok]
+    failed = [result for result in results if not result.ok]
+    candidate_count = sum(len(result.ideas) for result in successful)
+    findings = [result.text.strip() for result in successful
+                if result.tool == "investigator" and result.text.strip()]
+
+    answer_parts = findings
+    if candidate_count:
+        noun = "candidate" if candidate_count == 1 else "candidates"
+        answer_parts.append(
+            f"I produced {candidate_count} {noun}; "
+            f"{'it is' if candidate_count == 1 else 'they are'} shown below."
+        )
+    if failed:
+        names = ", ".join(result.tool.replace("_", " ") for result in failed)
+        answer_parts.append(f"Some planned work did not complete: {names}.")
+    if not answer_parts:
+        answer_parts.append("I completed the available work; its results are shown below.")
+
+    return ReflectJudgment(
+        route="finish",
+        keep_results=True,
+        feedback="Review output was malformed; preserved the completed tool results.",
+        answer="\n\n".join(answer_parts),
+    )
+
+
 def reflect(state: OrchestratorState) -> dict:
     """LangGraph node: plan + results -> {"judgment": ReflectJudgment, "iteration": n+1}."""
     plan: Plan = state.get("plan") or Plan()
@@ -48,9 +87,21 @@ def reflect(state: OrchestratorState) -> dict:
         f"{results_view(plan.steps, results, state.get('carried', 0))}"
     )
 
-    judgment = chat_with_structured_output(
-        get_llm("cheap"), _SYSTEM, user_message, ReflectJudgment
-    )
+    try:
+        judgment = chat_with_structured_output(
+            get_llm("cheap"), _SYSTEM, user_message, ReflectJudgment
+        )
+    except ValueError as exc:
+        if not _format_failure(exc):
+            raise
+        judgment = _fallback_judgment(results)
+        log_event(
+            "orchestrator review fallback",
+            round=round_now,
+            reason=str(exc),
+            candidates=sum(len(result.ideas) for result in results if result.ok),
+            failed_steps=sum(1 for result in results if not result.ok),
+        )
     log_event(
         "orchestrator review finished",
         round=round_now,
