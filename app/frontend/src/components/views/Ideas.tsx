@@ -73,11 +73,6 @@ export function IdeasOverview() {
               </div>
               <div className="idea-card-title">{i.title}</div>
               <p className="idea-card-desc">{i.oneLiner || i.description}</p>
-              <div className="idea-card-scores">
-                <MiniScore value={i.novelty} label="novelty" />
-                <MiniScore value={i.feasibility} label="feasibility" />
-                <MiniScore value={i.impact} label="impact" />
-              </div>
               <div className="idea-card-foot">
                 <div className="idea-card-links">
                   {i.addresses.length > 0 && (
@@ -102,15 +97,6 @@ export function IdeasOverview() {
           </button>
         </div>
       )}
-    </div>
-  );
-}
-
-function MiniScore({ value, label }: { value: number | null; label: string }) {
-  return (
-    <div className="mini-score">
-      <span className="mini-score-num">{value == null ? "—" : Math.round(value * 100)}</span>
-      <span className="mini-score-lbl">{label}</span>
     </div>
   );
 }

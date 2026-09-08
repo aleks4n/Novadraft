@@ -1248,30 +1248,13 @@ body.is-col-resizing .sidebar-resizer span { background: var(--accent); height: 
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.idea-card-scores {
-  display: flex;
-  gap: 16px;
-  padding: 10px 0;
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 10px;
-}
-.mini-score { display: flex; flex-direction: column; gap: 0; }
-.mini-score-num {
-  font-family: var(--font-mono);
-  font-size: 18px;
-  font-weight: 500;
-  color: var(--text);
-  letter-spacing: -0.02em;
-}
-.mini-score-lbl {
-  font-size: 10px;
-  color: var(--text-4);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
+/* The card once carried a novelty/feasibility/impact row; nothing scores an idea
+   yet, so it only ever rendered three em dashes. The foot keeps the rule that
+   used to sit under it, so the card still reads as head / body / meta. */
 .idea-card-foot {
   display: flex; justify-content: space-between; align-items: center;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
   font-size: 11px; color: var(--text-4);
 }
 .idea-card-links { display: flex; gap: 10px; }

@@ -142,17 +142,47 @@ def list_sessions(slug: str, *, full: bool = False) -> list[dict]:
         return []
     for flat in list(sdir.glob("*.json")):
         _migrate_flat(slug, flat.stem)
-    out = []
+    records = []
     for d in sdir.iterdir():
         if not d.is_dir():
             continue
         try:
-            rec = json.loads((d / "session.json").read_text())
+            records.append(json.loads((d / "session.json").read_text()))
         except (json.JSONDecodeError, OSError):
             continue
-        out.append(rec if full else summarize(rec))
-    out.sort(key=lambda r: r.get("updated_at") or "", reverse=True)
-    return out
+    # Sorted on the records, not on the rows: the row form is camelCase and
+    # ``last_used_at`` reads the stored (snake_case) keys.
+    records.sort(key=last_used_at, reverse=True)
+    return records if full else [summarize(r) for r in records]
+
+
+def last_used_at(rec: dict) -> str:
+    """When the session was last *used* — opened or written, whichever is later.
+
+    ``updated_at`` alone answers "when did this record last change", which is not
+    the same question: re-reading a session to look something up is using it, and a
+    list ordered by writes buries the session you were just in under one you last
+    typed in. ``opened_at`` is stamped by :func:`touch_session`; sessions written
+    before it existed simply fall back to their write time.
+    """
+    return max(rec.get("opened_at") or "", rec.get("updated_at") or "",
+               rec.get("created_at") or "")
+
+
+def touch_session(slug: str, session_id: str) -> str | None:
+    """Stamp ``opened_at`` — the session was opened in the UI.
+
+    Written straight to disk rather than through :func:`write_session`, which
+    bumps ``updated_at``: opening a session is not a change to it, and conflating
+    the two would make every read look like an edit in the record's own history.
+    """
+    rec = read_session(slug, session_id)
+    if rec is None:
+        return None
+    rec["opened_at"] = _now()
+    path = session_path(slug, session_id)
+    path.write_text(json.dumps(rec, indent=1, default=str))
+    return rec["opened_at"]
 
 
 def summarize(rec: dict) -> dict:
@@ -164,6 +194,8 @@ def summarize(rec: dict) -> dict:
         "title": rec.get("title") or "Untitled session",
         "createdAt": rec.get("created_at", ""),
         "updatedAt": rec.get("updated_at", ""),
+        "openedAt": rec.get("opened_at", ""),
+        "lastUsedAt": last_used_at(rec),
         "messageCount": len(messages),
         "contextCount": len(rec.get("context") or []),
         "touched": rec.get("touched") or [],
@@ -183,6 +215,7 @@ def create_session(slug: str, title: str = "") -> dict:
         "title_auto": not named,
         "created_at": _now(),
         "updated_at": _now(),
+        "opened_at": _now(),
         "messages": [],
         "context": [],
         "touched": [],

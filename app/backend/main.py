@@ -406,6 +406,18 @@ def api_session(slug: str, session_id: str):
     return _require_session(slug, session_id)
 
 
+@app.post("/api/topics/{slug}/sessions/{session_id}/open")
+def api_session_open(slug: str, session_id: str):
+    """Mark the session as used now — the client calls this when it opens one.
+
+    The session list is ordered by last use, and reading a session is using it, so
+    the stamp cannot come from a write. Deliberately not folded into the GET: a
+    read with a side effect would also fire on every background re-read.
+    """
+    _require_session(slug, session_id)
+    return {"openedAt": sessions.touch_session(slug, session_id)}
+
+
 @app.patch("/api/topics/{slug}/sessions/{session_id}")
 def api_session_patch(slug: str, session_id: str, req: SessionPatchRequest):
     """Rename a session. A typed name is the user's and is never generated over."""
