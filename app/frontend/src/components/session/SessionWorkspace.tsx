@@ -108,13 +108,6 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
     reload();
   }, [reload]);
 
-  // Opening a session is using it: stamp it so the session list — ordered by last
-  // use — puts the one you were just in at the top, even if you only read it.
-  useEffect(() => {
-    if (!activeSlug || !sessionId) return;
-    sessionApi.open(activeSlug, sessionId).then(refreshSessions).catch(() => {});
-  }, [activeSlug, sessionId, refreshSessions]);
-
   // Runs belonging to this session — the transcript and the run panel both read
   // them, and a reload re-attaches through the store's own queue.
   const sessionRuns = useMemo(

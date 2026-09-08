@@ -172,11 +172,6 @@ export const sessionApi = {
     patchJSON<Session>(`${S(slug)}/${encodeURIComponent(id)}`, { title }),
   remove: (slug: string, id: string) => del(`${S(slug)}/${encodeURIComponent(id)}`),
 
-  // "I am in this session now" — stamps `opened_at`, which is what the session
-  // list is ordered by. Opening is not an edit, so it does not touch `updated_at`.
-  open: (slug: string, id: string) =>
-    postJSON<{ openedAt: string }>(`${S(slug)}/${encodeURIComponent(id)}/open`, {}),
-
   // Load items into the session context without sending a turn — the
   // click-in-the-panel path. Items already loaded are a no-op, not a duplicate.
   addContext: (slug: string, id: string, context: { kind: string; id: string }[]) =>

@@ -562,9 +562,8 @@ export interface SessionSummary {
   title: string;
   createdAt: string;
   updatedAt: string;
-  // When it was last opened, and the later of that and `updatedAt` — the list is
-  // ordered by the latter, so "last used" covers reading as well as writing.
-  openedAt: string;
+  // When something was last said in the session — the list is ordered by this,
+  // not by `updatedAt`, which moves on any write to the record.
   lastUsedAt: string;
   messageCount: number;
   contextCount: number;

@@ -157,32 +157,20 @@ def list_sessions(slug: str, *, full: bool = False) -> list[dict]:
 
 
 def last_used_at(rec: dict) -> str:
-    """When the session was last *used* — opened or written, whichever is later.
+    """When something was last *said* in the session — the last message's ``at``.
 
-    ``updated_at`` alone answers "when did this record last change", which is not
-    the same question: re-reading a session to look something up is using it, and a
-    list ordered by writes buries the session you were just in under one you last
-    typed in. ``opened_at`` is stamped by :func:`touch_session`; sessions written
-    before it existed simply fall back to their write time.
+    Not ``updated_at``: that moves on any write to the record, so loading a bit of
+    context or letting an autoname land would push a session no one has spoken in
+    above one that was actually worked in. And not the time it was last opened
+    either — clicking through the list to find something would reorder the list you
+    were reading. A session with no messages yet falls back to its creation time.
     """
-    return max(rec.get("opened_at") or "", rec.get("updated_at") or "",
-               rec.get("created_at") or "")
-
-
-def touch_session(slug: str, session_id: str) -> str | None:
-    """Stamp ``opened_at`` — the session was opened in the UI.
-
-    Written straight to disk rather than through :func:`write_session`, which
-    bumps ``updated_at``: opening a session is not a change to it, and conflating
-    the two would make every read look like an edit in the record's own history.
-    """
-    rec = read_session(slug, session_id)
-    if rec is None:
-        return None
-    rec["opened_at"] = _now()
-    path = session_path(slug, session_id)
-    path.write_text(json.dumps(rec, indent=1, default=str))
-    return rec["opened_at"]
+    messages = rec.get("messages") or []
+    for msg in reversed(messages):
+        at = msg.get("at")
+        if at:
+            return at
+    return rec.get("created_at") or ""
 
 
 def summarize(rec: dict) -> dict:
@@ -194,7 +182,7 @@ def summarize(rec: dict) -> dict:
         "title": rec.get("title") or "Untitled session",
         "createdAt": rec.get("created_at", ""),
         "updatedAt": rec.get("updated_at", ""),
-        "openedAt": rec.get("opened_at", ""),
+        # When the session was last spoken in — what the list is ordered by.
         "lastUsedAt": last_used_at(rec),
         "messageCount": len(messages),
         "contextCount": len(rec.get("context") or []),
@@ -215,7 +203,6 @@ def create_session(slug: str, title: str = "") -> dict:
         "title_auto": not named,
         "created_at": _now(),
         "updated_at": _now(),
-        "opened_at": _now(),
         "messages": [],
         "context": [],
         "touched": [],
