@@ -12,6 +12,8 @@ outright ~1 in 3 times even with the registry's re-ask, and it is slower (9-11s 
 
 from __future__ import annotations
 
+import re
+
 from src.common.utils.prompts import load_prompt
 from src.common.utils.logging.trace import log_event
 from src.llm.registry import chat_with_structured_output, get_llm
@@ -104,6 +106,53 @@ def _consolidate_investigator_steps(planned: Plan) -> Plan:
     return planned.model_copy(update={"steps": remapped})
 
 
+_COUNT_CRITERION = re.compile(
+    r"^\s*\d+\s+(?:further\s+)?candidates?\s+returned\s*$", re.IGNORECASE)
+
+
+def normalize_thinker_plan(planned: Plan) -> Plan:
+    """Drop a candidate count no step of this plan can return.
+
+    `width` is the branching factor of one expansion in either mode, and it is a real
+    control in refinement: it is how many branches a level opens before the evaluator
+    picks one, which is how wide the thinking goes. What it is not, in refinement, is a
+    count of what comes back — the tree may open six branches and still return the one
+    revised idea it deepened.
+
+    So a refinement-only plan carrying `done_criteria: ["2 candidates returned"]` states a
+    condition its own step cannot meet, however it was reached. Reflect judges results
+    against those criteria, correctly reports a permanent shortfall, and routes to
+    `replan` — which re-runs the whole tree of thought, and again, to the iteration cap.
+    Each extra run is a full thinking budget spent on arithmetic rather than a judgment.
+
+    Only the criterion is wrong, so only the criterion is dropped; `width` is left exactly
+    as the planner or the researcher set it. And only when *nothing* in the plan generates:
+    a plan that generates three candidates and then refines one legitimately asks for three.
+
+    Applied to the planner's own output and to a plan approved in the UI, since the gate
+    lets the researcher edit arguments and the count was derived from one of them.
+    """
+    thinker_modes = [str(step.args.get("thinking_mode") or "generation")
+                     for step in planned.steps if step.tool == "creative_thinker"]
+    if not thinker_modes or "generation" in thinker_modes:
+        return planned
+
+    criteria = [c for c in planned.done_criteria if not _COUNT_CRITERION.match(c)]
+    if len(criteria) == len(planned.done_criteria):
+        return planned
+    return planned.model_copy(update={
+        "done_criteria": criteria or ["at least one revised candidate returned"]})
+
+
+# The compute controls each mode actually has, and so the ones a researcher can have set
+# at the gate. `width` belongs to both: in generation it is the number of candidates, in
+# refinement the branching factor of every level. Only `depth` is refinement-only.
+_MANUAL_SETTINGS: dict[str, tuple[str, ...]] = {
+    "generation": ("width",),
+    "refinement": ("width", "depth"),
+}
+
+
 def _preserve_manual_thinker_settings(planned: Plan, approved: Plan | None) -> Plan:
     """Keep researcher-selected width/depth authoritative across automatic replans.
 
@@ -113,14 +162,14 @@ def _preserve_manual_thinker_settings(planned: Plan, approved: Plan | None) -> P
     """
     if approved is None:
         return planned
-    chosen: dict[str, int] = {}
+    chosen: dict[str, dict[str, int]] = {}
     for step in approved.steps:
         if step.tool != "creative_thinker":
             continue
         mode = str(step.args.get("thinking_mode") or "generation")
-        setting = "depth" if mode == "refinement" else "width"
-        if setting in step.args:
-            chosen[mode] = int(step.args[setting])
+        for setting in _MANUAL_SETTINGS.get(mode, ()):
+            if setting in step.args:
+                chosen.setdefault(mode, {})[setting] = int(step.args[setting])
     if not chosen:
         return planned
 
@@ -130,10 +179,8 @@ def _preserve_manual_thinker_settings(planned: Plan, approved: Plan | None) -> P
             steps.append(step)
             continue
         mode = str(step.args.get("thinking_mode") or "generation")
-        setting = "depth" if mode == "refinement" else "width"
         args = dict(step.args)
-        if mode in chosen:
-            args[setting] = chosen[mode]
+        args.update(chosen.get(mode, {}))
         steps.append(step.model_copy(update={"args": args}))
     return planned.model_copy(update={"steps": steps})
 
@@ -172,6 +219,7 @@ def plan(state: OrchestratorState) -> dict:
 
     planned = chat_with_structured_output(get_llm("cheap"), _SYSTEM, user_message, Plan)
     planned = _consolidate_investigator_steps(planned)
+    planned = normalize_thinker_plan(planned)
     planned = _preserve_manual_thinker_settings(
         planned, state.get("approved_plan") if state.get("iteration", 0) else None)
     log_event("orchestrator plan", round=round_now, **planned.model_dump(mode="json"))

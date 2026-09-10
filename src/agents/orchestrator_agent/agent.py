@@ -64,7 +64,10 @@ from src.agents.orchestrator_agent.state import (
     UNMETERED_TOOL_LLM_CHARGE,
     OrchestratorState,
 )
-from src.agents.orchestrator_agent.subagents.plan.agent import plan
+from src.agents.orchestrator_agent.subagents.plan.agent import (
+    normalize_thinker_plan,
+    plan,
+)
 from src.agents.orchestrator_agent.subagents.reflect.agent import reflect
 from src.agents.orchestrator_agent.tools.commit import commit_selection  # noqa: F401 — public API
 from src.agents.orchestrator_agent.tools.registry import ToolEnv, dispatch
@@ -335,7 +338,11 @@ def adopt_plan(state: OrchestratorState) -> dict:
     view, the reflect prompt's view of what was asked for — sees the plan the same way on
     both runs, rather than the executing run appearing to run steps nobody planned.
     """
-    approved: Plan = state.get("approved_plan") or Plan()
+    # Unchanged in intent, normalized in arithmetic: the gate lets the researcher edit
+    # arguments, and a `width` typed onto a refinement step brings a candidate count with
+    # it that refinement cannot return. Left in, that count is a permanent shortfall which
+    # sends reflect back to the planner and re-runs the whole tree of thought.
+    approved: Plan = normalize_thinker_plan(state.get("approved_plan") or Plan())
     log_event("orchestrator plan approved", goal=approved.goal, steps=len(approved.steps))
     log_event("orchestrator plan", round=1, **approved.model_dump(mode="json"))
     return {"plan": approved}

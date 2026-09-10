@@ -4,6 +4,7 @@ import { NodeInspector, ThoughtTree } from "./ThoughtTree";
 import { treeForRun } from "../lib/thoughts";
 import { progressForRun } from "../lib/orchestratorProgress";
 import type { StepHandover } from "../lib/orchestratorProgress";
+import { useMirroredInPanel } from "./session/thoughtsMirror";
 import { useWorkspace } from "../lib/store";
 import type { RunState, ThoughtNode } from "../lib/types";
 
@@ -112,6 +113,8 @@ export function OrchestratorProgress({ run }: { run: RunState }) {
   } : null;
   const visibleSelection = selected?.kind === "root" ? null : selected;
   const live = run.status === "running";
+  // The window is already drawing this exact tree — see `thoughtsMirror`.
+  const mirrored = useMirroredInPanel(run.id);
 
   return (
     <div className="live-thoughts orchestrator-progress">
@@ -221,14 +224,20 @@ export function OrchestratorProgress({ run }: { run: RunState }) {
               ? ` · ${thinkerTree.nodes.length} candidate${thinkerTree.nodes.length === 1 ? "" : "s"}`
               : ""}
           </div>
-          {thinkerTree && thinkerTree.nodes.length > 0 ? (
+          {mirrored ? (
+            <p className="live-thoughts-wait">
+              {thinkerTree && thinkerTree.nodes.length > 0
+                ? "Shown in the Tree of thoughts window."
+                : "Candidate branches will appear in the Tree of thoughts window."}
+            </p>
+          ) : thinkerTree && thinkerTree.nodes.length > 0 ? (
             <ThoughtTree run={thinkerTree} selected={visibleSelection} onSelect={setSelected} />
           ) : (
             <p className="live-thoughts-wait">
               Candidate branches will appear here as they are generated.
             </p>
           )}
-          {visibleSelection && (
+          {!mirrored && visibleSelection && (
             <NodeInspector node={visibleSelection} onClose={() => setSelected(null)} />
           )}
         </div>

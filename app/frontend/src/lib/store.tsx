@@ -124,6 +124,28 @@ function metaToState(meta: RunMeta, events: RunEvent[] = []): RunState {
   };
 }
 
+/** A run we are streaming but whose meta has not arrived yet — a shell to hold its
+ *  events until it does. Deliberately session-less: the session transcript filters on
+ *  `sessionId`, so a half-known run never flashes into a chat. */
+function placeholderRun(runId: string, ev: RunEvent): RunState {
+  return {
+    id: runId,
+    agent: ev.kind === "run_start" ? ev.agent ?? "" : "",
+    kind: "idea",
+    status: "running",
+    query: null,
+    events: [ev],
+    error: null,
+    resultPaperId: null,
+    resultIdeaIds: [],
+    candidates: [],
+    target: null,
+    sessionId: null,
+    envelope: null,
+    note: null,
+  };
+}
+
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [topics, setTopics] = useState<TopicMeta[]>([]);
   const [activeSlug, _setActiveSlug] = useState<string | null>(null);
@@ -226,9 +248,24 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // A run's stream is followed from seq 0 the moment it is started, which is before
+  // the runs list it belongs to has come back from the server. Dropping the events
+  // that arrive in that window loses them for good — the stream is replay-then-follow
+  // and is never re-requested — and for an approved plan that window swallows the
+  // whole header: `orchestrator plan` and the first `orchestrator step started` are
+  // emitted within ~8ms of the run starting, so the card renders as if the turn were
+  // still being planned. Hold them on a placeholder instead; `mergeMeta`/`syncRuns`
+  // fill in the real meta and keep the events already collected. The placeholder has
+  // no session id, so nothing renders it until its meta lands.
   const pushEvent = useCallback((slug: string, runId: string, ev: RunEvent) => {
     if (slug !== slugRef.current) return;
-    setRuns((rs) => rs.map((r) => (r.id === runId ? { ...r, events: [...r.events, ev] } : r)));
+    setRuns((rs) => {
+      const i = rs.findIndex((r) => r.id === runId);
+      if (i === -1) return [...rs, placeholderRun(runId, ev)];
+      const next = [...rs];
+      next[i] = { ...next[i], events: [...next[i].events, ev] };
+      return next;
+    });
   }, []);
 
   // Follow one run's event stream (replay from 0, then live). The paper-attach
@@ -270,10 +307,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (slug !== slugRef.current) return;
     setRuns((rs) => {
       const byId = new Map(rs.map((r) => [r.id, r]));
-      return metas.map((m) => {
-        const prev = byId.get(m.run_id);
-        return metaToState(m, prev?.events ?? []);
-      });
+      const listed = new Set(metas.map((m) => m.run_id));
+      const next = metas.map((m) => metaToState(m, byId.get(m.run_id)?.events ?? []));
+      // A run whose stream we are already following but which this (possibly in-flight)
+      // listing predates: keep it, or its buffered events go the way they used to. It
+      // is by definition the newest, and the server lists oldest-first, so it goes last.
+      return [...next, ...rs.filter((r) => !listed.has(r.id) && attachedRef.current.has(r.id))];
     });
     for (const m of metas) if (m.status === "running") attach(slug, m.run_id);
   }, [attach]);

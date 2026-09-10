@@ -22,6 +22,7 @@ import { NodeInspector, ThoughtTree, TruncationNote } from "../ThoughtTree";
 import { isOrchestratorRun, progressForRun } from "../../lib/orchestratorProgress";
 import { IdeaContent } from "../views/IdeaContent";
 import { useFullIdea } from "../views/Ideas";
+import { mirroredRun } from "./thoughtsMirror";
 import { treeForRun } from "../../lib/thoughts";
 import type {
   AgentPlan, Column, ContextRef, Gap, Idea, Panel, PanelKind, PlanStatus, Row, RunState,
@@ -689,7 +690,7 @@ function PlanPanel({
 function ThoughtsPanel({ runs, head }: { runs: RunState[]; head: (c: ReactNode) => ReactNode }) {
   const [showPruned, setShowPruned] = useState(true);
   const [selected, setSelected] = useState<ThoughtNode | null>(null);
-  const run = runs[runs.length - 1];
+  const run = mirroredRun(runs);
   const tree = treeForRun(run);
   const live = run?.status === "running";
 

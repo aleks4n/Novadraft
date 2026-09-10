@@ -560,5 +560,11 @@ DEEPSEEK_API_KEY=...   # primary provider (reasoner + cheap)
 OPENAI_API_KEY=...     # optional fallback
 ```
 
+Either role can be pointed at another model without touching the code — set
+`NOVADRAFT_REASONER_MODEL` / `NOVADRAFT_CHEAP_MODEL` to a `provider:model` string
+`init_chat_model` understands. Unset, they keep the defaults in `MODELS`. `get_llm`
+reads the key for whichever provider the roles actually name, so a stale key for a
+provider nobody is calling does not count as configured.
+
 When no key is set, `get_llm` returns a deterministic `_MockChat` and all
 runs complete without network access (LLM responses are empty stubs).

@@ -13,6 +13,7 @@ import { Chat } from "./Chat";
 import type { PlanActions } from "./Chat";
 import { KIND_LABEL, PanelGrid } from "./Panels";
 import type { PlannedTurn } from "./Panels";
+import { ThoughtsMirror, mirroredRun } from "./thoughtsMirror";
 import type { DraftActions } from "./EnvelopeResult";
 import type { Mark } from "../IdeaGraph";
 import { sessionApi } from "../../lib/api";
@@ -238,6 +239,16 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
   // turn — the same shape as accepting a draft: what the agent produced is an offer,
   // and the user's click is what makes it happen.
 
+  // With the *Tree of thoughts* window open it and the chat card show the same tree
+  // of the same run. Tell the card which run that is so it can stand down rather than
+  // draw the branches a second time.
+  const thoughtsMirror = useMemo(
+    () => (allPanels(rows).some((p) => p.kind === "thoughts")
+      ? mirroredRun(sessionRuns)?.id ?? null
+      : null),
+    [rows, sessionRuns],
+  );
+
   const planActions: PlanActions = useMemo(() => ({
     start: async (runId: string, plan: AgentPlan) => {
       if (!activeSlug || !sessionId || starting) return;
@@ -400,6 +411,7 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
         </div>
       </div>
 
+      <ThoughtsMirror.Provider value={thoughtsMirror}>
       <PanelGrid
         rows={rows}
         onChange={setRows}
@@ -432,6 +444,7 @@ export function SessionWorkspace({ sessionId }: { sessionId: string | null }) {
           />
         )}
       />
+      </ThoughtsMirror.Provider>
     </div>
   );
 }

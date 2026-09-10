@@ -12,6 +12,7 @@ import { useState } from "react";
 import { Icon } from "./Icon";
 import { OrchestratorProgress } from "./OrchestratorProgress";
 import { NodeInspector, ThoughtTree } from "./ThoughtTree";
+import { useMirroredInPanel } from "./session/thoughtsMirror";
 import { isOrchestratorRun } from "../lib/orchestratorProgress";
 import { treeForRun } from "../lib/thoughts";
 import { useWorkspace } from "../lib/store";
@@ -27,6 +28,8 @@ function CreativeThoughts({ run }: { run: RunState }) {
   const [selected, setSelected] = useState<ThoughtNode | null>(null);
   const tree = treeForRun(run);
   const live = run.status === "running";
+  // The Tree of thoughts window is drawing this same tree — don't draw it twice.
+  const mirrored = useMirroredInPanel(run.id);
 
   return (
     <div className="live-thoughts">
@@ -55,7 +58,12 @@ function CreativeThoughts({ run }: { run: RunState }) {
 
       {run.error && <p className="run-error">{run.error}</p>}
 
-      {tree ? (
+      {mirrored ? (
+        <p className="live-thoughts-wait">
+          {tree ? "Shown in the Tree of thoughts window."
+            : "Branches will appear in the Tree of thoughts window."}
+        </p>
+      ) : tree ? (
         <>
           <ThoughtTree run={tree} selected={selected} onSelect={setSelected} />
           {selected && <NodeInspector node={selected} onClose={() => setSelected(null)} />}

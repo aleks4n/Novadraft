@@ -79,6 +79,106 @@ def test_single_investigator_paper_count_is_clamped_to_tool_limit():
     assert result.steps[0].args["paper_count"] == 5
 
 
+def test_a_refinement_plan_cannot_carry_a_candidate_count_it_will_never_meet():
+    """Widening a refinement widens the tree, not the return: it deepens one idea however
+    many branches a level opened. A count taken from `width` is therefore a criterion the
+    step cannot meet, and reflect read it as a shortfall every round and replanned —
+    re-running the whole tree of thought to the iteration cap.
+
+    The width itself is a control the researcher owns, and stays exactly as set.
+    """
+    from src.agents.orchestrator_agent.subagents.plan.agent import normalize_thinker_plan
+
+    planned = Plan(goal="Stress-test it.", steps=[ToolCall(
+        tool="creative_thinker",
+        args={"thinking_mode": "refinement", "width": 2, "depth": 2,
+              "styles": ["skeptic"], "work_on": [IDEA_A]},
+    )], done_criteria=["2 candidates returned",
+                       "at least one revised candidate returned",
+                       "the candidate names concrete failure modes"])
+
+    result = normalize_thinker_plan(planned)
+
+    assert result.done_criteria == ["at least one revised candidate returned",
+                                    "the candidate names concrete failure modes"]
+    assert result.steps[0].args["width"] == 2, "the branching factor is left alone"
+    assert result.steps[0].args["depth"] == 2
+
+
+def test_a_generation_step_keeps_the_count_a_later_refinement_shares():
+    """Only a plan with nothing generating loses its count: `generate 3, then refine one`
+    legitimately asks for three."""
+    from src.agents.orchestrator_agent.subagents.plan.agent import normalize_thinker_plan
+
+    planned = Plan(goal="Generate then sharpen.", steps=[
+        ToolCall(tool="creative_thinker", args={"thinking_mode": "generation", "width": 3}),
+        ToolCall(tool="creative_thinker", needs=[1],
+                 args={"thinking_mode": "refinement", "width": 2}),
+    ], done_criteria=["3 candidates returned"])
+
+    result = normalize_thinker_plan(planned)
+
+    assert result.done_criteria == ["3 candidates returned"]
+    assert [step.args["width"] for step in result.steps] == [3, 2]
+
+
+def test_two_thinker_steps_in_one_turn_get_distinct_node_ids(workspace, rec):
+    """Node ids are `<run_id>:n<k>` from a counter that restarts per call, so sharing the
+    turn's run id across steps had both runs mint `n0, n1, …` — and the UI, which replays
+    a turn's whole branch stream into one tree, drew each node once per collision.
+    """
+    rec.plans = [Plan(goal="Twice.", done_criteria=["done"], steps=[
+        ToolCall(tool="creative_thinker", args={"thinking_mode": "generation", "width": 1}),
+        ToolCall(tool="creative_thinker", needs=[1], args={"thinking_mode": "refinement"}),
+    ])]
+    made = [candidate("One")]
+    rec.envelopes = [envelope(drafts=made), envelope(idea=made[0])]
+    rec.judgments = [ReflectJudgment(route="finish", answer="Done.")]
+
+    turn(workspace, "generate then refine", gaps=[GAP_ID])
+
+    run_ids = [call.args["run_id"] for call in rec.to("creative_thinker")]
+    assert len(set(run_ids)) == 2, "each thinker run names its own nodes"
+    assert all(rid.startswith("run_1-") for rid in run_ids), "the turn stays readable in it"
+
+
+def test_replan_preserves_a_researcher_widened_refinement(workspace, rec):
+    """Width is a control in refinement too — the branching factor of every level — so an
+    automatic replan must not quietly reset it to whatever the planner would have picked.
+    It used to keep only `depth` for refinement steps, on the assumption that width said
+    nothing there.
+    """
+    approved = Plan(goal="Refine widely.", steps=[ToolCall(
+        tool="creative_thinker", args={
+            "thinking_mode": "refinement", "depth": 2, "width": 5,
+            "work_on": ["idea_missing"],
+        },
+    )])
+    rec.plans = [Plan(goal="Retry.", steps=[ToolCall(
+        tool="creative_thinker", args={
+            "thinking_mode": "refinement", "depth": 3, "width": 1, "work_on": [IDEA_A],
+        },
+    )])]
+    rec.envelopes = [envelope(idea=IdeaRecord(
+        idea_id=IDEA_A, title="Kernel attention", state="root",
+        description="Refined.", addresses=[GAP_ID],
+    ))]
+    rec.judgments = [
+        ReflectJudgment(route="replan", feedback="Use the valid selected idea."),
+        ReflectJudgment(route="finish", answer="Refined it."),
+    ]
+
+    build_orchestrator_graph().invoke({
+        "session_id": "s-width", "category_slug": CATEGORY, "run_id": "run-width",
+        "message": "refine it", "iteration": 0, "approved_plan": approved,
+        "focus": FocusSelection(idea_ids=[IDEA_A]),
+    })
+
+    call = rec.to("creative_thinker")[0]
+    assert call.args["width"] == 5, "the researcher's branching factor survives the replan"
+    assert call.args["depth"] == 2
+
+
 def test_replan_preserves_user_selected_refinement_depth(workspace, rec):
     """An automatic correction cannot raise depth beyond what the user approved."""
     approved = Plan(goal="Refine.", steps=[ToolCall(
@@ -215,6 +315,9 @@ def rec(monkeypatch) -> Recorder:
             "depth": call.depth,
             "tool_use": call.tool_use,
             "budget_llm_calls": call.budget.max_llm_calls,
+            # Each call names its own run: node ids are minted from this, by a counter
+            # that starts over every time.
+            "run_id": call.run_id or "",
             "subject": call.idea.idea_id,
             "subject_title": call.idea.title,
             "context_gaps": [g.get("gap_id") for g in call.context.get("gaps") or []],

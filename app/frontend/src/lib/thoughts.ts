@@ -41,6 +41,12 @@ export function treeFromEvents(events: RunEvent[]): IdeaRun | null {
     if (!id) continue;
 
     if (ev.name === "branch created") {
+      // One turn can call the thinker several times, and each call streams its own tree
+      // into this same event log. Nodes are keyed by id, so a repeat id must not take a
+      // second place in `order` — it would render the same card once per creation, which
+      // is what a turn that replanned used to look like. (Ids are unique per run now;
+      // this keeps an older log honest when it is replayed.)
+      const seen = byId.has(id);
       const parentId = str(d["parent_id"]) || null;
       byId.set(id, {
         id,
@@ -54,8 +60,9 @@ export function treeFromEvents(events: RunEvent[]): IdeaRun | null {
         comparison: "",
         question: null,
       });
-      order.push(id);
-      if (parentId) edges.push({ from: parentId, to: id, type: "expanded-into" });
+      if (!seen) order.push(id);
+      if (parentId && !edges.some((e) => e.from === parentId && e.to === id))
+        edges.push({ from: parentId, to: id, type: "expanded-into" });
       continue;
     }
 

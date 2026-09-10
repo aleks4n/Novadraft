@@ -86,9 +86,13 @@ class ThinkerArgs(BaseModel):
         default=3,
         ge=1,
         le=_MAX_WIDTH,
-        description=f"How many candidates a generation call returns, between 1 and "
-                    f"{_MAX_WIDTH}. Set it to the number the user asked for; leave the "
-                    f"default when they gave none. Ignored in refinement mode.",
+        description=f"The branching factor of one expansion, between 1 and {_MAX_WIDTH}. "
+                    f"In generation it is how many candidates come back — set it to the "
+                    f"number the user asked for. In refinement it is how many branches "
+                    f"each level of the tree opens before one is chosen, so it widens the "
+                    f"thinking without changing what is returned: refinement returns the "
+                    f"one revised idea however wide it went. A depth-1 refinement is the "
+                    f"plain single chain and always has one branch.",
     )
     depth: int = Field(
         default=3,
@@ -102,6 +106,7 @@ class ThinkerArgs(BaseModel):
         default=False,
         description="Let the thinker research mid-thought: slower, better grounded.",
     )
+
 
 
 def _from_earlier_step(ref: str, env: ToolEnv) -> IdeaRecord | None:
@@ -272,6 +277,21 @@ def _investigator(env: ToolEnv) -> Callable[[str], dict]:
     return ask
 
 
+def _thinker_run_id(env: ToolEnv) -> str | None:
+    """A run id of this call's own, prefixed by the turn that made it.
+
+    `TraceBuilder` names nodes `<run_id>:n<k>` from a counter that starts at zero for
+    every `think()`. Handing every step of a turn the same `env.run_id` therefore had two
+    thinker calls mint the same node ids — and the UI, which replays a turn's whole
+    `branch created` stream into one tree, then rendered one node several times: the
+    duplicated cards. A per-call suffix keeps the turn readable in the id while making
+    each run's nodes distinct, which is also what an idea's `runs` list means by a run.
+    """
+    if not env.run_id:
+        return None
+    return f"{env.run_id}-{uuid.uuid4().hex[:4]}"
+
+
 def _trace_handover(call: ThinkerCall, subject: IdeaRecord, around: Context) -> None:
     """Record what this step is handing the thinker, before it runs.
 
@@ -341,7 +361,7 @@ def run(args: ThinkerArgs, ctx: Context, env: ToolEnv) -> ToolResult:
         tool_use=args.tool_use,
         budget=Budget(max_llm_calls=env.max_llm_calls) if env.max_llm_calls else Budget(),
         session_id=env.session_id or None,
-        run_id=env.run_id or None,
+        run_id=_thinker_run_id(env),
     )
 
     _trace_handover(call, subject, around)

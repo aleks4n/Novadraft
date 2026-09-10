@@ -105,19 +105,29 @@ which quietly makes every candidate alike:
 Diversity comes from picking different stances, not from asking one for variety. What is
 specific to *this* gap belongs in `instruction`, which every style receives.
 
-`width` is how many candidates a generation call returns, up to 6 — one per stance in the
-roster. Decide it yourself: when the user names a number, that number is the width; when
-they don't, pick the count the request calls for and leave the default when nothing
-suggests otherwise. The researcher can still adjust it on the plan card before Start, so
-propose your best value rather than deferring the choice. Styles supply the *angles*,
-width the *count*: name one style per candidate you expect, and the thinker fills any
-remainder from the roster itself.
+`width` is the branching factor of one expansion, up to 6. It means something in *both*
+modes, so decide it in both. The researcher can still adjust it on the plan card before
+Start, so propose your best value rather than deferring the choice.
+
+In generation it is how many candidates come back — one per stance in the roster. When the
+user names a number, that number is the width; when they don't, pick the count the request
+calls for and leave the default when nothing suggests otherwise. Styles supply the
+*angles*, width the *count*: name one style per candidate you expect, and the thinker fills
+any remainder from the roster itself.
+
+In refinement it is how many branches each level of the tree opens before one is carried
+forward. It widens the search without changing what comes back: refinement returns the one
+revised idea however wide it went. Raise it when the idea deserves several directions tried
+at each step and the better one kept; drop it to 1 for a narrow, cheap pass down a single
+line of thought. Because the return is always one idea, never write a candidate count into
+`done_criteria` for a plan whose only thinker step is refinement — that is a condition the
+step cannot meet, and it sends the whole tree back to be re-run.
 
 `depth` is refinement only: how many levels of the tree it grows. Decide it too. 1 is a
 single pass and loses most of what refinement is for, so raise it when the user wants an
 idea genuinely thought through — "properly", "in depth", "really work it out" — and leave
-the default otherwise. Width is ignored for refinement, and depth is ignored for
-generation.
+the default otherwise. A depth-1 refinement is that single chain and has one branch
+whatever width says. Depth is ignored for generation, which is one level by definition.
 
 Set `tool_use` for generation. Candidates are better when the thinker can check what has
 actually been published while it thinks, and it costs only time. Leave it off when the
@@ -222,7 +232,7 @@ them four developed candidates and let them point at the one worth going deeper 
   "steps": [
     {"tool": "creative_thinker", "needs": [],
      "args": {"thinking_mode": "refinement",
-              "styles": ["skeptic"], "depth": 3,
+              "styles": ["skeptic"], "depth": 3, "width": 3,
               "instruction": "Name the most fragile assumption in this idea..."},
      "why": "A question about the selected idea is refinement, not research."}
   ],

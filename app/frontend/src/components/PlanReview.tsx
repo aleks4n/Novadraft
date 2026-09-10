@@ -64,9 +64,15 @@ const TITLE_ARGS = new Set(["instruction", "query", "task"]);
 function relevantArg(step: PlanStep, name: string): boolean {
   if (step.tool !== "creative_thinker") return true;
   const mode = step.args?.thinking_mode ?? "generation";
+  // `width` is the branching factor of one expansion in *either* mode — in refinement
+  // it is how many branches a level opens before the evaluator picks one. The single
+  // case where it says nothing is a depth-1 refinement, which the call schema pins to
+  // one branch because that is the promised plain chain of thought. `depth` is the one
+  // that is refinement-only: generation is depth 1 by definition.
   if (name === "depth") return mode === "refinement";
-  if (name === "width") return mode === "generation";
-  return true;
+  if (name !== "width") return true;
+  const depth = step.args?.depth;
+  return mode !== "refinement" || (typeof depth === "number" ? depth : 3) > 1;
 }
 
 /** Every argument of one step as a row of chips — the "which parameters" half. */
@@ -187,12 +193,23 @@ function withoutStep(steps: PlanStep[], index: number): PlanStep[] {
     }));
 }
 
+const COUNT_CRITERION = /^\s*\d+\s+(?:further\s+)?candidates?\s+returned\s*$/i;
+
 function criteriaForWidth(criteria: string[], width: number): string[] {
-  const count = /^\s*\d+\s+(?:further\s+)?candidates?\s+returned\s*$/i;
   return [
     `${width} candidate${width === 1 ? "" : "s"} returned`,
-    ...criteria.filter((criterion) => !count.test(criterion)),
+    ...criteria.filter((criterion) => !COUNT_CRITERION.test(criterion)),
   ];
+}
+
+/** Widening a refinement widens the *tree*, not the return: however many branches a
+ *  level opens, one revised idea comes back. A criterion counting candidates can
+ *  therefore never be met by a refinement-only plan, and reflect reads an unmeetable
+ *  criterion as a shortfall and replans, running the whole tree of thought again. So
+ *  drop the count rather than restating it — the width itself is left alone. */
+function criteriaForRefinement(criteria: string[]): string[] {
+  const kept = criteria.filter((criterion) => !COUNT_CRITERION.test(criterion));
+  return kept.length ? kept : ["at least one revised candidate returned"];
 }
 
 export function PlanReview({
@@ -240,14 +257,27 @@ export function PlanReview({
     setDraft((cur) => {
       const steps = cur.steps.map((step, i) => (i === index ? { ...step, ...patch } : step));
       // An edited width is authoritative over the count the planner wrote into the
-      // criteria, so the two never disagree on the card.
-      const width = steps[index].tool === "creative_thinker"
-        ? steps[index].args?.width : undefined;
+      // criteria, so the two never disagree on the card — but only where width is a
+      // count of what comes back. In refinement it is the branching factor of the tree
+      // and one revised idea is returned regardless, so a count taken from it would be a
+      // criterion the plan cannot meet.
+      const edited = steps[index];
+      const isThinker = edited.tool === "creative_thinker";
+      const generation = (edited.args?.thinking_mode ?? "generation") === "generation";
+      const width = isThinker && generation ? edited.args?.width : undefined;
+      const criteria = cur.done_criteria || [];
+      const countsElsewhere = steps.some(
+        (step, i) => i !== index && step.tool === "creative_thinker"
+          && (step.args?.thinking_mode ?? "generation") === "generation");
       return {
         ...cur,
         steps,
-        done_criteria: typeof width === "number" && width !== cur.steps[index].args?.width
-          ? criteriaForWidth(cur.done_criteria || [], width) : cur.done_criteria,
+        done_criteria:
+          typeof width === "number" && width !== cur.steps[index].args?.width
+            ? criteriaForWidth(criteria, width)
+            : isThinker && !generation && !countsElsewhere
+              ? criteriaForRefinement(criteria)
+              : criteria,
       };
     });
 
