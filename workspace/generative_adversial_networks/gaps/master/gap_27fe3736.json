@@ -1,0 +1,114 @@
+{
+  "gap_id": "gap_27fe3736",
+  "status": "validated",
+  "title": "Difficulty using piecewise linear units in generative models",
+  "description": "Prior generative models have difficulty leveraging the benefits of piecewise linear units, which have well-behaved gradients in the discriminative context.",
+  "type": "open_problem",
+  "canonical_description": "difficulty leveraging piecewise linear units in generative context",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1406.2661",
+      "section": "introduction",
+      "anchor": "leveraging the benefits of piecewise linear units",
+      "quote": "related strategies, and due to difficulty of leveraging the benefits of piecewise linear units in",
+      "char_offset": [
+        985,
+        1082
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-09-09T04:12:53Z",
+  "verdict": {
+    "gap_id": "gap_27fe3736",
+    "status": "partially_solved",
+    "confidence": 0.6,
+    "reasoning": "The subsequent literature addresses parts of the gap but leaves its core unresolved. GraN-GAN tackles a concrete piecewise-linear difficulty in the generative context by normalizing the gradients of ReLU/LeakyReLU GAN critics, bounding generator gradients and stabilizing unconditional GAN training across several image benchmarks; this is the most direct hit, but it only fixes the discriminator/critic side and does not make piecewise linear units beneficial inside the generator or in other generative families (VAEs, flows, diffusion, autoregressive). ADR-GD improves input/latent-space optimization through pretrained ReLU generators by modeling activation-pattern changes, which is a narrow, indirect facet and says little about training or designing ReLU-based generative models. Soft-Root-Sign, rather than leveraging piecewise linear units, replaces them with a smooth activation and only shows on small 2D flow densities that ReLU-type units destabilize optimization. Thus several pieces are touched—GAN critic gradients, latent optimization, and evidence of ReLU failure in flows—but the specific problem of leveraging the benefits of piecewise linear units in the generative direction remains substantially open, with no paper making piecewise linear activations work robustly and beneficially within generators themselves.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2111.03162",
+          "title": "GraN-GAN: Piecewise Gradient Normalization for Generative Adversarial Networks",
+          "abstract": "Modern generative adversarial networks (GANs) predominantly use piecewise linear activation functions in discriminators (or critics), including ReLU and LeakyReLU. Such models learn piecewise linear mappings, where each piece handles a subset of the input space, and the gradients per subset are piecewise constant. Under such a class of discriminator (or critic) functions, we present Gradient Normalization (GraN), a novel input-dependent normalization method, which guarantees a piecewise K-Lipschitz constraint in the input space. In contrast to spectral normalization, GraN does not constrain processing at the individual network layers, and, unlike gradient penalties, strictly enforces a piecewise Lipschitz constraint almost everywhere. Empirically, we demonstrate improved image generation performance across multiple datasets (incl. CIFAR-10/100, STL-10, LSUN bedrooms, and CelebA), GAN loss functions, and metrics. Further, we analyze altering the often untuned Lipschitz constant K in several standard GANs, not only attaining significant performance gains, but also finding connections between K and training dynamics, particularly in low-gradient loss plateaus, with the common Adam optimizer.",
+          "authors": [
+            "Vineeth S. Bhaskara",
+            "Tristan Aumentado-Armstrong",
+            "Allan Jepson",
+            "Alex Levinshtein"
+          ],
+          "published_date": "2021-11-04T21:13:02Z",
+          "url": "https://arxiv.org/abs/2111.03162v1"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper tackles a concrete piecewise-linear-unit difficulty inside a generative model: GAN discriminators/critics built from ReLU/LeakyReLU are piecewise linear, giving piecewise-constant input gradients whose norms are uncontrolled, which destabilizes generator training. It proposes Gradient Normalization (GraN), which multiplies the (piecewise linear) scalar discriminator/critic output by a function of its local gradient norm, enforcing a piecewise K-Lipschitz constraint with constant-norm (≈K) gradients almost everywhere, and thereby bounds the gradients received by the generator (‖∇_x L_G‖ ≤ K). Extensive image-generation experiments (CIFAR-10/100, STL-10, LSUN, CelebA) across loss functions and metrics show competitive or improved FID/IS/KID versus gradient-penalty and spectral-normalization baselines.",
+        "what_remains_open": "The gap concerns difficulty of leveraging piecewise linear units in generative models broadly. The paper only addresses one slice of this: the discriminator/critic side of unconditional GANs (and only scalar-output, piecewise-linear-activation networks). It does not address piecewise linear activations inside the generator itself, nor other generative-model families (VAEs, flow/score/diffusion/autoregressive) where piecewise linear units' well-behaved gradients might be hard to exploit in the generative direction. It also does not investigate leveraging piecewise linearity for the benefit of sampling/representation in the generator; rather it constrains the discriminator to make GAN training stable.",
+        "evidence_snippets": [
+          "Modern generative adversarial networks (GANs) predominantly use piecewise linear activation functions in discriminators (or critics), including ReLU and LeakyReLU. Such models learn piecewise linear mappings, where each piece handles a subset of the input space, and the gradients per subset are piecewise constant.",
+          "We show that normalizing discriminators (or critics) with GraN bounds the gradients received by the generator $G$ almost everywhere, stabilizing GAN training.",
+          "therefore, for GANs with GraNDs and GraNCs, the generator $G$ receives gradients that are always bounded, i.e., $\\|\\nabla_x \\mathcal{L}_G \\| \\leq \\mathcal{K}$."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2406.00494",
+          "title": "Activation-Descent Regularization for Input Optimization of ReLU Networks",
+          "abstract": "We present a new approach for input optimization of ReLU networks that explicitly takes into account the effect of changes in activation patterns. We analyze local optimization steps in both the input space and the space of activation patterns to propose methods with superior local descent properties. To accomplish this, we convert the discrete space of activation patterns into differentiable representations and propose regularization terms that improve each descent step. Our experiments demonstrate the effectiveness of the proposed input-optimization methods for improving the state-of-the-art in various areas, such as adversarial learning, generative modeling, and reinforcement learning.",
+          "authors": [
+            "Hongzhan Yu",
+            "Sicun Gao"
+          ],
+          "published_date": "2024-06-01T16:46:46Z",
+          "url": "https://arxiv.org/abs/2406.00494v1"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper targets the underlying cause of the gap in one specific setting: it develops ADR-GD, an input-optimization method for ReLU networks that explicitly models changes in activation patterns (via differentiable sigmoid-surrogate activation variables, constraint losses, and perturbed gradient descent). It demonstrates this in generative-model use, specifically latent-variable optimization / reconstructing target images with pretrained ReLU-based generators, as one of several applications (also adversarial attacks and DRL action optimization). Thus it improves one workflow where piecewise-linear activations hurt generative optimization.",
+        "what_remains_open": "The paper only attacks a narrow, indirect facet of the gap: input/latent-space optimization through an already-trained ReLU generator. It does not address the broader problem of generative models \"leveraging the benefits of piecewise linear units\" in training or design — e.g., dead-ReLU/vanishing-gradient difficulties during GAN or likelihood-based training of ReLU generators, why piecewise linear units work well discriminatively but poorly generatively, or architectural/learning changes to make ReLU-based generative training robust. Generative modeling is a secondary application of a general ReLU input-optimizer; the paper proposes no generative-specific solution, and the generative experiments (image reconstruction via latent optimization) are largely relegated to benchmarks with the core contribution framed around adversarial attacks and general ReLU optimization.",
+        "evidence_snippets": [
+          "Many problems in deep learning involves optimizing the inputs of neural networks, instead of the model parameters. Examples include finding effective adversarial attacks~[CITE...], optimizing latent variables in generative models~[CITE...]...",
+          "Through our experiments (footnote: Codes are available at github.com/hoy021/ADR-GD.), we show that the proposed methods can significantly improve input optimization. We use benchmarks from several applications, such as optimizing adversarial attacks to neural image classifiers, reconstructing target images with generative models, and deep reinforcement learning with better action selection.",
+          "We present a novel optimization procedure for input optimization of ReLU Networks that explicitly takes into account the impact of changes in activation patterns on the output."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2003.00547",
+          "title": "Soft-Root-Sign Activation Function",
+          "abstract": "The choice of activation function in deep networks has a significant effect on the training dynamics and task performance. At present, the most effective and widely-used activation function is ReLU. However, because of the non-zero mean, negative missing and unbounded output, ReLU is at a potential disadvantage during optimization. To this end, we introduce a novel activation function to manage to overcome the above three challenges. The proposed nonlinearity, namely \"Soft-Root-Sign\" (SRS), is smooth, non-monotonic, and bounded. Notably, the bounded property of SRS distinguishes itself from most state-of-the-art activation functions. In contrast to ReLU, SRS can adaptively adjust the output by a pair of independent trainable parameters to capture negative information and provide zero-mean property, which leading not only to better generalization performance, but also to faster learning speed. It also avoids and rectifies the output distribution to be scattered in the non-negative real number space, making it more compatible with batch normalization (BN) and less sensitive to initialization. In experiments, we evaluated SRS on deep networks applied to a variety of tasks, including image classification, machine translation and generative modelling. Our SRS matches or exceeds models with ReLU and other state-of-the-art nonlinearities, showing that the proposed activation function is generalized and can achieve high performance across tasks. Ablation study further verified the compatibility with BN and self-adaptability for different initialization.",
+          "authors": [
+            "Yuan Zhou",
+            "Dandan Li",
+            "Shuwei Huo",
+            "Sun-Yuan Kung"
+          ],
+          "published_date": "2020-03-01T18:38:11Z",
+          "url": "https://arxiv.org/abs/2003.00547v1"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper proposes Soft-Root-Sign (SRS), a smooth, non-monotonic, bounded activation function meant to replace piecewise-linear ReLU, and evaluates it across image classification, machine translation, and generative modeling. In the generative part it tests SRS against other nonlinearities inside an i-ResNet flow on 2D toy densities (\"two moons\", \"pinwheel\", \"eight gaussians\"), reporting that continuous/smooth units (SRS, ELU) model multi-modal and discontinuous distributions better than ReLU-type piecewise linear units, which lead to unstable optimization in the flow setting.",
+        "what_remains_open": "The gap's core problem is the difficulty of *leveraging piecewise linear units' benefits in the generative context*. This paper does not solve that: it does not make piecewise linear units work better in generative models, but instead substitutes a smooth, bounded, non-piecewise activation. The generative evidence is limited to a qualitative comparison on small 2D toy densities with one flow architecture (i-ResNet, brute-force log-determinant), without real-scale generative tasks (GANs, VAEs, image density estimation) or an analysis of why piecewise linear units fail in generative settings beyond observing unstable optimization. Consequently, the specific problem of benefiting from piecewise linear units in generative models—rather than abandoning them—remains open, and even the proposed workaround is only demonstrated under limited conditions.",
+        "evidence_snippets": [
+          "We additionally verify the utility of SRS in building generative models. In this experiment, we compare SRS to different activation functions with i-ResNet Flows on the 2-dimensional toy datasets.",
+          "We observed that models with continuous derivatives can fit both multi-modal and even discontinuous distributions. Specifically, SRS and ELU are capable of modeling multi-modal distribution and can also learn convincing approximations of discontinuous density function.",
+          "On the other hand, nonlinearity with continuous derivatives, such as ReLU, LReLU, PReLU, and SELU, can lead to unstable optimization results."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 3,
+      "skipped_ids": []
+    }
+  },
+  "ranking": {
+    "openness": 0.3,
+    "impact": 0.3990274132982,
+    "feasibility": 0.6,
+    "feasibility_reasoning": "Progress is feasible on a scoped version: standard generative benchmarks and toy densities provide abundant data, and experiments can run on modest hardware (small GANs/VAEs/flows) without frontier-scale compute. Adjacent work (GraN-GAN critic gradient normalization, spectral normalization, activation-pattern analysis) gives a plausible methodological starting point for extending stabilization to the generator side. The main feasibility limits are that the core problem remains unresolved across generator architectures and the success criterion (\"robustly and beneficially\") is partly qualitative, so a team would need to narrow the claim to a specific family and metric such as training stability, FID, or likelihood. Overall it is a moderately tractable, experiment-driven gap rather than one requiring a fundamental breakthrough."
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "paper_id": "arxiv_1606.03657",
+  "metadata": {
+    "title": "InfoGAN: Interpretable Representation Learning by Information Maximizing Generative Adversarial Nets",
+    "authors": [
+      "Xi Chen",
+      "Yan Duan",
+      "Rein Houthooft",
+      "John Schulman",
+      "Ilya Sutskever",
+      "Pieter Abbeel"
+    ],
+    "year": 2016,
+    "publication_date": "2016-06-14",
+    "venue": "Neural Information Processing Systems",
+    "abstract": null,
+    "identifiers": {
+      "arxiv_id": "1606.03657",
+      "doi": null,
+      "semantic_scholar_id": null,
+      "openreview_id": null
+    },
+    "venue_type": "conference",
+    "venue_acronyms": [
+      "NeurIPS",
+      "NIPS"
+    ],
+    "citation_count": 4593,
+    "influential_citation_count": 435,
+    "enriched_via": "semantic_scholar",
+    "enriched_at": "2026-09-09T17:11:10Z"
+  },
+  "source": {
+    "input_query": "arxiv:1606.03657",
+    "input_type": "arxiv_id",
+    "resolved_via": "arxiv",
+    "source_url": "https://arxiv.org/abs/1606.03657",
+    "files": {
+      "pdf": "source.pdf",
+      "tex_dir": "source",
+      "tex_main": "source/main.tex"
+    },
+    "fetched_at": "2026-09-09T17:10:46Z"
+  },
+  "content": {
+    "sections": {
+      "body": "\\includepdf[pages=1-last]{nips_2016_infogan.pdf}"
+    },
+    "full_text": "# body\n\n\\includepdf[pages=1-last]{nips_2016_infogan.pdf}",
+    "tables": [],
+    "bibliography": {},
+    "extraction": {
+      "extracted_via": "tex",
+      "format": "latex_cleaned",
+      "math_fidelity": "high",
+      "section_count": 1,
+      "unresolved_macros": [],
+      "unmapped_headings": [],
+      "warnings": []
+    }
+  },
+  "summary": null,
+  "summary_verification": null,
+  "gaps": {
+    "gap_ids": []
+  },
+  "processing": {
+    "fetched": true,
+    "extracted": true,
+    "summarized": false,
+    "summary_verified": false,
+    "gaps_extracted": false
+  },
+  "warnings": [
+    "arxiv_metadata_failed: <HTTPError 429: 'Unknown Error'>"
+  ]
+}

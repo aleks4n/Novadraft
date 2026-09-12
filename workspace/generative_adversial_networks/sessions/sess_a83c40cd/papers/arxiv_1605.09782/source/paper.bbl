@@ -1,0 +1,204 @@
+\begin{thebibliography}{33}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Agrawal et~al.(2015)Agrawal, Carreira, and Malik]{pulkit}
+Pulkit Agrawal, Joao Carreira, and Jitendra Malik.
+\newblock Learning to see by moving.
+\newblock In \emph{ICCV}, 2015.
+
+\bibitem[Bahdanau et~al.(2015)Bahdanau, Cho, and Bengio]{bengiotranslate}
+Dzmitry Bahdanau, Kyunghyun Cho, and Yoshua Bengio.
+\newblock Neural machine translation by jointly learning to align and
+  translate.
+\newblock In \emph{ICLR}, 2015.
+
+\bibitem[Denton et~al.(2015)Denton, Chintala, Szlam, and Fergus]{lapgan}
+Emily~L. Denton, Soumith Chintala, Arthur Szlam, and Rob Fergus.
+\newblock Deep generative image models using a {L}aplacian pyramid of
+  adversarial networks.
+\newblock In \emph{NIPS}, 2015.
+
+\bibitem[Doersch et~al.(2015)Doersch, Gupta, and Efros]{carl}
+Carl Doersch, Abhinav Gupta, and Alexei~A. Efros.
+\newblock Unsupervised visual representation learning by context prediction.
+\newblock In \emph{ICCV}, 2015.
+
+\bibitem[Donahue et~al.(2014)Donahue, Jia, Vinyals, Hoffman, Zhang, Tzeng, and
+  Darrell]{decaf}
+Jeff Donahue, Yangqing Jia, Oriol Vinyals, Judy Hoffman, Ning Zhang, Eric
+  Tzeng, and Trevor Darrell.
+\newblock {DeCAF}: A deep convolutional activation feature for generic visual
+  recognition.
+\newblock In \emph{ICML}, 2014.
+
+\bibitem[Dumoulin et~al.(2016)Dumoulin, Belghazi, Poole, Lamb, Arjovsky,
+  Mastropietro, and Courville]{ali}
+Vincent Dumoulin, Ishmael Belghazi, Ben Poole, Alex Lamb, Martin Arjovsky,
+  Olivier Mastropietro, and Aaron Courville.
+\newblock Adversarially learned inference.
+\newblock \emph{arXiv:1606.00704}, 2016.
+
+\bibitem[Everingham et~al.(2014)Everingham, Eslami, Van~Gool, Williams, Winn,
+  and Zisserman]{pascal}
+Mark Everingham, S.~M.~Ali Eslami, Luc Van~Gool, Christopher K.~I. Williams,
+  John Winn, and Andrew Zisserman.
+\newblock The {PASCAL} {V}isual {O}bject {C}lasses challenge: A retrospective.
+\newblock \emph{IJCV}, 2014.
+
+\bibitem[Girshick(2015)]{fastrcnn}
+Ross Girshick.
+\newblock Fast {R-CNN}.
+\newblock In \emph{ICCV}, 2015.
+
+\bibitem[Girshick et~al.(2014)Girshick, Donahue, Darrell, and Malik]{rcnn}
+Ross Girshick, Jeff Donahue, Trevor Darrell, and Jitendra Malik.
+\newblock Rich feature hierarchies for accurate object detection and semantic
+  segmentation.
+\newblock In \emph{CVPR}, 2014.
+
+\bibitem[Goodfellow et~al.(2013)Goodfellow, Warde-Farley, Mirza, Courville, and
+  Bengio]{maxout}
+Ian Goodfellow, David Warde-Farley, Mehdi Mirza, Aaron Courville, and Yoshua
+  Bengio.
+\newblock Maxout networks.
+\newblock In \emph{ICML}, 2013.
+
+\bibitem[Goodfellow et~al.(2014)Goodfellow, Pouget-Abadie, Mirza, Xu,
+  Warde-Farley, Ozair, Courville, and Bengio]{gan}
+Ian Goodfellow, Jean Pouget-Abadie, Mehdi Mirza, Bing Xu, David Warde-Farley,
+  Sherjil Ozair, Aaron Courville, and Yoshua Bengio.
+\newblock Generative adversarial nets.
+\newblock In \emph{NIPS}, 2014.
+
+\bibitem[Graves et~al.(2013)Graves, Mohamed, and Hinton]{graves}
+Alex Graves, Abdel-rahman Mohamed, and Geoffrey~E. Hinton.
+\newblock Speech recognition with deep recurrent neural networks.
+\newblock In \emph{ICASSP}, 2013.
+
+\bibitem[Hinton \& Salakhutdinov(2006)Hinton and
+  Salakhutdinov]{hinton-autoencoders}
+Geoffrey~E. Hinton and Ruslan~R. Salakhutdinov.
+\newblock Reducing the dimensionality of data with neural networks.
+\newblock \emph{Science}, 2006.
+
+\bibitem[Hinton et~al.(2006)Hinton, Osindero, and Teh]{hinton2006fast}
+Geoffrey~E. Hinton, Simon Osindero, and Yee-Whye Teh.
+\newblock A fast learning algorithm for deep belief nets.
+\newblock \emph{Neural Computation}, 2006.
+
+\bibitem[Ioffe \& Szegedy(2015)Ioffe and Szegedy]{batchnorm}
+Sergey Ioffe and Christian Szegedy.
+\newblock Batch normalization: Accelerating deep network training by reducing
+  internal covariate shift.
+\newblock In \emph{ICML}, 2015.
+
+\bibitem[Jia et~al.(2014)Jia, Shelhamer, Donahue, Karayev, Long, Girshick,
+  Guadarrama, and Darrell]{caffe}
+Yangqing Jia, Evan Shelhamer, Jeff Donahue, Sergey Karayev, Jonathan Long, Ross
+  Girshick, Sergio Guadarrama, and Trevor Darrell.
+\newblock Caffe: Convolutional architecture for fast feature embedding.
+\newblock \emph{arXiv:1408.5093}, 2014.
+
+\bibitem[Kingma \& Ba(2015)Kingma and Ba]{adam}
+Diederik Kingma and Jimmy Ba.
+\newblock Adam: A method for stochastic optimization.
+\newblock In \emph{ICLR}, 2015.
+
+\bibitem[Kr{\"a}henb{\"u}hl et~al.(2016)Kr{\"a}henb{\"u}hl, Doersch, Donahue,
+  and Darrell]{datadep}
+Philipp Kr{\"a}henb{\"u}hl, Carl Doersch, Jeff Donahue, and Trevor Darrell.
+\newblock Data-dependent initializations of convolutional neural networks.
+\newblock In \emph{ICLR}, 2016.
+
+\bibitem[Krizhevsky et~al.(2012)Krizhevsky, Sutskever, and Hinton]{supervision}
+Alex Krizhevsky, Ilya Sutskever, and Geoffrey~E. Hinton.
+\newblock Image{N}et classification with deep convolutional neural networks.
+\newblock In \emph{NIPS}, 2012.
+
+\bibitem[LeCun et~al.(1998)LeCun, Bottou, Bengio, and Haffner]{mnist}
+Yann LeCun, L{\'e}on Bottou, Yoshua Bengio, and Patrick Haffner.
+\newblock Gradient-based learning applied to document recognition.
+\newblock \emph{Proc. IEEE}, 1998.
+
+\bibitem[Long et~al.(2015)Long, Shelhamer, and Darrell]{fcn}
+Jonathan Long, Evan Shelhamer, and Trevor Darrell.
+\newblock Fully convolutional networks for semantic segmentation.
+\newblock In \emph{CVPR}, 2015.
+
+\bibitem[Maas et~al.(2013)Maas, Hannun, and Ng]{leakyrelu}
+Andrew~L. Maas, Awni~Y. Hannun, and Andrew~Y. Ng.
+\newblock Rectifier nonlinearities improve neural network acoustic models.
+\newblock In \emph{ICML}, 2013.
+
+\bibitem[Noroozi \& Favaro(2016)Noroozi and Favaro]{jigsaw}
+Mehdi Noroozi and Paolo Favaro.
+\newblock Unsupervised learning of visual representations by solving jigsaw
+  puzzles.
+\newblock In \emph{ECCV}, 2016.
+
+\bibitem[Pathak et~al.(2016)Pathak, Kr{\"a}henb{\"u}hl, Donahue, Darrell, and
+  Efros]{deepak}
+Deepak Pathak, Philipp Kr{\"a}henb{\"u}hl, Jeff Donahue, Trevor Darrell, and
+  Alexei~A. Efros.
+\newblock Context encoders: Feature learning by inpainting.
+\newblock In \emph{CVPR}, 2016.
+
+\bibitem[Radford et~al.(2016)Radford, Metz, and Chintala]{dcgan}
+Alec Radford, Luke Metz, and Soumith Chintala.
+\newblock Unsupervised representation learning with deep convolutional
+  generative adversarial networks.
+\newblock In \emph{ICLR}, 2016.
+
+\bibitem[Razavian et~al.(2014)Razavian, Azizpour, Sullivan, and
+  Carlsson]{astounding}
+Ali Razavian, Hossein Azizpour, Josephine Sullivan, and Stefan Carlsson.
+\newblock {CNN} features off-the-shelf: an astounding baseline for recognition.
+\newblock In \emph{CVPR Workshops}, 2014.
+
+\bibitem[Russakovsky et~al.(2015)Russakovsky, Deng, Su, Krause, Satheesh, Ma,
+  Huang, Karpathy, Khosla, Bernstein, Berg, and Li]{imagenet}
+Olga Russakovsky, Jia Deng, Hao Su, Jonathan Krause, Sanjeev Satheesh, Sean Ma,
+  Zhiheng Huang, Andrej Karpathy, Aditya Khosla, Michael Bernstein,
+  Alexander~C. Berg, and Fei-Fei Li.
+\newblock {ImageNet} large scale visual recognition challenge.
+\newblock \emph{IJCV}, 2015.
+
+\bibitem[Salakhutdinov \& Hinton(2009)Salakhutdinov and
+  Hinton]{salakhutdinov2009deep}
+Ruslan Salakhutdinov and Geoffrey~E. Hinton.
+\newblock Deep {B}oltzmann machines.
+\newblock In \emph{AISTATS}, 2009.
+
+\bibitem[Sutskever et~al.(2014)Sutskever, Vinyals, and Le]{orioltranslate}
+Ilya Sutskever, Oriol Vinyals, and Quoc~V. Le.
+\newblock Sequence to sequence learning with neural networks.
+\newblock In \emph{NIPS}, 2014.
+
+\bibitem[{Theano Development Team}(2016)]{theano}
+{Theano Development Team}.
+\newblock {Theano: A {Python} framework for fast computation of mathematical
+  expressions}.
+\newblock \emph{arXiv:1605.02688}, 2016.
+
+\bibitem[Vinyals et~al.(2015)Vinyals, Kaiser, Koo, Petrov, Sutskever, and
+  Hinton]{oriolparse}
+Oriol Vinyals, {\L}ukasz Kaiser, Terry Koo, Slav Petrov, Ilya Sutskever, and
+  Geoffrey~E. Hinton.
+\newblock Grammar as a foreign language.
+\newblock In \emph{NIPS}, 2015.
+
+\bibitem[Wang \& Gupta(2015)Wang and Gupta]{xiaolong}
+Xiaolong Wang and Abhinav Gupta.
+\newblock Unsupervised learning of visual representations using videos.
+\newblock In \emph{ICCV}, 2015.
+
+\bibitem[Zeiler \& Fergus(2014)Zeiler and Fergus]{zf}
+Matthew~D. Zeiler and Rob Fergus.
+\newblock Visualizing and understanding convolutional networks.
+\newblock In \emph{ECCV}, 2014.
+
+\end{thebibliography}

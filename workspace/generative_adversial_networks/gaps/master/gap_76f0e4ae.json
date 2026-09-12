@@ -1,0 +1,69 @@
+{
+  "gap_id": "gap_76f0e4ae",
+  "status": "validated",
+  "title": "Scope limited to multilayer perceptron adversarial nets",
+  "description": "The paper's demonstrations explore only the special case where both the generative and discriminative models are multilayer perceptrons, even though the adversarial framework could yield training algorithms for many kinds of models.",
+  "type": "limitation",
+  "canonical_description": "demonstrations limited to multilayer perceptron generator and discriminator",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1406.2661",
+      "section": "introduction",
+      "anchor": "we explore the special case when",
+      "quote": "In this article, we explore the special case when the generative model generates",
+      "char_offset": [
+        2013,
+        2093
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-09-09T04:12:53Z",
+  "verdict": {
+    "gap_id": "gap_76f0e4ae",
+    "status": "partially_solved",
+    "confidence": 0.6,
+    "reasoning": "The deep-read paper directly refutes the core limitation — that demonstrations were restricted to MLP generator/discriminator — by building and training a GAN whose generator is a stochastic recurrent neural network (SRNN) and whose discriminator is a convolutional neural network, with concrete results (≈5% MSD deviation, outperforming a VAE baseline). This is strong, direct evidence that adversarial training works outside the MLP special case. However, the paper validates a single bespoke architecture (SRNN+CNN) in a single application domain (3D Lagrangian trajectory simulation), with the generator's internal layers still fully connected. It does not systematically explore adversarial training across 'many kinds of models,' which is the broader scope the gap gestures toward. So the specific MLP-only limitation is substantially addressed, but the breadth of model families remains open.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_1901.03960",
+          "title": "Introducing a Generative Adversarial Network Model for Lagrangian Trajectory Simulation",
+          "abstract": "We introduce a generative adversarial network (GAN) model to simulate the 3-dimensional Lagrangian motion of particles trapped in the recirculation zone of a buoyancy-opposed flame. The GAN model comprises a stochastic recurrent neural network, serving as a generator, and a convoluted neural network, serving as a discriminator. Adversarial training was performed to the point where the best-trained discriminator failed to distinguish the ground truth from the trajectory produced by the best-trained generator. The model performance was then benchmarked against a statistical analysis performed on both the simulated trajectories and the ground truth, with regard to the accuracy and generalization criteria.",
+          "authors": [
+            "Jingwei Gan",
+            "Pai Liu",
+            "Rajan K. Chakrabarty"
+          ],
+          "published_date": "2019-01-13T11:06:34Z",
+          "url": "https://arxiv.org/abs/1901.03960v1"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper directly demonstrates that the adversarial framework is not restricted to multilayer perceptrons. Instead of MLP generator/discriminator, it builds a GAN with a stochastic recurrent neural network (SRNN) as the generator and a convolutional neural network (CNN) as the discriminator, trained with the standard cross-entropy adversarial objective for 3D Lagrangian trajectory simulation. It shows that the non-MLP adversarial pair achieves statistically accurate (≈5% MSD deviation) and well-generalized outputs, outperforming a prior VAE baseline — concrete evidence that adversarial training algorithms work for model families beyond MLPs.",
+        "what_remains_open": "The gap concerns the scope of GAN demonstrations beyond MLPs; this paper supplies exactly such a non-MLP demonstration (recurrent generator + convolutional discriminator). What it does not do is establish a general framework or survey adversarial training across 'many kinds of models': it validates one bespoke architecture (SRNN+CNN) on one application domain (particle trajectories in a buoyancy-opposed flame), with a generator whose internal layers are still fully connected and a single, task-specific discriminator design. It therefore broadens the demonstrated scope but does not systematically explore the breadth of model families the gap gestures toward.",
+        "evidence_snippets": [
+          "The GAN model comprises a stochastic recurrent neural network, serving as a generator, and a convoluted neural network, serving as a discriminator.",
+          "Both the generator and discriminator are trained simultaneously, until they are both so developed that the best-trained discriminator fails to discriminate the *real* from the *fake* that are produced from the best-trained generator",
+          "Unlike feedforward networks, the SRNN generator contains hundreds of SRC units."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 1,
+      "skipped_ids": []
+    }
+  },
+  "ranking": {
+    "openness": 0.3,
+    "impact": 0.3990274132982,
+    "feasibility": 0.65,
+    "feasibility_reasoning": "The gap is about broadening demonstrations beyond MLP generator/discriminator, not a fundamental theoretical obstacle. The adversarial training recipe is architecture-agnostic and methodologically mature, so extending it to CNN, RNN, transformer, or other model pairs is a straightforward engineering/research task on modest compute. The main feasibility limit is scope: \"many kinds of models\" is open-ended, and each new architecture/domain needs data, tuning, and a quality metric. Meaningful progress — a few well-chosen non-MLP generator/discriminator pairs with measurable sample-quality or downstream-task results — is clearly achievable, but fully covering model families is a sprawling agenda, hence not a near-maximum score."
+  }
+}

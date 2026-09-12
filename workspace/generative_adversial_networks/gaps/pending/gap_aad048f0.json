@@ -1,0 +1,25 @@
+{
+  "gap_id": "gap_aad048f0",
+  "status": "unchecked",
+  "title": "Images without tags omitted from experiments",
+  "description": "Images without any tag were omitted from the multimodal tagging experiments, so the setup only covers examples that already have conditioning tags available.",
+  "type": "limitation",
+  "canonical_description": "training examples lacking conditioning tags omitted from experiments",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1411.1784",
+      "section": "results",
+      "anchor": "Images without any tag were omitted from our experiments",
+      "quote": "Images without any tag were omitted from our experiments and annotations were treated as extra tags.",
+      "char_offset": [
+        4937,
+        5037
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-09-09T04:10:46Z",
+  "verdict": null,
+  "ranking": null
+}

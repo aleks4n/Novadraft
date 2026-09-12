@@ -1,0 +1,67 @@
+{
+ "idea_id": null,
+ "title": "Dot-Gated Additive Compatibility",
+ "state": "provisional",
+ "one_liner": "Keep the scaled dot product as a cheap prior over which query\u2013key pairs matter, and spend a Bahdanau additive MLP only on the top-m pairs to make the fine-grained compatibility decision the dot product cannot.",
+ "description": "The two fused ingredients are scaled dot-product attention (Vaswani et al., 2017) and additive/concat attention (Bahdanau et al., 2015), composed as one-as-a-gate-over-the-other. Stage 1 computes the usual QK^T/sqrt(d_k) scores for all pairs in a single matmul and keeps only the top-m keys per query; stage 2 recomputes scores for those kept pairs with a one-hidden-layer MLP w^T tanh(W_q q + W_k k), and softmax is taken over the kept set only, with the dot score optionally kept as a residual. This attacks the gap directly: additive attention is the canonical stronger-but-slower compatibility function, but applying it to all n^2 pairs costs O(n^2 d h) and cannot use the matmul trick, so the dot-product gate confines that cost to m << n pairs per query. The naive stack \u2014 additive everywhere \u2014 is exactly the expensive thing being avoided, and the interface (selection, score combination, re-scaling) is where the work is.",
+ "problem": "Inside a Transformer head, the dot product is a single linear form and is flagged as insufficient for determining compatibility, especially at small d_k; the obvious stronger function, additive attention, is too expensive to evaluate at every position pair. The objective is richer compatibility estimation inside multi-head attention without paying additive attention's full O(n^2 d h) cost.",
+ "addresses": [
+  "gap_04e60ada"
+ ],
+ "relations": [],
+ "inherited_from": null,
+ "sections": {
+  "technique": "Stage 1 (gate): per head, compute S1 = QK^T / sqrt(d_k) exactly as scaled dot-product attention. For each query i, keep the top-m key indices by S1_i; m is a fixed budget (e.g., 16\u201332), not a function of n.\nStage 2 (rerank): for kept pairs only, compute s2_ij = w^T tanh(W_q q_i + W_k k_j) with hidden size h; final score s_ij = S1_ij + s2_ij so the gate keeps a gradient path, and unkept pairs get score \u2212\u221e. Attention output = softmax(s)\u00b7V over the kept support.\nTraining: hard top-m is non-differentiable; use straight-through gradients through the kept pairs' S1, or a Gumbel top-k relaxation. Optional warm-start: train dot-product attention alone for a few thousand steps, then add the reranker and optionally anneal m down.",
+  "cost": "Dot-only: O(n^2 d), single matmul, no materialized pair features.\nFull additive: O(n^2 d h) with n^2 h activations materialized (no matmul trick). Napkin numbers for n=512, d=64, h=64: \u22481.1e9 MACs/head vs \u22481.7e7 for dot-only \u2014 unverified.\nGated: O(n^2 d) + O(n m d h) + top-m selection. With m=16: \u22485e7 MACs/head, roughly 3x dot-only and ~20x cheaper than full additive, because the MLP only sees m pairs per query. The efficiency claim is the composition itself: nonlinear compatibility on the support, linear cost off it.",
+  "baselines": "1. Scaled dot-product only \u2014 the thing to beat on quality; for fairness also run dot-only with the MLP's parameter budget moved into wider heads or more heads, to test whether the gain is just extra capacity.\n2. Full additive attention on all n^2 pairs \u2014 the quality upper bound; the claim is the gated version approaches it at a fraction of the cost.\n3. The obvious alternative pairing: dot + low-rank bilinear (Luong 'general' score), W = I + U V^T. This is the cheap linear fusion a combiner reaches for first, but a rank-r bilinear correction is algebraically equivalent to a dot product on linearly augmented features \u2014 it never leaves the linear family.",
+  "why_this_pairing": "The two ingredients fix each other's known failure mode: additive attention supplies the nonlinear compatibility surface the gap says is missing, while the dot product supplies the parallelizable n^2 matmul and a recall-oriented support that additive attention cannot afford on its own. Against the obvious alternative pairing (dot + low-rank bilinear), the deciding fact is that any rank-r bilinear correction q^T U V^T k is just a dot product between (U^T q) and (V^T k), so it cannot express the nonlinear, saturating compatibility an additive MLP can. The pairing is dot-as-prior, additive-as-refinement; the composition, not either ingredient, is the idea.",
+  "failure_modes": "- Gate error propagates: if the dot-product ranking misses the truly compatible key, the reranker never sees it and the head is stuck with a wrong support set. The dot product must be good enough to act as a recall gate, which is not guaranteed early in training.\n- Cold start: at initialization the gate is near-random, so early gradients to the MLP flow over arbitrary pairs and can lock in a bad support distribution; warm-start or large initial m is the mitigation but eats the cost saving.\n- Sparse softmax changes temperature: softmax over m << n items is sharper, and the 1/sqrt(d_k) scaling was tuned for the full distribution; adding s2 with its own variance can re-saturate the softmax if not re-normalized.\n- Hard top-m is a discrete op in a differentiable path; STE is biased and Gumbel top-k adds variance.",
+  "open_questions": "- What m is enough, and can m be annealed down by a curriculum without losing recall of the true attention support?\n- Does the residual (S1 + s2) or replace (s2 only) win \u2014 i.e., is keeping the weak dot score a stabilizer or does it keep steering the head?\n- Is the gain actually from nonlinearity, or just from extra parameters? The honest control (dot-only with the MLP's parameter budget) is the experiment that would kill the idea if it wins.\n- Which differentiable relaxation of top-m (STE vs Gumbel top-k vs two-tower training) biases the learned support least? Unverified.",
+  "rationale": "Stance leads here: the combiner's job is to name two existing methods and make the composition the contribution. The two named methods are scaled dot-product attention and additive attention, both already in the attention literature. Unverified claims: the napkin FLOP numbers; that top-m dot-product recall is sufficient in practice; that additive attention's advantage transfers when confined to a support inside multi-head attention; the specific footnote-level claim that additive outperforms unscaled dot product (not quoted in the loaded excerpt); and that this retrieve-then-rerank composition is novel as the compatibility function inside self-attention \u2014 the pattern is old in document retrieval, but I have not verified a prior proposal for it here. The sparse top-m pattern also resembles the paper's 'local, restricted attention' open thread, but here sparsity is a byproduct of the gate, not the goal: the claim is about the compatibility function, not sequence-length scaling."
+ },
+ "section_order": [
+  "technique",
+  "cost",
+  "baselines",
+  "why_this_pairing",
+  "failure_modes",
+  "open_questions",
+  "rationale"
+ ],
+ "evaluation": {
+  "novelty": null,
+  "feasibility": null,
+  "significance": null
+ },
+ "provenance": [],
+ "origin": {
+  "run_id": "run_55a688c5",
+  "node_id": "run_55a688c5:n1",
+  "node_path": [
+   "run_55a688c5:n0",
+   "run_55a688c5:n1"
+  ],
+  "style": "combiner",
+  "mode": "generation",
+  "parent_idea_id": null,
+  "suggested": null,
+  "inherited_from": null,
+  "inherited_upto_run": null
+ },
+ "runs": [],
+ "created_at": "",
+ "updated_at": "",
+ "_session": {
+  "draft_id": "draft_2377073f",
+  "session_id": "sess_4ba6da0f",
+  "kind": "create",
+  "run_id": "20260830_110946_start-plan-20260830-110901-give-me-2-ide",
+  "source_index": 0,
+  "handle": "run_55a688c5#0",
+  "offer_run": "run_55a688c5",
+  "target_idea_id": null,
+  "label": "Dot-Gated Additive Compatibility",
+  "status": "open",
+  "created_at": "2026-08-30T13:21:37Z"
+ }
+}

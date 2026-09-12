@@ -1,0 +1,93 @@
+{
+  "category_slug": "generative_adversial_networks",
+  "name": "Generative Adversarial Networks",
+  "description": "Generative adversarial networks (GANs) are a class of deep generative models in which two neural networks—a generator and a discriminator—are trained adversarially: the generator maps samples from a latent distribution to data space to fool the discriminator, while the discriminator learns to distinguish real from synthetic data, converging toward a Nash equilibrium characterized by the minimization of the Jensen–Shannon divergence between the model and data distributions. Core techniques include architecture variants (DCGAN, StyleGAN, conditional and cycle-consistent GANs), training stabilizers such as spectral normalization and gradient penalties, and regularization schemes addressing mode collapse and non-convergence. The framework is closely related to implicit generative modeling and adversarial training in representation learning, and underlies widely used objectives (e.g., least-squares, Wasserstein/earth-mover losses) that connect it to optimal transport and distributionally robust optimization.",
+  "seminal_papers": [
+    {
+      "title": "Generative Adversarial Nets",
+      "authors": "Goodfellow, Pouget-Abadie, Mirza, Xu, Warde-Farley, Ozair, Courville, Bengio",
+      "year": 2014,
+      "why": "The original paper that introduced the adversarial generator–discriminator framework and the minimax objective founding the entire GAN field."
+    },
+    {
+      "title": "Conditional Generative Adversarial Nets",
+      "authors": "Mirza, Osindero",
+      "year": 2014,
+      "why": "Introduced conditioning the generator and discriminator on auxiliary information, laying the foundation for conditional GANs and label-to-image generation."
+    },
+    {
+      "title": "Unsupervised Representation Learning with Deep Convolutional Generative Adversarial Networks (DCGAN)",
+      "authors": "Radford, Metz, Chintala",
+      "year": 2016,
+      "why": "Established the standard convolutional architecture and training guidelines (batch normalization, strided convolutions, latent-space arithmetic) that made deep GANs stable and scalable."
+    },
+    {
+      "title": "Improved Techniques for Training GANs",
+      "authors": "Salimans, Goodfellow, Zaremba, Cheung, Radford, Chen",
+      "year": 2016,
+      "why": "Introduced key stabilizing heuristics (feature matching, minibatch discrimination, historical averaging, label smoothing) that directly address mode collapse and non-convergence."
+    },
+    {
+      "title": "Towards Principled Methods for Training Generative Adversarial Networks",
+      "authors": "Arjovsky, Bottou",
+      "year": 2017,
+      "why": "Provided the theoretical analysis of why GAN training fails under the Jensen–Shannon objective (vanishing gradients, support mismatch) motivating alternative divergences."
+    },
+    {
+      "title": "Wasserstein GAN",
+      "authors": "Arjovsky, Chintala, Bottou",
+      "year": 2017,
+      "why": "Reformulated GAN training using the Wasserstein/earth-mover distance with a critic, connecting GANs to optimal transport and providing a more meaningful training metric."
+    },
+    {
+      "title": "Least Squares Generative Adversarial Networks",
+      "authors": "Mao, Li, Xie, Lau, Wang, Smolensky",
+      "year": 2017,
+      "why": "Introduced the least-squares objective that replaces the cross-entropy loss to smooth gradients and mitigate the vanishing-gradient and mode-collapse problems."
+    },
+    {
+      "title": "Image-to-Image Translation with Conditional Adversarial Networks (pix2pix)",
+      "authors": "Isola, Zhu, Zhou, Efros",
+      "year": 2017,
+      "why": "Defined the standard conditional GAN framework for paired image-to-image translation, combining an adversarial loss with an L1 reconstruction loss and a U-Net generator."
+    },
+    {
+      "title": "Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks (CycleGAN)",
+      "authors": "Zhu, Park, Isola, Efros",
+      "year": 2017,
+      "why": "Introduced cycle-consistency and adversarial losses for learning image translation between unpaired domains, a cornerstone of cycle-consistent GANs."
+    },
+    {
+      "title": "Improved Training of Wasserstein GANs",
+      "authors": "Gulrajani, Ahmed, Arjovsky, Dumoulin, Courville",
+      "year": 2017,
+      "why": "Introduced the gradient penalty as a Lipschitz constraint for WGAN critics, becoming the standard stabilizer used throughout subsequent GAN research."
+    },
+    {
+      "title": "Progressive Growing of GANs for Improved Quality, Stability, and Variation",
+      "authors": "Karras, Aila, Laine, Lehtinen",
+      "year": 2018,
+      "why": "Showed how progressively growing generators and discriminators enables stable training of very high-resolution images, a key step toward photorealistic synthesis."
+    },
+    {
+      "title": "Spectral Normalization for Generative Adversarial Networks",
+      "authors": "Miyato, Kataoka, Koyama, Yoshida",
+      "year": 2018,
+      "why": "Introduced spectral normalization of weight matrices to enforce Lipschitz continuity of the discriminator, a widely adopted training stabilizer."
+    },
+    {
+      "title": "A Style-Based Generator Architecture for Generative Adversarial Networks (StyleGAN)",
+      "authors": "Karras, Laine, Aila",
+      "year": 2019,
+      "why": "Redesigned the generator with a style-based, disentangled latent space enabling state-of-the-art photorealistic face synthesis and fine-grained control of image attributes."
+    },
+    {
+      "title": "Large Scale GAN Training for High Fidelity Natural Image Synthesis (BigGAN)",
+      "authors": "Brock, Donahue, Simonyan",
+      "year": 2019,
+      "why": "Demonstrated that class-conditional GANs scale to large batch sizes and model widths with spectral normalization and truncation tricks, producing high-fidelity ImageNet samples."
+    }
+  ],
+  "created_at": "2026-09-09T04:01:44Z",
+  "updated_at": "2026-09-09T04:01:44Z"
+}

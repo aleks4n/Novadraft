@@ -1,0 +1,27 @@
+\begin{table}
+\centering
+\begin{tabular}{lccccc}
+\toprule
+& conv1 & conv2 & conv3 & conv4 & conv5 \\
+\midrule
+Random \citep{jigsaw}            & 48.5 & 41.0 & 34.8 & 27.1 & 12.0 \\
+\citet{xiaolong}                 & 51.8 & 46.9 & 42.8 & 38.8 & 29.8 \\
+\citet{carl}                     & 53.1 & 47.6 & 48.7 & \bf{45.6} & 30.4 \\
+\gray{\citet{jigsaw}}*           & \gray{57.1} & \gray{56.0} & \gray{52.4} & \gray{48.3} & \gray{38.1} \\
+\midrule
+BiGAN (ours)                     & \bf{56.2} & \bf{54.4} & \bf{49.4} & 43.9 & 33.3 \\
+BiGAN, $112\times112$ $E$ (ours) & 55.3 & 53.2 & 49.3 & 44.4 & \bf{34.8} \\
+\bottomrule
+\end{tabular}
+\caption{
+Classification accuracy (\%) for the ImageNet LSVRC~\citep{imagenet} validation set with various portions of the network frozen, or reinitialized and trained from scratch, following the evaluation from~\citet{jigsaw}.
+In, e.g., the \textit{conv3} column, the first three layers -- conv1 through conv3 --
+are transferred and frozen, and the last layers --
+conv4, conv5, and fully connected layers --
+are reinitialized and trained fully supervised for ImageNet classification.
+BiGAN is competitive with these contemporary visual feature learning methods, despite its generality.
+(*Results from \citet{jigsaw} are not directly comparable to those of the other methods
+as a different base convnet architecture with larger intermediate feature maps is used.)
+}
+\lbltbl{imagenetclass}
+\end{table}

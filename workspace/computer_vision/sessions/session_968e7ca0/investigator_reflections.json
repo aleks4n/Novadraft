@@ -1,0 +1,5 @@
+{
+  "a16d3445bdd073882d213fb9e2992cb2621e5f698631db2eba7941e93f8a1d6e": [
+    "Run real web searches this attempt — use the suggested queries ('low-rank correction attention score', 'learned attention kernel UV^T', 'Transformer low-rank attention approximation') and also add 'rank-r attention kernel Transformer' and 'linear attention low-rank approximation' — then actually open and scrape at least one arXiv/paper page (capture title, abstract, and any BLEU or d_k results) before making any novelty or validity judgment. Do not attempt to evaluate without scraped evidence."
+  ]
+}

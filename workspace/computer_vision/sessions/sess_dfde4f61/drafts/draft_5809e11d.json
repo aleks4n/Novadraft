@@ -1,0 +1,63 @@
+{
+ "idea_id": null,
+ "title": "De-Smoothed Perplexity: Score the Sharp Component, Not the Injected Floor",
+ "state": "provisional",
+ "one_liner": "Label smoothing's perplexity penalty is largely an arithmetic artifact of scoring a deliberately smoothed distribution against a one-hot target; subtract the known uniform floor before computing perplexity and the paradox either dissolves or isolates true degradation.",
+ "description": "Label smoothing trains the model toward q = (1\u2212\u03b1)\u03b4_y + \u03b1/K, so at the optimum the true label receives probability 1\u2212\u03b1+\u03b1/K and hard-target NLL is \u2212log(1\u2212\u03b1+\u03b1/K), not zero. A no-smoothing baseline optimizes a different target, \u03b4_y, so raw perplexity compares models against different objectives rather than measuring the same thing. The proposal is to invert the smoothing transform at evaluation: compute r(k) = relu(p(k)\u2212\u03b1/K)/Z with Z = \u03a3_j relu(p(j)\u2212\u03b1/K), then report PPL_debias = exp(\u2212log r(y)). At the label-smoothing optimum, r becomes one-hot and PPL_debias reaches 1, so the known penalty disappears; any residual gap isolates genuine failure to concentrate mass on the label. This differs from attempts to fix label smoothing itself by leaving training untouched and attacking the evaluation premise instead.",
+ "problem": "We cannot currently distinguish a model that is worse at identifying the true label from one that is merely reporting the uniform uncertainty label smoothing told it to report. The problem this idea attacks is that hard-target perplexity uses a scoring distribution that no longer matches the training objective, making the reported \"hurt\" uninterpretable.",
+ "addresses": [
+  "gap_ec9401af"
+ ],
+ "relations": [],
+ "inherited_from": null,
+ "sections": {
+  "assumption": "The load-bearing assumption is target-identity: that the test-time target is a noiseless one-hot and that raw model probabilities are directly comparable across training schemes. Under label smoothing this assumes the evaluation distribution equals the training distribution, which it does not.",
+  "technique": "- Train paired models: \u03b1 = 0 baseline and \u03b1 = 0.1 label smoothing, same architecture and data.\n- For each model compute raw hard-target PPL: exp(\u2212log p(y|x)).\n- Compute de-smoothed PPL using the known \u03b1: subtract the uniform floor \u03b1/K from each class probability, clip negatives to zero, and renormalize.\n- Report the raw PPL gap and the de-smoothed PPL gap separately, then compare both against BLEU/accuracy.\n- Hypothesis: the de-smoothed gap shrinks and tracks downstream quality better than the raw gap.",
+  "open_questions": "- Does clipping tail probabilities to zero bias the metric when p(y) is below \u03b1/K, i.e. for genuinely uncertain predictions?\n- Should evaluation use the training \u03b1 or fit \u03b1 on held-out data to maximize debiased likelihood?\n- Is the renormalized de-smoothed distribution a proper scoring rule, and does using it for decoding change beam-search rankings?\n- If a residual gap remains after de-smoothing, is it real degradation or a temperature/calibration change caused by label smoothing?",
+  "rationale": "Skeptic stance: name the premise doing the work and invert it. The premise is that train and eval targets are identical. Dropping it yields a concrete research question: how much of label smoothing's perplexity penalty is explained by the known uniform floor? The de-smoothing transform is the constructive move, not mere criticism. The optimum formula follows from the standard label-smoothing target q, but the claims that trained models sit near that optimum and that de-smoothed PPL correlates with BLEU/accuracy are unverified and are the experiment."
+ },
+ "section_order": [
+  "assumption",
+  "technique",
+  "open_questions",
+  "rationale"
+ ],
+ "evaluation": {
+  "novelty": null,
+  "feasibility": null,
+  "significance": null
+ },
+ "provenance": [],
+ "origin": {
+  "run_id": "run_7b6595b4",
+  "node_id": "run_7b6595b4:n2",
+  "node_path": [
+   "run_7b6595b4:n0",
+   "run_7b6595b4:n2"
+  ],
+  "style": "skeptic",
+  "mode": "generation",
+  "parent_idea_id": null,
+  "suggested": null,
+  "inherited_from": null,
+  "inherited_upto_run": null
+ },
+ "runs": [],
+ "created_at": "",
+ "updated_at": "",
+ "_session": {
+  "draft_id": "draft_5809e11d",
+  "session_id": "sess_dfde4f61",
+  "kind": "create",
+  "run_id": "20260830_100958_start-plan-20260830-100821-give-me-two-i",
+  "source_index": 1,
+  "handle": "run_7b6595b4#1",
+  "offer_run": "run_7b6595b4",
+  "target_idea_id": null,
+  "label": "De-Smoothed Perplexity: Score the Sharp Component, Not the Injected Floor",
+  "status": "accepted",
+  "created_at": "2026-08-30T08:15:33Z",
+  "decided_at": "2026-08-30T08:17:15Z",
+  "result_idea_id": "idea_7bef1104"
+ }
+}

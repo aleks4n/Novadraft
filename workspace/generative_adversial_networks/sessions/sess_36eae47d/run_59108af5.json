@@ -1,0 +1,37 @@
+{
+  "run_id": "run_59108af5",
+  "created_at": "2026-09-09T17:17:38Z",
+  "status": "awaiting_approval",
+  "message": "You forgot to add a description to the idea so please add a description to it",
+  "answer": "",
+  "plan": {
+    "goal": "Add a clear standalone description to the selected idea (Decoupling Diversity from D)",
+    "steps": [
+      {
+        "tool": "creative_thinker",
+        "args": {
+          "thinking_mode": "refinement",
+          "work_on": [
+            "idea_e45af4c8"
+          ],
+          "styles": [
+            "neutral"
+          ],
+          "depth": 1,
+          "instruction": "The idea is missing a clear standalone description. Produce a revised version of this idea that adds a concise, plain-language description summarizing what it proposes and why, while keeping all the existing content (assumption, technique, why_this_is_different, open_questions, rationale) intact."
+        },
+        "why": "Adding a description is a targeted, light touch to the existing idea, not new generation — a single-pass refinement covers it.",
+        "needs": []
+      }
+    ],
+    "done_criteria": [
+      "one revised candidate returned",
+      "the revised candidate includes a non-empty description field",
+      "the existing technique, rationale, and open_questions content is preserved"
+    ],
+    "answer": ""
+  },
+  "ideas": [],
+  "envelopes": [],
+  "offers": []
+}

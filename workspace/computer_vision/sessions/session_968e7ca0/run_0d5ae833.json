@@ -1,0 +1,398 @@
+{
+  "run_id": "run_0d5ae833",
+  "created_at": "2026-08-30T09:05:41Z",
+  "status": "completed",
+  "message": "Give me 2 ideas for this gap",
+  "answer": "I worked the gap into two candidate ideas, each attacking the dot product's limits from a different angle.\n\nThe first keeps the Transformer architecture and swaps only the compatibility kernel: a learned per-head low-rank correction added to the scaled dot product (I + UVᵀ), zero-initialized so it starts exactly at the baseline. It directly tests whether the quality drop at reduced d_k comes from the identity kernel being too rigid, with a clean ablation at fixed and small d_k.\n\nThe second imports a fix from nonparametric statistics: attention is already a Nadaraya-Watson kernel smoother, and that field's standard remedy — local linear regression — replaces the single scalar weight per key with vector-valued effective weights that carry local key geometry. It collapses to scaled dot-product attention at polynomial order zero, so the baseline is a special case, and it includes an evaluation that rejects the idea if it doesn't flatten the d_k degradation curve.\n\nBoth are worked out concretely — mechanism, why it targets why compatibility is hard to determine, and what it would take to evaluate against the baseline — and both name their unverified assumptions explicitly.",
+  "plan": {
+    "goal": "Generate 2 candidate ideas for the selected gap on suboptimal dot-product compatibility in attention.",
+    "steps": [
+      {
+        "tool": "creative_thinker",
+        "args": {
+          "thinking_mode": "generation",
+          "width": 2,
+          "tool_use": true,
+          "styles": [
+            "optimizer",
+            "transferer"
+          ],
+          "instruction": "The gap: the dot-product compatibility function may be suboptimal for learning attention weights — reducing the key size d_k hurts quality, suggesting determining compatibility is not easy and a more sophisticated compatibility function than dot product may be beneficial (from Attention Is All You Need, arxiv_1706.03762). Generate 2 candidate ideas, each from a different angle, for alternative or improved compatibility functions that could capture this difficulty — e.g., improving on the dot product's cost/quality trade-off, or importing a compatibility mechanism from another field. Work each candidate out concretely: the mechanism, why it addresses why compatibility is hard to determine, and what it would take to evaluate it against the baseline."
+        },
+        "why": "The user asked for a specified number of new candidates for the selected gap; none exist yet.",
+        "needs": []
+      }
+    ],
+    "done_criteria": [
+      "2 candidates returned",
+      "no two share a title"
+    ],
+    "answer": ""
+  },
+  "ideas": [
+    {
+      "idea_id": null,
+      "title": "I + UVᵀ Attention: A Rank-r Correction to the Scaled Dot Product",
+      "state": "provisional",
+      "one_liner": "Add a learned per-head rank-r correction U_h V_hᵀ to the fixed 1/√d_k identity kernel of scaled dot-product attention, and measure BLEU against the unchanged Transformer at fixed and reduced d_k.",
+      "description": "Keep the Transformer intact and change only the compatibility kernel: each head h scores q and k as q·k/√d_k + (U_hᵀq)·(V_hᵀk), where U_h, V_h ∈ R^{d_k×r} are learned per-head matrices with tiny rank r (1–4). This is the scaled dot product plus a low-rank bilinear correction, computed as QKᵀ/√d_k + (Q U_h)(K V_h)ᵀ, so it reuses the existing matmul and adds only ~r/d_k FLOPs. Zero-initializing U_h (or the product term) makes the model start exactly at the scaled dot-product baseline and only deviate where training rewards it. If the reported quality drop at small d_k is caused by the identity kernel being too rigid, the correction should recover BLEU at d_k=16–32 or improve it at d_k=64. It differs from the additive attention the paper set aside because it remains a single bilinear form with matrix-multiply efficiency, and from the plain dot product because it can express off-diagonal query–key interactions.",
+      "problem": "Scaled dot-product attention's fixed identity bilinear form is suspected to be too restrictive: reducing the key dimension d_k measurably hurts Transformer quality. This idea attacks that fragility directly by asking how much lost quality a cheap learned low-rank correction to the dot product can recover — at fixed d_k and at smaller d_k — versus the unchanged Transformer baseline.",
+      "addresses": [
+        "gap_04e60ada"
+      ],
+      "relations": [],
+      "inherited_from": null,
+      "sections": {
+        "technique": "Per attention head h, replace the fixed kernel (1/√d_k)·I_{d_k} with W_h = (1/√d_k)·I_{d_k} + U_h V_hᵀ, where U_h, V_h ∈ R^{d_k×r} and r ∈ {1,2,4}. The score is:\n\nscore(q,k) = qᵀW_h k = (q·k)/√d_k + (U_hᵀq)·(V_hᵀk)\n\nImplementation: keep the existing S = QKᵀ/√d_k matmul, then add S += (Q U_h)(K V_h)ᵀ — two small per-head projections followed by an n×n rank-r dot product. Initialize U_h and V_h to zero (or U_h=0 with V_h random) so training begins at the exact scaled dot-product baseline. Sweep r as the only new hyperparameter; r=0 recovers the baseline. As a second, separable ablation, also learn a per-head scalar τ_h in place of the hard-coded 1/√d_k scale.",
+        "baselines": "Primary baseline: the original Transformer base (d_model=512, h=8, d_k=64, arxiv_1706.03762) on WMT14 EN-DE with the paper's preprocessing and schedule.\n\n- Delta A (fixed d_k): BLEU at d_k=64 for r=1,2,4 vs r=0 (baseline).\n- Delta B (small d_k): BLEU at d_k=32 (h=16) and d_k=16 (h=32) for r>0 vs r=0 at the same d_k, and vs r=0 at d_k=64 — testing whether the correction restores the quality lost by shrinking d_k.\n- Upper-bound control: a full per-head learned W_h ∈ R^{d_k×d_k} (no identity prior) at the same d_k settings, to estimate how much available expressivity the rank-r correction captures.\n- Throughput control: tokens/sec during training at each r, to confirm the claimed ~r/d_k overhead.",
+        "cost": "Parameters: 2·d_k·r per head. For base (h=8, d_k=64, r=2): 256 params/head; across 6 encoder layers + 6 decoder self-attention + 6 decoder cross-attention modules = 8 heads × 18 modules × 256 ≈ 37K params, under 0.06% of the ~65M base model.\n\nFLOPs: two n×d_k×r projections plus one n×n×r dot product per head; relative to the dominant n×n×d_k term this is ≈ r/d_k (≈3% at r=2, d_k=64). All three use existing matmul kernels; no new CUDA op is required.\n\nMemory: negligible — the correction is applied inside the attention module and stores only the n×r projected Q/K activations.",
+        "open_questions": "1. Is the original d_k sensitivity actually caused by the identity kernel, or by reduced value/key subspace capacity? The full-W control at small d_k separates these: if full W fails to recover quality, the bottleneck is subspace size, not the compatibility form, and the correction is the wrong fix.\n2. Should U_h and V_h be shared across heads or layers, and should they be tied (U=V) to keep the kernel symmetric or PSD?\n3. Does the benefit shrink at larger d_model or with more training data (a small-model/short-run effect)?\n4. Is zero-initialization too conservative — would small-scale random initialization learn faster without destabilizing early training?",
+        "rationale": "Stance: the Transformer is roughly right, so the win is a local module swap with a named delta, not a new attention paradigm. Replacing the fixed kernel with I/√d_k + U_h V_hᵀ is exactly that — one learned low-rank matrix per head, nesting the baseline at r=0 or zero-init, so every result is a clean ablation against unchanged scaled dot-product attention.\n\nThe paper's own evidence — quality drops when d_k is reduced — is the motivation: a rank-r correction is the minimal change that can express the off-diagonal query–key interactions a fixed identity cannot.\n\nUnverified (not in the loaded context): the claim that low-rank bilinear pooling is an established device in vision/multimodal attention, and the paper's statement that additive attention outperforms unscaled dot product for larger d_k. Both should be checked against the original text and the vision literature before writing related work."
+      },
+      "section_order": [
+        "technique",
+        "baselines",
+        "cost",
+        "open_questions",
+        "rationale"
+      ],
+      "evaluation": {
+        "novelty": null,
+        "feasibility": null,
+        "significance": null
+      },
+      "provenance": [],
+      "origin": {
+        "run_id": "run_0d5ae833",
+        "node_id": "run_0d5ae833:n1",
+        "node_path": [
+          "run_0d5ae833:n0",
+          "run_0d5ae833:n1"
+        ],
+        "style": "optimizer",
+        "mode": "generation",
+        "parent_idea_id": null,
+        "suggested": null,
+        "inherited_from": null,
+        "inherited_upto_run": null
+      },
+      "runs": [],
+      "created_at": "",
+      "updated_at": ""
+    },
+    {
+      "idea_id": null,
+      "title": "Local-Linear Attention: Import the Nadaraya-Watson Bias Correction",
+      "state": "provisional",
+      "one_liner": "Attention is already a Nadaraya-Watson kernel smoother; import the local polynomial regression correction that nonparametric statistics built to fix the scalar-weight bias this gap is pointing at.",
+      "description": "Scaled dot-product attention is exactly a Nadaraya-Watson estimator: output = Σ_j softmax(q·k_j/√d_k) v_j, a normalized kernel-weighted average of the values. Nonparametric statistics has known since the 1960s that this estimator is biased at the boundaries of the key distribution and cannot reproduce even a linear trend, because every key receives only a single scalar weight. The field's standard fix, local linear regression (Cleveland 1979; Fan & Gijbels 1996), replaces the scalar weights with effective weights e1ᵀ(ZᵀWZ)⁻¹ZᵀW computed from a locally fitted linear model over the keys. I propose those effective weights as the compatibility function: they depend on the query and the whole local key geometry, they can be negative (which is exactly how the bias is removed), and at polynomial order zero they reduce to scaled dot-product attention, so the baseline is a special case. This attacks the reported d_k degradation directly: as the key space is compressed, a scalar per key loses local linear structure, while the local-linear correction carries that structure explicitly.",
+      "problem": "The paper reports that shrinking d_k hurts quality, taken as evidence that determining compatibility is not easy for a plain dot product. This idea attacks that failure by replacing the scalar dot-product weight per key with a vector-valued local-linear weight that encodes the local linear geometry of the keys, so compatibility should remain expressible even at small d_k.",
+      "addresses": [
+        "gap_04e60ada"
+      ],
+      "relations": [],
+      "inherited_from": null,
+      "sections": {
+        "correspondence": "- `query q` → evaluation point `x0` in nonparametric regression\n- `keys k_j` → design/covariate points `x_j`\n- `values v_j` → responses `y_j` (NW theory is scalar; attention's `d_v`-dimensional values are a noted mismatch)\n- `softmax(q·k_j/√d_k)` → Nadaraya-Watson weights `K(x0,x_j)/Σ_i K(x0,x_i)` with kernel `K = exp(q·k/√d_k)`\n- `d_k` → dimension of the covariate space\n- the reported `d_k` degradation → NW's boundary bias and its inability to reproduce linear trends from scalar weights\n- `multi-head` → an ensemble of smoothers over different subspaces",
+        "technique": "For each head and query `q`, form pre-weights `w_j = exp(q·k_j/(√d_k τ))` (temperature `τ` is a learned or tuned bandwidth). Build design matrix `Z` with rows `[1, (k_j − q)ᵀ] ∈ R^{n×(d_k+1)}` and `W = diag(w)`. The local-linear effective weights are `a(q) = e1ᵀ (Zᵀ W Z + λI)⁻¹ Zᵀ W ∈ R^n`; the head output is `a(q) V`. Setting polynomial order `p=0` collapses this to `a(q) = w/Σw` = scaled dot-product attention; `p=1` adds the linear correction. To keep cost manageable, restrict `Z` and `W` to the top-`m` keys by pre-score (`m ≈ c·d_k`), giving `O(n m d_k² + n d_k³)` per layer instead of `O(n² d_k²)`. Weights may be negative — a deliberate feature, not a bug: it is the mechanism by which local polynomial regression removes boundary bias.",
+        "evaluation": "Reproduce the paper's ablation, not a new benchmark: train the Transformer on WMT14 En-De (or, if compute-constrained, a 6-layer decoder-only LM on WikiText-103 as surrogate) with three compatibility functions — (a) scaled dot product, (b) local-linear `p=1`, (c) additive attention as the existing 'sophisticated' control. Sweep `d_k ∈ {8,16,32,64}`; report BLEU/perplexity against `d_k` and FLOPs/wall-clock per token. Reject the idea if local-linear does not flatten the `d_k` degradation curve relative to dot product at matched or bounded compute.",
+        "assumptions_breaks": "The import assumes keys live in a Euclidean covariate space where a local linear model of the values is meaningful. Transformer keys are learned embeddings, so `(k_j − q)` may need a learned linear map before entering `Z`; that map becomes part of the compatibility function and must be trained, weakening the analogy to raw covariates. Local polynomial theory assumes i.i.d. design points and a smooth scalar regression function; attention keys are content-dependent and values are `d_v`-dimensional, so the boundary-bias guarantee is heuristic here, not proven. The bias the theory removes is bias in estimating a scalar response with fixed bandwidth; attention's quality also depends on bandwidth `τ` and on the value projection, neither of which this import fixes.",
+        "open_questions": "- Is the local-linear correction useful when `ZᵀWZ` is near-singular (high `d_k`, few neighbors), and should `λ` be learned per head or shared?\n- Does `p=1` suffice, or does `p=2` reduce bias further without inflating variance in the learned-embedding regime?\n- Can the per-query solve be amortized (Woodbury/incremental updates) enough for autoregressive decoding and long sequences, or does the cost swamp the `d_k` benefit?\n- Do negative effective weights destabilize training or create dead heads that purely positive softmax avoided?",
+        "rationale": "Stance: abstract the problem to field-agnostic structure — attention is a normalized kernel-weighted average of values, i.e., a Nadaraya-Watson smoother — and import the method that field built for exactly this failure. Nonparametric statistics (Cleveland 1979; Fan & Gijbels 1996) replaced the scalar-weight Nadaraya-Watson estimator with local polynomial regression specifically to remove boundary bias and reproduce linear trends; that is the same 'one scalar per key is not enough' failure the paper's `d_k` result points to. The transfer is term-by-term (see correspondence), and the imported method brings a decomposition and a bias-reduction guarantee, though not an efficiency gain. Unverified (not in the supplied context): the historical bias results, the Nadaraya-Watson/attention equivalence (I believe it is noted in the d2l textbook and kernel-attention literature), and whether local-linear attention has already been published elsewhere."
+      },
+      "section_order": [
+        "correspondence",
+        "technique",
+        "evaluation",
+        "assumptions_breaks",
+        "open_questions",
+        "rationale"
+      ],
+      "evaluation": {
+        "novelty": null,
+        "feasibility": null,
+        "significance": null
+      },
+      "provenance": [],
+      "origin": {
+        "run_id": "run_0d5ae833",
+        "node_id": "run_0d5ae833:n2",
+        "node_path": [
+          "run_0d5ae833:n0",
+          "run_0d5ae833:n2"
+        ],
+        "style": "transferer",
+        "mode": "generation",
+        "parent_idea_id": null,
+        "suggested": null,
+        "inherited_from": null,
+        "inherited_upto_run": null
+      },
+      "runs": [],
+      "created_at": "",
+      "updated_at": ""
+    }
+  ],
+  "envelopes": [
+    {
+      "idea": {
+        "idea_id": null,
+        "title": "",
+        "state": "provisional",
+        "one_liner": "",
+        "description": "",
+        "problem": "",
+        "addresses": [],
+        "relations": [],
+        "inherited_from": null,
+        "sections": {},
+        "section_order": [],
+        "evaluation": {
+          "novelty": null,
+          "feasibility": null,
+          "significance": null
+        },
+        "provenance": [],
+        "origin": null,
+        "runs": [
+          {
+            "run_id": "run_0d5ae833",
+            "session_id": "session_968e7ca0",
+            "timestamp": "2026-08-30T08:59:31Z",
+            "header": {
+              "mode": "generation",
+              "width": 2,
+              "depth": 1,
+              "model": "reasoner",
+              "agent_styles": [
+                "optimizer",
+                "transferer"
+              ],
+              "context_ids": [
+                "gap_04e60ada",
+                "arxiv_1706.03762"
+              ],
+              "triggering_action": "",
+              "tool_use": true,
+              "task": "The gap: the dot-product compatibility function may be suboptimal for learning attention weights — reducing the key size d_k hurts quality, suggesting determining compatibility is not easy and a more sophisticated compatibility function than dot product may be beneficial (from Attention Is All You Need, arxiv_1706.03762). Generate 2 candidate ideas, each from a different angle, for alternative or improved compatibility functions that could capture this difficulty — e.g., improving on the dot product's cost/quality trade-off, or importing a compatibility mechanism from another field. Work each candidate out concretely: the mechanism, why it addresses why compatibility is hard to determine, and what it would take to evaluate it against the baseline."
+            },
+            "nodes": [
+              {
+                "node_id": "run_0d5ae833:n0",
+                "parent_id": null,
+                "text": "# (untitled idea)",
+                "style": "-",
+                "score": null,
+                "status": "kept",
+                "depth": 0,
+                "kind": "root",
+                "title": "The gap: the dot-product compatibility function may be suboptimal for learning a",
+                "comparison": "",
+                "question": null,
+                "sources": []
+              },
+              {
+                "node_id": "run_0d5ae833:n1",
+                "parent_id": "run_0d5ae833:n0",
+                "text": "I + UVᵀ Attention: A Rank-r Correction to the Scaled Dot Product\nAdd a learned per-head rank-r correction U_h V_hᵀ to the fixed 1/√d_k identity kernel of scaled dot-product attention, and measure BLEU against the unchanged Transformer at fixed and reduced d_k.\nKeep the Transformer intact and change only the compatibility kernel: each head h scores q and k as q·k/√d_k + (U_hᵀq)·(V_hᵀk), where U_h, V_h ∈ R^{d_k×r} are learned per-head matrices with tiny rank r (1–4). This is the scaled dot product plus a low-rank bilinear correction, computed as QKᵀ/√d_k + (Q U_h)(K V_h)ᵀ, so it reuses the existing matmul and adds only ~r/d_k FLOPs. Zero-initializing U_h (or the product term) makes the model start exactly at the scaled dot-product baseline and only deviate where training rewards it. If the reported quality drop at small d_k is caused by the identity kernel being too rigid, the correction should recover BLEU at d_k=16–32 or improve it at d_k=64. It differs from the additive attention the paper set aside because it remains a single bilinear form with matrix-multiply efficiency, and from the plain dot product because it can express off-diagonal query–key interactions.\nPer attention head h, replace the fixed kernel (1/√d_k)·I_{d_k} with W_h = (1/√d_k)·I_{d_k} + U_h V_hᵀ, where U_h, V_h ∈ R^{d_k×r} and r ∈ {1,2,4}. The score is:\n\nscore(q,k) = qᵀW_h k = (q·k)/√d_k + (U_hᵀq)·(V_hᵀk)\n\nImplementation: keep the existing S = QKᵀ/√d_k matmul, then add S += (Q U_h)(K V_h)ᵀ — two small per-head projections followed by an n×n rank-r dot product. Initialize U_h and V_h to zero (or U_h=0 with V_h random) so training begins at the exact scaled dot-product baseline. Sweep r as the only new hyperparameter; r=0 recovers the baseline. As a second, separable ablation, also learn a per-head scalar τ_h in place of the hard-coded 1/√d_k scale.\nPrimary baseline: the original Transformer base (d_model=512, h=8, d_k=64, arxiv_1706.03762) on WMT14 EN-DE with the paper's preprocessing and schedule.\n\n- Delta A (fixed d_k): BLEU at d_k=64 for r=1,2,4 vs r=0 (baseline).\n- Delta B (small d_k): BLEU at d_k=32 (h=16) and d_k=16 (h=32) for r>0 vs r=0 at the same d_k, and vs r=0 at d_k=64 — testing whether the correction restores the quality lost by shrinking d_k.\n- Upper-bound control: a full per-head learned W_h ∈ R^{d_k×d_k} (no identity prior) at the same d_k settings, to estimate how much available expressivity the rank-r correction captures.\n- Throughput control: tokens/sec during training at each r, to confirm the claimed ~r/d_k overhead.\nParameters: 2·d_k·r per head. For base (h=8, d_k=64, r=2): 256 params/head; across 6 encoder layers + 6 decoder self-attention + 6 decoder cross-attention modules = 8 heads × 18 modules × 256 ≈ 37K params, under 0.06% of the ~65M base model.\n\nFLOPs: two n×d_k×r projections plus one n×n×r dot product per head; relative to the dominant n×n×d_k term this is ≈ r/d_k (≈3% at r=2, d_k=64). All three use existing matmul kernels; no new CUDA op is required.\n\nMemory: negligible — the correction is applied inside the attention module and stores only the n×r projected Q/K activations.\n1. Is the original d_k sensitivity actually caused by the identity kernel, or by reduced value/key subspace capacity? The full-W control at small d_k separates these: if full W fails to recover quality, the bottleneck is subspace size, not the compatibility form, and the correction is the wrong fix.\n2. Should U_h and V_h be shared across heads or layers, and should they be tied (U=V) to keep the kernel symmetric or PSD?\n3. Does the benefit shrink at larger d_model or with more training data (a small-model/short-run effect)?\n4. Is zero-initialization too conservative — would small-scale random initialization learn faster without destabilizing early training?\nStance: the Transformer is roughly right, so the win is a local module swap with a named delta, not a new attention paradigm. Replacing the fixed kernel with I/√d_k + U_h V_hᵀ is exactly that — one learned low-rank matrix per head, nesting the baseline at r=0 or zero-init, so every result is a clean ablation against unchanged scaled dot-product attention.\n\nThe paper's own evidence — quality drops when d_k is reduced — is the motivation: a rank-r correction is the minimal change that can express the off-diagonal query–key interactions a fixed identity cannot.\n\nUnverified (not in the loaded context): the claim that low-rank bilinear pooling is an established device in vision/multimodal attention, and the paper's statement that additive attention outperforms unscaled dot product for larger d_k. Both should be checked against the original text and the vision literature before writing related work.",
+                "style": "optimizer",
+                "score": 0.7788,
+                "status": "kept",
+                "depth": 1,
+                "kind": "candidate",
+                "title": "I + UVᵀ Attention: A Rank-r Correction to the Scaled Dot Product",
+                "comparison": "rank 1/2",
+                "question": null,
+                "sources": []
+              },
+              {
+                "node_id": "run_0d5ae833:n2",
+                "parent_id": "run_0d5ae833:n0",
+                "text": "Local-Linear Attention: Import the Nadaraya-Watson Bias Correction\nAttention is already a Nadaraya-Watson kernel smoother; import the local polynomial regression correction that nonparametric statistics built to fix the scalar-weight bias this gap is pointing at.\nScaled dot-product attention is exactly a Nadaraya-Watson estimator: output = Σ_j softmax(q·k_j/√d_k) v_j, a normalized kernel-weighted average of the values. Nonparametric statistics has known since the 1960s that this estimator is biased at the boundaries of the key distribution and cannot reproduce even a linear trend, because every key receives only a single scalar weight. The field's standard fix, local linear regression (Cleveland 1979; Fan & Gijbels 1996), replaces the scalar weights with effective weights e1ᵀ(ZᵀWZ)⁻¹ZᵀW computed from a locally fitted linear model over the keys. I propose those effective weights as the compatibility function: they depend on the query and the whole local key geometry, they can be negative (which is exactly how the bias is removed), and at polynomial order zero they reduce to scaled dot-product attention, so the baseline is a special case. This attacks the reported d_k degradation directly: as the key space is compressed, a scalar per key loses local linear structure, while the local-linear correction carries that structure explicitly.\n- `query q` → evaluation point `x0` in nonparametric regression\n- `keys k_j` → design/covariate points `x_j`\n- `values v_j` → responses `y_j` (NW theory is scalar; attention's `d_v`-dimensional values are a noted mismatch)\n- `softmax(q·k_j/√d_k)` → Nadaraya-Watson weights `K(x0,x_j)/Σ_i K(x0,x_i)` with kernel `K = exp(q·k/√d_k)`\n- `d_k` → dimension of the covariate space\n- the reported `d_k` degradation → NW's boundary bias and its inability to reproduce linear trends from scalar weights\n- `multi-head` → an ensemble of smoothers over different subspaces\nFor each head and query `q`, form pre-weights `w_j = exp(q·k_j/(√d_k τ))` (temperature `τ` is a learned or tuned bandwidth). Build design matrix `Z` with rows `[1, (k_j − q)ᵀ] ∈ R^{n×(d_k+1)}` and `W = diag(w)`. The local-linear effective weights are `a(q) = e1ᵀ (Zᵀ W Z + λI)⁻¹ Zᵀ W ∈ R^n`; the head output is `a(q) V`. Setting polynomial order `p=0` collapses this to `a(q) = w/Σw` = scaled dot-product attention; `p=1` adds the linear correction. To keep cost manageable, restrict `Z` and `W` to the top-`m` keys by pre-score (`m ≈ c·d_k`), giving `O(n m d_k² + n d_k³)` per layer instead of `O(n² d_k²)`. Weights may be negative — a deliberate feature, not a bug: it is the mechanism by which local polynomial regression removes boundary bias.\nReproduce the paper's ablation, not a new benchmark: train the Transformer on WMT14 En-De (or, if compute-constrained, a 6-layer decoder-only LM on WikiText-103 as surrogate) with three compatibility functions — (a) scaled dot product, (b) local-linear `p=1`, (c) additive attention as the existing 'sophisticated' control. Sweep `d_k ∈ {8,16,32,64}`; report BLEU/perplexity against `d_k` and FLOPs/wall-clock per token. Reject the idea if local-linear does not flatten the `d_k` degradation curve relative to dot product at matched or bounded compute.\nThe import assumes keys live in a Euclidean covariate space where a local linear model of the values is meaningful. Transformer keys are learned embeddings, so `(k_j − q)` may need a learned linear map before entering `Z`; that map becomes part of the compatibility function and must be trained, weakening the analogy to raw covariates. Local polynomial theory assumes i.i.d. design points and a smooth scalar regression function; attention keys are content-dependent and values are `d_v`-dimensional, so the boundary-bias guarantee is heuristic here, not proven. The bias the theory removes is bias in estimating a scalar response with fixed bandwidth; attention's quality also depends on bandwidth `τ` and on the value projection, neither of which this import fixes.\n- Is the local-linear correction useful when `ZᵀWZ` is near-singular (high `d_k`, few neighbors), and should `λ` be learned per head or shared?\n- Does `p=1` suffice, or does `p=2` reduce bias further without inflating variance in the learned-embedding regime?\n- Can the per-query solve be amortized (Woodbury/incremental updates) enough for autoregressive decoding and long sequences, or does the cost swamp the `d_k` benefit?\n- Do negative effective weights destabilize training or create dead heads that purely positive softmax avoided?\nStance: abstract the problem to field-agnostic structure — attention is a normalized kernel-weighted average of values, i.e., a Nadaraya-Watson smoother — and import the method that field built for exactly this failure. Nonparametric statistics (Cleveland 1979; Fan & Gijbels 1996) replaced the scalar-weight Nadaraya-Watson estimator with local polynomial regression specifically to remove boundary bias and reproduce linear trends; that is the same 'one scalar per key is not enough' failure the paper's `d_k` result points to. The transfer is term-by-term (see correspondence), and the imported method brings a decomposition and a bias-reduction guarantee, though not an efficiency gain. Unverified (not in the supplied context): the historical bias results, the Nadaraya-Watson/attention equivalence (I believe it is noted in the d2l textbook and kernel-attention literature), and whether local-linear attention has already been published elsewhere.",
+                "style": "transferer",
+                "score": 0.7788,
+                "status": "kept",
+                "depth": 1,
+                "kind": "candidate",
+                "title": "Local-Linear Attention: Import the Nadaraya-Watson Bias Correction",
+                "comparison": "rank 2/2",
+                "question": null,
+                "sources": []
+              }
+            ],
+            "edges": [
+              {
+                "from": "run_0d5ae833:n0",
+                "to": "run_0d5ae833:n1",
+                "type": "expanded-into"
+              },
+              {
+                "from": "run_0d5ae833:n0",
+                "to": "run_0d5ae833:n2",
+                "type": "expanded-into"
+              }
+            ],
+            "outcome": {
+              "accepted_node": null,
+              "escalation": null,
+              "truncated": false,
+              "escalation_node": null,
+              "escalation_diagnosis": "",
+              "status": "completed",
+              "reason": "2 candidates survived deduplication",
+              "limit": null,
+              "accepted_nodes": [],
+              "summary": {
+                "objective": "The gap: the dot-product compatibility function may be suboptimal for learning attention weights — reducing the key size d_k hurts quality, suggesting determining compatibility is not easy and a more sophisticated compatibility function than dot product may be beneficial (from Attention Is All You Need, arxiv_1706.03762). Generate 2 candidate ideas, each from a different angle, for alternative or improved compatibility functions that could capture this difficulty — e.g., improving on the dot product's cost/quality trade-off, or importing a compatibility mechanism from another field. Work each candidate out concretely: the mechanism, why it addresses why compatibility is hard to determine, and what it would take to evaluate it against the baseline.",
+                "accepted": "I + UVᵀ Attention: A Rank-r Correction to the Scaled Dot Product; Local-Linear Attention: Import the Nadaraya-Watson Bias Correction",
+                "rejected": "",
+                "open": [
+                  "1",
+                  ".",
+                  " ",
+                  "I",
+                  "s"
+                ]
+              },
+              "answer": "",
+              "proposed_changes": []
+            }
+          }
+        ],
+        "created_at": "",
+        "updated_at": ""
+      },
+      "answer": "",
+      "drafts": [
+        {
+          "idea_id": null,
+          "title": "I + UVᵀ Attention: A Rank-r Correction to the Scaled Dot Product",
+          "state": "provisional",
+          "one_liner": "Add a learned per-head rank-r correction U_h V_hᵀ to the fixed 1/√d_k identity kernel of scaled dot-product attention, and measure BLEU against the unchanged Transformer at fixed and reduced d_k.",
+          "description": "Keep the Transformer intact and change only the compatibility kernel: each head h scores q and k as q·k/√d_k + (U_hᵀq)·(V_hᵀk), where U_h, V_h ∈ R^{d_k×r} are learned per-head matrices with tiny rank r (1–4). This is the scaled dot product plus a low-rank bilinear correction, computed as QKᵀ/√d_k + (Q U_h)(K V_h)ᵀ, so it reuses the existing matmul and adds only ~r/d_k FLOPs. Zero-initializing U_h (or the product term) makes the model start exactly at the scaled dot-product baseline and only deviate where training rewards it. If the reported quality drop at small d_k is caused by the identity kernel being too rigid, the correction should recover BLEU at d_k=16–32 or improve it at d_k=64. It differs from the additive attention the paper set aside because it remains a single bilinear form with matrix-multiply efficiency, and from the plain dot product because it can express off-diagonal query–key interactions.",
+          "problem": "Scaled dot-product attention's fixed identity bilinear form is suspected to be too restrictive: reducing the key dimension d_k measurably hurts Transformer quality. This idea attacks that fragility directly by asking how much lost quality a cheap learned low-rank correction to the dot product can recover — at fixed d_k and at smaller d_k — versus the unchanged Transformer baseline.",
+          "addresses": [
+            "gap_04e60ada"
+          ],
+          "relations": [],
+          "inherited_from": null,
+          "sections": {
+            "technique": "Per attention head h, replace the fixed kernel (1/√d_k)·I_{d_k} with W_h = (1/√d_k)·I_{d_k} + U_h V_hᵀ, where U_h, V_h ∈ R^{d_k×r} and r ∈ {1,2,4}. The score is:\n\nscore(q,k) = qᵀW_h k = (q·k)/√d_k + (U_hᵀq)·(V_hᵀk)\n\nImplementation: keep the existing S = QKᵀ/√d_k matmul, then add S += (Q U_h)(K V_h)ᵀ — two small per-head projections followed by an n×n rank-r dot product. Initialize U_h and V_h to zero (or U_h=0 with V_h random) so training begins at the exact scaled dot-product baseline. Sweep r as the only new hyperparameter; r=0 recovers the baseline. As a second, separable ablation, also learn a per-head scalar τ_h in place of the hard-coded 1/√d_k scale.",
+            "baselines": "Primary baseline: the original Transformer base (d_model=512, h=8, d_k=64, arxiv_1706.03762) on WMT14 EN-DE with the paper's preprocessing and schedule.\n\n- Delta A (fixed d_k): BLEU at d_k=64 for r=1,2,4 vs r=0 (baseline).\n- Delta B (small d_k): BLEU at d_k=32 (h=16) and d_k=16 (h=32) for r>0 vs r=0 at the same d_k, and vs r=0 at d_k=64 — testing whether the correction restores the quality lost by shrinking d_k.\n- Upper-bound control: a full per-head learned W_h ∈ R^{d_k×d_k} (no identity prior) at the same d_k settings, to estimate how much available expressivity the rank-r correction captures.\n- Throughput control: tokens/sec during training at each r, to confirm the claimed ~r/d_k overhead.",
+            "cost": "Parameters: 2·d_k·r per head. For base (h=8, d_k=64, r=2): 256 params/head; across 6 encoder layers + 6 decoder self-attention + 6 decoder cross-attention modules = 8 heads × 18 modules × 256 ≈ 37K params, under 0.06% of the ~65M base model.\n\nFLOPs: two n×d_k×r projections plus one n×n×r dot product per head; relative to the dominant n×n×d_k term this is ≈ r/d_k (≈3% at r=2, d_k=64). All three use existing matmul kernels; no new CUDA op is required.\n\nMemory: negligible — the correction is applied inside the attention module and stores only the n×r projected Q/K activations.",
+            "open_questions": "1. Is the original d_k sensitivity actually caused by the identity kernel, or by reduced value/key subspace capacity? The full-W control at small d_k separates these: if full W fails to recover quality, the bottleneck is subspace size, not the compatibility form, and the correction is the wrong fix.\n2. Should U_h and V_h be shared across heads or layers, and should they be tied (U=V) to keep the kernel symmetric or PSD?\n3. Does the benefit shrink at larger d_model or with more training data (a small-model/short-run effect)?\n4. Is zero-initialization too conservative — would small-scale random initialization learn faster without destabilizing early training?",
+            "rationale": "Stance: the Transformer is roughly right, so the win is a local module swap with a named delta, not a new attention paradigm. Replacing the fixed kernel with I/√d_k + U_h V_hᵀ is exactly that — one learned low-rank matrix per head, nesting the baseline at r=0 or zero-init, so every result is a clean ablation against unchanged scaled dot-product attention.\n\nThe paper's own evidence — quality drops when d_k is reduced — is the motivation: a rank-r correction is the minimal change that can express the off-diagonal query–key interactions a fixed identity cannot.\n\nUnverified (not in the loaded context): the claim that low-rank bilinear pooling is an established device in vision/multimodal attention, and the paper's statement that additive attention outperforms unscaled dot product for larger d_k. Both should be checked against the original text and the vision literature before writing related work."
+          },
+          "section_order": [
+            "technique",
+            "baselines",
+            "cost",
+            "open_questions",
+            "rationale"
+          ],
+          "evaluation": {
+            "novelty": null,
+            "feasibility": null,
+            "significance": null
+          },
+          "provenance": [],
+          "origin": {
+            "run_id": "run_0d5ae833",
+            "node_id": "run_0d5ae833:n1",
+            "node_path": [
+              "run_0d5ae833:n0",
+              "run_0d5ae833:n1"
+            ],
+            "style": "optimizer",
+            "mode": "generation",
+            "parent_idea_id": null,
+            "suggested": null,
+            "inherited_from": null,
+            "inherited_upto_run": null
+          },
+          "runs": [],
+          "created_at": "",
+          "updated_at": ""
+        },
+        {
+          "idea_id": null,
+          "title": "Local-Linear Attention: Import the Nadaraya-Watson Bias Correction",
+          "state": "provisional",
+          "one_liner": "Attention is already a Nadaraya-Watson kernel smoother; import the local polynomial regression correction that nonparametric statistics built to fix the scalar-weight bias this gap is pointing at.",
+          "description": "Scaled dot-product attention is exactly a Nadaraya-Watson estimator: output = Σ_j softmax(q·k_j/√d_k) v_j, a normalized kernel-weighted average of the values. Nonparametric statistics has known since the 1960s that this estimator is biased at the boundaries of the key distribution and cannot reproduce even a linear trend, because every key receives only a single scalar weight. The field's standard fix, local linear regression (Cleveland 1979; Fan & Gijbels 1996), replaces the scalar weights with effective weights e1ᵀ(ZᵀWZ)⁻¹ZᵀW computed from a locally fitted linear model over the keys. I propose those effective weights as the compatibility function: they depend on the query and the whole local key geometry, they can be negative (which is exactly how the bias is removed), and at polynomial order zero they reduce to scaled dot-product attention, so the baseline is a special case. This attacks the reported d_k degradation directly: as the key space is compressed, a scalar per key loses local linear structure, while the local-linear correction carries that structure explicitly.",
+          "problem": "The paper reports that shrinking d_k hurts quality, taken as evidence that determining compatibility is not easy for a plain dot product. This idea attacks that failure by replacing the scalar dot-product weight per key with a vector-valued local-linear weight that encodes the local linear geometry of the keys, so compatibility should remain expressible even at small d_k.",
+          "addresses": [
+            "gap_04e60ada"
+          ],
+          "relations": [],
+          "inherited_from": null,
+          "sections": {
+            "correspondence": "- `query q` → evaluation point `x0` in nonparametric regression\n- `keys k_j` → design/covariate points `x_j`\n- `values v_j` → responses `y_j` (NW theory is scalar; attention's `d_v`-dimensional values are a noted mismatch)\n- `softmax(q·k_j/√d_k)` → Nadaraya-Watson weights `K(x0,x_j)/Σ_i K(x0,x_i)` with kernel `K = exp(q·k/√d_k)`\n- `d_k` → dimension of the covariate space\n- the reported `d_k` degradation → NW's boundary bias and its inability to reproduce linear trends from scalar weights\n- `multi-head` → an ensemble of smoothers over different subspaces",
+            "technique": "For each head and query `q`, form pre-weights `w_j = exp(q·k_j/(√d_k τ))` (temperature `τ` is a learned or tuned bandwidth). Build design matrix `Z` with rows `[1, (k_j − q)ᵀ] ∈ R^{n×(d_k+1)}` and `W = diag(w)`. The local-linear effective weights are `a(q) = e1ᵀ (Zᵀ W Z + λI)⁻¹ Zᵀ W ∈ R^n`; the head output is `a(q) V`. Setting polynomial order `p=0` collapses this to `a(q) = w/Σw` = scaled dot-product attention; `p=1` adds the linear correction. To keep cost manageable, restrict `Z` and `W` to the top-`m` keys by pre-score (`m ≈ c·d_k`), giving `O(n m d_k² + n d_k³)` per layer instead of `O(n² d_k²)`. Weights may be negative — a deliberate feature, not a bug: it is the mechanism by which local polynomial regression removes boundary bias.",
+            "evaluation": "Reproduce the paper's ablation, not a new benchmark: train the Transformer on WMT14 En-De (or, if compute-constrained, a 6-layer decoder-only LM on WikiText-103 as surrogate) with three compatibility functions — (a) scaled dot product, (b) local-linear `p=1`, (c) additive attention as the existing 'sophisticated' control. Sweep `d_k ∈ {8,16,32,64}`; report BLEU/perplexity against `d_k` and FLOPs/wall-clock per token. Reject the idea if local-linear does not flatten the `d_k` degradation curve relative to dot product at matched or bounded compute.",
+            "assumptions_breaks": "The import assumes keys live in a Euclidean covariate space where a local linear model of the values is meaningful. Transformer keys are learned embeddings, so `(k_j − q)` may need a learned linear map before entering `Z`; that map becomes part of the compatibility function and must be trained, weakening the analogy to raw covariates. Local polynomial theory assumes i.i.d. design points and a smooth scalar regression function; attention keys are content-dependent and values are `d_v`-dimensional, so the boundary-bias guarantee is heuristic here, not proven. The bias the theory removes is bias in estimating a scalar response with fixed bandwidth; attention's quality also depends on bandwidth `τ` and on the value projection, neither of which this import fixes.",
+            "open_questions": "- Is the local-linear correction useful when `ZᵀWZ` is near-singular (high `d_k`, few neighbors), and should `λ` be learned per head or shared?\n- Does `p=1` suffice, or does `p=2` reduce bias further without inflating variance in the learned-embedding regime?\n- Can the per-query solve be amortized (Woodbury/incremental updates) enough for autoregressive decoding and long sequences, or does the cost swamp the `d_k` benefit?\n- Do negative effective weights destabilize training or create dead heads that purely positive softmax avoided?",
+            "rationale": "Stance: abstract the problem to field-agnostic structure — attention is a normalized kernel-weighted average of values, i.e., a Nadaraya-Watson smoother — and import the method that field built for exactly this failure. Nonparametric statistics (Cleveland 1979; Fan & Gijbels 1996) replaced the scalar-weight Nadaraya-Watson estimator with local polynomial regression specifically to remove boundary bias and reproduce linear trends; that is the same 'one scalar per key is not enough' failure the paper's `d_k` result points to. The transfer is term-by-term (see correspondence), and the imported method brings a decomposition and a bias-reduction guarantee, though not an efficiency gain. Unverified (not in the supplied context): the historical bias results, the Nadaraya-Watson/attention equivalence (I believe it is noted in the d2l textbook and kernel-attention literature), and whether local-linear attention has already been published elsewhere."
+          },
+          "section_order": [
+            "correspondence",
+            "technique",
+            "evaluation",
+            "assumptions_breaks",
+            "open_questions",
+            "rationale"
+          ],
+          "evaluation": {
+            "novelty": null,
+            "feasibility": null,
+            "significance": null
+          },
+          "provenance": [],
+          "origin": {
+            "run_id": "run_0d5ae833",
+            "node_id": "run_0d5ae833:n2",
+            "node_path": [
+              "run_0d5ae833:n0",
+              "run_0d5ae833:n2"
+            ],
+            "style": "transferer",
+            "mode": "generation",
+            "parent_idea_id": null,
+            "suggested": null,
+            "inherited_from": null,
+            "inherited_upto_run": null
+          },
+          "runs": [],
+          "created_at": "",
+          "updated_at": ""
+        }
+      ],
+      "suggested_operations": [],
+      "proposed_changes": [],
+      "questions": [],
+      "status": "completed",
+      "status_reason": "2 candidates survived deduplication",
+      "limit": null,
+      "metrics": {
+        "llm_calls": 2,
+        "investigations": 2,
+        "tokens": 0,
+        "duration_s": 353.895,
+        "nodes": 3,
+        "mean_pairwise_distance": 0.9427,
+        "cluster_count": 3
+      },
+      "run_id": "run_0d5ae833"
+    }
+  ],
+  "offers": [
+    {
+      "envelope": 0,
+      "draft": 0
+    },
+    {
+      "envelope": 0,
+      "draft": 1
+    }
+  ]
+}

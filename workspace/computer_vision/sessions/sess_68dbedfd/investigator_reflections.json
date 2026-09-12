@@ -1,0 +1,5 @@
+{
+  "6e1bad6242a81b5b7f53f512d1a976d7d3b62599aa04adfe5f37587030c2113a": [
+    "Fetch and inspect the qiuzh20/gated_attention GitHub repo directly (it appeared in prior search results but was never opened), and run targeted searches combining phrases like \"dot-product gate\", \"additive attention\", \"top-k\", and \"gated attention\" to determine whether the exact Gate-then-Refine mechanism (linear dot-product gating selects top-k keys, then nonlinear additive compatibility is computed only on those keys) has been proposed before and whether any evaluation or analysis supports/contradicts its viability. Do not settle for pages about hybrid Top-k+Top-p masking, which answer a different question."
+  ]
+}

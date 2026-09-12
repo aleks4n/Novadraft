@@ -1,0 +1,65 @@
+{
+ "idea_id": null,
+ "title": "Gate-then-Refine Attention: dot-product selection + additive compatibility on top-k keys",
+ "state": "provisional",
+ "one_liner": "Keep the cheap linear dot product as a gate that selects which key positions receive the nonlinear additive compatibility computation, recovering the quality lost at low d_k without paying the full O(n\u00b2\u00b7hidden) cost of additive attention.",
+ "description": "Scaled dot-product attention is a linear kernel in a low-dimensional space \u2014 its low capacity is exactly why shrinking d_k hurts quality. Additive attention (Bahdanau) is a universal function approximator for compatibility but costs a per-pair MLP, so it is expensive to apply everywhere. Compose them as a gate: (1) compute the scaled dot product over all n keys and select the top-k by score; (2) run the additive MLP compatibility only on those k survivors; (3) softmax over the refined top-k and weight V. The composition is sequential-gating: dot product decides *where* to spend the expensive nonlinearity, additive decides *how much* each survivor is compatible. This is not the naive \"add the two score matrices\" \u2014 that stacks cost without fixing the low-d_k failure and muddles the gradient; the interface is the differentiable top-k (Gumbel-style soft gate with a temperature), which is the actual contribution.",
+ "problem": "The dot-product compatibility function is a low-rank linear kernel whose capacity collapses as d_k shrinks, so the Transformer pays for larger keys just to get enough representational room to judge compatibility \u2014 and even then the judgement stays linear. The idea attacks the specific claim that \"determining compatibility is not easy\": it injects a nonlinear compatibility function only where the cheap linear one signals it is worth looking.",
+ "addresses": [
+  "gap_04e60ada"
+ ],
+ "relations": [],
+ "inherited_from": null,
+ "sections": {
+  "technique": "In each head, replace softmax(QK\u1d40/\u221ad\u2096)V with a two-stage forward pass:\n1. Gate: scores s = QK\u1d40/\u221ad\u2096 over all n keys; take softmax with temperature \u03c4 and straight-through top-k masking to select the k highest-scoring positions.\n2. Refine: for each query, run the additive MLP compatibility a(q, k) = w\u1d40\u00b7tanh(W\u2081q + W\u2082k) only over the k selected keys, then softmax those refined scores and weight the corresponding V rows.\n3. k is per-head and could be fixed or chosen by cumulative-gate-mass; \u03c4 and the top-k mask are annealed during training so the gate learns to route before the additive head is trusted.\nThe key/query projections stay small (small d_k) because the dot product is only a cheap pre-filter, and the nonlinear capacity lives in the additive MLP.",
+  "composition": "Sequential gating: dot product is the prior over *where* compatibility is worth computing; additive is the refiner over *how much*. The two methods fix each other's known failures \u2014 dot product's linearity is patched by additive's universality, and additive's O(n\u00b2\u00b7hidden) cost is patched by dot product's sparse routing. The interface that must be right is the top-k: a hard mask kills gradients for early heads, no mask means you have merely added two linear-ish score matrices; the temperature-annealed soft gate is the load-bearing piece.",
+  "napkin_math": "Full additive attention: O(n\u00b2\u00b7hidden) per head. Dot product only: O(n\u00b2\u00b7d\u2096). Hybrid: O(n\u00b2\u00b7d\u2096) for the gate + O(n\u00b7k\u00b7hidden) for refinement on survivors. When k = 16 and n = 256, refinement is ~6% of full additive cost, so the hybrid approaches dot-product's cost while carrying additive's nonlinear capacity. The efficiency claim is that quality-per-FLOP beats both: full dot product (low capacity) and full additive (high capacity, high cost).",
+  "baselines": "- Scaled dot-product Transformer (the canonical, quality target).\n- Full additive attention with no gate (expressive ceiling, cost ceiling).\n- Naive sum softmax(dot) + softmax(additive) \u2014 the stacked-not-composed baseline that is expected to add cost without fixing low-d_k.\n- The same hybrid with hard (non-differentiable) top-k to show the soft gate matters.\nEvaluate on WMT14 En-De (matching the paper's BLEU setup) plus the ablation: hold compute roughly equal and sweep d_k from 32 to 512, checking whether the hybrid stops losing quality where the pure dot product degrades.",
+  "open_questions": "Whether top-k selection is stable early in training when the gate scores are uncalibrated, and whether a per-head adaptive k beats a global one. Whether the additive MLP reuses the same key/query projections as the gate or needs its own, which changes the cost arithmetic. Whether the benefit survives in multi-head settings where heads already specialize \u2014 i.e., whether the gate and the additive head learn to route on different subspaces or collapse onto the same ones.",
+  "rationale": "The Combiner stance requires naming two methods, saying what each lacks, and making the composition \u2014 not the ingredients \u2014 the contribution. The gap's own evidence (additive beating unscaled dot product at large d\u2096, and quality falling with d\u2096) points straight at dot product as a weak *linear* compatibility function and additive as the expensive expressive fix; gating is the natural composition. Unverified: that top-k sparsification preserves the Transformer's ability to attend globally rather than locally \u2014 top-k is a hard restriction the paper did not test, and this is the claim most worth breaking in evaluation."
+ },
+ "section_order": [
+  "technique",
+  "composition",
+  "napkin_math",
+  "baselines",
+  "open_questions",
+  "rationale"
+ ],
+ "evaluation": {
+  "novelty": null,
+  "feasibility": null,
+  "significance": null
+ },
+ "provenance": [],
+ "origin": {
+  "run_id": "run_242aa78a",
+  "node_id": "run_242aa78a:n1",
+  "node_path": [
+   "run_242aa78a:n0",
+   "run_242aa78a:n1"
+  ],
+  "style": "combiner",
+  "mode": "generation",
+  "parent_idea_id": null,
+  "suggested": null,
+  "inherited_from": null,
+  "inherited_upto_run": null
+ },
+ "runs": [],
+ "created_at": "",
+ "updated_at": "",
+ "_session": {
+  "draft_id": "draft_92b9e1c1",
+  "session_id": "sess_68dbedfd",
+  "kind": "create",
+  "run_id": "20260830_155522_start-plan-20260830-155345-give-me-2-ide",
+  "source_index": 0,
+  "handle": "run_242aa78a#0",
+  "offer_run": "run_242aa78a",
+  "target_idea_id": null,
+  "label": "Gate-then-Refine Attention: dot-product selection + additive compatibility on top-k keys",
+  "status": "open",
+  "created_at": "2026-08-30T13:59:47Z"
+ }
+}

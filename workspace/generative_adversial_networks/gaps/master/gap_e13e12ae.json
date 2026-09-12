@@ -1,0 +1,70 @@
+{
+  "gap_id": "gap_e13e12ae",
+  "status": "validated",
+  "title": "WGAN loss not yet a quantitative evaluation metric",
+  "description": "The authors do not claim their EM-distance learning curve is a new quantitative evaluation method yet: the constant scaling factor depends on the critic's architecture, making it hard to compare models with different critics, and finite critic capacity makes it hard to know how close the estimate is to the true EM distance.",
+  "type": "caveat",
+  "canonical_description": "EM-distance loss metric not yet usable for quantitative generative model evaluation",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1701.07875",
+      "section": "empirical_results",
+      "anchor": "we do not claim that this is a new method",
+      "quote": "However, we do not claim that this is a new method to quantitatively",
+      "char_offset": [
+        3620,
+        3688
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-09-09T04:11:13Z",
+  "verdict": {
+    "gap_id": "gap_e13e12ae",
+    "status": "partially_solved",
+    "confidence": 0.5,
+    "reasoning": "The single deep-read paper (WGAN-based precipitation downscaling) takes a real step by using the trained critic's score — a surrogate Wasserstein/EM-distance term — as an evaluation signal, showing it separates HR from degraded outputs and correlates with human-perceived realism. This addresses part of the gap: it demonstrates the critic's promise for generative quality assessment. However, it does not make the EM-distance loss a quantitative evaluation metric as the gap requires. Its evaluation remains relative/qualitative within one fixed critic and one task, validated by case inspection rather than a calibrated number. The two core obstacles named in the gap are untouched: there is no cross-critic/architecture normalization for the constant scaling factor, and no quantification of finite critic capacity or bound on the distance to the true EM distance. The paper itself frames the critic as a promising future direction, so the meaningful piece — quantitative, comparable, calibrated use — remains open.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2507.17798",
+          "title": "Wasserstein GAN-Based Precipitation Downscaling with Optimal Transport for Enhancing Perceptual Realism",
+          "abstract": "High-resolution (HR) precipitation prediction is essential for reducing damage from stationary and localized heavy rainfall; however, HR precipitation forecasts using process-driven numerical weather prediction models remains challenging. This study proposes using Wasserstein Generative Adversarial Network (WGAN) to perform precipitation downscaling with an optimal transport cost. In contrast to a conventional neural network trained with mean squared error, the WGAN generated visually realistic precipitation fields with fine-scale structures even though the WGAN exhibited slightly lower performance on conventional evaluation metrics. The learned critic of WGAN correlated well with human perceptual realism. Case-based analysis revealed that large discrepancies in critic scores can help identify both unrealistic WGAN outputs and potential artifacts in the reference data. These findings suggest that the WGAN framework not only improves perceptual realism in precipitation downscaling but also offers a new perspective for evaluating and quality-controlling precipitation datasets.",
+          "authors": [
+            "Kenta Shiraishi",
+            "Yuka Muto",
+            "Atsushi Okazaki",
+            "Shunji Kotsuki"
+          ],
+          "published_date": "2025-07-23T15:29:34Z",
+          "url": "https://arxiv.org/abs/2507.17798v1"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "This paper applies a WGAN (gradient-penalty Wasserstein distance) to precipitation super-resolution/downscaling and then analyzes the trained critic's scores — i.e., the surrogate EM/Wasserstein-distance loss terms — as an evaluation signal. It shows that critic scores separate HR reference data from LR/SRCNN/WGAN outputs, that critic-score differences correlate with human-perceived realism, and that extreme positive/negative critic differences can flag unrealistic WGAN outputs or artifacts in the reference data. The authors propose using the trained critic for perceptual quality assessment and precipitation data quality control.",
+        "what_remains_open": "The paper does not make the WGAN EM-distance loss a quantitative evaluation metric in the sense the gap requires. Its critic-based evaluation is qualitative/relative: scores are interpreted within a single fixed critic for one downscaling task and are validated by eyeball case inspection rather than by a calibrated number. The two core obstacles named in the gap remain unaddressed: (1) the constant scaling factor depends on the critic architecture, so no method is given to compare models trained with different critics/architectures; and (2) finite critic capacity is never quantified, so there is no estimate or bound on how close the critic score is to the true EM distance. No cross-architecture normalization, calibration against the true Wasserstein distance, or uncertainty characterization is proposed, and the paper itself frames the critic as a promising future direction rather than an established quantitative metric.",
+        "evidence_snippets": [
+          "The learned critic of WGAN correlated well with human perceptual realism.",
+          "analysis of the WGAN critic revealed that critic scores aligned well with human perception: large negative critic differences indicate realistic reconstructions, while large positive differences highlight perceptual failures.",
+          "Our experiments suggested the critic's potential for both quality assessment and data quality control."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 1,
+      "skipped_ids": []
+    }
+  },
+  "ranking": {
+    "openness": 0.35,
+    "impact": 0.40132153631826967,
+    "feasibility": 0.65,
+    "feasibility_reasoning": "Meaningful progress is feasible without a fundamental breakthrough. The needed data can be generated synthetically (e.g., Gaussians/mixtures with analytic Wasserstein distances) or drawn from standard image benchmarks, avoiding costly new collection. Compute is modest: training WGAN critics and evaluating surrogate distances does not require frontier-scale resources. Methodologically, the problem sits on mature ground—existing WGAN/optimal-transport estimators (neural duals, Sinkhorn, sliced Wasserstein) provide candidate references for calibration. The main hurdles are cross-critic normalization and quantifying finite-capacity bias, which can be attacked empirically via fixed critic protocols, calibration curves against known ground-truth distances, and cross-architecture consistency tests. Evaluatability is clear: report calibration error against analytic EM distances and rank-correlation/consistency across critics. It is not a 1.0 because a general, architecture-independent, calibrated metric is genuinely difficult and may resist full solution, but a focused, benchmarkable step is quite tractable."
+  }
+}
