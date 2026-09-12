@@ -1,5 +1,0 @@
-{
-  "2f05250b450fe006774180eb8fa7541bd3ae52392c9e840038046153f4d274f4": [
-    "Do not return broad attention survey pages; search targeted academic queries (\"additive attention top-k sparse\", \"Bahdanau attention top-k routing\", \"dot-product + additive attention hybrid\", \"memory-efficient additive attention\") on arXiv/Scholar to find prior work that directly matches the dot-product-gated additive hybrid, and evaluate novelty (has it been proposed) and plausibility (top-m MLP over dot-product-gated pairs vs. theoretical/empirical results) against those specific sources."
-  ]
-}

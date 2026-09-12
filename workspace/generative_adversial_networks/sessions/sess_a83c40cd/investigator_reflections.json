@@ -1,5 +1,0 @@
-{
-  "993852cdadb2845f8a30b581a442bb803784b1f7d62d12850a3fe661f48718b0": [
-    "Both search backends failed due to connectivity/timeout, not lack of relevance—retry with backoff and shorter, simpler queries (e.g., 'VEEGAN mode collapse encoder', 'BiGAN ALI mode collapse discriminator staleness', 'InfoGAN discriminator stale robustness') across multiple endpoints (Semantic Scholar, Google Scholar, arXiv API with short timeout) rather than one long compound query, and split the search into separate calls per mechanism (InfoGAN, BiGAN/ALI, VEEGAN) plus a separate targeted search for 'discriminator staleness' or 'asynchronous discriminator update GAN' to directly address the robustness-to-stale-discriminator angle."
-  ]
-}

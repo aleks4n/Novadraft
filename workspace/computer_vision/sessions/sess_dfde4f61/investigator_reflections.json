@@ -1,8 +1,0 @@
-{
-  "59ef0700307b766af82bde9ae0b517bf6b894ee9938f5cc89135145b9b869a7f": [
-    "Retry with concrete alternate queries instead of broad phrasing: search scholarly databases (Google Scholar, arXiv, ACL Anthology) for \"scheduled label smoothing\", \"label smoothing annealing\", \"decay label smoothing during training\", \"adaptive label smoothing\", and \"label smoothing curriculum\". Also directly fetch and inspect the primary sources — Szegedy et al. 2016 (\"Rethinking the Inception Architecture for Computer Vision\") and Müller et al. 2019 (\"When Does Label Smoothing Help?\") — and pull their citing papers for any prior art on decaying ε to 0. Save/quote exact URLs and paper snippets this time so the artifact has actual evidence."
-  ],
-  "a8a28943366703be372444a01094e611cff4b451dd27c4f5ab4cfcc20c9e7796": [
-    "Search for prior work on corrected/debiased perplexity with soft targets using exact-phrase queries like \"de-smoothed perplexity\", \"adjusted perplexity label smoothing\", \"perplexity with soft labels\", and \"debias perplexity smoothing\", and directly analyze the arithmetic: with label smoothing p_target = (1-α)δ_true + α/K, the one-hot log-perplexity term -log(1-α) is the floor, but subtracting α/K from p_true and renormalizing changes the score non-trivially (the remaining mass is not just the sharp component) and does not cleanly isolate degradation, since model probabilities are not the smoothed target plus noise. Address whether any source has actually proposed this specific transformation, not just generic label-smoothing exposition."
-  ]
-}
