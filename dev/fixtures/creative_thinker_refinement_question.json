@@ -1,0 +1,12 @@
+{
+  "idea": "idea_from_generation.json",
+  "mode": "refinement",
+  "width": 3,
+  "depth": 1,
+  "task": "Would this mechanism also work for autoregressive speculative decoding, or does it depend on the parallel refinement setting?",
+  "context": "creative_thinker_context.json",
+  "styles": "neutral",
+  "tool_use": false,
+  "max_llm_calls": 12,
+  "triggering_action": "user: a question about the idea, not a change to it"
+}

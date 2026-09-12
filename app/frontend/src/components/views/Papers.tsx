@@ -139,9 +139,11 @@ function IngestQueueRow({ run }: { run: RunState }) {
 }
 
 export function PapersOverview() {
-  const { active, bundle, setNav, runs, startPaperRun } = useWorkspace();
+  const { active, activeSlug, bundle, setNav, runs, startPaperRun } = useWorkspace();
   const papers = bundle?.papers ?? [];
   const [query, setQuery] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [tryOpen, setTryOpen] = useState(false);
   const tryRef = useRef<HTMLDivElement>(null);
   // The ingest queue: paper runs that haven't attached to a paper yet. As soon
@@ -165,11 +167,26 @@ export function PapersOverview() {
 
   // Enter ingests every non-empty line; a single line auto-opens its paper, a
   // batch stays on this page so the queue stays in view. Shift+Enter → newline.
-  const submit = () => {
-    if (!queries.length) return;
+  const submit = async () => {
+    if (!queries.length || submitting) return;
+    if (!activeSlug) {
+      setSubmitError("Select or create a research topic before ingesting a reference paper.");
+      return;
+    }
+    setSubmitting(true);
+    setSubmitError(null);
     const autoOpen = queries.length === 1;
-    for (const q of queries) startPaperRun(q, { autoOpen });
-    setQuery("");
+    const accepted = await Promise.all(queries.map((q) => startPaperRun(q, { autoOpen })));
+    const failed = queries.filter((_, i) => !accepted[i]);
+    setQuery(failed.join("\n"));
+    if (failed.length) {
+      setSubmitError(
+        failed.length === 1
+          ? "Could not start ingestion. Check that the backend is running and try again."
+          : `Could not start ${failed.length} ingestions. Check that the backend is running and try again.`,
+      );
+    }
+    setSubmitting(false);
   };
 
   return (
@@ -178,9 +195,6 @@ export function PapersOverview() {
         eyebrow={`Reference papers · ${papers.length}`}
         title="Reference Papers"
         subtitle="Papers ingested into this knowledge base. Each is fetched, parsed, summarized & verified, then mined for the research gaps it states — the bar shows how far that pipeline got."
-        actions={
-          <button className="btn btn--ghost"><Icon name="filter" /> Filter</button>
-        }
         breadcrumb={[
           { label: "Research" },
           { label: active?.shortTitle || "Topic", onClick: () => setNav({ view: "topic", id: null }) },
@@ -203,7 +217,7 @@ export function PapersOverview() {
               // Enter ingests; Shift+Enter (or ⌘/Ctrl+Enter) inserts a newline.
               if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
                 e.preventDefault();
-                submit();
+                void submit();
               }
             }}
           />
@@ -244,11 +258,12 @@ export function PapersOverview() {
             <span className="papers-ingest-hint">
               {queries.length > 1 ? `${queries.length} papers — ingest in parallel` : "↵ to ingest · ⇧↵ for a new line"}
             </span>
-            <button className="btn btn--primary" onClick={submit} disabled={!queries.length}>
-              <Icon name="arrow-right" /> {queries.length > 1 ? `Ingest ${queries.length}` : "Ingest"}
+            <button type="button" className="btn btn--primary" onClick={() => void submit()} disabled={!queries.length || submitting}>
+              <Icon name="arrow-right" /> {submitting ? "Starting…" : queries.length > 1 ? `Ingest ${queries.length}` : "Ingest"}
             </button>
           </div>
         </div>
+        {submitError && <div className="notice notice--warn" role="alert">{submitError}</div>}
 
         {/* The ingest queue: every query still resolving (or waiting on you).
             Rows disappear as their paper appears in the tree on the left. */}
@@ -367,7 +382,6 @@ export function PaperDetail({ id }: { id: string }) {
                 <Icon name="external" /> Open source
               </a>
             )}
-            <button className="btn btn--ghost"><Icon name="copy" /> Cite</button>
           </>
         }
         breadcrumb={[

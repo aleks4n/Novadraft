@@ -5,10 +5,51 @@ from types import SimpleNamespace
 import pytest
 
 from src.agents.investigator_agent import agent
+from src.common.tools.paper_fetch.classify import classify
+from src.common.utils import storage
 from src.llm import registry
 
 
+def test_direct_mode_skips_actor_llm_on_first_attempt(monkeypatch):
+	monkeypatch.setattr(agent, "_ensure_workspace", lambda _key: None)
+	monkeypatch.setattr(agent, "_load_reflections", lambda *_args: [])
+	monkeypatch.setattr(
+		agent, "_decide_request",
+		lambda *_args: pytest.fail("direct mode should skip the routing LLM"),
+	)
+
+	result = agent.actor({
+		"text": "compare these papers", "session_id": "session-1",
+		"requested_mode": "paper_search", "paper_count": 2,
+		"sources": ["2511.08544", "2603.19312"],
+	})
+
+	assert result["mode"] == "paper_search"
+	assert result["attempt"] == 1
+
+
+def test_paper_search_uses_direct_sources_without_search(monkeypatch):
+	monkeypatch.setattr(
+		agent, "_search_web", lambda *_args, **_kwargs: pytest.fail("must not search"),
+	)
+	result = agent.paper_search_node({
+		"query": "compare", "paper_count": 2,
+		"sources": ["2511.08544", "https://doi.org/10.1000/example"],
+	})["research_result"]
+
+	assert [item["url"] for item in result["search_results"]] == [
+		"2511.08544", "https://doi.org/10.1000/example",
+	]
+
+
+def test_classifier_prefers_embedded_exact_identifier_over_title_search():
+	assert classify("Bishop Bayesian PCA arXiv:physics/9905028").input_type == "arxiv_id"
+	assert classify("Bishop Bayesian PCA arXiv:physics/9905028").value == "physics/9905028"
+	assert classify("paper DOI:10.1162/089976699300016728").input_type == "doi"
+
+
 def test_decide_request_routes_paper_query(monkeypatch):
+	models = []
 	decision = SimpleNamespace(
 		action="paper",
 		should_fetch_pages=False,
@@ -19,7 +60,7 @@ def test_decide_request_routes_paper_query(monkeypatch):
 	)
 
 	monkeypatch.setattr(agent, "chat_with_structured_output", lambda *args, **kwargs: decision)
-	monkeypatch.setattr(agent, "get_llm", lambda *args, **kwargs: object())
+	monkeypatch.setattr(agent, "get_llm", lambda role, **kwargs: models.append(role) or object())
 
 	result = agent._decide_request("search and download the paper: attention is all you need")
 
@@ -28,6 +69,7 @@ def test_decide_request_routes_paper_query(monkeypatch):
 	assert result["save_requested"] is True
 	assert result["should_fetch_pages"] is False
 	assert result["decision_reason"] == "paper request"
+	assert models == ["cheap"]
 
 
 def test_decide_request_routes_web_query(monkeypatch):
@@ -118,30 +160,32 @@ def test_multi_paper_search_deduplicates_mirrors_before_download():
 
 def test_multi_paper_workflow_searches_then_downloads_each_candidate(monkeypatch):
 	candidates = [
-		agent.SearchResult(title="Paper one", url="https://arxiv.org/abs/1"),
-		agent.SearchResult(title="Paper two", url="https://arxiv.org/abs/2"),
-		agent.SearchResult(title="Paper three", url="https://arxiv.org/abs/3"),
+		agent.SearchResult(title="Paper one", url="https://arxiv.org/abs/2401.00001"),
+		agent.SearchResult(title="Paper two", url="https://arxiv.org/abs/2401.00002"),
+		agent.SearchResult(title="Paper three", url="https://arxiv.org/abs/2401.00003"),
 	]
 	downloads = []
-	monkeypatch.setattr(agent, "ENABLE_FAST_MULTI_PAPER_DOWNLOAD", False)
 	monkeypatch.setattr(agent, "_search_web", lambda query, max_results=None: candidates)
 	monkeypatch.setattr(agent, "_ensure_workspace", lambda session_id: None)
 	monkeypatch.setattr(
 		agent,
-		"run_paper_agent",
-		lambda session_id, query, stream: downloads.append((session_id, query, stream)) or {"status": "ok", "paper_id": query},
+		"_fetch_extract_paper",
+		lambda session_id, query: downloads.append((session_id, query)) or {"status": "ok", "paper_id": query, "full_text": "content"},
 	)
+	monkeypatch.setattr(agent, "_answer_from_papers", lambda question, papers: (
+		"answer", [{"source_id": f"paper-{i}"} for i in range(1, 4)], [],
+	))
 
 	state = {"session_id": "session-42", "query": "transformers", "paper_count": 3}
 	search_result = agent.paper_search_node(state)["research_result"]
 	download_result = agent.download_papers_node({**state, "research_result": search_result})["research_result"]
 
 	assert search_result["requested_count"] == 3
-	assert downloads == [
-		("session-42", "https://arxiv.org/abs/1", False),
-		("session-42", "https://arxiv.org/abs/2", False),
-		("session-42", "https://arxiv.org/abs/3", False),
-	]
+	assert sorted(downloads) == sorted([
+		("session-42", "https://arxiv.org/abs/2401.00001"),
+		("session-42", "https://arxiv.org/abs/2401.00002"),
+		("session-42", "https://arxiv.org/abs/2401.00003"),
+	])
 	assert len(download_result["papers"]) == 3
 	assert len(download_result["evidence"]) == 3
 	assert len(download_result["attempted_papers"]) == 3
@@ -153,8 +197,8 @@ def test_paper_search_falls_back_to_arxiv_when_web_returns_empty(monkeypatch):
 		agent,
 		"_search_arxiv",
 		lambda query, max_results=None: [
-			agent.SearchResult(title="A", url="https://arxiv.org/abs/1"),
-			agent.SearchResult(title="B", url="https://arxiv.org/abs/2"),
+			agent.SearchResult(title="A", url="https://arxiv.org/abs/2401.00001"),
+			agent.SearchResult(title="B", url="https://arxiv.org/abs/2401.00002"),
 		],
 	)
 
@@ -162,35 +206,29 @@ def test_paper_search_falls_back_to_arxiv_when_web_returns_empty(monkeypatch):
 
 	assert result["requested_count"] == 2
 	assert [item["url"] for item in result["search_results"]] == [
-		"https://arxiv.org/abs/1",
-		"https://arxiv.org/abs/2",
+		"https://arxiv.org/abs/2401.00001",
+		"https://arxiv.org/abs/2401.00002",
 	]
 
 
 def test_multi_paper_workflow_uses_later_candidates_after_fetch_failures(monkeypatch):
 	candidates = [
-		agent.SearchResult("Blocked one", "https://arxiv.org/abs/blocked1"),
-		agent.SearchResult("Good one", "https://arxiv.org/abs/good1"),
-		agent.SearchResult("Blocked two", "https://arxiv.org/abs/blocked2"),
-		agent.SearchResult("Good two", "https://arxiv.org/abs/good2"),
+		agent.SearchResult("Blocked one", "https://arxiv.org/abs/2401.00001"),
+		agent.SearchResult("Good one", "https://arxiv.org/abs/2401.00002"),
+		agent.SearchResult("Blocked two", "https://arxiv.org/abs/2401.00003"),
+		agent.SearchResult("Good two", "https://arxiv.org/abs/2401.00004"),
 	]
-	monkeypatch.setattr(agent, "ENABLE_FAST_MULTI_PAPER_DOWNLOAD", True)
 	monkeypatch.setattr(agent, "_ensure_workspace", lambda session_id: None)
 	runs = []
 	monkeypatch.setattr(
 		agent,
-		"run_paper_agent",
-		lambda session_id, query, stream: (
-			runs.append((session_id, query, stream))
-			or ({"status": "error", "error": "403"} if "blocked" in query else {
-				"status": "ok",
-				"paper_id": query,
-				"fetch": {"paper": {"paper_id": query, "metadata": {"title": query}}},
-				"summary": {"summary": "ok"},
-				"gaps": {"gaps": []},
-			})
+		"_fetch_extract_paper",
+		lambda session_id, query: (
+			runs.append((session_id, query))
+			or {"status": "ok", "paper_id": query, "full_text": "content"}
 		),
 	)
+	monkeypatch.setattr(agent, "_answer_from_papers", lambda question, papers: ("answer", [], []))
 	state = {
 		"session_id": "session-42", "query": "transformers", "paper_count": 2,
 		"research_result": {"search_results": [item.__dict__ for item in candidates]},
@@ -200,31 +238,27 @@ def test_multi_paper_workflow_uses_later_candidates_after_fetch_failures(monkeyp
 
 	assert [item["title"] for item in result["papers"]] == ["Blocked one", "Good one"]
 	assert len(result["attempted_papers"]) == 2
-	assert runs == [
-		("session-42", "https://arxiv.org/abs/blocked1", False),
-		("session-42", "https://arxiv.org/abs/good1", False),
-	]
+	assert runs == [("session-42", "https://arxiv.org/abs/2401.00001"),
+	                ("session-42", "https://arxiv.org/abs/2401.00002")]
 
 
 def test_multi_paper_workflow_stops_after_requested_successes(monkeypatch):
 	candidates = [
-		agent.SearchResult(f"Paper {index}", f"https://arxiv.org/abs/{index}")
-		for index in range(5)
+		agent.SearchResult(f"Paper {index}", f"https://arxiv.org/abs/2401.{index}")
+		for index in range(10000, 10005)
 	]
 	runs = []
-	monkeypatch.setattr(agent, "ENABLE_FAST_MULTI_PAPER_DOWNLOAD", True)
 	monkeypatch.setattr(agent, "_ensure_workspace", lambda session_id: None)
 	monkeypatch.setattr(
 		agent,
-		"run_paper_agent",
-		lambda session_id, query, stream: runs.append((session_id, query, stream)) or {
+		"_fetch_extract_paper",
+		lambda session_id, query: runs.append((session_id, query)) or {
 			"status": "ok",
 			"paper_id": query,
-			"fetch": {"paper": {"paper_id": query, "metadata": {"title": query}}},
-			"summary": {"summary": "ok"},
-			"gaps": {"gaps": []},
+			"full_text": "content",
 		},
 	)
+	monkeypatch.setattr(agent, "_answer_from_papers", lambda question, papers: ("answer", [], []))
 
 	result = agent.download_papers_node({
 		"session_id": "session-42", "query": "transformers", "paper_count": 3,
@@ -237,20 +271,20 @@ def test_multi_paper_workflow_stops_after_requested_successes(monkeypatch):
 
 def test_multi_paper_workflow_does_not_expand_attempt_pool_on_failures(monkeypatch):
 	candidates = [
-		agent.SearchResult(f"Paper {index}", f"https://arxiv.org/abs/{index}")
-		for index in range(6)
+		agent.SearchResult(f"Paper {index}", f"https://arxiv.org/abs/2401.{index}")
+		for index in range(10000, 10006)
 	]
 	runs = []
-	monkeypatch.setattr(agent, "ENABLE_FAST_MULTI_PAPER_DOWNLOAD", True)
 	monkeypatch.setattr(agent, "_ensure_workspace", lambda session_id: None)
 	monkeypatch.setattr(
 		agent,
-		"run_paper_agent",
-		lambda session_id, query, stream: runs.append((session_id, query, stream)) or {
+		"_fetch_extract_paper",
+		lambda session_id, query: runs.append((session_id, query)) or {
 			"status": "error",
 			"error": "blocked",
 		},
 	)
+	monkeypatch.setattr(agent, "_answer_from_papers", lambda question, papers: (None, [], []))
 
 	result = agent.download_papers_node({
 		"session_id": "session-42", "query": "transformers", "paper_count": 3,
@@ -281,6 +315,7 @@ def test_web_node_fetches_pages_only_when_llm_requests_it(monkeypatch):
 		"_answer_from_fetched_pages",
 		lambda query, pages: answer_inputs.append((query, pages)) or "Grounded answer",
 	)
+	monkeypatch.setattr(agent, "_claims_from_answer", lambda answer, evidence: [])
 
 	no_fetch = agent.web_node({"query": "topic", "text": "topic", "session_id": "session-1", "should_fetch_pages": False})
 	assert no_fetch["research_result"]["pages"] == []
@@ -293,10 +328,32 @@ def test_web_node_fetches_pages_only_when_llm_requests_it(monkeypatch):
 	assert with_fetch["research_result"]["answer"] == "Grounded answer"
 
 
+def test_web_node_falls_back_to_arxiv_when_duckduckgo_is_empty(monkeypatch):
+	monkeypatch.setattr(agent, "_search_web", lambda *_args, **_kwargs: [])
+	monkeypatch.setattr(
+		agent, "_search_arxiv",
+		lambda *_args, **_kwargs: [
+			agent.SearchResult("Attention scaling", "https://arxiv.org/abs/2401.00001", "abstract"),
+		],
+	)
+
+	result = agent.web_node({
+		"query": "attention scaling", "session_id": "session-1",
+		"should_fetch_pages": False,
+	})["research_result"]
+
+	assert [item["provider"] for item in result["provider_attempts"]] == ["duckduckgo", "arxiv"]
+	assert result["search_results"][0]["url"] == "https://arxiv.org/abs/2401.00001"
+
+
 def test_answer_from_fetched_pages_sends_query_and_content_to_deepseek(monkeypatch):
 	request = {}
 
-	monkeypatch.setattr(agent, "get_llm", lambda role, temperature: (role, temperature))
+	model_request = {}
+	monkeypatch.setattr(
+		agent, "get_llm",
+		lambda role, temperature, **kwargs: model_request.update(kwargs) or (role, temperature),
+	)
 	monkeypatch.setattr(
 		agent,
 		"chat",
@@ -310,9 +367,37 @@ def test_answer_from_fetched_pages_sends_query_and_content_to_deepseek(monkeypat
 
 	assert answer == "Answer from pages"
 	assert request["llm"] == ("cheap", 0)
+	assert model_request == {"reasoning_effort": "low", "max_tokens": 2_500}
 	assert "What happened?" in request["user"]
 	assert "The event happened yesterday." in request["user"]
 	assert "https://example.com/source" in request["user"]
+
+
+def test_web_fetch_continues_after_blocked_result(monkeypatch):
+	results = [
+		agent.SearchResult(title="One", url="https://example.com/1"),
+		agent.SearchResult(title="Blocked", url="https://example.com/2"),
+		agent.SearchResult(title="Three", url="https://example.com/3"),
+	]
+	monkeypatch.setattr(agent, "_search_web", lambda *_args, **_kwargs: results)
+
+	def scrape(url, **_kwargs):
+		if url.endswith("/2"):
+			raise RuntimeError("403")
+		return {"url": url, "title": url, "text": "usable page"}
+
+	monkeypatch.setattr(agent, "_scrape_url", scrape)
+	monkeypatch.setattr(agent, "_answer_from_fetched_pages", lambda *_args: "answer")
+	monkeypatch.setattr(agent, "_claims_from_answer", lambda *_args: [])
+
+	result = agent.web_node({
+		"query": "topic", "session_id": "session", "should_fetch_pages": True,
+	})["research_result"]
+
+	assert [page["url"] for page in result["pages"]] == [
+		"https://example.com/1", "https://example.com/2", "https://example.com/3",
+	]
+	assert "error" in result["pages"][1]
 
 
 def test_paper_node_uses_session_workspace(monkeypatch):
@@ -321,15 +406,17 @@ def test_paper_node_uses_session_workspace(monkeypatch):
 	monkeypatch.setattr(agent, "_ensure_workspace", lambda session_id: created.append(session_id))
 	monkeypatch.setattr(
 		agent,
-		"run_paper_agent",
-		lambda session_id, query, stream: called.append((session_id, query, stream)) or {"status": "ok"},
+		"_fetch_extract_paper",
+		lambda session_id, query: called.append((session_id, query)) or {"status": "ok", "full_text": "paper body"},
 	)
+	monkeypatch.setattr(agent, "_answer_from_papers", lambda question, papers: ("grounded answer", [], []))
 
 	result = agent.paper_node({"session_id": "session-42", "query": "Attention Is All You Need"})
 
 	assert created == ["session-42"]
-	assert called == [("session-42", "Attention Is All You Need", False)]
+	assert called == [("session-42", "Attention Is All You Need")]
 	assert result["research_result"]["status"] == "ok"
+	assert result["research_result"]["answer"] == "grounded answer"
 	assert result["research_result"]["evidence"] == []
 
 
@@ -337,6 +424,7 @@ def test_renderers_format_text_output():
 	paper_text = agent._paper_to_text(
 		{
 			"status": "ok",
+			"answer": "Transformer summary.",
 			"fetch": {
 				"paper": {
 					"paper_id": "arxiv_1706.03762",
@@ -345,17 +433,12 @@ def test_renderers_format_text_output():
 					"warnings": [],
 				},
 			},
-			"summary": {"summary": "Transformer summary."},
 			"extract": {"status": "ok"},
-			"gaps": {"gap_ids": ["g1"]},
 		},
 		"attention is all you need",
 	)
 
-	assert "Paper ID: arxiv_1706.03762" in paper_text
-	assert "Title: Attention Is All You Need" in paper_text
-	assert "Summary:" in paper_text
-	assert "Transformer summary." in paper_text
+	assert paper_text == "Transformer summary."
 
 	web_text = agent._web_to_text(
 		{
@@ -398,6 +481,62 @@ def test_run_uses_injected_graph(monkeypatch):
 	assert fake_graph.inputs == {"text": "search the web for transformers", "session_id": "session-123"}
 
 
+def test_lightweight_run_requests_direct_mode_without_actor_or_reflection_llms(monkeypatch):
+	class FakeGraph:
+		def __init__(self):
+			self.inputs = None
+
+		def invoke(self, inputs):
+			self.inputs = inputs
+			return {"result": "ok"}
+
+	fake_graph = FakeGraph()
+	monkeypatch.setattr(agent, "_get_graph", lambda: fake_graph)
+
+	assert agent.run(
+		"CEM warm start prior work", session_id="session-123", mode="web",
+		lightweight=True, stream=False,
+	) == "ok"
+	assert fake_graph.inputs == {
+		"text": "CEM warm start prior work", "session_id": "session-123",
+		"requested_mode": "web", "lightweight": True,
+	}
+
+
+def test_lightweight_retry_keeps_route_and_uses_evaluator_feedback_without_llm(monkeypatch):
+	monkeypatch.setattr(
+		agent, "_decide_request",
+		lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("routing LLM called")),
+	)
+	state = {
+		"text": "Has this been proposed before? Re-seeded CEM elite carry-over",
+		"session_id": "session-1", "requested_mode": "web", "lightweight": True,
+		"attempt": 1, "query": "Re-seeded CEM elite carry-over",
+		"evaluation": {"feedback": "Look specifically for MPC warm start prior work"},
+	}
+
+	decision = agent.actor(state)
+
+	assert decision["mode"] == "web"
+	assert decision["attempt"] == 2
+	assert "CEM" in decision["query"]
+	assert len(decision["query"].split()) <= 14
+
+
+def test_lightweight_reflection_is_deterministic(monkeypatch):
+	monkeypatch.setattr(
+		agent, "chat_with_structured_output",
+		lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("reflection LLM called")),
+	)
+
+	update = agent.reflect({
+		"session_id": "session-1", "lightweight": True, "attempt": 1,
+		"evaluation": {"feedback": "Try a narrower warm-start query"},
+	})
+
+	assert update["reflections"] == ["Try a narrower warm-start query"]
+
+
 def test_run_places_category_session_in_nested_workspace(monkeypatch):
 	class FakeGraph:
 		def __init__(self):
@@ -422,6 +561,10 @@ def test_run_places_category_session_in_nested_workspace(monkeypatch):
 		"text": "search the web for transformers",
 		"session_id": "session-123",
 		"workspace_key": "machine-learning/sessions/session-123",
+		# The bare slug travels beside the session path: fetches write under
+		# `workspace_key`, while the workspace route reads the category's own
+		# gaps/papers/ideas, which are its siblings rather than its children.
+		"category_slug": "machine-learning",
 	}
 
 
@@ -460,9 +603,10 @@ def test_actor_conditions_routing_on_saved_reflections(monkeypatch):
 
 def test_evaluate_uses_llm_when_available(monkeypatch):
 	captured = {}
+	models = []
 
 	monkeypatch.setattr(agent, "ENABLE_DETERMINISTIC_FETCH_FALLBACK", False)
-	monkeypatch.setattr(agent, "get_llm", lambda *args, **kwargs: object())
+	monkeypatch.setattr(agent, "get_llm", lambda role, **kwargs: models.append(role) or object())
 	monkeypatch.setattr(
 		agent,
 		"chat_with_structured_output",
@@ -475,13 +619,38 @@ def test_evaluate_uses_llm_when_available(monkeypatch):
 			"attempt": 1,
 			"text": "find a summary of the paper",
 			"query": "summary of the paper",
-			"research_result": {"search_results": [], "pages": []},
+			"research_result": {
+				"search_results": [{"title": "A source", "url": "https://example.com"}],
+				"pages": [],
+			},
 		}
 	)
 
 	assert evaluation["evaluation"]["success"] is False
 	assert evaluation["evaluation"]["feedback"] == "The page was too sparse."
 	assert "summary of the paper" in captured["prompt"]
+	assert models == ["cheap"]
+
+
+def test_evaluate_rejects_empty_web_retrieval_without_an_llm(monkeypatch):
+	monkeypatch.setattr(
+		agent, "chat_with_structured_output",
+		lambda *_args, **_kwargs: pytest.fail("empty retrieval should be checked deterministically"),
+	)
+
+	result = agent.evaluate({
+		"mode": "web", "attempt": 1,
+		"research_result": {
+			"search_results": [], "pages": [],
+			"provider_attempts": [
+				{"provider": "duckduckgo", "results": 0},
+				{"provider": "arxiv", "results": 0},
+			],
+		},
+	})
+
+	assert result["evaluation"]["success"] is False
+	assert "no parsed results" in result["evaluation"]["feedback"]
 
 
 def test_evaluator_routes_failed_attempt_to_reflection_then_stops_at_limit(monkeypatch):
@@ -572,3 +741,90 @@ def test_web_node_attaches_evidence_and_citation_claims(monkeypatch):
 	assert [item["source_id"] for item in result["evidence"]] == ["web-1", "page-1"]
 	assert result["claims"][0]["source_ids"] == ["page-1"]
 	assert "Citations:" in agent._web_to_text(result, "question")
+
+
+# --- workspace route ---------------------------------------------------------
+# The investigator's fourth source: what the project already holds. These cover the
+# routing decision, the lookup itself, and the one case that used to be silent — a run
+# with no category attached, which has no workspace to read and must say so rather than
+# answering from nothing.
+
+
+def test_decide_request_routes_workspace_lookup(monkeypatch):
+	decision = SimpleNamespace(
+		action="workspace",
+		workspace_ids=["gap_04e60ada"],
+		section="",
+		should_fetch_pages=False,
+		query="what does this gap say",
+		url="",
+		save_requested=False,
+		reason="the request names a gap id",
+	)
+	monkeypatch.setattr(agent, "chat_with_structured_output", lambda *a, **k: decision)
+	monkeypatch.setattr(agent, "get_llm", lambda *a, **k: object())
+
+	result = agent._decide_request("what does gap_04e60ada say?")
+
+	assert result["mode"] == "workspace"
+	assert result["workspace_ids"] == ["gap_04e60ada"]
+	assert result["save_requested"] is False
+
+
+def test_heuristic_routes_record_ids_to_workspace():
+	"""No LLM needed: an id names something on disk, and no web search will find it."""
+	result = agent._heuristic_decide_request("summarise gap_04e60ada and arxiv_1706.03762")
+
+	assert result["mode"] == "workspace"
+	assert result["workspace_ids"] == ["gap_04e60ada", "arxiv_1706.03762"]
+
+
+def test_workspace_node_without_category_reports_rather_than_inventing(monkeypatch):
+	"""A standalone run has no category, so there is nothing of the project's to read.
+
+	It must fail loudly: the evaluator reads this as an unusable attempt and sends the
+	actor to the web, where a silent empty answer would have ended the run instead.
+	"""
+	state = {"text": "what gaps do we have", "query": "gaps", "mode": "workspace",
+			 "session_id": "s1"}
+
+	out = agent.workspace_node(state)
+
+	assert "error" in out["research_result"]
+	assert not out["research_result"].get("answer")
+
+
+def test_workspace_lookup_reads_gaps_papers_and_reports_unknown_ids(tmp_path, monkeypatch):
+	import json
+	from src.agents.investigator_agent import workspace_lookup
+
+	monkeypatch.setattr(storage, "workspace_root", lambda: tmp_path)
+	category = tmp_path / "cat"
+	(category / "gaps" / "master").mkdir(parents=True)
+	(category / "papers" / "arxiv_1").mkdir(parents=True)
+	(category / "meta.json").write_text("{}")
+	(category / "gaps" / "master" / "gap_a.json").write_text(json.dumps({
+		"gap_id": "gap_a", "title": "Attention is quadratic", "type": "limitation",
+		"description": "cost grows with sequence length",
+		"evidence": [{"paper_id": "arxiv_1", "section": "results", "quote": "it is quadratic"}],
+	}))
+	(category / "papers" / "arxiv_1" / "paper.json").write_text(json.dumps({
+		"paper_id": "arxiv_1", "metadata": {"title": "A Paper", "year": 2017},
+		"content": {"sections": {"results": "the results section body"}},
+	}))
+
+	found = workspace_lookup.lookup("cat", ids=["gap_a", "gap_missing"])
+	assert [r["id"] for r in found["records"]] == ["gap_a"]
+	assert found["unknown_ids"] == ["gap_missing"]
+	assert "it is quadratic" in found["text"]  # the evidence quote, not just the claim
+
+	# A query finds the same gap by its words, without anyone knowing its id.
+	searched = workspace_lookup.lookup("cat", query="quadratic attention cost")
+	assert "gap_a" in [r["id"] for r in searched["records"]]
+
+	# A named section is rendered; the summary alone would not carry it.
+	sectioned = workspace_lookup.lookup("cat", ids=["arxiv_1"], section="results")
+	assert "the results section body" in sectioned["text"]
+
+	# Nothing matching is an answerable outcome, not an exception.
+	assert workspace_lookup.lookup("cat", query="zzzznothing")["error"]

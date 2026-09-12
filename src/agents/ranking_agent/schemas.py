@@ -43,6 +43,15 @@ class RankingConfig(BaseModel):
     # recency decay applied to impact: floor + (1-floor) * 0.5^(age_years / half_life)
     recency_half_life: float = Field(2.5, gt=0.0, description="years until the decay halves")
     recency_floor: float = Field(0.4, ge=0.0, le=1.0, description="never decay below this")
+    # citation scoring: raw counts are unbounded and accumulate with age, so they are read
+    # as a RATE (citations per year since publication) and log-compressed. Using a rate
+    # rather than a total also keeps this from re-measuring what `recency` already covers.
+    # 1000/year is landmark-paper territory (a top NeurIPS/ICLR paper runs 300-1500);
+    # calibrated so strong venues separate rather than all clipping at the ceiling.
+    citations_per_year_full: float = Field(
+        1000.0, gt=0.0,
+        description="citations/year that scores ~1.0; the scale is logarithmic below it",
+    )
 
 
 class FeasibilityAssessment(BaseModel):

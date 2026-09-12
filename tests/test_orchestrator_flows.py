@@ -1,0 +1,1168 @@
+"""What happens on one turn — every scenario the orchestrator can take, recorded.
+
+Each test drives a real turn through the real graph with the two LLM steps and the two
+subagents replaced by recorders. What is exercised is therefore all of the orchestrator's
+own logic — routing, context assembly, step chaining, budget slicing, the accept gate —
+while the parts that would cost money and vary run to run are pinned.
+
+The recorder captures **who called whom with what**, so a test asserts the call chain
+rather than only the end state: that the thinker was handed exactly one idea in refinement
+mode, that a chained step received the previous step's output, that a skipped step never
+reached a subagent at all. `dev/record_flows.py` replays these same scenarios to write
+the flows document, so the depiction and the assertions cannot drift apart.
+
+Nothing here touches the real workspace: `NOVADRAFT_WORKSPACE` is pointed at a tmp dir per
+test, seeded with one gap and one idea.
+"""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass, field
+from typing import Any
+
+import pytest
+
+from src.agents.creative_thinker.schemas import Envelope, ProposedChange
+from src.agents.creative_thinker.tools import context as thinker_context
+from src.common.schemas.idea import (
+    IdeaOrigin, IdeaRecord, RunEntry, RunHeader, ThoughtNode,
+)
+from src.common.utils import storage
+
+from src.agents.orchestrator_agent import session
+from src.agents.orchestrator_agent.agent import build_orchestrator_graph
+from src.agents.orchestrator_agent.subagents.plan.agent import _consolidate_investigator_steps
+from src.agents.orchestrator_agent.state import (
+    MAX_LLM_CALLS_PER_TURN,
+    UNMETERED_TOOL_LLM_CHARGE,
+)
+from src.agents.orchestrator_agent.schemas import (
+    FocusSelection, Plan, ReflectJudgment, ToolCall,
+)
+from src.agents.orchestrator_agent.tools.commit import commit_selection, offer_handle
+
+GAP_ID = "gap_testflow"
+IDEA_A = "idea_testaaa"
+IDEA_B = "idea_testbbb"
+CATEGORY = "flowtest"
+
+
+def test_repeated_investigator_steps_are_consolidated_and_dependencies_remapped():
+    planned = Plan(goal="Research and generate", steps=[
+        ToolCall(tool="investigator", args={
+            "query": "read paper one", "mode": "paper", "sources": ["2511.08544"],
+        }),
+        ToolCall(tool="investigator", args={
+            "query": "read paper two", "mode": "paper", "sources": ["2603.19312"],
+        }),
+        ToolCall(tool="creative_thinker", needs=[1, 2], args={
+            "thinking_mode": "generation",
+        }),
+    ])
+
+    result = _consolidate_investigator_steps(planned)
+
+    assert [step.tool for step in result.steps] == ["investigator", "creative_thinker"]
+    assert result.steps[0].args["mode"] == "paper_search"
+    assert result.steps[0].args["sources"] == ["2511.08544", "2603.19312"]
+    assert result.steps[1].needs == [1]
+
+
+def test_single_investigator_paper_count_is_clamped_to_tool_limit():
+    planned = Plan(steps=[ToolCall(
+        tool="investigator", args={"query": "find papers", "paper_count": 6},
+    )])
+
+    result = _consolidate_investigator_steps(planned)
+
+    assert result.steps[0].args["paper_count"] == 5
+
+
+def test_a_refinement_plan_cannot_carry_a_candidate_count_it_will_never_meet():
+    """Widening a refinement widens the tree, not the return: it deepens one idea however
+    many branches a level opened. A count taken from `width` is therefore a criterion the
+    step cannot meet, and reflect read it as a shortfall every round and replanned —
+    re-running the whole tree of thought to the iteration cap.
+
+    The width itself is a control the researcher owns, and stays exactly as set.
+    """
+    from src.agents.orchestrator_agent.subagents.plan.agent import normalize_thinker_plan
+
+    planned = Plan(goal="Stress-test it.", steps=[ToolCall(
+        tool="creative_thinker",
+        args={"thinking_mode": "refinement", "width": 2, "depth": 2,
+              "styles": ["skeptic"], "work_on": [IDEA_A]},
+    )], done_criteria=["2 candidates returned",
+                       "at least one revised candidate returned",
+                       "the candidate names concrete failure modes"])
+
+    result = normalize_thinker_plan(planned)
+
+    assert result.done_criteria == ["at least one revised candidate returned",
+                                    "the candidate names concrete failure modes"]
+    assert result.steps[0].args["width"] == 2, "the branching factor is left alone"
+    assert result.steps[0].args["depth"] == 2
+
+
+def test_a_generation_step_keeps_the_count_a_later_refinement_shares():
+    """Only a plan with nothing generating loses its count: `generate 3, then refine one`
+    legitimately asks for three."""
+    from src.agents.orchestrator_agent.subagents.plan.agent import normalize_thinker_plan
+
+    planned = Plan(goal="Generate then sharpen.", steps=[
+        ToolCall(tool="creative_thinker", args={"thinking_mode": "generation", "width": 3}),
+        ToolCall(tool="creative_thinker", needs=[1],
+                 args={"thinking_mode": "refinement", "width": 2}),
+    ], done_criteria=["3 candidates returned"])
+
+    result = normalize_thinker_plan(planned)
+
+    assert result.done_criteria == ["3 candidates returned"]
+    assert [step.args["width"] for step in result.steps] == [3, 2]
+
+
+def test_two_thinker_steps_in_one_turn_get_distinct_node_ids(workspace, rec):
+    """Node ids are `<run_id>:n<k>` from a counter that restarts per call, so sharing the
+    turn's run id across steps had both runs mint `n0, n1, …` — and the UI, which replays
+    a turn's whole branch stream into one tree, drew each node once per collision.
+    """
+    rec.plans = [Plan(goal="Twice.", done_criteria=["done"], steps=[
+        ToolCall(tool="creative_thinker", args={"thinking_mode": "generation", "width": 1}),
+        ToolCall(tool="creative_thinker", needs=[1], args={"thinking_mode": "refinement"}),
+    ])]
+    made = [candidate("One")]
+    rec.envelopes = [envelope(drafts=made), envelope(idea=made[0])]
+    rec.judgments = [ReflectJudgment(route="finish", answer="Done.")]
+
+    turn(workspace, "generate then refine", gaps=[GAP_ID])
+
+    run_ids = [call.args["run_id"] for call in rec.to("creative_thinker")]
+    assert len(set(run_ids)) == 2, "each thinker run names its own nodes"
+    assert all(rid.startswith("run_1-") for rid in run_ids), "the turn stays readable in it"
+
+
+def test_replan_preserves_a_researcher_widened_refinement(workspace, rec):
+    """Width is a control in refinement too — the branching factor of every level — so an
+    automatic replan must not quietly reset it to whatever the planner would have picked.
+    It used to keep only `depth` for refinement steps, on the assumption that width said
+    nothing there.
+    """
+    approved = Plan(goal="Refine widely.", steps=[ToolCall(
+        tool="creative_thinker", args={
+            "thinking_mode": "refinement", "depth": 2, "width": 5,
+            "work_on": ["idea_missing"],
+        },
+    )])
+    rec.plans = [Plan(goal="Retry.", steps=[ToolCall(
+        tool="creative_thinker", args={
+            "thinking_mode": "refinement", "depth": 3, "width": 1, "work_on": [IDEA_A],
+        },
+    )])]
+    rec.envelopes = [envelope(idea=IdeaRecord(
+        idea_id=IDEA_A, title="Kernel attention", state="root",
+        description="Refined.", addresses=[GAP_ID],
+    ))]
+    rec.judgments = [
+        ReflectJudgment(route="replan", feedback="Use the valid selected idea."),
+        ReflectJudgment(route="finish", answer="Refined it."),
+    ]
+
+    build_orchestrator_graph().invoke({
+        "session_id": "s-width", "category_slug": CATEGORY, "run_id": "run-width",
+        "message": "refine it", "iteration": 0, "approved_plan": approved,
+        "focus": FocusSelection(idea_ids=[IDEA_A]),
+    })
+
+    call = rec.to("creative_thinker")[0]
+    assert call.args["width"] == 5, "the researcher's branching factor survives the replan"
+    assert call.args["depth"] == 2
+
+
+def test_replan_preserves_user_selected_refinement_depth(workspace, rec):
+    """An automatic correction cannot raise depth beyond what the user approved."""
+    approved = Plan(goal="Refine.", steps=[ToolCall(
+        tool="creative_thinker", args={
+            "thinking_mode": "refinement", "depth": 1,
+            "work_on": ["idea_missing"],
+        },
+    )])
+    rec.plans = [Plan(goal="Retry refinement.", steps=[ToolCall(
+        tool="creative_thinker", args={
+            "thinking_mode": "refinement", "depth": 3, "work_on": [IDEA_A],
+        },
+    )])]
+    rec.envelopes = [envelope(idea=IdeaRecord(
+        idea_id=IDEA_A, title="Kernel attention", state="root",
+        description="Refined.", addresses=[GAP_ID],
+    ))]
+    rec.judgments = [
+        ReflectJudgment(route="replan", feedback="Use the valid selected idea."),
+        ReflectJudgment(route="finish", answer="Refined it."),
+    ]
+
+    build_orchestrator_graph().invoke({
+        "session_id": "s-depth", "category_slug": CATEGORY, "run_id": "run-depth",
+        "message": "refine it", "iteration": 0, "approved_plan": approved,
+        "focus": FocusSelection(idea_ids=[IDEA_A]),
+    })
+
+    assert rec.to("creative_thinker")[0].args["depth"] == 1
+
+
+def test_refinement_depth_one_forces_one_candidate_branch():
+    """The only refinement control shown to the user must not hide width=3."""
+    from src.agents.creative_thinker.schemas import ThinkerCall
+
+    call = ThinkerCall(mode="refinement", depth=1, width=3)
+
+    assert call.depth == 1
+    assert call.width == 1
+
+
+# --- the recorder -------------------------------------------------------------
+
+
+@dataclass
+class Call:
+    """One call into something the orchestrator does not own."""
+
+    who: str
+    args: dict[str, Any]
+
+
+@dataclass
+class Recorder:
+    """Stands in for the two LLM steps and the two subagents, and remembers every call.
+
+    `plans` and `judgments` are consumed in order, so a scenario that replans supplies two
+    of each. Running out is a scenario error, not a fallback: a silent default would let a
+    test pass while the graph looped somewhere the scenario never described.
+    """
+
+    plans: list[Plan] = field(default_factory=list)
+    judgments: list[ReflectJudgment] = field(default_factory=list)
+    envelopes: list[Envelope] = field(default_factory=list)
+    findings: list[str] = field(default_factory=list)
+    calls: list[Call] = field(default_factory=list)
+
+    def _next(self, queue: list, who: str):
+        if not queue:
+            raise AssertionError(f"{who} was called more often than the scenario describes")
+        return queue.pop(0)
+
+    def to(self, who: str) -> list[Call]:
+        return [c for c in self.calls if c.who == who]
+
+    def chain(self) -> list[str]:
+        return [c.who for c in self.calls]
+
+
+@pytest.fixture
+def workspace(tmp_path, monkeypatch):
+    """An empty workspace with one gap and one committed idea in it."""
+    monkeypatch.setenv(storage.WORKSPACE_ENV, str(tmp_path))
+    # `ensure_category` verifies rather than creates — categories are made by the pipeline
+    # that owns them, so a test seeds its own.
+    category = tmp_path / CATEGORY
+    category.mkdir(parents=True, exist_ok=True)
+    (category / "meta.json").write_text(json.dumps({"slug": CATEGORY, "title": "Flow tests"}))
+
+    gap = {
+        "gap_id": GAP_ID, "title": "Dot product compatibility may be suboptimal",
+        "description": "Reducing d_k hurts quality.", "type": "limitation",
+        "canonical_description": "dot-product compatibility may be insufficient",
+        "status": "validated", "extracted_at": "2026-01-01T00:00:00Z",
+        "evidence": [{"paper_id": "arxiv_1706.03762", "section": "results",
+                      "anchor": "a more sophisticated compatibility function",
+                      "quote": "a more sophisticated compatibility function may be beneficial.",
+                      "char_offset": [0, 10], "grounding_status": "matched"}],
+    }
+    storage.write_gap_json(CATEGORY, gap, "master")
+    for idea_id, title in ((IDEA_A, "Kernel attention"), (IDEA_B, "Low-rank bilinear form")):
+        storage.write_idea_json(CATEGORY, IdeaRecord(
+            idea_id=idea_id, title=title, state="root", description=f"{title} description.",
+            problem="The dot product is a single bilinear form.",
+            addresses=[GAP_ID], sections={"technique": ["step one", "step two"]},
+        ).model_dump(mode="json"))
+    return tmp_path
+
+
+@pytest.fixture
+def rec(monkeypatch) -> Recorder:
+    """Patch the two LLM steps and the two subagents onto a recorder."""
+    recorder = Recorder()
+
+    def fake_plan_llm(_llm, _system, user, schema):
+        recorder.calls.append(Call("plan.llm", {"prompt": user}))
+        return recorder._next(recorder.plans, "plan")
+
+    def fake_reflect_llm(_llm, _system, user, schema):
+        recorder.calls.append(Call("reflect.llm", {"prompt": user}))
+        return recorder._next(recorder.judgments, "reflect")
+
+    def fake_think(call, *, investigator=None):
+        recorder.calls.append(Call("creative_thinker", {
+            # Whether the thinker was handed a way to look things up. It skips every
+            # lookup when this is absent, so `tool_use` without it is a promise the run
+            # cannot keep.
+            "can_investigate": investigator is not None,
+            "investigator": investigator,
+            "mode": call.mode,
+            "task": call.task,
+            "styles": [s.name for s in call.styles],
+            "width": call.width,
+            "depth": call.depth,
+            "tool_use": call.tool_use,
+            "budget_llm_calls": call.budget.max_llm_calls,
+            # Each call names its own run: node ids are minted from this, by a counter
+            # that starts over every time.
+            "run_id": call.run_id or "",
+            "subject": call.idea.idea_id,
+            "subject_title": call.idea.title,
+            "context_gaps": [g.get("gap_id") for g in call.context.get("gaps") or []],
+            "context_ideas": [i.get("idea_id") for i in call.context.get("ideas") or []],
+            "context_findings": list(call.context.get("findings") or []),
+            "context_user_input": [d.get("id")
+                                   for d in call.context.get("user_input") or []],
+            # The whole context dict as well, so a test can assert on what was actually
+            # handed over rather than on the summary above. Not listed in the flows
+            # document's `_SHOW`, so it stays out of the depiction.
+            "context": call.context,
+        }))
+        return recorder._next(recorder.envelopes, "creative_thinker")
+
+    def fake_investigator(text, *, session_id, category_slug=None, stream=True, **_):
+        recorder.calls.append(Call("investigator", {
+            "query": text, "session_id": session_id, "category_slug": category_slug,
+        }))
+        return recorder._next(recorder.findings, "investigator")
+
+    monkeypatch.setattr(
+        "src.agents.orchestrator_agent.subagents.plan.agent.chat_with_structured_output",
+        fake_plan_llm)
+    monkeypatch.setattr(
+        "src.agents.orchestrator_agent.subagents.reflect.agent.chat_with_structured_output",
+        fake_reflect_llm)
+    monkeypatch.setattr("src.agents.creative_thinker.think", fake_think)
+    monkeypatch.setattr("src.agents.investigator_agent.run", fake_investigator)
+    return recorder
+
+
+# --- helpers ------------------------------------------------------------------
+
+
+def candidate(title: str, node: str = "n0", **over) -> IdeaRecord:
+    """A generation candidate: no id, because it has no place in the graph yet.
+
+    `origin` is what lets an accept carve the branch that produced it out of the run's
+    trace — without it the record would be written with no history of how it was reached,
+    which is the thing `apply_envelope` exists to prevent.
+    """
+    return IdeaRecord(idea_id=None, title=title, state="provisional",
+                      description=f"{title} description.", addresses=[GAP_ID],
+                      sections={"technique": ["do the thing"]},
+                      origin=IdeaOrigin(run_id="run_thinker", node_id=node,
+                                        node_path=[node], mode="generation"), **over)
+
+
+def envelope(*, idea: IdeaRecord | None = None, drafts=(), answer="",
+             status="completed", limit=None, nodes=2, llm_calls=8) -> Envelope:
+    """An envelope shaped like the thinker's: the trace rides on `idea`, not on drafts.
+
+    `llm_calls` is what the run reports having spent. A real thinker always keeps this
+    ledger; passing 0 models a subagent that keeps none, which the orchestrator charges
+    its whole slice rather than treating as free.
+    """
+    carrier = idea or IdeaRecord(idea_id=None)
+    carrier = carrier.model_copy(update={"runs": [RunEntry(
+        run_id="run_thinker",
+        header=RunHeader(mode="generation"),
+        nodes=[ThoughtNode(node_id=f"n{i}", text=f"branch {i}", kind="candidate")
+               for i in range(nodes)],
+    )]})
+    return Envelope(idea=carrier, drafts=list(drafts), answer=answer,
+                    status=status, limit=limit, metrics={"llm_calls": llm_calls})
+
+
+def turn(workspace, message: str, *, gaps=(), ideas=(), session_id="s1", run_id="run_1") -> dict:
+    """Run one turn through the real graph and return the final state."""
+    return build_orchestrator_graph().invoke({
+        "session_id": session_id, "category_slug": CATEGORY, "run_id": run_id,
+        "message": message, "iteration": 0,
+        "focus": FocusSelection(gap_ids=list(gaps), idea_ids=list(ideas)),
+    })
+
+
+def stored(session_id="s1", run_id="run_1") -> dict:
+    return session.read_result(CATEGORY, session_id, run_id)
+
+
+def test_stream_reports_plan_and_step_progress(workspace, rec):
+    rec.plans = [Plan(
+        goal="Research the selected gap",
+        steps=[ToolCall(tool="investigator", args={"query": "what has been tried?"})],
+        done_criteria=["findings returned"],
+    )]
+    rec.findings = ["Two relevant approaches."]
+    rec.judgments = [ReflectJudgment(
+        route="finish", keep_results=True, answer="Here is what I found.",
+    )]
+
+    custom = []
+    inputs = {
+        "session_id": "s-progress", "category_slug": CATEGORY,
+        "run_id": "run-progress", "message": "Research this",
+        "iteration": 0, "focus": FocusSelection(gap_ids=[GAP_ID]),
+    }
+    for _namespace, mode, data in build_orchestrator_graph().stream(
+        inputs, stream_mode=["updates", "custom"], subgraphs=True,
+    ):
+        if mode == "custom":
+            custom.append(data)
+
+    names = [event.get("name") for event in custom]
+    assert names == [
+        "orchestrator planning",
+        "orchestrator plan",
+        "orchestrator step started",
+        "orchestrator step finished",
+        "orchestrator review started",
+        "orchestrator review finished",
+    ]
+    planned = custom[1]
+    assert planned["data"]["goal"] == "Research the selected gap"
+    assert planned["data"]["steps"][0]["tool"] == "investigator"
+    assert custom[2]["data"]["step"] == 1
+    assert custom[3]["data"]["ok"] is True
+
+
+def drop(session_id="s1", *, notes=(), files=()) -> None:
+    """Seed a session the way the chat surface does: notes pasted, documents dropped.
+
+    The stored entry keeps a 400-char digest for the UI; a file's real text lives in the
+    session's `files/` folder, which is what makes "the digest is not the document" a
+    thing a test can tell apart.
+    """
+    directory = session.session_dir(CATEGORY, session_id)
+    session.session_files_dir(CATEGORY, session_id).mkdir(parents=True, exist_ok=True)
+    entries = []
+    for index, text in enumerate(notes):
+        entries.append({"kind": "note", "id": f"note_{index}", "label": "Pasted note",
+                        "digest": text[:400]})
+    for name, text in files:
+        (session.session_files_dir(CATEGORY, session_id) / name).write_bytes(
+            text.encode("utf-8") if isinstance(text, str) else text)
+        entries.append({"kind": "file", "id": name, "label": name,
+                        "digest": str(text)[:400]})
+    (directory / "session.json").write_text(json.dumps(
+        {"session_id": session_id, "category_slug": CATEGORY, "context": entries}))
+
+
+def fetched(session_id="s1", *papers: tuple[str, str]) -> None:
+    """Seed papers the way the investigator stores them.
+
+    One folder per paper, holding the record beside the pdf and the extracted source —
+    not a flat `<paper_id>.json`. The layout is the investigator's, and reading it wrong
+    fails silently: the directory exists, the glob matches nothing, and every paper it
+    fetched reaches no one.
+    """
+    root = session.session_papers_dir(CATEGORY, session_id)
+    for paper_id, title in papers:
+        folder = root / paper_id
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "paper.json").write_text(json.dumps({
+            "paper_id": paper_id,
+            "metadata": {"title": title, "year": 2024},
+            # The full text, which is what a fetched record actually carries and what
+            # must not be passed on: ~60k chars in the real thing.
+            "content": "x" * 60_000,
+            "summary": {"problem": {"statement": f"What {title} is about."}},
+        }))
+
+
+# --- scenarios ----------------------------------------------------------------
+
+
+def test_conversational_turn_calls_no_tool_and_skips_reflect(workspace, rec):
+    """"what can you do?" — the planner answers, and execute and reflect never run.
+
+    The reply comes from the planner rather than reflect because on a turn with no steps
+    there are no results to reflect on, and the planner is the only step that sees the
+    tool catalogue.
+    """
+    rec.plans = [Plan(goal="Say what this assistant does.", steps=[],
+                      answer="I turn gaps into candidate research ideas.")]
+
+    state = turn(workspace, "what can you do?")
+
+    assert rec.chain() == ["plan.llm"]
+    assert state["answer"] == "I turn gaps into candidate research ideas."
+    assert stored()["ideas"] == []
+    assert stored()["message"] == "what can you do?"
+
+
+def test_generation_offers_drafts_and_writes_nothing(workspace, rec):
+    """A gap is selected and the user asks for candidates.
+
+    The thinker is handed the gap in `context.gaps` and no subject — generation has none.
+    What comes back is offered, and the idea graph is untouched until an accept.
+    """
+    rec.plans = [Plan(goal="Generate 2 candidates.", done_criteria=["2 candidates"],
+                      steps=[ToolCall(tool="creative_thinker", args={
+                          "thinking_mode": "generation", "width": 2,
+                          "styles": ["skeptic", "transferer"],
+                          "instruction": "Fan out over the gap."})])]
+    rec.envelopes = [envelope(drafts=[candidate("Kernel mixture"), candidate("Poly kernel")])]
+    rec.judgments = [ReflectJudgment(route="finish", answer="I drafted two candidates.")]
+
+    state = turn(workspace, "give me 2 ideas for this gap", gaps=[GAP_ID])
+
+    assert rec.chain() == ["plan.llm", "creative_thinker", "reflect.llm"]
+    sent = rec.to("creative_thinker")[0].args
+    assert sent["mode"] == "generation"
+    assert sent["styles"] == ["skeptic", "transferer"]
+    assert sent["context_gaps"] == [GAP_ID]
+    assert sent["subject"] is None, "generation has no subject idea"
+
+    assert [i.title for i in state["ideas"]] == ["Kernel mixture", "Poly kernel"]
+    assert all(i.idea_id is None for i in state["ideas"]), "a draft has no id yet"
+    assert storage.list_idea_ids(CATEGORY) == [IDEA_A, IDEA_B], "nothing was written"
+
+
+def test_refinement_hands_the_thinker_exactly_one_subject(workspace, rec):
+    """Two ideas are in scope and the user means one of them.
+
+    `work_on` names it; the adapter moves that record into `spec.idea` and leaves the
+    other in `context.ideas` as background. That is what makes the thinker's contract —
+    "refinement deepens ONE existing idea" — true rather than aspirational.
+    """
+    rec.plans = [Plan(goal="Sharpen the second idea.", done_criteria=["1 revised candidate"],
+                      steps=[ToolCall(tool="creative_thinker", args={
+                          "thinking_mode": "refinement", "work_on": [IDEA_B], "depth": 3,
+                          "instruction": "Make it concrete."})])]
+    refined = IdeaRecord(idea_id=IDEA_B, title="Low-rank bilinear form", state="root",
+                         description="Now concrete.", addresses=[GAP_ID])
+    rec.envelopes = [envelope(idea=refined, answer="Made it concrete.")]
+    rec.judgments = [ReflectJudgment(route="finish", answer="I made the second one concrete.")]
+
+    turn(workspace, "make the second one more concrete", ideas=[IDEA_A, IDEA_B])
+
+    sent = rec.to("creative_thinker")[0].args
+    assert sent["subject"] == IDEA_B
+    assert sent["context_ideas"] == [IDEA_A], "the other idea stays as background"
+    assert sent["depth"] == 3
+
+
+def test_refinement_resolves_persisted_work_on_idea_not_preloaded_in_context(workspace, rec):
+    """A valid workspace id is enough; the user need not load the same idea twice."""
+    rec.plans = [Plan(goal="Sharpen persisted idea.", steps=[ToolCall(
+        tool="creative_thinker", args={
+            "thinking_mode": "refinement", "work_on": [IDEA_B], "depth": 2,
+        },
+    )])]
+    rec.envelopes = [envelope(idea=IdeaRecord(
+        idea_id=IDEA_B, title="Low-rank bilinear form", state="root",
+        description="Refined.", addresses=[GAP_ID],
+    ))]
+    rec.judgments = [ReflectJudgment(route="finish", answer="Refined it.")]
+
+    turn(workspace, "refine that idea")
+
+    sent = rec.to("creative_thinker")[0].args
+    assert sent["subject"] == IDEA_B
+    assert sent["context_ideas"] == []
+
+
+def test_work_on_naming_an_id_not_in_context_fails_the_step(workspace, rec):
+    """An id the planner invented never reaches the subagent.
+
+    Without the check the thinker would silently work whichever idea came first, which is
+    the failure the argument exists to prevent.
+    """
+    rec.plans = [Plan(goal="Refine.", done_criteria=["1 candidate"],
+                      steps=[ToolCall(tool="creative_thinker", args={
+                          "thinking_mode": "refinement", "work_on": ["idea_invented"]})])]
+    rec.judgments = [ReflectJudgment(route="finish", answer="I could not find that idea.")]
+
+    state = turn(workspace, "refine the third one", ideas=[IDEA_A])
+
+    assert rec.to("creative_thinker") == [], "the subagent was never called"
+    result = state["results"][0]
+    assert result.ok is False
+    assert "none of which is in context" in result.error
+
+
+def test_chained_steps_pass_ideas_forward(workspace, rec):
+    """`generate -> refine(needs=[1])`.
+
+    Step 2 works on what step 1 produced. Without `needs` it would run against the
+    up-front context, find no ideas, and refine nothing.
+    """
+    rec.plans = [Plan(goal="Generate then sharpen.", done_criteria=["2 candidates"], steps=[
+        ToolCall(tool="creative_thinker", args={"thinking_mode": "generation", "width": 2,
+                                                "styles": ["skeptic", "optimizer"]}),
+        ToolCall(tool="creative_thinker", needs=[1],
+                 args={"thinking_mode": "refinement", "instruction": "Sharpen these."}),
+    ])]
+    made = [candidate("From skeptic"), candidate("From optimizer")]
+    rec.envelopes = [envelope(drafts=made), envelope(idea=made[0], answer="Sharpened.")]
+    rec.judgments = [ReflectJudgment(route="finish", answer="Two candidates, then sharpened.")]
+
+    turn(workspace, "give me ideas then sharpen them", gaps=[GAP_ID])
+
+    second = rec.to("creative_thinker")[1].args
+    assert second["subject_title"] == "From skeptic", "step 2 got step 1's output"
+
+
+def test_a_refined_draft_replaces_the_one_it_rewrote(workspace, rec):
+    """`generate(2) -> refine`, with no idea named.
+
+    Refinement returns its subject *rewritten*, not an extra idea, so the original stops
+    being something to offer. Without this the user is shown the same idea twice — before
+    and after — with nothing saying which supersedes which, and accepting both writes one
+    idea to the graph as two records.
+
+    What is left still has to point at the right record inside its envelope: dropping the
+    first candidate must not slide the second one's index up by one.
+    """
+    made = [candidate("Alpha", node="n0"), candidate("Beta", node="n1")]
+    rec.plans = [Plan(goal="Generate then sharpen.", done_criteria=["2 candidates"], steps=[
+        ToolCall(tool="creative_thinker", args={"thinking_mode": "generation", "width": 2}),
+        ToolCall(tool="creative_thinker", needs=[1], args={"thinking_mode": "refinement"}),
+    ])]
+    rec.envelopes = [envelope(drafts=made),
+                     envelope(idea=made[0].model_copy(update={"title": "Alpha sharpened"}))]
+    rec.judgments = [ReflectJudgment(route="finish", answer="Sharpened the first.")]
+
+    state = turn(workspace, "give me ideas then sharpen", gaps=[GAP_ID])
+
+    assert [i.title for i in state["ideas"]] == ["Beta", "Alpha sharpened"]
+    assert stored()["offers"] == [{"envelope": 0, "draft": 1},
+                                  {"envelope": 1, "draft": None}]
+
+    # Accepting the rewritten one is a create: it has no id either, because the draft it
+    # rewrote had none. `apply_envelope` writes only what already has an id, so without
+    # minting here the click would write nothing and report nothing.
+    written = commit_selection(CATEGORY, "s1", "run_1", ["run_1#1"])
+    assert len(written) == 1
+    assert storage.read_idea_json(CATEGORY, written[0])["title"] == "Alpha sharpened"
+
+
+def test_refining_each_candidate_by_step_reference(workspace, rec):
+    """`generate(3) -> refine 1#1 -> refine 1#2 -> refine 1#3`.
+
+    A candidate that does not exist yet has no id to name it by, so `work_on` also takes
+    a `step#position` handle — knowable when the plan is written, because the plan is what
+    decides how many the step returns.
+
+    Without it every refinement step falls back to the first idea in context and all three
+    sharpen the same candidate, leaving the other two untouched while reporting success.
+    """
+    made = [candidate(t, node=f"n{i}")
+            for i, t in enumerate(("Alpha", "Beta", "Gamma"))]
+    rec.plans = [Plan(goal="Generate then sharpen each.", done_criteria=["3 refined"], steps=[
+        ToolCall(tool="creative_thinker", args={"thinking_mode": "generation", "width": 3}),
+        *[ToolCall(tool="creative_thinker", needs=[1],
+                   args={"thinking_mode": "refinement", "work_on": [f"1#{n}"]})
+          for n in (1, 2, 3)],
+    ])]
+    rec.envelopes = [envelope(drafts=made)] + [
+        envelope(idea=m.model_copy(update={"title": f"{m.title} v2"})) for m in made]
+    rec.judgments = [ReflectJudgment(route="finish", answer="Sharpened all three.")]
+
+    state = turn(workspace, "3 ideas for this gap, then sharpen each", gaps=[GAP_ID])
+
+    assert [c.args["subject_title"] for c in rec.to("creative_thinker")[1:]] == [
+        "Alpha", "Beta", "Gamma"], "each step got its own candidate"
+    assert [i.title for i in state["ideas"]] == ["Alpha v2", "Beta v2", "Gamma v2"], (
+        "three ideas, each in its refined form — not six, raw and refined side by side")
+
+
+def test_a_step_whose_needs_produced_nothing_is_skipped_not_run(workspace, rec):
+    """A dependency that returned nothing stops the step rather than feeding it nothing.
+
+    Reflect is told why, so it can replan instead of reporting a shortfall it cannot
+    explain.
+    """
+    rec.plans = [Plan(goal="Generate then sharpen.", done_criteria=["2 candidates"], steps=[
+        ToolCall(tool="creative_thinker", args={"thinking_mode": "generation", "width": 2}),
+        ToolCall(tool="creative_thinker", needs=[1], args={"thinking_mode": "refinement"}),
+    ])]
+    rec.envelopes = [envelope(drafts=[])]  # step 1 returns nothing
+    rec.judgments = [ReflectJudgment(route="finish", answer="Nothing came back.")]
+
+    state = turn(workspace, "give me ideas then sharpen them", gaps=[GAP_ID])
+
+    assert len(rec.to("creative_thinker")) == 1, "step 2 never reached the subagent"
+    assert state["results"][1].ok is False
+    assert "skipped" in state["results"][1].error
+
+
+def test_investigator_findings_flow_into_a_later_step(workspace, rec):
+    """`investigate -> generate(needs=[1])`.
+
+    The investigator returns prose, not ideas, so it arrives as `context.findings` rather
+    than replacing the subject. Research adds to what is known; it does not displace it.
+    """
+    rec.plans = [Plan(goal="Research then generate.", done_criteria=["2 candidates"], steps=[
+        ToolCall(tool="investigator", args={"query": "attention compatibility functions"}),
+        ToolCall(tool="creative_thinker", needs=[1],
+                 args={"thinking_mode": "generation", "width": 2}),
+    ])]
+    rec.findings = ["Three papers tried bilinear forms; none beat dot product at scale."]
+    rec.envelopes = [envelope(drafts=[candidate("Avoids bilinear")])]
+    rec.judgments = [ReflectJudgment(route="finish", answer="Looked it up, then drafted one.")]
+
+    turn(workspace, "what's been tried? then give me ideas", gaps=[GAP_ID])
+
+    asked = rec.to("investigator")[0].args
+    assert asked["category_slug"] == CATEGORY, "fetches land in this session, not a legacy path"
+    assert asked["session_id"] == "s1"
+
+    sent = rec.to("creative_thinker")[0].args
+    assert "bilinear forms" in sent["context_findings"][0]
+    assert sent["context_gaps"] == [GAP_ID], "the gap is still there — findings add, not replace"
+
+
+def test_replan_keeping_results_accumulates_instead_of_repeating(workspace, rec):
+    """Reflect finds the round short and sends it back with feedback.
+
+    `keep_results=True` carries the first round forward, so the second plan adds the
+    remainder and the user is not shown the same candidates twice.
+    """
+    rec.plans = [
+        Plan(goal="Generate 3.", done_criteria=["3 candidates"],
+             steps=[ToolCall(tool="creative_thinker",
+                             args={"thinking_mode": "generation", "width": 3})]),
+        Plan(goal="Add one more.", done_criteria=["1 further candidate"],
+             steps=[ToolCall(tool="creative_thinker",
+                             args={"thinking_mode": "generation", "width": 1})]),
+    ]
+    rec.envelopes = [envelope(drafts=[candidate("One"), candidate("Two")]),
+                     envelope(drafts=[candidate("Three")])]
+    rec.judgments = [
+        ReflectJudgment(route="replan", keep_results=True,
+                        feedback="Two came back and the criterion asked for three."),
+        ReflectJudgment(route="finish", answer="Three candidates in total."),
+    ]
+
+    state = turn(workspace, "give me 3 ideas", gaps=[GAP_ID])
+
+    assert rec.chain() == ["plan.llm", "creative_thinker", "reflect.llm",
+                           "plan.llm", "creative_thinker", "reflect.llm"]
+    assert [i.title for i in state["ideas"]] == ["One", "Two", "Three"]
+    assert "Two came back" in rec.to("plan.llm")[1].args["prompt"], "feedback reached the planner"
+
+
+def test_replan_discarding_starts_the_round_clean(workspace, rec):
+    """`keep_results=False` throws the round away rather than adding to it."""
+    rec.plans = [
+        Plan(goal="Generate.", done_criteria=["2 candidates"],
+             steps=[ToolCall(tool="creative_thinker",
+                             args={"thinking_mode": "generation", "width": 2})]),
+        Plan(goal="Generate differently.", done_criteria=["2 candidates"],
+             steps=[ToolCall(tool="creative_thinker",
+                             args={"thinking_mode": "generation", "width": 2})]),
+    ]
+    rec.envelopes = [envelope(drafts=[candidate("Restates the gap")]),
+                     envelope(drafts=[candidate("Names a mechanism")])]
+    rec.judgments = [
+        ReflectJudgment(route="replan", keep_results=False,
+                        feedback="They restated the gap. Discarded."),
+        ReflectJudgment(route="finish", answer="Here is one with a mechanism."),
+    ]
+
+    state = turn(workspace, "give me 2 ideas", gaps=[GAP_ID])
+
+    assert [i.title for i in state["ideas"]] == ["Names a mechanism"]
+    assert "Discarded" in rec.to("plan.llm")[1].args["prompt"]
+
+
+def test_a_truncated_run_is_reported_as_truncated_not_as_a_shortfall(workspace, rec):
+    """Hitting a compute ceiling is the normal way divergent thinking ends.
+
+    The status reaches reflect so it can tell a budget-capped run apart from thinking that
+    simply went badly — otherwise it replans into a budget that is already spent.
+    """
+    rec.plans = [Plan(goal="Generate 5.", done_criteria=["5 candidates"],
+                      steps=[ToolCall(tool="creative_thinker",
+                                      args={"thinking_mode": "generation", "width": 5})])]
+    rec.envelopes = [envelope(drafts=[candidate("Only one")],
+                              status="truncated", limit="max_llm_calls")]
+    rec.judgments = [ReflectJudgment(route="finish",
+                                     answer="One candidate — the run hit its budget.")]
+
+    state = turn(workspace, "give me 5 ideas", gaps=[GAP_ID])
+
+    result = state["results"][0]
+    assert (result.status, result.limit) == ("truncated", "max_llm_calls")
+    assert "truncated" in rec.to("reflect.llm")[0].args["prompt"].lower()
+
+
+def test_the_reflect_loop_stops_at_the_iteration_cap(workspace, rec):
+    """A reflect that keeps asking to replan is overridden and the stop is disclosed."""
+    rec.plans = [Plan(goal="Generate.", done_criteria=["1 candidate"],
+                      steps=[ToolCall(tool="creative_thinker",
+                                      args={"thinking_mode": "generation", "width": 1})])
+                 for _ in range(3)]
+    rec.envelopes = [envelope(drafts=[candidate(f"Round {i}")]) for i in range(3)]
+    rec.judgments = [ReflectJudgment(route="replan", keep_results=False, feedback="More.",
+                                     answer=f"Round {i} was short.") for i in range(3)]
+
+    state = turn(workspace, "give me ideas", gaps=[GAP_ID])
+
+    assert len(rec.to("plan.llm")) == 3, "capped at MAX_ITERATIONS, not looping forever"
+    assert "Round 2 was short." in state["answer"]
+    assert "maximum number of research rounds" in state["answer"]
+
+
+def test_accepting_a_draft_mints_an_id_and_carries_the_trace(workspace, rec):
+    """The accept gate — the only path from a draft to the idea graph.
+
+    A draft has no `idea_id` until this call; the thinking graph lives on the envelope's
+    carrier record, so the accept step replays the real envelope to carve the branch that
+    produced the accepted candidate onto it.
+    """
+    rec.plans = [Plan(goal="Generate 2.", done_criteria=["2 candidates"],
+                      steps=[ToolCall(tool="creative_thinker",
+                                      args={"thinking_mode": "generation", "width": 2})])]
+    rec.envelopes = [envelope(drafts=[candidate("Taken", node="n0"),
+                                  candidate("Left", node="n1")], nodes=2)]
+    rec.judgments = [ReflectJudgment(route="finish", answer="Two candidates.")]
+
+    state = turn(workspace, "give me 2 ideas", gaps=[GAP_ID])
+    before = set(storage.list_idea_ids(CATEGORY))
+
+    # What a caller shows the idea under and what commit accepts have to be one string.
+    # They were not: the demo offered drafts by `idea_id`, which is None until this call
+    # mints one, so every accept matched nothing and wrote nothing without saying so.
+    assert offer_handle("run_1", 0, state["ideas"][0].idea_id) == "run_1#0"
+
+    written = commit_selection(CATEGORY, "s1", "run_1", ["run_1#0"])
+
+    assert len(written) == 1
+    new_id = written[0]
+    assert new_id not in before
+    record = storage.read_idea_json(CATEGORY, new_id)
+    assert record["title"] == "Taken"
+    assert record["addresses"] == [GAP_ID]
+    assert record["runs"], "the thinking that produced it came along"
+    assert "Left" not in json.dumps(record), "the candidate that was not taken is not written"
+
+
+def test_accepting_something_the_run_never_offered_writes_nothing(workspace, rec):
+    """The rule that survives from the orchestrator's own commit path."""
+    rec.plans = [Plan(goal="Generate.", done_criteria=["1 candidate"],
+                      steps=[ToolCall(tool="creative_thinker",
+                                      args={"thinking_mode": "generation", "width": 1})])]
+    rec.envelopes = [envelope(drafts=[candidate("Offered")])]
+    rec.judgments = [ReflectJudgment(route="finish", answer="One candidate.")]
+
+    turn(workspace, "give me an idea", gaps=[GAP_ID])
+    before = set(storage.list_idea_ids(CATEGORY))
+
+    assert commit_selection(CATEGORY, "s1", "run_1", ["idea_never_offered"]) == []
+    assert set(storage.list_idea_ids(CATEGORY)) == before
+
+
+def test_papers_the_investigator_fetched_reach_a_later_turn(workspace, rec):
+    """What an earlier turn's research found is in scope for this one.
+
+    The investigator saves what it fetches under the session, and that store is the only
+    place those papers exist — they are not in the workspace library, so nothing else
+    would put them in front of the thinker.
+
+    The full text is deliberately left behind. A fetched record carries the whole paper,
+    and passing that on would spend the context on one document.
+    """
+    fetched("s1", ("arxiv_1706.03762", "Attention Is All You Need"))
+
+    rec.plans = [Plan(goal="Generate.", done_criteria=["1 candidate"],
+                      steps=[ToolCall(tool="creative_thinker",
+                                      args={"thinking_mode": "generation", "width": 1})])]
+    rec.envelopes = [envelope(drafts=[candidate("Builds on what was fetched")])]
+    rec.judgments = [ReflectJudgment(route="finish", answer="One candidate.")]
+
+    turn(workspace, "ideas using what you found", gaps=[GAP_ID])
+
+    papers = rec.to("creative_thinker")[0].args["context"]["papers"]
+    found = next(p for p in papers if p["paper_id"] == "arxiv_1706.03762")
+    assert found["title"] == "Attention Is All You Need"
+    assert "content" not in found, "the full text stays where it was fetched"
+
+
+def test_a_change_the_step_recommended_but_did_not_make_reaches_reflect(workspace, rec):
+    """A run does only what it was asked, and says so when it finds more.
+
+    The thinker records the change it declined to make in `proposed_changes`, and its own
+    schema names the orchestrator as the one who decides: resolve it, put it to the user,
+    or drop it — with a "yes" coming back as the next step's task. It reached nobody,
+    because the only two steps that could act on it never saw it.
+    """
+    made = envelope(drafts=[candidate("Kernel mixture")])
+    made.proposed_changes = [ProposedChange(
+        target="experimental_protocol",
+        change="State the d_k sweep as {16, 32, 64} with three seeds.",
+        reason="The evaluation is not decidable at one seed.")]
+
+    rec.plans = [Plan(goal="Generate.", done_criteria=["1 candidate"],
+                      steps=[ToolCall(tool="creative_thinker",
+                                      args={"thinking_mode": "generation", "width": 1})])]
+    rec.envelopes = [made]
+    rec.judgments = [ReflectJudgment(route="finish", answer="One candidate.")]
+
+    turn(workspace, "give me an idea", gaps=[GAP_ID])
+
+    seen = rec.to("reflect.llm")[0].args["prompt"]
+    assert "did NOT make" in seen
+    assert "State the d_k sweep" in seen
+    assert "because The evaluation is not decidable" in seen
+
+
+def test_a_paper_reaches_the_thinker_as_prose_not_as_a_dict(workspace, rec):
+    """The thinker picks the first field it recognises as a body, and checks
+    `description` before `summary`.
+
+    A summary is a nested record, so without a description it reaches `summary` and
+    stringifies it — the thinker reads `{'problem': {'statement': ...}}` where a paragraph
+    belongs. The structure stays on `summary` for the planner's own renderer, which uses it.
+    """
+    fetched("s1", ("arxiv_1706.03762", "Attention Is All You Need"))
+
+    rec.plans = [Plan(goal="Generate.", done_criteria=["1 candidate"],
+                      steps=[ToolCall(tool="creative_thinker",
+                                      args={"thinking_mode": "generation", "width": 1})])]
+    rec.envelopes = [envelope(drafts=[candidate("Uses the paper")])]
+    rec.judgments = [ReflectJudgment(route="finish", answer="One candidate.")]
+
+    turn(workspace, "ideas from that paper", gaps=[GAP_ID])
+
+    paper = next(p for p in rec.to("creative_thinker")[0].args["context"]["papers"]
+                 if p["paper_id"] == "arxiv_1706.03762")
+    assert paper["description"] == "What Attention Is All You Need is about."
+    assert isinstance(paper["summary"], dict), "the structure stays for our own renderer"
+
+    rendered = thinker_context.render_context({"papers": [paper]})
+    assert "What Attention Is All You Need is about." in rendered
+    assert "{'problem'" not in rendered
+
+
+def test_tool_use_hands_the_thinker_a_way_to_look_things_up(workspace, rec):
+    """`tool_use: true` — the thinker may ask the investigator mid-thought.
+
+    The thinker takes an investigator as an argument and skips every lookup when it is
+    absent. This adapter used to call `think(call)` and pass nothing, so the argument was
+    a promise no run could keep: a plan asked for grounded thinking and got ungrounded
+    thinking, which reflect then read as weak.
+
+    The callable is scoped to the session, so a paper the thinker asks for lands where the
+    next turn will look for it rather than in the harness folder the thinker's own factory
+    hardcodes.
+    """
+    rec.plans = [Plan(goal="Generate, grounded.", done_criteria=["1 candidate"],
+                      steps=[ToolCall(tool="creative_thinker", args={
+                          "thinking_mode": "generation", "width": 1, "tool_use": True})])]
+    rec.envelopes = [envelope(drafts=[candidate("Checked against prior art")])]
+    rec.judgments = [ReflectJudgment(route="finish", answer="One candidate.")]
+    rec.findings = ["Nobody has tried it."]
+
+    turn(workspace, "ideas, and check they are new", gaps=[GAP_ID])
+
+    sent = rec.to("creative_thinker")[0].args
+    assert sent["can_investigate"] is True
+
+    # Calling it is what proves where its downloads go: the session, not `dev_creative_thinker`.
+    answer = sent["investigator"]("Has this been proposed before?")
+    assert answer["answer"] == "Nobody has tried it."
+    asked = rec.to("investigator")[0].args
+    assert asked["session_id"] == "s1"
+    assert asked["category_slug"] == CATEGORY
+
+
+def test_without_tool_use_the_thinker_gets_no_investigator(workspace, rec):
+    """The default. Nothing is wired, so nothing is spent looking things up."""
+    rec.plans = [Plan(goal="Generate.", done_criteria=["1 candidate"],
+                      steps=[ToolCall(tool="creative_thinker",
+                                      args={"thinking_mode": "generation", "width": 1})])]
+    rec.envelopes = [envelope(drafts=[candidate("Unchecked")])]
+    rec.judgments = [ReflectJudgment(route="finish", answer="One candidate.")]
+
+    turn(workspace, "give me an idea", gaps=[GAP_ID])
+
+    assert rec.to("creative_thinker")[0].args["can_investigate"] is False
+    assert rec.to("investigator") == []
+
+
+def test_investigator_invocation_emits_logical_call_lifecycle(monkeypatch):
+    from src.agents import investigator_agent
+    from src.agents.orchestrator_agent.tools import creative_thinker as thinker_tool
+    from src.agents.orchestrator_agent.tools.base import ToolEnv
+
+    events = []
+    monkeypatch.setattr(thinker_tool.trace, "emit", events.append)
+    monkeypatch.setattr(investigator_agent, "run", lambda *_args, **_kwargs: "grounded")
+
+    ask = thinker_tool._investigator(ToolEnv(
+        category_slug="topic", session_id="session", run_id="run",
+    ))
+    assert ask("Is this prior work?")["answer"] == "grounded"
+
+    assert [event["name"] for event in events] == [
+        "investigator call started", "investigator call finished",
+    ]
+    assert events[0]["data"]["call_id"] == events[1]["data"]["call_id"]
+    assert events[1]["data"]["ok"] is True
+
+
+def test_a_pasted_note_and_a_dropped_document_reach_the_thinker(workspace, rec):
+    """The user pasted a constraint and dropped a file into the session earlier.
+
+    Neither is a workspace record, so neither can be loaded by id — they exist only in the
+    session — and without reading them the turn would think about the gap while ignoring
+    what the user actually put in front of it.
+
+    The two are shown differently on purpose. The note reaches the planner in full, because
+    "one GPU" is an instruction that changes what a good plan is. The document does not:
+    its text goes to the thinker through the context object, while the planner is told only
+    that it is there. A document pasted into a planning prompt buries the rules the planner
+    is following.
+
+    A PDF is a third case: nothing extracts its text yet, so it arrives saying so rather
+    than arriving empty, and no step can mistake an unread document for an empty one.
+    """
+    drop(notes=["Only ideas that train on one GPU."],
+         files=[("constraints.md", "Hardware budget\n" + "detail line\n" * 400),
+                ("chen2024.pdf", "%PDF-1.7 binary bytes")])
+
+    rec.plans = [Plan(goal="Generate within the user's constraint.",
+                      done_criteria=["1 candidate"],
+                      steps=[ToolCall(tool="creative_thinker", args={
+                          "thinking_mode": "generation", "width": 1,
+                          "instruction": "Respect the single-GPU constraint."})])]
+    rec.envelopes = [envelope(drafts=[candidate("Sparse kernel attention")])]
+    rec.judgments = [ReflectJudgment(route="finish", answer="One candidate, single-GPU.")]
+
+    turn(workspace, "ideas for this gap", gaps=[GAP_ID])
+
+    sent = rec.to("creative_thinker")[0].args
+    assert sent["context_user_input"] == ["note_0", "constraints.md", "chen2024.pdf"]
+    given = {d["id"]: d for d in sent["context"]["user_input"]}
+    assert given["constraints.md"]["text"].count("detail line") == 400, (
+        "the thinker gets the file, not the 400-char digest the UI stores")
+    assert given["note_0"]["kind"] == "note"
+    assert given["chen2024.pdf"]["extracted"] is False
+    assert "cannot be read" in given["chen2024.pdf"]["text"], (
+        "an unread document says so; it does not arrive as an empty one")
+
+    prompt = rec.to("plan.llm")[0].args["prompt"]
+    assert "Only ideas that train on one GPU." in prompt, "a note is steering"
+    assert "constraints.md" in prompt, "the planner knows the document is in scope"
+    assert "detail line" not in prompt, "but its body is not pasted into the plan prompt"
+    assert "chen2024.pdf (its text cannot be read" in prompt
+
+
+def test_a_second_turn_sees_the_first_turns_drafts_and_transcript(workspace, rec):
+    """A session remembers, so a follow-up can refer to what just happened.
+
+    The previous turn's drafts come back as objects in `context.ideas` — they were never
+    committed, so there is no id to load them by — and the exchange comes back as history.
+    """
+    rec.plans = [
+        Plan(goal="Generate 2.", done_criteria=["2 candidates"],
+             steps=[ToolCall(tool="creative_thinker",
+                             args={"thinking_mode": "generation", "width": 2})]),
+        Plan(goal="Sharpen one.", done_criteria=["1 revised"],
+             steps=[ToolCall(tool="creative_thinker",
+                             args={"thinking_mode": "refinement",
+                                   "instruction": "Make the second concrete."})]),
+    ]
+    made = [candidate("First candidate"), candidate("Second candidate")]
+    rec.envelopes = [envelope(drafts=made), envelope(idea=made[1], answer="Done.")]
+    rec.judgments = [ReflectJudgment(route="finish", answer="Two candidates."),
+                     ReflectJudgment(route="finish", answer="Made the second concrete.")]
+
+    turn(workspace, "give me 2 ideas", gaps=[GAP_ID], run_id="run_1")
+    turn(workspace, "make the second one more concrete", run_id="run_2")
+
+    prompt = rec.to("plan.llm")[1].args["prompt"]
+    assert "give me 2 ideas" in prompt, "the earlier turn is in the transcript"
+    assert "First candidate" in prompt and "Second candidate" in prompt, "drafts came back"
+
+    sent = rec.to("creative_thinker")[1].args
+    assert sent["mode"] == "refinement"
+    assert {"First candidate", "Second candidate"} & {sent["subject_title"]}
+
+
+def test_a_turn_that_has_spent_its_budget_stops_instead_of_replanning(workspace, rec):
+    """Reflect asks for another round, and there is nothing left to run it with.
+
+    Replanning here would spend a planning call to produce a step that can only truncate.
+    The turn ends on the budget the way it ends on the iteration cap, and reflect's answer
+    is what the user sees.
+    """
+    rec.plans = [Plan(goal="Generate.", done_criteria=["3 candidates"],
+                      steps=[ToolCall(tool="creative_thinker",
+                                      args={"thinking_mode": "generation", "width": 3})])]
+    rec.envelopes = [envelope(drafts=[candidate("The only one")],
+                              llm_calls=MAX_LLM_CALLS_PER_TURN)]
+    rec.judgments = [ReflectJudgment(route="replan", keep_results=True,
+                                     feedback="One came back, three were asked for.",
+                                     answer="One candidate — the turn ran out of budget.")]
+
+    state = turn(workspace, "give me 3 ideas", gaps=[GAP_ID])
+
+    assert len(rec.to("plan.llm")) == 1, "no second plan was made"
+    assert state["spent"] >= MAX_LLM_CALLS_PER_TURN
+    assert "One candidate — the turn ran out of budget." in state["answer"]
+    assert "could not run another pass" in state["answer"]
+
+
+def test_unmetered_investigator_can_replan_instead_of_exhausting_turn(workspace, rec):
+    """An investigator has no usage ledger, but one pass must not consume the whole turn."""
+    rec.plans = [
+        Plan(goal="Check prior work.", done_criteria=["relevant prior work found"],
+             steps=[ToolCall(tool="investigator", args={"query": "first search"})]),
+        Plan(goal="Check prior work more deeply.", done_criteria=["relevant prior work found"],
+             steps=[ToolCall(tool="investigator", args={"query": "deeper search"})]),
+    ]
+    rec.findings = ["Only a general definition.", "A relevant prior work survey."]
+    rec.judgments = [
+        ReflectJudgment(route="replan", keep_results=True,
+                        feedback="Search the specific method and citations.",
+                        answer="The first search was too broad."),
+        ReflectJudgment(route="finish", answer="I found the relevant prior work."),
+    ]
+
+    state = turn(workspace, "Does this method already exist?")
+
+    assert [call.args["query"] for call in rec.to("investigator")] == [
+        "first search", "deeper search",
+    ]
+    assert len(rec.to("plan.llm")) == 2
+    assert state["spent"] == 2 * UNMETERED_TOOL_LLM_CHARGE
+    assert state["answer"] == "I found the relevant prior work."
+
+
+def test_the_turn_budget_is_divided_across_the_steps_it_plans(workspace, rec):
+    """The thinker's ceiling is per call; a turn may hold several. The orchestrator slices.
+
+    Without this a two-step plan over three reflect rounds can spend six times the ceiling
+    anyone intended.
+    """
+    rec.plans = [Plan(goal="Generate then sharpen.", done_criteria=["2 candidates"], steps=[
+        ToolCall(tool="creative_thinker", args={"thinking_mode": "generation", "width": 2}),
+        ToolCall(tool="creative_thinker", needs=[1], args={"thinking_mode": "refinement"}),
+    ])]
+    made = [candidate("One"), candidate("Two")]
+    rec.envelopes = [envelope(drafts=made, llm_calls=8), envelope(idea=made[0], llm_calls=5)]
+    rec.judgments = [ReflectJudgment(route="finish", answer="Done.")]
+
+    state = turn(workspace, "ideas then sharpen", gaps=[GAP_ID])
+
+    first, second = [c.args["budget_llm_calls"] for c in rec.to("creative_thinker")]
+    assert first == MAX_LLM_CALLS_PER_TURN // 2, "the first of two steps gets half the turn"
+    # Recomputed as it goes rather than split up front: step 1 came in at 8 of its 60, so
+    # step 2 is handed everything that is actually left rather than a stale half.
+    assert second == MAX_LLM_CALLS_PER_TURN - 8
+    assert state["spent"] == 13, "charged what they reported, not what they were allowed"

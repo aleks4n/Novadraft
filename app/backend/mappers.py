@@ -388,34 +388,222 @@ def map_gap(rec: dict, stage: str | None = None) -> dict:
 
 # --- idea ---------------------------------------------------------------------
 
-def map_idea(rec: dict) -> dict:
-    """A stored ``ideas/<id>.json`` IdeaRecord → the design's idea object."""
-    ev = rec.get("evaluation") or {}
+SECTION_LABELS = {
+    "technique": "Technique",
+    "rationale": "Rationale",
+    "open_questions": "Open questions",
+    "method": "Method",
+    "evaluation_plan": "Evaluation plan",
+    "datasets": "Datasets",
+    "risks": "Risks",
+    "related_work": "Related work",
+}
+
+
+def _section_label(key: str) -> str:
+    return SECTION_LABELS.get(key) or key.replace("_", " ").strip().capitalize()
+
+
+def _section_kind(value) -> str:
+    """How the section renders and edits: a list of lines, or a markdown block."""
+    return "list" if isinstance(value, (list, tuple)) else "markdown"
+
+
+def map_sections(sections: dict | None, order: list | None = None) -> list[dict]:
+    """The open part of an idea, as an *ordered list* rather than a map.
+
+    ``sections`` is deliberately unvalidated (see ``src/common/schemas/idea.py``),
+    so the UI needs a stable render contract instead: each entry carries its slug,
+    a display label, the value, and whether it is a list or markdown.
+
+    ``section_order`` decides the reading order, with anything it does not name
+    falling in after, in map order — so a section added without touching the list
+    is never hidden. Sorting here is never the UI's own idea: the order is the
+    document's structure, and only a ``reorder`` edit changes it.
+    """
+    sections = sections or {}
+    listed = [k for k in (order or []) if k in sections]
+    keys = listed + [k for k in sections if k not in set(listed)]
+    out = []
+    for key in keys:
+        value = sections[key]
+        kind = _section_kind(value)
+        out.append({
+            "key": key,
+            "label": _section_label(key),
+            "kind": kind,
+            "value": [str(v) for v in value] if kind == "list" else str(value or ""),
+        })
+    return out
+
+
+def _map_run_entry(run: dict) -> dict:
+    """One ``runs[]`` entry → what the thinking-graph surface renders.
+
+    Nodes and edges come through whole: the decision-graph window draws the tree,
+    colours nodes by status and badges them by style, and none of that can be
+    reconstructed from a summary.
+    """
+    header = run.get("header") or {}
+    outcome = run.get("outcome") or {}
+    # Entries written before RunSummary existed stored one free line here; the
+    # schema reads that as the objective (``RunSummary._accept_legacy_string``)
+    # and so must this, or one old run takes the whole idea page down.
+    summary = outcome.get("summary") or {}
+    if isinstance(summary, str):
+        summary = {"objective": summary}
+    elif not isinstance(summary, dict):
+        summary = {}
     return {
-        "id": rec.get("idea_id", ""),
-        "title": rec.get("title", ""),
-        "short": rec.get("short") or _short_title(rec.get("title"), rec.get("idea_id", "")),
-        "description": rec.get("description", ""),
-        "summary": rec.get("summary", ""),
-        "status": rec.get("status", "draft"),
-        "source": rec.get("source", "agent"),
-        "novelty": ev.get("novelty_score"),
-        "feasibility": ev.get("feasibility_score"),
-        "impact": ev.get("impact_score"),
-        "relatedGaps": rec.get("related_gaps", []),
-        "relatedPapers": rec.get("related_papers", []),
-        "method": rec.get("method", []),
-        "evaluation": {
-            "noveltyScore": ev.get("novelty_score"),
-            "novelty": ev.get("novelty", ""),
-            "feasibilityScore": ev.get("feasibility_score"),
-            "feasibility": ev.get("feasibility", ""),
-            "impactScore": ev.get("impact_score"),
-            "impact": ev.get("impact", ""),
-            "rigourScore": ev.get("rigour_score"),
-            "rigour": ev.get("rigour", ""),
-            "risks": ev.get("risks", []),
+        "runId": run.get("run_id", ""),
+        "sessionId": run.get("session_id"),
+        "timestamp": run.get("timestamp", ""),
+        "mode": header.get("mode", ""),
+        "width": header.get("width"),
+        "depth": header.get("depth"),
+        "model": header.get("model", ""),
+        "styles": header.get("agent_styles") or [],
+        "task": header.get("task", ""),
+        "triggeringAction": header.get("triggering_action", ""),
+        "contextIds": header.get("context_ids") or [],
+        "nodes": [
+            {
+                "id": n.get("node_id", ""),
+                "parentId": n.get("parent_id"),
+                "text": n.get("text", ""),
+                "title": n.get("title", ""),
+                "style": n.get("style", "neutral"),
+                "status": n.get("status", "kept"),
+                "kind": n.get("kind", "branch"),
+                "depth": n.get("depth", 0),
+                "comparison": n.get("comparison", ""),
+                "question": n.get("question"),
+            }
+            for n in (run.get("nodes") or [])
+        ],
+        "edges": [
+            {"from": e.get("from") or e.get("from_node"),
+             "to": e.get("to") or e.get("to_node"),
+             "type": e.get("type", "expanded-into")}
+            for e in (run.get("edges") or [])
+        ],
+        "outcome": {
+            "status": outcome.get("status", "completed"),
+            "reason": outcome.get("reason", ""),
+            "limit": outcome.get("limit"),
+            "acceptedNode": outcome.get("accepted_node"),
+            "acceptedNodes": outcome.get("accepted_nodes") or [],
+            "escalation": outcome.get("escalation"),
+            "escalationNode": outcome.get("escalation_node"),
+            "escalationDiagnosis": outcome.get("escalation_diagnosis", ""),
+            "answer": outcome.get("answer", ""),
+            # Changes the run recommended but did not make. The user turns one into
+            # the next run's task, so it has to be visible next to the answer.
+            "proposedChanges": outcome.get("proposed_changes") or [],
+            "truncated": bool(outcome.get("truncated")),
+            "summary": {
+                "objective": summary.get("objective", ""),
+                "accepted": summary.get("accepted", ""),
+                "rejected": summary.get("rejected", ""),
+                "open": summary.get("open") or [],
+            },
         },
+    }
+
+
+def map_idea(rec: dict, *, full: bool = True) -> dict:
+    """A stored ``ideas/<id>.json`` :class:`IdeaRecord` → the design's idea object.
+
+    Follows the record's four parts: the validated **spine** (title, one-liner,
+    description, problem, addresses, relations), the open **sections**, the
+    multi-writer **evaluation/provenance** blocks, and the append-only **runs**
+    graph. ``full=False`` omits ``runs`` — the list and graph views only need the
+    spine, and one idea's trace can be larger than every other field combined.
+
+    A handful of Phase-1 aliases (``relatedGaps``, ``novelty``…) are kept so the
+    ideas list and cards keep working; each reads the real field underneath.
+    """
+    ev = rec.get("evaluation") or {}
+    origin = rec.get("origin") or {}
+    sections = map_sections(rec.get("sections"), rec.get("section_order"))
+    # Spine-level per the design of record; records written before it lived there
+    # carry the same two values inside ``origin``.
+    inherited = rec.get("inherited_from")
+    if not isinstance(inherited, dict):
+        inherited = ({"idea_id": origin.get("inherited_from"),
+                      "upto_run_id": origin.get("inherited_upto_run")}
+                     if origin.get("inherited_from") else None)
+    runs = rec.get("runs") or []
+    idea_id = rec.get("idea_id") or ""
+    # The three axes the record actually stores (novelty / feasibility /
+    # significance). ``impact`` is the design's name for significance; a legacy
+    # ``*_score`` key still wins where a Phase-1 record has one.
+    novelty = ev.get("novelty", ev.get("novelty_score"))
+    feasibility = ev.get("feasibility", ev.get("feasibility_score"))
+    impact = ev.get("significance", ev.get("impact_score", ev.get("impact")))
+    return {
+        "id": idea_id,
+        "title": rec.get("title", ""),
+        "short": _short_title(rec.get("title"), idea_id),
+        "oneLiner": rec.get("one_liner", ""),
+        "description": rec.get("description", ""),
+        "problem": rec.get("problem", ""),
+        "state": rec.get("state", "provisional"),
+        "addresses": rec.get("addresses") or [],
+        "relations": [
+            {
+                "type": r.get("type", ""),
+                "target": r.get("target", ""),
+                "rationale": r.get("rationale", ""),
+                "run": r.get("run"),
+            }
+            for r in (rec.get("relations") or [])
+            if isinstance(r, dict) and r.get("target")
+        ],
+        "sections": sections,
+        "sectionOrder": [s["key"] for s in sections],
+        "inheritedFrom": {
+            "ideaId": inherited.get("idea_id"),
+            "uptoRunId": inherited.get("upto_run_id"),
+        } if inherited else None,
+        "provenance": [
+            {"claim": p.get("claim", ""), "source": p.get("source", ""), "via": p.get("via", "")}
+            for p in (rec.get("provenance") or []) if isinstance(p, dict)
+        ],
+        "origin": {
+            "runId": origin.get("run_id"),
+            "nodeId": origin.get("node_id"),
+            "style": origin.get("style", ""),
+            "mode": origin.get("mode", ""),
+            "parentIdeaId": origin.get("parent_idea_id"),
+            "suggested": origin.get("suggested"),
+            "inheritedFrom": origin.get("inherited_from"),
+        } if origin else None,
+        "runCount": len(runs),
+        "runs": [_map_run_entry(r) for r in runs] if full else [],
+        "novelty": novelty,
+        "feasibility": feasibility,
+        "impact": impact,
+        "evaluation": {
+            "noveltyScore": novelty,
+            "novelty": ev.get("novelty_reasoning", "") if isinstance(ev.get("novelty_reasoning"), str) else "",
+            "feasibilityScore": feasibility,
+            "feasibility": ev.get("feasibility_reasoning", "") if isinstance(ev.get("feasibility_reasoning"), str) else "",
+            "impactScore": impact,
+            "impact": ev.get("significance_reasoning", "") if isinstance(ev.get("significance_reasoning"), str) else "",
+            "rigourScore": ev.get("rigour_score"),
+            "rigour": ev.get("rigour", "") if isinstance(ev.get("rigour"), str) else "",
+            "risks": ev.get("risks") or [],
+        },
+        # Phase-1 aliases — the ideas list/cards still read these names.
+        "summary": rec.get("one_liner", ""),
+        "status": "draft" if rec.get("state") == "provisional" else "active",
+        "source": "user" if (origin.get("mode") or "") == "user" else "agent",
+        "relatedGaps": rec.get("addresses") or [],
+        "relatedPapers": [p.get("source", "") for p in (rec.get("provenance") or [])
+                          if isinstance(p, dict) and str(p.get("source", "")).startswith(("arxiv_", "doi_", "paper_"))],
+        "method": next((s["value"] for s in sections
+                        if s["key"] in ("method", "technique") and s["kind"] == "list"), []),
         "createdAt": (rec.get("created_at") or "")[:10],
         "updatedAt": (rec.get("updated_at") or "")[:10],
     }

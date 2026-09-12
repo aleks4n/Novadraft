@@ -18,6 +18,15 @@ unchanged:
                 input field holding the workspace/category slug
                 (manifest ``workspace_field``).
   - AGENT_STEPS:    pipeline-order step labels, a display hint (manifest ``steps``).
+  - POST_RUN:  optional per-agent hook run *after* a streamed run, on
+                ``(form inputs, output)``, returning the output to record. For work
+                that belongs to the caller rather than the graph — e.g. the creative
+                thinker's optional persist step, which is the orchestrator's write and
+                must stay outside the agent. Set by a manifest's ``post_run``.
+  - EXAMPLES:   ready-made showcase runs, keyed agent -> [{name, label, description}].
+                ``name`` is a file in ``dev/fixtures/``, so the same example runs
+                from the CLI (``--fixture``) and from the UI's example dropdown
+                (which fetches it via ``/api/fixture/<name>`` and fills the form).
   - SUBAGENTS: individual stages kept for isolated testing. Each agent declares
                 its own under the manifest's ``subagents`` list.
   - INPUT_ADAPTERS: optional per-agent ``form-inputs -> graph-inputs`` transform,
@@ -37,8 +46,10 @@ Manifest shape (everything except ``run`` is optional)::
         "workspace_field": "category_slug",
         "steps": ["fetch", "extract", ...],
         "input_adapter": <callable(inputs)->graph_inputs>,
+        "post_run": <callable(inputs, output)->output>,
         "schema": [ {"name","type","required","placeholder"}, ... ],
         "subagents": [ {"name","run","schema"}, ... ],
+        "examples": [ {"name": "<fixture>.json", "label", "description"}, ... ],
     }
 
 ``name`` is taken from the package directory, so it never has to be repeated.
@@ -162,6 +173,8 @@ AGENTS: dict = {}
 GRAPH_BUILDERS: dict = {}
 LOGGED_AGENTS: dict = {}
 AGENT_STEPS: dict = {}
+EXAMPLES: dict = {}
+POST_RUN: dict = {}
 SUBAGENTS: dict = {}
 INPUT_ADAPTERS: dict = {}
 FLOWS: dict = {}
@@ -183,6 +196,10 @@ def _register(manifest: dict) -> None:
         LOGGED_AGENTS[name] = manifest["workspace_field"]
     if manifest.get("steps"):
         AGENT_STEPS[name] = manifest["steps"]
+    if manifest.get("examples"):
+        EXAMPLES[name] = manifest["examples"]
+    if manifest.get("post_run"):
+        POST_RUN[name] = manifest["post_run"]
     if manifest.get("input_adapter"):
         INPUT_ADAPTERS[name] = manifest["input_adapter"]
     SCHEMAS[schema_bucket][name] = manifest.get("schema") or (
@@ -207,4 +224,5 @@ def list_all() -> dict:
         "schemas": SCHEMAS,
         "agent_steps": AGENT_STEPS,
         "logged_agents": LOGGED_AGENTS,
+        "examples": EXAMPLES,
     }

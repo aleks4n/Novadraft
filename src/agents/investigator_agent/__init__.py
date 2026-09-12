@@ -1,7 +1,8 @@
 """Investigator agent — free-text research coordinator.
 
-The agent routes a prompt to either the paper pipeline or a lightweight web
-search/scrape path and returns plain text.
+The agent routes a prompt to paper fetch/extract/reading or a lightweight web
+search/scrape path and returns an evidence-grounded answer. It never invokes the
+paper gap-ingestion pipeline.
 """
 from .agent import build_investigator_graph, run
 

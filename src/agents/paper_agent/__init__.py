@@ -32,6 +32,31 @@ MANIFEST = {
     "graph_builder": build_paper_graph,
     "workspace_field": "category_slug",
     "steps": ["fetch", "extract", "summarize", "gap"],
+    "examples": [
+        {
+            "name": "paper_fetch_arxiv.json",
+            "label": "arXiv paper",
+            "description": "Standard case: query by arXiv ID.",
+        },
+        {
+            "name": "paper_fetch_gan_no_arxiv.json",
+            "label": "GAN paper, no arXiv ID",
+            "description": (
+                "Goodfellow et al.'s GAN paper as reprinted in Communications "
+                "of the ACM (DOI-only, crossref+unpaywall resolution, no "
+                "arXiv ID exists for this record)."
+            ),
+        },
+        {
+            "name": "paper_fetch_gan_closed_source.json",
+            "label": "GAN paper, closed source / paywalled",
+            "description": (
+                "A GAN paper resolved to a paywalled Springer book chapter "
+                "with no open-access PDF -- exercises the "
+                "no_open_access_pdf / source_unavailable warning path."
+            ),
+        },
+    ],
     "schema": [
         {"name": "category_slug", "type": "text", "required": True,
          "placeholder": "transformers"},

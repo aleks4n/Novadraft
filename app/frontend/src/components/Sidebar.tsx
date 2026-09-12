@@ -3,8 +3,11 @@
 // a live agent run get a spinner, so parallel runs are visible at a glance.
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { Icon, SeverityDot, StatusPip } from "./Icon";
+import { Icon, SeverityDot } from "./Icon";
 import { useWorkspace } from "../lib/store";
+import { refDragProps } from "../lib/dnd";
+import { useRenameField } from "../lib/renameField";
+import type { DragRef } from "../lib/dnd";
 import type { Nav, RunState } from "../lib/types";
 import { DEFAULT_RANKING_CONFIG, fmtScore, overallScore } from "../lib/ranking";
 
@@ -31,9 +34,20 @@ function busyEntities(runs: RunState[]) {
   return { papers, gaps };
 }
 
-export function Sidebar() {
-  const { topics, activeSlug, active, bundle, nav, setNav, setActiveSlug, createTopic, runs } = useWorkspace();
-  const [open, setOpen] = useState({ papers: true, gaps: true, ideas: true });
+export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
+  const {
+    topics, activeSlug, active, bundle, nav, setNav, setActiveSlug, createTopic, runs,
+    sessions, deleteSession, renameSession,
+  } = useWorkspace();
+  // Right-click target for the session rows. Destructive actions live here rather
+  // than on the session's own header, where a stray click is one pixel away from
+  // the thing you were reading.
+  const [menu, setMenu] = useState<{ id: string; title: string; x: number; y: number } | null>(null);
+  // The session row being renamed, if any. Renaming happens in the row itself
+  // rather than in a `prompt()` box: the name is read in this list, so it should
+  // be edited where it is read, with the neighbouring names still on screen.
+  const [renaming, setRenaming] = useState<{ id: string; draft: string } | null>(null);
+  const [open, setOpen] = useState({ papers: true, gaps: true, ideas: true, sessions: true });
   const [pickerOpen, setPickerOpen] = useState(false);
   // New-topic creation: inline field in the picker; `creating` shows the field,
   // `newTopic` holds its value, `busy` covers the (few-second) agent run.
@@ -84,9 +98,10 @@ export function Sidebar() {
         <div className="brand-mark">N</div>
         <div className="brand-text">
           <div className="brand-title">Novadraft</div>
-          <div className="brand-sub">· Ideate</div>
+          <div className="brand-sub">Research Ideation</div>
         </div>
-        <button className="icon-btn brand-collapse" title="Collapse"><Icon name="chevrons-left" /></button>
+        <button className="icon-btn brand-collapse" title="Hide sidebar (⌘\\)"
+          onClick={onCollapse}><Icon name="chevrons-left" /></button>
       </div>
 
       <div className="topic-card-wrap" ref={pickerRef}>
@@ -199,6 +214,7 @@ export function Sidebar() {
               onClick={() => setNav({ view: "paper", id: p.id })}
               icon={<Icon name="file-text" />}
               label={p.short}
+              drag={{ kind: "paper", id: p.id, label: p.title || p.short }}
               busy={busy.papers.has(p.id)}
               meta={<span className="item-year">{p.year ?? ""}</span>}
             />
@@ -220,6 +236,7 @@ export function Sidebar() {
               onClick={() => setNav({ view: "gap", id: g.id })}
               icon={<SeverityDot severity={g.severity} />}
               label={g.short}
+              drag={{ kind: "gap", id: g.id, label: g.title || g.short }}
               meta={<span className="sidebar-score" title="Overall score">{fmtScore(overallScore(g, rankCfg))}</span>}
               busy={busy.gaps.has(g.id)}
             />
@@ -231,22 +248,19 @@ export function Sidebar() {
           count={ideas.length}
           open={open.ideas}
           onToggle={() => toggle("ideas")}
-          headerActive={isActive({ view: "ideas" })}
-          onHeaderClick={() => setNav({ view: "ideas", id: null })}
+          headerActive={isActive({ view: "idea-graph" })}
+          onHeaderClick={() => setNav({ view: "idea-graph", id: null })}
+          headerHint="Open the idea graph"
           headerAction={
-            <button className="ghost-btn" title="New ideation"
-              onClick={(e) => { e.stopPropagation(); setNav({ view: "new-idea", id: null }); }}>
-              <Icon name="plus" />
+            <button className="ghost-btn" title="Ideas as a list"
+              onClick={(e) => { e.stopPropagation(); setNav({ view: "ideas", id: null }); }}>
+              <Icon name="list" />
             </button>
           }
         >
-          <button
-            className={"new-idea-row" + (isActive({ view: "new-idea" }) ? " new-idea-row--active" : "")}
-            onClick={() => setNav({ view: "new-idea", id: null })}
-          >
-            {ideasRunning ? <span className="sidebar-spin" /> : <Icon name="sparkle" />}
-            <span>New ideation</span>
-          </button>
+          {ideasRunning && (
+            <div className="sidebar-note"><span className="sidebar-spin" /> a run is developing ideas…</div>
+          )}
           {ideas.map((i) => (
             <SidebarItem
               key={i.id}
@@ -254,29 +268,88 @@ export function Sidebar() {
               onClick={() => setNav({ view: "idea", id: i.id })}
               icon={<Icon name="bulb" />}
               label={i.short}
-              meta={<StatusPip status={i.status} />}
+              drag={{ kind: "idea", id: i.id, label: i.title || i.short }}
             />
+          ))}
+        </Section>
+
+        <Section
+          label="Sessions"
+          count={sessions.length}
+          open={open.sessions}
+          onToggle={() => toggle("sessions")}
+          headerActive={isActive({ view: "sessions" })}
+          onHeaderClick={() => setNav({ view: "sessions", id: null })}
+          headerHint="Start a new session"
+          headerAction={
+            <button className="ghost-btn" title="New session"
+              onClick={(e) => { e.stopPropagation(); setNav({ view: "sessions", id: null }); }}>
+              <Icon name="plus" />
+            </button>
+          }
+        >
+          {sessions.map((sess) => (
+            renaming?.id === sess.session_id ? (
+              <RenameRow
+                key={sess.session_id}
+                value={renaming.draft}
+                onChange={(draft) => setRenaming({ id: sess.session_id, draft })}
+                onCancel={() => setRenaming(null)}
+                onCommit={() => {
+                  const next = renaming.draft.trim();
+                  if (next && next !== sess.title) renameSession(sess.session_id, next);
+                  setRenaming(null);
+                }}
+              />
+            ) : (
+              <SidebarItem
+                key={sess.session_id}
+                active={isActive({ view: "session", id: sess.session_id })}
+                onClick={() => setNav({ view: "session", id: sess.session_id })}
+                onDoubleClick={() => setRenaming({ id: sess.session_id, draft: sess.title })}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setMenu({ id: sess.session_id, title: sess.title, x: e.clientX, y: e.clientY });
+                }}
+                icon={<Icon name="msg" />}
+                label={sess.title}
+                busy={runs.some((r) => r.sessionId === sess.session_id && r.status === "running")}
+                meta={<span className="item-year">{sess.contextCount || ""}</span>}
+              />
+            )
           ))}
         </Section>
       </div>
 
-      <div className="user-row">
-        <div className="avatar avatar--lg" style={{ background: "#C75B5B" }}>DH</div>
-        <div className="user-text">
-          <div className="user-name">Denny Hermann</div>
-          <div className="user-plan">Research · Pro</div>
-        </div>
-        <button className="icon-btn"><Icon name="settings" /></button>
-      </div>
+      {menu && (
+        <ContextMenu
+          x={menu.x} y={menu.y} onClose={() => setMenu(null)}
+          items={[
+            {
+              label: "Rename…",
+              onClick: () => setRenaming({ id: menu.id, draft: menu.title }),
+            },
+            {
+              label: "Delete session",
+              danger: true,
+              onClick: () => {
+                if (confirm(`Delete "${menu.title}"? Its transcript and loaded context go with it.`))
+                  deleteSession(menu.id);
+              },
+            },
+          ]}
+        />
+      )}
     </aside>
   );
 }
 
 function Section({
-  label, count, open, onToggle, headerActive, onHeaderClick, headerAction, children,
+  label, count, open, onToggle, headerActive, onHeaderClick, headerAction, headerHint, children,
 }: {
   label: string; count: number; open: boolean; onToggle: () => void;
-  headerActive: boolean; onHeaderClick: () => void; headerAction?: ReactNode; children: ReactNode;
+  headerActive: boolean; onHeaderClick: () => void; headerAction?: ReactNode;
+  headerHint?: string; children: ReactNode;
 }) {
   return (
     <div className="section">
@@ -284,7 +357,7 @@ function Section({
         <button className="section-chevron" onClick={onToggle}>
           <Icon name={open ? "chevron-down" : "chevron-right"} />
         </button>
-        <button className="section-label" onClick={onHeaderClick}>
+        <button className="section-label" onClick={onHeaderClick} title={headerHint}>
           <span>{label}</span>
           <span className="section-count">{count}</span>
         </button>
@@ -296,18 +369,105 @@ function Section({
 }
 
 function SidebarItem({
-  active, onClick, icon, label, meta, busy,
+  active, onClick, onDoubleClick, onContextMenu, icon, label, meta, busy, drag,
 }: {
-  active: boolean; onClick: () => void; icon: ReactNode; label: string; meta?: ReactNode; busy?: boolean;
+  active: boolean; onClick: () => void;
+  onDoubleClick?: () => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
+  icon: ReactNode; label: string; meta?: ReactNode;
+  busy?: boolean;
+  // Present on papers / gaps / ideas: the row is a drag source, so anything in
+  // the nav tree can be dropped straight into a session's composer.
+  drag?: DragRef;
 }) {
   return (
     <button
       className={"sidebar-item" + (active ? " sidebar-item--active" : "") + (busy ? " sidebar-item--busy" : "")}
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
+      onContextMenu={onContextMenu}
+      {...(drag ? refDragProps(drag) : {})}
     >
       <span className="sidebar-item-icon">{busy ? <span className="sidebar-spin" /> : icon}</span>
       <span className="sidebar-item-label">{label}</span>
       {meta && <span className="sidebar-item-meta">{meta}</span>}
     </button>
+  );
+}
+
+
+/** A session row while its name is being edited — the row, with a field in it.
+ *  Enter keeps the new name, Escape and clicking away abandon it. */
+function RenameRow({
+  value, onChange, onCommit, onCancel,
+}: {
+  value: string; onChange: (v: string) => void; onCommit: () => void; onCancel: () => void;
+}) {
+  const { ref, blurCancels } = useRenameField();
+  return (
+    <div className="sidebar-item sidebar-item--renaming">
+      <span className="sidebar-item-icon"><Icon name="msg" /></span>
+      <input
+        ref={ref}
+        className="sidebar-rename-input"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={() => { if (blurCancels) onCancel(); }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") onCommit();
+          else if (e.key === "Escape") onCancel();
+        }}
+      />
+    </div>
+  );
+}
+
+/** A small right-click menu, positioned at the cursor and closed by anything else.
+ *  Rendered inline rather than in a portal: the sidebar is not clipped, and one
+ *  fixed-position element does not need the ceremony. */
+function ContextMenu({
+  x, y, items, onClose,
+}: {
+  x: number; y: number; onClose: () => void;
+  items: { label: string; onClick: () => void; danger?: boolean }[];
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Anything *outside* the menu dismisses it. The check matters: this listener is
+    // on `capture`, so it runs before the item's own handler and a `stopPropagation`
+    // there cannot hold it off — without the containment test, pressing Rename tore
+    // the menu down on mousedown and the click that would have run it never landed.
+    const close = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) onClose();
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    // `capture` so the click that dismisses the menu does not also land on
+    // whatever is underneath it.
+    document.addEventListener("mousedown", close, true);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", close, true);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [onClose]);
+
+  // Sessions sit at the bottom of the nav tree, so a menu opened on the last one
+  // would hang off the viewport; flip it above the cursor when it would not fit.
+  const height = items.length * 32 + 10;
+  const top = y + height > window.innerHeight - 8 ? Math.max(8, y - height) : y;
+
+  return (
+    <div className="ctx-menu" ref={ref} style={{ left: x, top }}>
+      {items.map((item) => (
+        <button
+          key={item.label}
+          className={"ctx-menu-item" + (item.danger ? " ctx-menu-item--danger" : "")}
+          onClick={() => { item.onClick(); onClose(); }}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
   );
 }

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Icon } from "../Icon";
 import { ViewHeader } from "../chrome";
 import { useWorkspace } from "../../lib/store";
@@ -19,7 +20,17 @@ function findIngested(title: string, papers: Paper[]): Paper | undefined {
 }
 
 export function TopicOverview() {
-  const { active, bundle, setNav, runs, startPaperRun } = useWorkspace();
+  const { active, bundle, setNav, runs, startPaperRun, updateTopic } = useWorkspace();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(active?.description ?? "");
+  useEffect(() => { if (!editing) setDraft(active?.description ?? ""); }, [active?.description, editing]);
+
+  // Title edits are a plain hand override — saved as-is, with no LLM spelling
+  // correction (that only runs once, when the category agent creates the topic).
+  const [titleEditing, setTitleEditing] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(active?.title ?? "");
+  useEffect(() => { if (!titleEditing) setTitleDraft(active?.title ?? ""); }, [active?.title, titleEditing]);
+
   if (!active) return <div className="empty-state">Loading topic…</div>;
   const papers = bundle?.papers ?? [];
   // Live gaps across all stages (minus archived duplicates) — not just pending,
@@ -28,28 +39,83 @@ export function TopicOverview() {
   const ideas = bundle?.ideas ?? [];
   const seminal = active.seminalPapers ?? [];
 
+  const commitDescription = async () => {
+    setEditing(false);
+    if (draft !== active.description) await updateTopic({ description: draft });
+  };
+
+  const commitTitle = async () => {
+    setTitleEditing(false);
+    const trimmed = titleDraft.trim();
+    if (trimmed && trimmed !== active.title) await updateTopic({ name: trimmed });
+  };
+
   return (
     <div className="view view--topic">
       <ViewHeader
         eyebrow={active.category}
-        title={active.title}
-        actions={
-          <>
-            <button className="btn btn--ghost"><Icon name="star" /> Starred</button>
-            <button className="btn btn--ghost"><Icon name="share" /> Share</button>
-            <button className="btn btn--primary"><Icon name="edit" /> Edit topic</button>
-          </>
+        title={
+          titleEditing ? (
+            <input
+              className="view-title-input" autoFocus value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onBlur={commitTitle}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") { setTitleDraft(active.title); setTitleEditing(false); }
+                if (e.key === "Enter") commitTitle();
+              }}
+            />
+          ) : (
+            // Renaming is an edit of the title, so its control sits on the title
+            // rather than in a labelled button off on the far side of the row.
+            <span className="view-title-wrap">
+              {active.title}
+              <button className="view-title-edit" title="Rename topic"
+                onClick={() => setTitleEditing(true)}>
+                <Icon name="edit" />
+              </button>
+            </span>
+          )
         }
         breadcrumb={[{ label: "Research" }, { label: active.shortTitle, current: true }]}
       />
 
       <div className="view-grid view-grid--topic">
         <div className="card card--wide">
-          <div className="card-label">Description</div>
-          <p className="card-body">{active.description || "No description yet."}</p>
+          <div className="card-head-row">
+            <div className="card-label">Description</div>
+            {!editing && (
+              <button className="ghost-btn idea-edit-btn" onClick={() => setEditing(true)} title="Edit description">
+                <Icon name="edit" />
+              </button>
+            )}
+          </div>
+          {editing ? (
+            <>
+              <textarea
+                className="idea-textarea" autoFocus rows={4} value={draft}
+                placeholder="No description yet."
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") { setDraft(active.description); setEditing(false); }
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) commitDescription();
+                }}
+              />
+              <div className="idea-edit-actions">
+                <button className="btn btn--ghost" onClick={() => { setDraft(active.description); setEditing(false); }}>Cancel</button>
+                <button className="btn btn--primary" onClick={commitDescription}>Save</button>
+              </div>
+            </>
+          ) : (
+            <p className={"card-body" + (active.description ? "" : " card-body--empty")}>
+              {active.description || "No description yet."}
+            </p>
+          )}
         </div>
 
-        <div className="card">
+        {/* Goals may not exist yet — the stats card then owns the whole row
+            rather than leaving a column of dead space beside it. */}
+        <div className={"card" + (active.goals.length ? "" : " card--wide")}>
           <div className="card-label">Topic stats</div>
           <div className="kv-grid">
             <div className="kv"><span>Created</span><b>{active.createdAt || "—"}</b></div>
@@ -110,7 +176,7 @@ export function TopicOverview() {
         <SummaryCard icon="compass" label="Research Gaps" count={gaps.length} tone="amber"
           rows={gaps.slice(0, 3).map((g) => g.short)} onClick={() => setNav({ view: "gaps", id: null })} />
         <SummaryCard icon="bulb" label="Research Ideas" count={ideas.length} tone="violet"
-          rows={ideas.length ? ideas.slice(0, 3).map((i) => i.short) : ["Generate from gaps →"]}
+          rows={ideas.length ? ideas.slice(0, 3).map((i) => i.short) : ["Start a session →"]}
           onClick={() => setNav({ view: "ideas", id: null })} />
       </div>
     </div>

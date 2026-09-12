@@ -1,10 +1,10 @@
 """Investigator agent — route a free-text instruction to the right research path.
 
-The agent accepts one text prompt and turns it into one of three best-effort
+The agent accepts one text prompt and turns it into one of four best-effort
 actions:
 
-- paper: resolve/download a paper and run the existing paper pipeline
-- paper_search: find several papers on the web, then download each one
+- paper: resolve/download a paper, extract it, and answer from its content
+- paper_search: find several papers, download/extract them, and answer from them
 - web: search the web and return the top results plus fetched excerpts
 - url: scrape a direct URL, downloading PDFs when possible
 
@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import html as html_module
 import json
+import sys
 import os
 import re
 from concurrent.futures import ThreadPoolExecutor
@@ -32,9 +33,12 @@ from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
 from pdfminer.high_level import extract_text as extract_pdf_text
 
-from src.agents.paper_agent import run as run_paper_agent
 from src.common.tools.paper_fetch import fetch as fetch_paper
+from src.common.tools.paper_fetch import PaperAlreadyExistsError
+from src.common.tools.paper_extract import extract as extract_paper
+from src.common.tools.paper_access import get_full_text
 from src.common.utils import storage
+from src.agents.investigator_agent import workspace_lookup
 from src.common.utils.logging import trace
 from src.common.utils.logging.runlog import GraphRunLog
 from src.common.schemas.evidence import CitedAnswer, CitationClaim, Evidence
@@ -49,10 +53,12 @@ _MAX_PAGE_CHARS = 4000
 _DEFAULT_MAX_ATTEMPTS = 2
 _MAX_REFLECTIONS_PER_TASK = 5
 _MAX_PARALLEL_PAPER_DOWNLOADS = 3
-# Stop retrying retrieval failures and render the deterministic partial result.
-ENABLE_DETERMINISTIC_FETCH_FALLBACK = True
-# Multi-paper requests normally need downloaded sources, not full analysis.
-ENABLE_FAST_MULTI_PAPER_DOWNLOAD = True
+# When explicitly enabled, retrieval failures render immediately. The default
+# keeps them inside Reflexion so the evaluator can reject the attempt and the
+# actor can retry with its persisted lesson.
+ENABLE_DETERMINISTIC_FETCH_FALLBACK = False
+_MAX_PAPER_CHARS = 50_000
+_MAX_MULTI_PAPER_CHARS = 100_000
 
 _WEB_ANSWER_SYSTEM_PROMPT = (
 	"Answer the user's query using only the supplied fetched web-page content. "
@@ -68,10 +74,25 @@ _CITED_ANSWER_SYSTEM_PROMPT = (
 	"when the evidence directly supports them."
 )
 
+_PAPER_ANSWER_SYSTEM_PROMPT = (
+	"Answer the user's question using only the supplied paper content. Do not use "
+	"outside knowledge or infer claims the papers do not support. If the content is "
+	"insufficient, say so clearly. Give a direct answer and distinguish findings from "
+	"limitations."
+)
+
 
 class InvestigatorDecision(BaseModel):
-	action: Literal["paper", "paper_search", "web", "url"] = Field(
-		description="Choose paper for one known paper, paper_search to find and download several papers, web for a general web search, or url for a direct page to scrape/download.",
+	action: Literal["workspace", "paper", "paper_search", "web", "url"] = Field(
+		description="Choose workspace to read what this project already holds (its gaps, its saved papers, its ideas), paper for one known paper to fetch from outside, paper_search to find and download several papers, web for a general web search, or url for a direct page to scrape/download.",
+	)
+	workspace_ids: list[str] = Field(
+		default_factory=list,
+		description="For action=workspace: exact record ids to read, when the request names any (for example gap_04e60ada or arxiv_1706.03762). Leave empty to search the workspace by topic instead.",
+	)
+	section: str = Field(
+		default="",
+		description="For action=workspace: the name of one paper section to read, when the request asks about a specific part (for example 'experiments' or 'related work'). Leave empty for the summary.",
 	)
 	paper_count: int = Field(
 		default=1,
@@ -127,7 +148,17 @@ class InvestigatorEvaluation(BaseModel):
 
 _DECISION_SYSTEM_PROMPT = (
 	"You route a single user instruction to the right research action. "
-	"Pick exactly one action: paper, paper_search, web, or url. "
+	"Pick exactly one action: workspace, paper, paper_search, web, or url. "
+	"CHECK THE WORKSPACE FIRST. This project keeps its own knowledge base — the research gaps it has "
+	"extracted, the papers it has already fetched and summarised, and the ideas it has developed. "
+	"Use workspace whenever the request could be answered from that: when it names a record id "
+	"(gap_..., arxiv_..., doi_..., hash_..., idea_...), when it asks what this project knows, holds, "
+	"has already found or has already tried, or when it asks about a topic that the project plausibly "
+	"has material on. Put any ids the request names into workspace_ids; otherwise leave workspace_ids "
+	"empty and put the topic in query. Set section when the request is about one part of a paper. "
+	"Going to the web for something already on disk is slower and gives a worse answer, so prefer "
+	"workspace unless the request clearly needs the outside world — new literature, prior-art checks, "
+	"anything published since, or a named paper the project does not have. "
 	"Use paper when the text is about a paper, article, preprint, DOI, arXiv ID, or asks to search/download a paper. "
 	"Use paper_search when the user asks to find, search for, or download multiple papers (for example 'download 3 papers about transformers'). Set paper_count to the requested number, or 3 when they say 'some' or do not specify a number. "
 	"Use web when the text asks to search the web generally, compare claims on the web, or learn about a topic without naming a direct URL. "
@@ -155,11 +186,20 @@ _EVALUATION_SYSTEM_PROMPT = (
 class InvestigatorState(TypedDict, total=False):
 	text: str
 	session_id: str
+	requested_mode: str
+	lightweight: bool
+	sources: list[str]
 	# ``workspace_key`` is the category-relative location used by downstream
 	# agents, e.g. ``machine-learning/sessions/session-42``.
 	workspace_key: str
+	# The bare category slug, kept beside ``workspace_key`` rather than parsed out of it:
+	# the workspace routes read ``<category>/gaps/...``, which is a sibling of the session
+	# folder the fetch routes write into, not something under it.
+	category_slug: str
 	mode: str
 	query: str
+	workspace_ids: list[str]
+	section: str
 	paper_count: int
 	url: str
 	save_requested: bool
@@ -279,22 +319,126 @@ def _claims_from_answer(answer: str | None, evidence: list[dict]) -> list[dict]:
 	except Exception:  # best-effort citation tracking must not lose the answer
 		return []
 
-def _paper_evidence(result: dict, index: int = 1) -> list[dict]:
-	paper = result.get("fetch", {}).get("paper") or {}
-	metadata = paper.get("metadata") or {}
-	source = paper.get("source") or {}
-	if not metadata and not source and not result.get("summary") and not result.get("paper_id"):
-		return []
-	text = result.get("summary") or result.get("message") or ""
-	if not isinstance(text, str):
-		text = json.dumps(text, ensure_ascii=False, default=str)
-	return [Evidence(
-		source_id=_evidence_id("paper", index),
-		title=metadata.get("title") or "Paper source",
-		url=source.get("source_url"), source_type="paper", text=text,
-		fetched=result.get("status") == "ok", credibility=0.9 if result.get("status") == "ok" else 0.0,
-		error=result.get("error"),
-	).model_dump()]
+def _clip_paper_text(text: str, budget: int) -> str:
+	text = (text or "").strip()
+	if len(text) <= budget:
+		return text
+	head = int(budget * 0.7)
+	return f"{text[:head]}\n\n[... paper truncated ...]\n\n{text[-(budget - head):]}"
+
+
+def _cached_paper(cache_keys: list[str], query: str) -> tuple[str, dict, str] | None:
+	"""Find an already extracted paper by identifier, source URL, or exact title."""
+	query_norm = _normalize(query).lower()
+	arxiv_match = re.search(
+		r"(?:arxiv:\s*|arxiv\.org/(?:abs|pdf)/)?([a-z\-]+(?:\.[A-Z]{2})?/\d{7}|\d{4}\.\d{4,5})(?:v\d+)?",
+		query, re.IGNORECASE,
+	)
+	doi_match = re.search(r"10\.\d{4,9}/[-._;()/:A-Z0-9]+", query, re.IGNORECASE)
+	for cache_key in [key for key in cache_keys if key]:
+		for paper_id in storage.list_paper_ids(cache_key):
+			paper = storage.read_paper_json(cache_key, paper_id) or {}
+			metadata = paper.get("metadata") or {}
+			identifiers = metadata.get("identifiers") or {}
+			source = paper.get("source") or {}
+			matched = bool(
+				(arxiv_match and _normalize(identifiers.get("arxiv_id") or "").lower()
+				 == arxiv_match.group(1).lower())
+				or (doi_match and _normalize(identifiers.get("doi") or "").lower()
+					== doi_match.group(0).rstrip(".,);").lower())
+				or (_normalize(source.get("source_url") or "").lower() == query_norm)
+				or (_normalize(metadata.get("title") or "").lower() == query_norm)
+			)
+			if not matched:
+				continue
+			full_text = get_full_text(cache_key, paper_id) or ""
+			if full_text.strip():
+				trace.log_event("investigator cache hit", paper_id=paper_id,
+								workspace=cache_key)
+				return paper_id, paper, full_text
+	return None
+
+
+def _fetch_extract_paper(workspace_key: str, query: str,
+							 *, cache_keys: list[str] | None = None) -> dict:
+	"""Download and extract one paper without invoking the paper/gap pipeline."""
+	inferred_keys = [workspace_key]
+	if "/sessions/" in workspace_key:
+		inferred_keys.append(workspace_key.split("/sessions/", 1)[0])
+	if cached := _cached_paper([*inferred_keys, *(cache_keys or [])], query):
+		paper_id, paper, full_text = cached
+		return {
+			"status": "ok", "paper_id": paper_id,
+			"fetch": {"status": "ok", "paper": paper, "cached": True},
+			"extract": {"status": "ok", "cached": True}, "full_text": full_text,
+		}
+	try:
+		fetched = fetch_paper(workspace_key, query)
+	except PaperAlreadyExistsError as exc:
+		paper_id = exc.paper_id
+		paper = storage.read_paper_json(workspace_key, paper_id) or {}
+		fetched = {"status": "ok", "paper": paper}
+	except Exception as exc:  # noqa: BLE001 - one source failure is a readable result
+		return {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
+
+	if fetched.get("status") != "ok":
+		return dict(fetched)
+	paper = fetched.get("paper") or {}
+	paper_id = paper.get("paper_id")
+	if not paper_id:
+		return {"status": "error", "error": "The fetched paper has no paper_id."}
+	try:
+		extract_paper(workspace_key, paper_id)
+	except Exception as exc:  # noqa: BLE001
+		return {
+			"status": "error", "paper_id": paper_id, "fetch": fetched,
+			"error": f"Paper extraction failed: {type(exc).__name__}: {exc}",
+		}
+	# Extraction persists content back into paper.json; reload before reading it.
+	paper = storage.read_paper_json(workspace_key, paper_id) or paper
+	full_text = get_full_text(workspace_key, paper_id) or ""
+	if not full_text.strip():
+		return {
+			"status": "error", "paper_id": paper_id, "fetch": {**fetched, "paper": paper},
+			"error": "The paper was downloaded but no readable full text was extracted.",
+		}
+	return {
+		"status": "ok", "paper_id": paper_id, "fetch": {**fetched, "paper": paper},
+		"extract": {"status": "ok"}, "full_text": full_text,
+	}
+
+
+def _answer_from_papers(question: str, papers: list[dict]) -> tuple[str | None, list[dict], list[dict]]:
+	"""Answer one question from extracted papers and attach source-bound claims."""
+	evidence: list[dict] = []
+	sections: list[str] = []
+	remaining = _MAX_MULTI_PAPER_CHARS if len(papers) > 1 else _MAX_PAPER_CHARS
+	for index, result in enumerate(papers, start=1):
+		if result.get("status") != "ok":
+			continue
+		paper = result.get("fetch", {}).get("paper") or {}
+		metadata = paper.get("metadata") or {}
+		source = paper.get("source") or {}
+		full_text = result.get("full_text") or ""
+		budget = min(_MAX_PAPER_CHARS, remaining)
+		if budget <= 0:
+			break
+		content = _clip_paper_text(full_text, budget)
+		remaining -= len(content)
+		source_id = _evidence_id("paper", index)
+		title = metadata.get("title") or paper.get("paper_id") or "Paper source"
+		sections.append(f"Source ID: {source_id}\nTitle: {title}\nContent:\n{content}")
+		evidence.append(Evidence(
+			source_id=source_id, title=title, url=source.get("source_url"),
+			source_type="paper", text=_clip_paper_text(full_text, _MAX_PAGE_CHARS),
+			fetched=True, credibility=0.9,
+		).model_dump())
+	if not sections:
+		return None, evidence, []
+	prompt = f"Question:\n{question}\n\nPapers:\n\n" + "\n\n---\n\n".join(sections)
+	answer = chat(get_llm("cheap", temperature=0), _PAPER_ANSWER_SYSTEM_PROMPT, prompt).strip()
+	claims = _claims_from_answer(answer, evidence)
+	return answer or None, evidence, claims
 
 class _HTMLTextExtractor(HTMLParser):
 	def __init__(self) -> None:
@@ -427,10 +571,31 @@ def _paper_search_topic(text: str) -> str:
 	return _normalize(topic).strip(":- ") or _normalize(text)
 
 
+# A workspace record id, written literally in the request. Distinctive enough to route on
+# without an LLM: nothing else in a research question looks like `gap_04e60ada`.
+_RECORD_ID_RE = re.compile(r"\b((?:gap|idea|arxiv|doi|hash)_[A-Za-z0-9._\-]+)\b")
+
+
 def _heuristic_decide_request(text: str) -> dict:
 	clean = _normalize(text)
 	lower = clean.lower()
 	url = _first_url(clean)
+
+	# Before anything else: an id names a record this project already holds, and no web
+	# search will find it. This is the one route the fallback can be certain about.
+	if ids := _RECORD_ID_RE.findall(clean):
+		return {
+			"mode": "workspace",
+			"query": clean,
+			"workspace_ids": ids,
+			"section": "",
+			"paper_count": 1,
+			"url": url or None,
+			"save_requested": False,
+			"should_fetch_pages": False,
+			"decision_reason": "heuristic fallback: request names workspace record id(s)",
+		}
+
 	save_requested = any(term in lower for term in ("download", "save", "scrape", "crawl", "fetch"))
 	paper_requested = any(term in lower for term in ("paper", "arxiv", "doi", "preprint", "manuscript"))
 	paper_count = _requested_paper_count(clean)
@@ -480,7 +645,7 @@ def _decide_request(text: str, reflections: list[str] | None = None) -> dict:
 		actor_input += "\nUse these lessons to choose a revised strategy."
 	try:
 		decision = chat_with_structured_output(
-			get_llm("reasoner", temperature=0),
+			get_llm("cheap", temperature=0),
 			_DECISION_SYSTEM_PROMPT,
 			actor_input,
 			InvestigatorDecision,
@@ -491,8 +656,23 @@ def _decide_request(text: str, reflections: list[str] | None = None) -> dict:
 	url = _normalize(decision.url) or _first_url(clean) or ""
 	query = _normalize(decision.query)
 	action = _normalize(getattr(decision, "action", ""))
-	if action not in {"paper", "paper_search", "web", "url"}:
+	if action not in {"workspace", "paper", "paper_search", "web", "url"}:
 		return _heuristic_decide_request(clean)
+	if action == "workspace":
+		ids = [_normalize(i) for i in (getattr(decision, "workspace_ids", None) or [])]
+		return {
+			"mode": "workspace",
+			# The whole request is the fallback query. A workspace search scores over terms,
+			# so the raw question works where an over-extracted phrase ("the gap") does not.
+			"query": query or clean,
+			"workspace_ids": [i for i in ids if i],
+			"section": _normalize(getattr(decision, "section", "")),
+			"paper_count": 1,
+			"url": url or None,
+			"save_requested": False,
+			"should_fetch_pages": False,
+			"decision_reason": decision.reason,
+		}
 	if action == "url":
 		if not url:
 			url = _first_url(clean) or ""
@@ -592,6 +772,11 @@ def _search_web(query: str, max_results: int = _MAX_RESULT_COUNT) -> list[Search
 	)
 	response.raise_for_status()
 	html_text = response.text
+	page_title = _html_title(html_text)
+	challenge = bool(re.search(
+		r"captcha|challenge|automated quer|unusual traffic|verify you are human",
+		f"{page_title}\n{html_text[:4000]}", flags=re.IGNORECASE,
+	))
 
 	results: list[SearchResult] = []
 	pattern = re.compile(
@@ -616,6 +801,15 @@ def _search_web(query: str, max_results: int = _MAX_RESULT_COUNT) -> list[Search
 			results.append(SearchResult(title=title, url=href, snippet=snippet))
 		if len(results) >= max_results:
 			break
+	trace.log_event(
+		"investigator search provider finished",
+		provider="duckduckgo",
+		status_code=response.status_code,
+		response_bytes=len(response.content),
+		page_title=page_title,
+		challenge=challenge,
+		results=len(results),
+	)
 	return results
 
 
@@ -746,13 +940,20 @@ def _paper_to_text(result: dict, query: str) -> str:
 		lines.append(result.get("message") or "The paper workflow did not complete.")
 		return "\n".join(lines)
 
+	answer = result.get("answer")
+	if isinstance(answer, str) and answer.strip():
+		lines = [answer.strip()]
+		claims = result.get("claims") or []
+		if claims:
+			lines.extend(["", "Citations:"])
+			for claim in claims:
+				ids = ", ".join(claim.get("source_ids") or []) or "unreferenced"
+				lines.append(f"- [{ids}] {claim.get('text') or ''}")
+		return "\n".join(lines)
+
 	paper = result.get("fetch", {}).get("paper") or {}
 	metadata = paper.get("metadata") or {}
 	source = paper.get("source") or {}
-	summary = result.get("summary") or {}
-	extract = result.get("extract") or {}
-	gaps = result.get("gaps") or {}
-
 	lines.extend([
 		"",
 		f"Paper ID: {paper.get('paper_id') or result.get('paper_id') or 'unknown'}",
@@ -768,28 +969,7 @@ def _paper_to_text(result: dict, query: str) -> str:
 		for warning in paper.get("warnings") or []:
 			lines.append(f"- {warning}")
 
-	lines.extend(["", "Summary:"])
-	if summary:
-		summary_text = summary.get("summary") or summary.get("text") or summary.get("result")
-		if isinstance(summary_text, str) and summary_text.strip():
-			lines.append(summary_text.strip())
-		else:
-			lines.append(json.dumps(summary, indent=2, ensure_ascii=False, default=str))
-	else:
-		lines.append("No summary was returned.")
-
-	if extract:
-		lines.extend(["", "Extract:"])
-		lines.append(json.dumps(extract, indent=2, ensure_ascii=False, default=str))
-
-	lines.extend(["", "Gaps:"])
-	if "gaps" in result:
-		if gaps:
-			lines.append(json.dumps(gaps, indent=2, ensure_ascii=False, default=str))
-		else:
-			lines.append("No gaps were returned.")
-	else:
-		lines.append("Gap extraction did not run for this paper result.")
+	lines.extend(["", "The paper was downloaded and extracted, but no grounded answer was returned."])
 
 	return "\n".join(lines)
 
@@ -866,20 +1046,26 @@ def _url_to_text(result: dict, url: str) -> str:
 
 
 def _multi_paper_to_text(result: dict, query: str) -> str:
-	"""Render the search candidates and each individual paper-pipeline result."""
+	"""Render the grounded answer and the papers downloaded for it."""
 	lines = ["Multi-paper research", f"Query: {query}"]
 	if result.get("error"):
 		return "\n".join(lines + ["", f"Error: {result['error']}"])
 
-	candidates = result.get("search_results") or []
-	lines.extend(["", f"Requested: {result.get('requested_count', 0)} papers", "", "Web candidates:"])
-	for idx, candidate in enumerate(candidates, start=1):
-		lines.append(f"{idx}. {candidate.get('title') or 'Untitled'}")
-		lines.append(f"   {candidate.get('url') or 'No URL'}")
-
+	answer = result.get("answer")
+	if isinstance(answer, str) and answer.strip():
+		lines.extend(["", answer.strip()])
+	claims = result.get("claims") or []
+	if claims:
+		lines.extend(["", "Citations:"])
+		for claim in claims:
+			ids = ", ".join(claim.get("source_ids") or []) or "unreferenced"
+			lines.append(f"- [{ids}] {claim.get('text') or ''}")
+	lines.extend(["", f"Downloaded papers ({len(result.get('papers') or [])}):"])
 	for idx, item in enumerate(result.get("papers") or [], start=1):
-		lines.extend(["", f"Paper {idx}: {item.get('title') or item.get('url') or 'Untitled'}"])
-		lines.append(_paper_to_text(item.get("result") or {}, item.get("query") or query))
+		paper = (item.get("result") or {}).get("fetch", {}).get("paper") or {}
+		metadata = paper.get("metadata") or {}
+		lines.append(f"{idx}. {metadata.get('title') or item.get('title') or 'Untitled'}")
+		lines.append(f"   {item.get('url') or 'No URL'}")
 	return "\n".join(lines)
 
 
@@ -932,9 +1118,75 @@ def actor(state: InvestigatorState) -> dict:
 	reflections = list(state.get("reflections") or [])
 	if attempt == 1:
 		reflections = _load_reflections(workspace_key, state["text"])
-	decision = _decide_request(state["text"], reflections)
+	requested_mode = state.get("requested_mode")
+	if requested_mode and (attempt == 1 or state.get("lightweight")):
+		# The orchestrator already chose the source type. Avoid spending another LLM call
+		# rediscovering the same route; Reflexion may still choose a different route after
+		# a failed first attempt.
+		query = (_lightweight_initial_query(state["text"])
+				 if state.get("lightweight") else state["text"])
+		if attempt > 1:
+			query = _lightweight_retry_query(
+				state.get("query") or state["text"],
+				(state.get("evaluation") or {}).get("feedback", ""),
+			)
+		decision = {
+			"mode": requested_mode,
+			"query": query,
+			"workspace_ids": [],
+			"section": "",
+			"paper_count": int(state.get("paper_count", 1)),
+			"url": (state.get("sources") or [None])[0] if requested_mode == "url" else None,
+			"save_requested": requested_mode in {"paper", "paper_search", "url"},
+			"should_fetch_pages": requested_mode == "web",
+			"decision_reason": "caller supplied direct route",
+		}
+	else:
+		decision = _decide_request(state["text"], reflections)
+	print(
+		f"[investigator] attempt {attempt} routed as {decision['mode']} query:\n"
+		f"{decision.get('query') or decision.get('url') or state['text']}\n"
+		f"[investigator] end routed query attempt {attempt}",
+		file=sys.stderr,
+		flush=True,
+	)
 	trace.log_event("investigator_actor", attempt=attempt, reflections=len(reflections), mode=decision["mode"])
 	return {**decision, "attempt": attempt, "reflections": reflections}
+
+
+_RETRY_STOPWORDS = frozenset({
+	"the", "a", "an", "and", "or", "of", "to", "in", "for", "from", "with",
+	"this", "that", "it", "is", "are", "was", "were", "be", "been", "has",
+	"have", "had", "does", "did", "do", "not", "no", "result", "results",
+	"search", "query", "attempt", "answer", "evidence", "source", "sources",
+})
+
+
+def _lightweight_retry_query(previous: str, feedback: str) -> str:
+	"""Build a bounded second query without another routing/reflection LLM call."""
+	text = f"{previous} {feedback}"
+	tokens = re.findall(r"[A-Za-z0-9][A-Za-z0-9_.+-]*", text)
+	selected: list[str] = []
+	seen: set[str] = set()
+	for token in tokens:
+		lower = token.lower()
+		if lower in _RETRY_STOPWORDS or lower in seen:
+			continue
+		seen.add(lower)
+		selected.append(token)
+		if len(selected) >= 14:
+			break
+	return " ".join(selected) or previous
+
+
+def _lightweight_initial_query(text: str) -> str:
+	"""Extract a concise search query while retaining the full text for evaluation."""
+	candidate = text
+	match = re.search(r"Candidate:\s*(.*?)(?:\n\nOriginal task|$)", text,
+				  flags=re.IGNORECASE | re.DOTALL)
+	if match:
+		candidate = match.group(1)
+	return _lightweight_retry_query(candidate, "")
 
 
 def interpret(state: InvestigatorState) -> dict:
@@ -959,21 +1211,118 @@ def _answer_from_fetched_pages(query: str, pages: list[dict]) -> str | None:
 		return None
 
 	user_prompt = f"Query:\n{query}\n\nFetched pages:\n\n" + "\n\n---\n\n".join(page_sections)
-	return chat(get_llm("cheap", temperature=0), _WEB_ANSWER_SYSTEM_PROMPT, user_prompt).strip()
+	return chat(
+		get_llm("cheap", temperature=0, reasoning_effort="low", max_tokens=2_500),
+		_WEB_ANSWER_SYSTEM_PROMPT,
+		user_prompt,
+	).strip()
+
+
+_WORKSPACE_ANSWER_SYSTEM_PROMPT = (
+	"Answer the user's question using only the supplied records from this project's own "
+	"knowledge base. These are the project's stored gaps, papers and ideas — treat them as "
+	"what the project knows, not as external literature. Do not use outside knowledge and do "
+	"not infer claims the records do not support. Cite the record ids you used. If the records "
+	"do not answer the question, say so plainly and say what they do contain."
+)
+
+
+def _answer_from_workspace(question: str, text: str) -> str | None:
+	if not text.strip():
+		return None
+	return chat(get_llm("cheap", temperature=0), _WORKSPACE_ANSWER_SYSTEM_PROMPT,
+				f"Question:\n{question}\n\nRecords from the project's knowledge base:\n\n{text}").strip()
+
+
+def workspace_node(state: InvestigatorState) -> dict:
+	"""Read what the project already holds, and answer from it.
+
+	The only route that touches the category workspace rather than the session folder, and
+	the only one that writes nothing at all: everything it reads is already saved, so there
+	is nothing to stage or promote.
+
+	Without a category there is no workspace to read — the standalone/legacy caller passes
+	only a session id — and that is reported as a failure rather than silently answered
+	from nothing, so the evaluator can send the actor to the web instead.
+	"""
+	category_slug = _normalize(state.get("category_slug") or "")
+	question = _normalize(state.get("text") or "") or state.get("query", "")
+	if not category_slug:
+		result = {"error": "no category workspace is attached to this investigator run, "
+						   "so there is nothing of the project's own to read"}
+		trace.log_event("investigator_workspace", error=result["error"])
+		return {"research_result": result}
+
+	result = workspace_lookup.lookup(
+		category_slug,
+		ids=list(state.get("workspace_ids") or []),
+		query=state.get("query", ""),
+		section=state.get("section", ""),
+	)
+	trace.log_event("investigator_workspace",
+					category=category_slug,
+					ids=list(state.get("workspace_ids") or []),
+					section=state.get("section", ""),
+					found=[r["id"] for r in result.get("records") or []],
+					unknown=result.get("unknown_ids") or [])
+
+	if result.get("text"):
+		try:
+			result["answer"] = _answer_from_workspace(question, result["text"])
+		except Exception as exc:  # noqa: BLE001 - keep the records if the LLM is unavailable
+			result["answer_error"] = f"{type(exc).__name__}: {exc}"
+	return {"research_result": result}
+
+
+def _workspace_to_text(result: dict, query: str) -> str:
+	"""What the run returns to its caller.
+
+	The answer leads and the records follow it by id. The ids matter as much as the prose:
+	the caller is usually a step that will want to ask for one of these records again, and
+	an answer that names no ids ends that trail.
+	"""
+	if error := result.get("error"):
+		return f"Workspace lookup for '{query}' found nothing: {error}"
+	lines = []
+	if answer := result.get("answer"):
+		lines.append(answer)
+	elif failure := result.get("answer_error"):
+		lines.append(f"(could not summarise the records: {failure})")
+	if records := result.get("records"):
+		lines.append("\nRead from the project's knowledge base: "
+					 + ", ".join(f"{r['id']} ({r['kind']})" for r in records))
+	if unknown := result.get("unknown_ids"):
+		lines.append(f"Not in the workspace: {', '.join(unknown)}")
+	if not result.get("answer"):
+		# No answer means the LLM step did not run or failed. The records themselves are
+		# still the finding, and dropping them would report an empty result over a full one.
+		lines.append("\n" + result.get("text", ""))
+	return "\n".join(lines).strip()
 
 
 def paper_node(state: InvestigatorState) -> dict:
 	workspace_key = state.get("workspace_key", state["session_id"])
 	_ensure_workspace(workspace_key)
-	try:
-		result = run_paper_agent(workspace_key, state["query"], stream=False)
-	except Exception as exc:  # noqa: BLE001 - return a readable text error
-		result = {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
-	return {"research_result": {**result, "evidence": _paper_evidence(result)}}
+	query = (state.get("sources") or [state["query"]])[0]
+	result = _fetch_extract_paper(workspace_key, query)
+	answer, evidence, claims = _answer_from_papers(state.get("text") or state["query"], [result])
+	result.pop("full_text", None)  # keep full text on disk, not in the run log/state
+	return {"research_result": {**result, "answer": answer, "evidence": evidence, "claims": claims}}
 
 
 def paper_search_node(state: InvestigatorState) -> dict:
 	"""Find paper landing pages before the bounded sequential download step."""
+	direct_sources = [_normalize(source) for source in (state.get("sources") or [])
+				  if _normalize(source)]
+	if direct_sources:
+		return {"research_result": {
+			"requested_count": min(len(direct_sources), state["paper_count"]),
+			"search_results": [
+				{"title": source, "url": source, "snippet": "direct source"}
+				for source in direct_sources
+			],
+			"papers": [],
+		}}
 	search_query = f"{state['query']} research paper site:arxiv.org"
 	web_error: str | None = None
 	try:
@@ -1017,27 +1366,17 @@ def download_papers_node(state: InvestigatorState) -> dict:
 	requested_count = max(1, min(int(state.get("paper_count", 1)), _MAX_PAPER_DOWNLOADS))
 	# Respect the user's requested count strictly: investigate only the top-N
 	# candidates instead of expanding the attempt pool.
-	candidates = [
-		candidate for candidate in (result.get("search_results") or [])
-		if _is_arxiv_url(candidate.get("url") or "")
-	][:requested_count]
+	candidates = list(result.get("search_results") or [])[:requested_count]
+	trace.log_event(
+		"investigator downloads started",
+		count=len(candidates),
+		requested=requested_count,
+		papers=[{"title": item.get("title"), "url": item.get("url")} for item in candidates],
+	)
 
 	def download_one(candidate: dict) -> dict:
 		query = candidate.get("url") or candidate.get("title") or state["query"]
-		try:
-			if ENABLE_FAST_MULTI_PAPER_DOWNLOAD:
-				# Fast mode runs the full paper pipeline directly for each selected
-				# candidate, avoiding an extra prefetch that can create duplicate
-				# records before analysis starts.
-				paper_result = run_paper_agent(workspace_key, query, stream=False)
-			else:
-				fetch_result = fetch_paper(workspace_key, query)
-				if fetch_result.get("status") == "ok":
-					paper_result = run_paper_agent(workspace_key, query, stream=False)
-				else:
-					paper_result = fetch_result
-		except Exception as exc:  # noqa: BLE001 - one failed candidate must not stop the session
-			paper_result = {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
+		paper_result = _fetch_extract_paper(workspace_key, query)
 		return {
 			"title": candidate.get("title"),
 			"url": candidate.get("url"),
@@ -1053,29 +1392,82 @@ def download_papers_node(state: InvestigatorState) -> dict:
 		with ThreadPoolExecutor(max_workers=len(batch)) as executor:
 			batch_results = list(executor.map(download_one, batch))
 		papers.extend(batch_results)
+		trace.log_event(
+			"investigator download progress",
+			completed=len(papers),
+			total=len(candidates),
+		)
 	selected = papers[:requested_count]
-	evidence = list(result.get("evidence") or [])
-	for index, item in enumerate(selected, start=1):
-		evidence.extend(_paper_evidence(item.get("result") or {}, index))
-	return {"research_result": {**result, "papers": selected, "attempted_papers": papers, "evidence": evidence}}
+	answer, evidence, answer_claims = _answer_from_papers(
+		state.get("text") or state["query"], [item.get("result") or {} for item in selected],
+	)
+	for item in selected:
+		(item.get("result") or {}).pop("full_text", None)
+	trace.log_event(
+		"investigator downloads finished",
+		count=len(selected),
+		successful=sum(
+			(item.get("result") or {}).get("status") not in {"error", "needs_source"}
+			for item in selected
+		),
+	)
+	return {"research_result": {
+		**result, "papers": selected, "attempted_papers": papers, "answer": answer,
+		"evidence": evidence, "claims": answer_claims,
+	}}
 
 
 def web_node(state: InvestigatorState) -> dict:
 	query = state["query"]
 	session_id = state.get("workspace_key", state["session_id"])
+	provider_attempts: list[dict] = []
 	try:
 		results = _search_web(query)
 	except Exception as exc:  # noqa: BLE001 - return a readable text error
-		return {"research_result": {"error": f"{type(exc).__name__}: {exc}"}}
-	result = {"search_results": [r.__dict__ for r in results], "pages": []}
+		results = []
+		provider_attempts.append({"provider": "duckduckgo", "error": f"{type(exc).__name__}: {exc}"})
+	else:
+		provider_attempts.append({"provider": "duckduckgo", "results": len(results)})
+
+	# DuckDuckGo's HTML endpoint sometimes returns a successful challenge page or
+	# changes markup without raising an HTTP error.  An empty parsed list is therefore
+	# a provider failure, not evidence that the literature contains no matches.
+	if not results:
+		try:
+			results = _search_arxiv(query)
+		except Exception as exc:  # noqa: BLE001 - retain both provider diagnostics
+			provider_attempts.append({"provider": "arxiv", "error": f"{type(exc).__name__}: {exc}"})
+		else:
+			provider_attempts.append({"provider": "arxiv", "results": len(results)})
+		trace.log_event(
+			"investigator search fallback finished",
+			provider="arxiv", results=len(results), attempts=provider_attempts,
+		)
+
+	result = {
+		"search_results": [r.__dict__ for r in _deduplicate_search_results(results)],
+		"pages": [],
+		"provider_attempts": provider_attempts,
+	}
+	if not results and all(item.get("error") for item in provider_attempts):
+		result["error"] = "All search providers failed: " + "; ".join(
+			f"{item['provider']}: {item['error']}" for item in provider_attempts
+		)
 
 	should_fetch_pages = bool(state.get("should_fetch_pages"))
 	if should_fetch_pages and results:
-		for item in results[:2]:
+		successful_pages = 0
+		for item in results[:5]:
 			try:
-				result["pages"].append(_scrape_url(item.url, session_id=session_id, save_requested=state.get("save_requested", False)))
+				page = _scrape_url(item.url, session_id=session_id,
+								 save_requested=state.get("save_requested", False))
+				result["pages"].append(page)
+				if _normalize(str(page.get("text") or "")):
+					successful_pages += 1
 			except Exception as exc:  # noqa: BLE001 - keep partial progress
 				result["pages"].append({"url": item.url, "title": item.title, "error": f"{type(exc).__name__}: {exc}"})
+			if successful_pages >= 2:
+				break
 		try:
 			answer = _answer_from_fetched_pages(query, result["pages"])
 			if answer:
@@ -1083,7 +1475,7 @@ def web_node(state: InvestigatorState) -> dict:
 		except Exception as exc:  # noqa: BLE001 - preserve fetched pages if the LLM is unavailable
 			result["answer_error"] = f"{type(exc).__name__}: {exc}"
 	result["evidence"] = _web_evidence(result["search_results"], result["pages"])
-	if result.get("answer"):
+	if result.get("answer") and not state.get("lightweight"):
 		result["claims"] = _claims_from_answer(result["answer"], result["evidence"])
 	return {"research_result": result}
 
@@ -1110,10 +1502,17 @@ def _deterministic_evaluate(mode: str, result: dict) -> tuple[bool, str]:
 	feedback = ""
 	if result.get("error"):
 		feedback = f"The {mode} route failed: {result['error']}"
+	elif mode == "workspace" and not result.get("records"):
+		feedback = ("The workspace holds nothing matching that. Try different terms, or go "
+					"to the web if the answer is not something this project would have stored.")
 	elif mode == "paper" and result.get("status") != "ok":
 		feedback = result.get("message") or f"The paper workflow ended with status {result.get('status', 'unknown')}."
+	elif mode == "paper" and not result.get("answer"):
+		feedback = "The paper was fetched, but no answer was produced from its content."
 	elif mode == "paper_search" and not result.get("papers"):
 		feedback = "No candidate paper completed; refine the paper title/topic or use a more specific source."
+	elif mode == "paper_search" and not result.get("answer"):
+		feedback = "Papers were fetched, but no answer was produced from their content."
 	elif mode == "web" and not result.get("answer") and not result.get("search_results"):
 		feedback = "The web search returned no results; revise the search query."
 	elif mode == "url" and not result.get("text"):
@@ -1152,6 +1551,22 @@ def evaluate(state: InvestigatorState) -> dict:
 	result = state.get("research_result") or {}
 	user_request = _normalize(state.get("text") or "")
 	query = _normalize(state.get("query") or "")
+	# Empty retrieval is mechanically unusable. Avoid paying for an LLM to restate
+	# that fact; the graph can immediately revise the query and retry. The provider
+	# diagnostics tell the next attempt whether this was an empty response or an error.
+	if mode == "web" and not result.get("search_results"):
+		attempts = result.get("provider_attempts") or []
+		evaluation = {
+			"success": False,
+			"feedback": (
+				"Web retrieval returned no parsed results. Retry with a shorter query and "
+				"a different provider or search strategy."
+			),
+			"reason": f"empty retrieval after provider attempts: {attempts}",
+			"attempt": state.get("attempt", 1),
+		}
+		trace.log_event("investigator_evaluator", **evaluation, deterministic=True)
+		return {"evaluation": evaluation}
 	if ENABLE_DETERMINISTIC_FETCH_FALLBACK and _fetch_failed(mode, result):
 		evaluation = {
 			"success": True,
@@ -1170,7 +1585,7 @@ def evaluate(state: InvestigatorState) -> dict:
 
 	try:
 		judgment = chat_with_structured_output(
-			get_llm("reasoner", temperature=0),
+			get_llm("cheap", temperature=0, reasoning_effort="low", max_tokens=800),
 			_EVALUATION_SYSTEM_PROMPT,
 			json.dumps(payload, ensure_ascii=False, default=str),
 			InvestigatorEvaluation,
@@ -1204,6 +1619,14 @@ def _fallback_reflection(state: InvestigatorState) -> str:
 def reflect(state: InvestigatorState) -> dict:
 	"""Convert evaluator feedback into a concise lesson and persist it as memory."""
 	feedback = (state.get("evaluation") or {}).get("feedback") or "The result was unusable."
+	if state.get("lightweight"):
+		lesson = _normalize(feedback)
+		reflections = list(state.get("reflections") or [])
+		if lesson and lesson not in reflections:
+			reflections.append(lesson)
+		trace.log_event("investigator_reflection", attempt=state.get("attempt", 1),
+						lesson=lesson, deterministic=True)
+		return {"reflections": reflections[-_MAX_REFLECTIONS_PER_TASK:]}
 	try:
 		reflection = chat_with_structured_output(
 			get_llm("cheap", temperature=0),
@@ -1237,7 +1660,9 @@ def _route_after_evaluate(state: InvestigatorState) -> str:
 
 def render(state: InvestigatorState) -> dict:
 	mode = state["mode"]
-	if mode == "paper":
+	if mode == "workspace":
+		output = _workspace_to_text(state["research_result"], state["query"])
+	elif mode == "paper":
 		output = _paper_to_text(state["research_result"], state["query"])
 	elif mode == "paper_search":
 		output = _multi_paper_to_text(state["research_result"], state["query"])
@@ -1251,6 +1676,7 @@ def render(state: InvestigatorState) -> dict:
 def build_investigator_graph():
 	g = StateGraph(InvestigatorState)
 	g.add_node("actor", actor)
+	g.add_node("workspace", workspace_node)
 	g.add_node("paper", paper_node)
 	g.add_node("paper_search", paper_search_node)
 	g.add_node("download_papers", download_papers_node)
@@ -1262,7 +1688,9 @@ def build_investigator_graph():
 
 	g.add_edge(START, "actor")
 	g.add_conditional_edges("actor", _route_after_interpret,
-							{"paper": "paper", "paper_search": "paper_search", "web": "web", "url": "url"})
+							{"workspace": "workspace", "paper": "paper",
+							 "paper_search": "paper_search", "web": "web", "url": "url"})
+	g.add_edge("workspace", "evaluate")
 	g.add_edge("paper", "evaluate")
 	g.add_edge("paper_search", "download_papers")
 	g.add_edge("download_papers", "evaluate")
@@ -1289,14 +1717,19 @@ def run(
 	*,
 	session_id: str,
 	category_slug: str | None = None,
+	mode: Literal["workspace", "paper", "paper_search", "web", "url"] | None = None,
+	sources: list[str] | None = None,
+	paper_count: int | None = None,
 	stream: bool = True,
 	echo: bool | None = None,
 	max_attempts: int = _DEFAULT_MAX_ATTEMPTS,
+	lightweight: bool = False,
 ) -> str:
-	"""Route a free-text instruction to paper fetch/summarize or web scraping.
+	"""Route a free-text instruction to paper reading or web research.
 
-	Returns plain text so callers can display it directly. The paper path uses
-	the existing paper agent; the generic path searches the web and fetches the
+	Returns plain text so callers can display it directly. The paper path only
+	fetches and extracts sources, then answers the question from their content; it
+	does not run summary, gap, director, validator, or ranking agents. The web path searches and fetches the
 	top hits when the prompt asks for more than just a search result list. Every
 	download is stored in ``workspace/<category>/sessions/<session_id>/`` when
 	``category_slug`` is supplied by the validator.  The category-less form is
@@ -1311,11 +1744,24 @@ def run(
 	graph = _get_graph()
 	if max_attempts < 1:
 		raise ValueError("max_attempts must be at least 1.")
+	if paper_count is not None and not 1 <= paper_count <= _MAX_PAPER_DOWNLOADS:
+		raise ValueError(f"paper_count must be between 1 and {_MAX_PAPER_DOWNLOADS}.")
 	# Keep the historical graph input shape for the common/default call; the
 	# evaluator supplies its own default when this optional control is absent.
 	inputs = {"text": text, "session_id": session_id}
+	if mode is not None:
+		inputs["requested_mode"] = mode
+	if lightweight:
+		inputs["lightweight"] = True
+	if sources is not None:
+		inputs["sources"] = [_normalize(source) for source in sources if _normalize(source)]
+	if paper_count is not None:
+		inputs["paper_count"] = paper_count
 	if category_slug is not None:
 		inputs["workspace_key"] = workspace_key
+		# The bare slug, so the workspace route can read the category's own gaps/papers/ideas.
+		# Without it that route has nothing to read and says so.
+		inputs["category_slug"] = category_slug
 	if max_attempts != _DEFAULT_MAX_ATTEMPTS:
 		inputs["max_attempts"] = max_attempts
 	if not stream:

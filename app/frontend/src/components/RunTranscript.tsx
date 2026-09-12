@@ -27,10 +27,16 @@ const PAPER_STAGES: Stage[] = [
   { key: "save", match: "collect", label: "Save to knowledge base" },
 ];
 
+// The creative thinker: prepare → (generate | refine) → assemble. Refinement is a
+// mounted subgraph, so its levels stream as repeated `expand` / `evaluate` nodes
+// under it, and `writeback` closes the tree before `assemble` builds the envelope.
 const IDEA_STAGES: Stage[] = [
-  { key: "enter", match: "enter", label: "Load knowledge base", hint: "Read gaps & papers" },
-  { key: "generate", match: "generate", label: "Generate ideas" },
-  { key: "store", match: "store", label: "Save ideas" },
+  { key: "prepare", match: "prepare", label: "Prepare", hint: "Copy the idea, render the context and prior ground" },
+  { key: "generate", match: "generate", label: "Generate candidates", hint: "One styled thinker per branch, deduplicated and ranked" },
+  { key: "expand", match: "expand", label: "Expand the tree", hint: "Ways of doing the task from here" },
+  { key: "evaluate", match: "evaluate", label: "Evaluate the frontier", hint: "One call over every branch" },
+  { key: "writeback", match: "writeback", label: "Write back", hint: "Answer the task and apply the edits" },
+  { key: "assemble", match: "assemble", label: "Assemble the envelope" },
 ];
 
 // Resuming ingestion runs just the director+validator tail (no paper stages). The
@@ -76,10 +82,12 @@ function traceCount(events: RunEvent[], name: string): number {
 function fanoutProgress(events: RunEvent[], phase: "validate" | "rank", loopGnode: string) {
   const doneName = phase === "validate" ? "gap_validated" : "gap_ranked";
   const started = traceCount(events, `gap_${phase}_start`);
-  const done = traceCount(events, doneName) + traceCount(events, `gap_${phase}_failed`);
+  const done = traceCount(events, doneName);
+  const failed = traceCount(events, `gap_${phase}_failed`);
   return {
     done: Math.max(done, started ? 0 : nodeCount(events, loopGnode)),
-    inFlight: Math.max(0, started - done),
+    failed,
+    inFlight: Math.max(0, started - done - failed),
   };
 }
 
@@ -147,7 +155,7 @@ export function RunTranscript({ run }: { run: RunState }) {
   const stages = run.kind === "idea" ? IDEA_STAGES : run.kind === "resume" ? RESUME_STAGES : PAPER_STAGES;
   const done = completedGnodes(run.events);
   const passes = passCounts(run.events);
-  const fanout: Record<string, { done: number; inFlight: number }> = {
+  const fanout: Record<string, { done: number; failed: number; inFlight: number }> = {
     validate: fanoutProgress(run.events, "validate", "validate_gap"),
     rank: fanoutProgress(run.events, "rank", "rank_gap"),
   };
@@ -173,7 +181,7 @@ export function RunTranscript({ run }: { run: RunState }) {
           {cancelling ? "Cancelling — stopping after the current step…"
             : running
             ? run.kind === "resume" ? "Resuming gap ingestion"
-              : `Running ${run.kind === "idea" ? "idea" : "paper"} agent`
+              : `Running the ${run.kind === "idea" ? "creative thinker" : "paper agent"}`
             : run.status === "ambiguous" ? "Which paper did you mean?"
               : run.status === "needs_source" ? "Full text unavailable"
                 : run.status === "error" ? "Run failed"
@@ -231,11 +239,12 @@ export function RunTranscript({ run }: { run: RunState }) {
                   {s.loop && n > 0 && (
                     <span className="run-stage-pass">{isActive ? "refining · " : ""}{n} pass{n === 1 ? "" : "es"}</span>
                   )}
-                  {AGGREGATE_KEYS.has(s.key) && (fanout[s.key].done > 0 || fanout[s.key].inFlight > 0) && (
+                  {AGGREGATE_KEYS.has(s.key) && (fanout[s.key].done > 0 || fanout[s.key].failed > 0 || fanout[s.key].inFlight > 0) && (
                     <span className="run-stage-pass">
                       {fanout[s.key].inFlight > 0 && `${fanout[s.key].inFlight} in parallel`}
                       {fanout[s.key].inFlight > 0 && fanout[s.key].done > 0 && " · "}
                       {fanout[s.key].done > 0 && `${fanout[s.key].done} gap${fanout[s.key].done === 1 ? "" : "s"} done`}
+                      {fanout[s.key].failed > 0 && `${fanout[s.key].done > 0 ? " · " : ""}${fanout[s.key].failed} failed`}
                     </span>
                   )}
                 </div>
@@ -252,7 +261,9 @@ export function RunTranscript({ run }: { run: RunState }) {
       {run.status === "done" && (
         <p className="run-done">
           {run.kind === "idea"
-            ? `${run.resultIdeaIds.length} idea${run.resultIdeaIds.length === 1 ? "" : "s"} added to the workspace.`
+            // The thinker writes nothing — it returns a modified copy and its
+            // proposals. Saying "added to the workspace" here would be a lie.
+            ? "Envelope returned — nothing is written until you accept something."
             : "Knowledge base updated."}
         </p>
       )}

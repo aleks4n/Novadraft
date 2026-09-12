@@ -1,0 +1,39 @@
+{
+  "gaps": [
+    {
+      "gap_id": "gap_1fda3e27",
+      "title": "Non-autoregressive machine translation lags on long outputs",
+      "description": "Reported speedups on WMT En-De largely vanish for long outputs, where the number of refinement passes needed grows with the target length."
+    }
+  ],
+  "user_input": [
+    {
+      "id": "user_note_1",
+      "title": "My own idea — spend the passes where the entropy is",
+      "text": "I keep coming back to this: don't budget passes by length, budget them by where the model is uncertain. Rare words and named entities are what stay wrong, and they cluster. A length-based budget spends compute on positions that were already correct after pass one."
+    },
+    {
+      "id": "user_note_2",
+      "title": "Constraint from my setup",
+      "text": "Whatever we do has to run on a single A100 and be reproducible from a public WMT checkpoint. I am not going to pretrain anything from scratch for this."
+    },
+    {
+      "id": "user_note_3",
+      "title": "What I want out of this session",
+      "text": "I want the entropy-allocation angle taken seriously, and I want to know what it would take to falsify it."
+    }
+  ],
+  "ideas": [
+    {
+      "idea_id": "idea_7b31c0af",
+      "title": "Confidence-Gated Parallel Decoding with a Length-Aware Step Budget",
+      "description": "A non-autoregressive decoder whose refinement-pass budget is allocated from the predicted output length, with per-position confidence gating."
+    }
+  ],
+  "discussion": [
+    {
+      "id": "thread_9f2",
+      "text": "Earlier in the session the user rejected 'just train a bigger denoiser' as uninteresting — it does not explain why the speedup disappears, it only pushes the constant around."
+    }
+  ]
+}

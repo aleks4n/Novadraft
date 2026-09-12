@@ -1,0 +1,12 @@
+{
+  "idea": "idea_from_generation.json",
+  "mode": "refinement",
+  "width": 3,
+  "depth": 3,
+  "task": "Make this idea concrete enough to implement: pin down the mechanism, the baselines it must beat, and the first experiment.",
+  "context": "creative_thinker_context.json",
+  "styles": "neutral",
+  "tool_use": false,
+  "max_llm_calls": 30,
+  "triggering_action": "plan: Deep Dive Discussion (on the accepted generation candidate)"
+}

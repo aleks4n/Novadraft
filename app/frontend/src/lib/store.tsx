@@ -8,10 +8,12 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import type { ReactNode } from "react";
 import {
   api, cancelRun as apiCancel, deleteRun as apiDelete, restartRun as apiRestart,
-  followRun, listRuns, resumeGap, resumePaperGaps, runIdeaAgent, runPaperAgent,
-  uploadPaperSource,
+  followRun, listRuns, patchIdea, patchTopic, resumeGap, resumePaperGaps, runIdeaAgent,
+  runPaperAgent, sessionApi, uploadPaperSource,
 } from "./api";
-import type { Nav, RunEvent, RunMeta, RunState, TopicBundle, TopicMeta } from "./types";
+import type {
+  Idea, Nav, RunEvent, RunMeta, RunState, SessionSummary, TopicBundle, TopicMeta,
+} from "./types";
 
 interface WorkspaceCtx {
   topics: TopicMeta[];
@@ -22,15 +24,25 @@ interface WorkspaceCtx {
   nav: Nav;
   // Every tracked run of this topic, oldest first. Multiple can be "running".
   runs: RunState[];
+  // The topic's ideation sessions, newest first (list rows only — a session's
+  // transcript is loaded by the session view itself).
+  sessions: SessionSummary[];
   setActiveSlug: (slug: string) => void;
   setNav: (nav: Nav) => void;
+  // Browser-style back/forward through the nav history built up by setNav.
+  goBack: () => void;
+  goForward: () => void;
+  canGoBack: boolean;
+  canGoForward: boolean;
   refresh: () => Promise<void>;
   // Bootstrap a new category via the category agent, then switch to it. Resolves
   // with the new slug (or null on failure) so the caller can close its form.
   createTopic: (topic: string) => Promise<string | null>;
   // autoOpen: navigate to the paper's page the moment the run attaches to it
   // (single ingests do; batch ingests don't yank the user around).
-  startPaperRun: (query: string, opts?: { force?: boolean; autoOpen?: boolean }) => Promise<void>;
+  // True once the backend has accepted the run. Callers that provide their own
+  // feedback can use false to keep the query visible and surface the failure.
+  startPaperRun: (query: string, opts?: { force?: boolean; autoOpen?: boolean }) => Promise<boolean>;
   startIdeaRun: (opts: { mode: "generate" | "expand"; sketch?: string; count?: number }) => Promise<void>;
   startGapResume: (gapId: string) => Promise<void>;
   startPaperGapsResume: (paperId: string) => Promise<void>;
@@ -43,9 +55,45 @@ interface WorkspaceCtx {
   isCancelling: (runId: string) => boolean;
   // Attach a user-supplied source to a stalled paper, then resume its pipeline.
   uploadSource: (paperId: string, file: File, resumeQuery: string) => Promise<void>;
+
+  // --- sessions ---------------------------------------------------------------
+  refreshSessions: () => Promise<void>;
+  // Resolves with the new session's id so the caller can navigate into it.
+  createSession: (title?: string, context?: { kind: string; id: string }[]) => Promise<string | null>;
+  renameSession: (id: string, title: string) => Promise<void>;
+  deleteSession: (id: string) => Promise<void>;
+  // Follow one run and resolve when its stream closes — the session chat awaits
+  // this to land the envelope on the transcript.
+  attachRun: (runId: string) => void;
+  // A hand edit to an idea (spine + open sections); refreshes the bundle.
+  updateIdea: (ideaId: string, patch: Parameters<typeof patchIdea>[2]) => Promise<Idea | null>;
+  // One idea with its `runs[]` — the bundle carries the spine only.
+  loadIdea: (ideaId: string) => Promise<Idea | null>;
+  // A hand edit to the active topic's name/description; refreshes the bundle.
+  updateTopic: (patch: Parameters<typeof patchTopic>[1]) => Promise<TopicMeta | null>;
 }
 
 const Ctx = createContext<WorkspaceCtx | null>(null);
+
+// Where the app was last time it was open — restored on load, updated on every
+// nav/topic change, following the same localStorage pattern as the sidebar
+// width (App.tsx's SIDEBAR_KEY).
+const LAST_NAV_KEY = "novadraft.lastNav";
+const NAV_HISTORY_LIMIT = 50;
+
+function loadLastNav(): { slug: string; nav: Nav } | null {
+  try {
+    const raw = localStorage.getItem(LAST_NAV_KEY);
+    if (!raw) return null;
+    const saved = JSON.parse(raw) as { slug?: unknown; nav?: unknown };
+    if (typeof saved.slug !== "string" || !saved.slug) return null;
+    const nav = saved.nav as Partial<Nav> | undefined;
+    if (!nav || typeof nav.view !== "string") return null;
+    return { slug: saved.slug, nav: { view: nav.view as Nav["view"], id: (nav.id as string | null) ?? null } };
+  } catch {
+    return null;
+  }
+}
 
 // The latest run about an entity (paper page, gap page). Newest wins so a
 // follow-up run (retry, source upload → resume) replaces the finished one.
@@ -60,6 +108,7 @@ export function runForTarget(runs: RunState[], kind: "paper" | "gap", id: string
 function metaToState(meta: RunMeta, events: RunEvent[] = []): RunState {
   return {
     id: meta.run_id,
+    agent: meta.agent,
     kind: meta.kind,
     status: meta.status,
     query: meta.query,
@@ -69,7 +118,31 @@ function metaToState(meta: RunMeta, events: RunEvent[] = []): RunState {
     resultIdeaIds: meta.result_idea_ids ?? [],
     candidates: meta.candidates ?? [],
     target: meta.target ?? null,
+    sessionId: meta.session_id ?? null,
+    envelope: meta.envelope ?? null,
     note: meta.note ?? null,
+  };
+}
+
+/** A run we are streaming but whose meta has not arrived yet — a shell to hold its
+ *  events until it does. Deliberately session-less: the session transcript filters on
+ *  `sessionId`, so a half-known run never flashes into a chat. */
+function placeholderRun(runId: string, ev: RunEvent): RunState {
+  return {
+    id: runId,
+    agent: ev.kind === "run_start" ? ev.agent ?? "" : "",
+    kind: "idea",
+    status: "running",
+    query: null,
+    events: [ev],
+    error: null,
+    resultPaperId: null,
+    resultIdeaIds: [],
+    candidates: [],
+    target: null,
+    sessionId: null,
+    envelope: null,
+    note: null,
   };
 }
 
@@ -78,26 +151,64 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [activeSlug, _setActiveSlug] = useState<string | null>(null);
   const [bundle, setBundle] = useState<TopicBundle | null>(null);
   const [loading, setLoading] = useState(true);
-  const [nav, setNav] = useState<Nav>({ view: "topic", id: null });
+  // A history stack + pointer, browser-style: setNav pushes (truncating any
+  // forward entries), goBack/goForward just move the pointer.
+  const [navState, setNavState] = useState<{ stack: Nav[]; index: number }>({
+    stack: [{ view: "topic", id: null }], index: 0,
+  });
+  const nav = navState.stack[navState.index];
+
+  const setNav = useCallback((next: Nav | ((prev: Nav) => Nav)) => {
+    setNavState(({ stack, index }) => {
+      const cur = stack[index];
+      const resolved = typeof next === "function" ? (next as (p: Nav) => Nav)(cur) : next;
+      if (cur.view === resolved.view && cur.id === resolved.id) return { stack, index };
+      const truncated = stack.slice(0, index + 1);
+      const newStack = [...truncated, resolved].slice(-NAV_HISTORY_LIMIT);
+      return { stack: newStack, index: newStack.length - 1 };
+    });
+  }, []);
+  const goBack = useCallback(() => {
+    setNavState(({ stack, index }) => (index > 0 ? { stack, index: index - 1 } : { stack, index }));
+  }, []);
+  const goForward = useCallback(() => {
+    setNavState(({ stack, index }) => (index < stack.length - 1 ? { stack, index: index + 1 } : { stack, index }));
+  }, []);
+  const canGoBack = navState.index > 0;
+  const canGoForward = navState.index < navState.stack.length - 1;
+
   const [runs, setRuns] = useState<RunState[]>([]);
+  const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [cancelling, setCancelling] = useState<Set<string>>(new Set());
   const slugRef = useRef<string | null>(null);
   const attachedRef = useRef<Set<string>>(new Set());   // run ids with a live event stream
   const autoOpenRef = useRef<Set<string>>(new Set());   // run ids that navigate on paper-attach
   const navigatedRef = useRef<Set<string>>(new Set());  // run ids that already navigated
 
-  // Initial topic list.
+  // Initial topic list — restores the last topic + page the app was on, if
+  // any, falling back to the first topic's overview.
   useEffect(() => {
     api.topics()
       .then((ts) => {
         setTopics(ts);
         if (ts.length && !slugRef.current) {
-          slugRef.current = ts[0].slug;
-          _setActiveSlug(ts[0].slug);
+          const last = loadLastNav();
+          const restoredSlug = last && ts.some((t) => t.slug === last.slug) ? last.slug : ts[0].slug;
+          slugRef.current = restoredSlug;
+          _setActiveSlug(restoredSlug);
+          if (last && restoredSlug === last.slug) {
+            setNavState({ stack: [last.nav], index: 0 });
+          }
         }
       })
       .catch(() => setTopics([]));
   }, []);
+
+  // Persist the current page so a reload comes back to it.
+  useEffect(() => {
+    if (!activeSlug) return;
+    try { localStorage.setItem(LAST_NAV_KEY, JSON.stringify({ slug: activeSlug, nav })); } catch { /* best-effort */ }
+  }, [activeSlug, nav]);
 
   const loadBundle = useCallback(async (slug: string) => {
     setLoading(true);
@@ -137,9 +248,24 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // A run's stream is followed from seq 0 the moment it is started, which is before
+  // the runs list it belongs to has come back from the server. Dropping the events
+  // that arrive in that window loses them for good — the stream is replay-then-follow
+  // and is never re-requested — and for an approved plan that window swallows the
+  // whole header: `orchestrator plan` and the first `orchestrator step started` are
+  // emitted within ~8ms of the run starting, so the card renders as if the turn were
+  // still being planned. Hold them on a placeholder instead; `mergeMeta`/`syncRuns`
+  // fill in the real meta and keep the events already collected. The placeholder has
+  // no session id, so nothing renders it until its meta lands.
   const pushEvent = useCallback((slug: string, runId: string, ev: RunEvent) => {
     if (slug !== slugRef.current) return;
-    setRuns((rs) => rs.map((r) => (r.id === runId ? { ...r, events: [...r.events, ev] } : r)));
+    setRuns((rs) => {
+      const i = rs.findIndex((r) => r.id === runId);
+      if (i === -1) return [...rs, placeholderRun(runId, ev)];
+      const next = [...rs];
+      next[i] = { ...next[i], events: [...next[i].events, ev] };
+      return next;
+    });
   }, []);
 
   // Follow one run's event stream (replay from 0, then live). The paper-attach
@@ -181,20 +307,29 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (slug !== slugRef.current) return;
     setRuns((rs) => {
       const byId = new Map(rs.map((r) => [r.id, r]));
-      return metas.map((m) => {
-        const prev = byId.get(m.run_id);
-        return metaToState(m, prev?.events ?? []);
-      });
+      const listed = new Set(metas.map((m) => m.run_id));
+      const next = metas.map((m) => metaToState(m, byId.get(m.run_id)?.events ?? []));
+      // A run whose stream we are already following but which this (possibly in-flight)
+      // listing predates: keep it, or its buffered events go the way they used to. It
+      // is by definition the newest, and the server lists oldest-first, so it goes last.
+      return [...next, ...rs.filter((r) => !listed.has(r.id) && attachedRef.current.has(r.id))];
     });
     for (const m of metas) if (m.status === "running") attach(slug, m.run_id);
   }, [attach]);
 
-  // Load bundle + runs whenever the active topic changes.
+  const refreshSessions = useCallback(async () => {
+    const slug = slugRef.current;
+    if (!slug) return;
+    try { setSessions(await sessionApi.list(slug)); } catch { setSessions([]); }
+  }, []);
+
+  // Load bundle + runs + sessions whenever the active topic changes.
   useEffect(() => {
     if (!activeSlug) return;
     loadBundle(activeSlug);
     syncRuns(activeSlug);
-  }, [activeSlug, loadBundle, syncRuns]);
+    refreshSessions();
+  }, [activeSlug, loadBundle, syncRuns, refreshSessions]);
 
   // While any run is live, poll the KB (intermediate results appear as they
   // land) and the runs list (statuses flip, streams re-attach after hiccups).
@@ -203,16 +338,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (!anyRunning) return;
     const id = setInterval(() => {
       reloadBundle();
+      refreshSessions();
       if (slugRef.current) syncRuns(slugRef.current);
     }, 2500);
     return () => clearInterval(id);
-  }, [anyRunning, reloadBundle, syncRuns]);
+  }, [anyRunning, reloadBundle, refreshSessions, syncRuns]);
 
   const setActiveSlug = useCallback((slug: string) => {
     slugRef.current = slug;
     _setActiveSlug(slug);
-    setNav({ view: "topic", id: null });
+    // A new topic invalidates the old history's ids, so start a fresh stack
+    // rather than pushing onto the old topic's.
+    setNavState({ stack: [{ view: "topic", id: null }], index: 0 });
     setRuns([]);
+    setSessions([]);
   }, []);
 
   // Create a category (the category agent writes its meta.json), add it to the
@@ -241,14 +380,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const startPaperRun = useCallback(
     async (query: string, opts: { force?: boolean; autoOpen?: boolean } = {}) => {
       const slug = slugRef.current;
-      if (!slug || !query.trim()) return;
+      if (!slug || !query.trim()) return false;
       try {
         const meta = await runPaperAgent(slug, query.trim(), opts.force ?? false);
         if (opts.autoOpen ?? true) autoOpenRef.current.add(meta.run_id);
         mergeMeta(slug, meta);
         if (meta.status === "running") attach(slug, meta.run_id);
+        return true;
       } catch (e) {
         console.error("start paper run failed:", e);
+        return false;
       }
     },
     [attach, mergeMeta],
@@ -336,15 +477,100 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [startPaperRun],
   );
 
+  // --- sessions ---------------------------------------------------------------
+
+  const createSession = useCallback(
+    async (title = "", context: { kind: string; id: string }[] = []): Promise<string | null> => {
+      const slug = slugRef.current;
+      if (!slug) return null;
+      try {
+        const rec = await sessionApi.create(slug, title, context);
+        await refreshSessions();
+        return rec.session_id;
+      } catch (e) {
+        console.error("create session failed:", e);
+        return null;
+      }
+    },
+    [refreshSessions],
+  );
+
+  const renameSession = useCallback(async (id: string, title: string) => {
+    const slug = slugRef.current;
+    if (!slug) return;
+    try { await sessionApi.rename(slug, id, title); } catch (e) { console.error(e); }
+    await refreshSessions();
+  }, [refreshSessions]);
+
+  const deleteSession = useCallback(async (id: string) => {
+    const slug = slugRef.current;
+    if (!slug) return;
+    try { await sessionApi.remove(slug, id); } catch (e) { console.error(e); }
+    await refreshSessions();
+    setNav((n) => (n.view === "session" && n.id === id ? { view: "sessions", id: null } : n));
+  }, [refreshSessions]);
+
+  // Public wrapper over the internal `attach` — the session chat starts its run
+  // through the REST endpoint (which records the turn), then asks the store to
+  // follow it so the run joins the same queue every other run lives in.
+  const attachRun = useCallback((runId: string) => {
+    const slug = slugRef.current;
+    if (!slug) return;
+    syncRuns(slug);
+    attach(slug, runId);
+  }, [attach, syncRuns]);
+
+  // --- ideas ------------------------------------------------------------------
+
+  const updateIdea = useCallback(
+    async (ideaId: string, patch: Parameters<typeof patchIdea>[2]) => {
+      const slug = slugRef.current;
+      if (!slug) return null;
+      try {
+        const idea = await patchIdea(slug, ideaId, patch);
+        await reloadBundle();
+        return idea;
+      } catch (e) {
+        console.error("idea patch failed:", e);
+        return null;
+      }
+    },
+    [reloadBundle],
+  );
+
+  const loadIdea = useCallback(async (ideaId: string) => {
+    const slug = slugRef.current;
+    if (!slug) return null;
+    try { return await api.idea(slug, ideaId); } catch { return null; }
+  }, []);
+
+  const updateTopic = useCallback(
+    async (patch: Parameters<typeof patchTopic>[1]) => {
+      const slug = slugRef.current;
+      if (!slug) return null;
+      try {
+        const topic = await patchTopic(slug, patch);
+        await reloadBundle();
+        return topic;
+      } catch (e) {
+        console.error("topic patch failed:", e);
+        return null;
+      }
+    },
+    [reloadBundle],
+  );
+
   const active = topics.find((t) => t.slug === activeSlug) || bundle?.meta || null;
 
   return (
     <Ctx.Provider
       value={{
-        topics, activeSlug, active, bundle, loading, nav, runs,
-        setActiveSlug, setNav, refresh, createTopic, startPaperRun, startIdeaRun,
+        topics, activeSlug, active, bundle, loading, nav, runs, sessions,
+        setActiveSlug, setNav, goBack, goForward, canGoBack, canGoForward,
+        refresh, createTopic, startPaperRun, startIdeaRun,
         uploadSource, startGapResume, startPaperGapsResume, cancelRun, restartRun,
-        deleteRun, isCancelling,
+        deleteRun, isCancelling, refreshSessions, createSession, renameSession,
+        deleteSession, attachRun, updateIdea, loadIdea, updateTopic,
       }}
     >
       {children}

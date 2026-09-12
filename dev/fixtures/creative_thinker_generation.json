@@ -1,0 +1,12 @@
+{
+  "idea": "",
+  "mode": "generation",
+  "width": 4,
+  "depth": 1,
+  "task": "Propose ideas that close the gap between non-autoregressive decoding speedups and the quality lost on long outputs. Each should name a concrete mechanism.",
+  "context": "creative_thinker_context.json",
+  "styles": "",
+  "tool_use": false,
+  "max_llm_calls": 20,
+  "triggering_action": "plan: Idea Generation from Gaps"
+}

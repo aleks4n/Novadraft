@@ -54,7 +54,7 @@ plateau stop (a round whose still-open set is identical to the previous round's)
 |---|---|---|
 | `enter` | deterministic | Read the paper; short-circuit if gaps already extracted (and not `force`); else set up the static context + loop bookkeeping. |
 | `extractor` | LLM (reasoner) + deterministic anchor-grounding | One grounded gap-extraction pass; each candidate's `anchor` is located verbatim in its section to produce the stored quote. |
-| `critic` | LLM (reasoner) | One faithfulness critique over the current accepted set; major-issue gaps are dropped, missing-coverage hints fed back. |
+| `critic` | LLM (cheap) | One faithfulness critique over the current accepted set; major-issue gaps are dropped, missing-coverage hints fed back. |
 | `finalize` | deterministic | Write the accepted `GapRecord`s + `gap_verification`. |
 
 Converges once there's no outstanding cleanup work (nothing rejected this round,

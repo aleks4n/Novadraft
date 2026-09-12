@@ -3,7 +3,8 @@ from src.common.schemas.gap_verify import GapCritique
 
 
 def test_critic_ignores_issues_without_a_valid_candidate_gap_id(monkeypatch):
-    monkeypatch.setattr(critic, "get_llm", lambda _role: object())
+    roles = []
+    monkeypatch.setattr(critic, "get_llm", lambda role: roles.append(role) or object())
     monkeypatch.setattr(
         critic,
         "chat_with_structured_output",
@@ -30,3 +31,4 @@ def test_critic_ignores_issues_without_a_valid_candidate_gap_id(monkeypatch):
     assert [(issue["gap_id"], issue["severity"]) for issue in result["issues"]] == [
         ("gap-1", "minor"),
     ]
+    assert roles == ["cheap"]

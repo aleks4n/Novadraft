@@ -1,0 +1,170 @@
+"""Per-session state: run results, and the investigator's fetches.
+
+    workspace/<category>/sessions/<session_id>/
+        <run_id>.json   one run's outcome: the answer plus the drafts it offered
+        papers/         papers the investigator fetched for this session
+
+A thinking run ends by writing its drafts here and returning them to the chat. When the
+user accepts some, `commit_selection` reads them back by `run_id` — so what gets written
+to the idea graph is exactly what the user was shown, not a regenerated set.
+
+This is what lets a run finish instead of suspending mid-graph: the pending state lives on
+disk between turns rather than in a LangGraph checkpointer. See SPEC.md.
+
+It also doubles as the run's result record, because `GraphRunLog.run()` returns only the
+output it was handed and the streaming path hands it none — the same reason the validator
+re-reads its finalized gap instead of using the return value.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from pydantic import TypeAdapter
+
+from src.common.schemas.idea import IdeaRecord
+from src.common.utils import storage
+
+_IDEAS = TypeAdapter(list[IdeaRecord])
+
+
+def session_dir(category_slug: str, session_id: str) -> Path:
+    return storage.category_dir(category_slug) / "sessions" / session_id
+
+
+def session_papers_dir(category_slug: str, session_id: str) -> Path:
+    """Where the investigator puts what it fetches — session-scoped until promoted."""
+    return session_dir(category_slug, session_id) / "papers"
+
+
+def session_files_dir(category_slug: str, session_id: str) -> Path:
+    """Documents dropped onto the chat, stored under their own names."""
+    return session_dir(category_slug, session_id) / "files"
+
+
+def read_context_refs(category_slug: str, session_id: str) -> list[dict]:
+    """The session's loaded context, as `{kind, id, label, digest}` references.
+
+    Written by the chat surface as the user clicks items in and drops files on it, and
+    read here because two of those kinds — a pasted note and a dropped document — exist
+    nowhere else. Everything else the session loads is a workspace record that can be
+    looked up by id.
+
+    Read rather than imported from `app.backend.sessions`, which owns the file: `src/`
+    is what the backend is built on and importing back the other way would invert that.
+    """
+    path = session_dir(category_slug, session_id) / "session.json"
+    if not path.exists():
+        return []
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    entries = record.get("context")
+    if not isinstance(entries, list):
+        return []
+    return [entry for entry in entries if isinstance(entry, dict)]
+
+
+def _path(category_slug: str, session_id: str, run_id: str) -> Path:
+    return session_dir(category_slug, session_id) / f"{run_id}.json"
+
+
+def write_result(
+    category_slug: str, session_id: str, run_id: str, *,
+    message: str = "", answer: str = "", ideas: list[IdeaRecord] | None = None,
+    envelopes: list[dict] | None = None, offers: list[dict] | None = None,
+    status: str = "completed", plan: dict | None = None,
+) -> Path:
+    """Persist one run's outcome.
+
+    `message` is the user's turn. Without it a run records only half the exchange, and a
+    later turn reading the session back would see the replies with nothing they answered.
+
+    `created_at` orders the runs. Run ids are random, so they sort into no sequence, and
+    file mtimes are lost the moment a workspace is copied.
+
+    `status` is `completed` for a turn that ran, `awaiting_approval` for one that stopped
+    at the plan and is waiting for the user to start it. `plan` is written on both: the
+    proposal needs it to be shown and edited, and a finished turn keeps it as the record
+    of what was actually run — which is the only place the arguments each subagent was
+    called with survive once the run log has been pruned.
+    """
+    d = session_dir(category_slug, session_id)
+    d.mkdir(parents=True, exist_ok=True)
+    out = _path(category_slug, session_id, run_id)
+    out.write_text(
+        json.dumps(
+            {
+                "run_id": run_id,
+                "created_at": storage.now_iso(),
+                "status": status,
+                "message": message,
+                "answer": answer,
+                # The plan as it ran (or as it is being proposed): goal, steps, and the
+                # arguments each step calls its subagent with.
+                "plan": plan or {},
+                "ideas": [i.model_dump(mode="json") for i in (ideas or [])],
+                # What each offered idea came from. The thinking graph lives on the
+                # envelope rather than on the candidate, so accepting one needs the
+                # envelope that produced it, not just the candidate itself.
+                "envelopes": envelopes or [],
+                "offers": offers or [],
+            },
+            indent=2,
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    return out
+
+
+def read_result(category_slug: str, session_id: str, run_id: str) -> dict:
+    """One run's outcome; empty defaults if it wrote none."""
+    p = _path(category_slug, session_id, run_id)
+    if not p.exists():
+        return {"run_id": run_id, "created_at": "", "status": "", "message": "",
+                "answer": "", "plan": {}, "ideas": [], "envelopes": [], "offers": []}
+    return json.loads(p.read_text(encoding="utf-8"))
+
+
+def read_runs(category_slug: str, session_id: str, limit: int = 3,
+              before: str = "") -> list[dict]:
+    """The session's most recent runs, oldest first.
+
+    `before` excludes a run id — the turn in progress has not written its own file yet,
+    but a retry or a re-run of the same id would, and it should not read itself back.
+
+    Runs that predate `created_at` sort first, which puts them where they belong: older
+    than anything written since.
+
+    A run still `awaiting_approval` is skipped. It holds the same message as the run that
+    executes it and an empty answer, so counting it as a turn would show the history the
+    user's question twice — once unanswered — and let one turn's proposal push a real
+    exchange out of the window.
+    """
+    d = session_dir(category_slug, session_id)
+    if not d.exists():
+        return []
+    # The `run_` prefix is load-bearing, not decoration: the session folder also holds
+    # `session.json` (the transcript) and the drafts folder, so a run file has to be
+    # distinguishable from them by name alone.
+    runs = []
+    for path in d.glob("run_*.json"):
+        if path.stem == before:
+            continue
+        try:
+            record = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if record.get("status") == "awaiting_approval":
+            continue
+        runs.append(record)
+    runs.sort(key=lambda r: r.get("created_at") or "")
+    return runs[-limit:] if limit else runs
+
+
+def read_ideas(category_slug: str, session_id: str, run_id: str) -> list[IdeaRecord]:
+    """The drafts `run_id` offered — the only ideas commit is allowed to write."""
+    return _IDEAS.validate_python(read_result(category_slug, session_id, run_id)["ideas"])

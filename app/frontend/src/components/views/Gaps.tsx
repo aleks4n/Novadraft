@@ -404,7 +404,6 @@ export function GapDetail({ id }: { id: string }) {
                 <Icon name={resuming ? "clock" : "play"} /> {resuming ? "Resuming…" : "Resume ingestion"}
               </button>
             )}
-            <button className="btn btn--primary"><Icon name="sparkle" /> Spark an idea</button>
           </>
         }
         breadcrumb={[

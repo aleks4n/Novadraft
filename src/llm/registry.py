@@ -23,11 +23,12 @@ import json
 import random
 import sys
 import time
+import uuid
 from pathlib import Path
 from typing import TypeVar
 
 from dotenv import load_dotenv
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from pydantic import BaseModel
 
 from ..common.utils.logging.trace import emit as emit_trace
@@ -39,8 +40,8 @@ T = TypeVar("T", bound=BaseModel)
 
 # role -> "provider:model" string understood by init_chat_model
 MODELS: dict[str, str] = {
-    "reasoner": "deepseek:deepseek-reasoner",
-    "cheap": "deepseek:deepseek-chat",
+    "reasoner": "deepseek:deepseek-v4-pro",
+    "cheap": "deepseek:deepseek-v4-flash"
 }
 
 # --- failure retry ---------------------------------------------------
@@ -49,6 +50,7 @@ MODELS: dict[str, str] = {
 
 _RETRIES = 4
 _BACKOFF_BASE = 2.0  # 2s, 4s, 8s, 16s (+ jitter)
+_STRUCTURED_ATTEMPTS = 3  # re-asks when a thinking model answers in prose instead of calling the tool
 _TRANSIENT_STATUS = {429, 500, 502, 503, 504}
 _TRANSIENT_NAMES = {"APITimeoutError", "APIConnectionError"}  # carry no status_code
 
@@ -59,24 +61,99 @@ def _is_transient(exc: Exception) -> bool:
     return type(exc).__name__ in _TRANSIENT_NAMES
 
 
-def _invoke_with_retry(invoke):
+def _telemetry(name: str, **data) -> None:
+    emit_trace({"type": "event", "name": name, "data": data})
+
+
+def _structured_reask_messages(resp: AIMessage, schema_name: str) -> list:
+    """Return a protocol-valid corrective continuation after unusable output.
+
+    LangChain places tool calls whose arguments could not be decoded in
+    ``invalid_tool_calls``. They are still tool calls at the provider protocol layer, so
+    replaying the assistant message requires one ToolMessage per call id before another
+    user message. Without those acknowledgements OpenAI-compatible providers return 400.
+    """
+    invalid_calls = list(getattr(resp, "invalid_tool_calls", None) or [])
+    raw_calls = list((getattr(resp, "additional_kwargs", None) or {}).get("tool_calls") or [])
+    call_ids: list[str] = []
+    for call in invalid_calls:
+        call_id = call.get("id") if isinstance(call, dict) else getattr(call, "id", None)
+        if call_id and call_id not in call_ids:
+            call_ids.append(call_id)
+    for call in raw_calls:
+        call_id = call.get("id") if isinstance(call, dict) else None
+        if call_id and call_id not in call_ids:
+            call_ids.append(call_id)
+
+    correction = HumanMessage(content=(
+        f"Your previous response could not be parsed as {schema_name}: it contained "
+        "neither a usable tool call nor a valid JSON object. Return the result now by "
+        f"calling the provided {schema_name} tool. Do not answer with prose."
+    ))
+    if call_ids:
+        return [
+            resp,
+            *(ToolMessage(
+                content=f"Invalid {schema_name} arguments; submit a corrected tool call.",
+                tool_call_id=call_id,
+            ) for call_id in call_ids),
+            correction,
+        ]
+    if raw_calls:
+        # A malformed provider call without an id cannot be acknowledged. Do not replay
+        # it into history; the correction becomes a fresh request instead.
+        return [correction]
+    return [resp, correction]
+
+
+def _invoke_with_retry(invoke, *, call_id: str = "", operation: str = "llm",
+                       structured_attempt: int | None = None):
     """Run `invoke`, retrying transient failures with exponential backoff. 
     The random jitter added to each delay desynchronizes parallel callers, 
     so calls that failed together don't all retry in one wave.
     """
     for attempt in range(_RETRIES + 1):
+        attempt_started = time.time()
+        _telemetry(
+            "llm provider attempt started", call_id=call_id, operation=operation,
+            attempt=attempt + 1, max_attempts=_RETRIES + 1,
+            structured_attempt=structured_attempt,
+        )
         try:
-            return invoke()
+            result = invoke()
+            _telemetry(
+                "llm provider attempt finished", call_id=call_id, operation=operation,
+                attempt=attempt + 1, max_attempts=_RETRIES + 1,
+                structured_attempt=structured_attempt,
+                duration_s=round(time.time() - attempt_started, 3),
+            )
+            return result
         except Exception as exc:
-            if attempt >= _RETRIES or not _is_transient(exc):
+            transient = _is_transient(exc)
+            _telemetry(
+                "llm provider attempt failed", call_id=call_id, operation=operation,
+                attempt=attempt + 1, max_attempts=_RETRIES + 1,
+                structured_attempt=structured_attempt,
+                duration_s=round(time.time() - attempt_started, 3),
+                error_type=type(exc).__name__, status_code=getattr(exc, "status_code", None),
+                transient=transient,
+            )
+            if attempt >= _RETRIES or not transient:
                 raise
             delay = _BACKOFF_BASE * (2 ** attempt) + random.random()
+            _telemetry(
+                "llm retry scheduled", call_id=call_id, operation=operation,
+                retry=attempt + 1, delay_s=round(delay, 3),
+                structured_attempt=structured_attempt,
+            )
             print(f"[llm] transient {type(exc).__name__} — retrying in {delay:.1f}s "
                   f"({attempt + 1}/{_RETRIES})", file=sys.stderr)
             time.sleep(delay)
 
 
-def get_llm(role: str, temperature: float = 0.2):
+def get_llm(role: str, temperature: float = 0.2,
+            reasoning_effort: str | None = None,
+            max_tokens: int | None = None):
     """Return a chat model for `role`.
 
     The `reasoner` model is wrapped with a fallback to the `cheap` model, so a
@@ -90,9 +167,14 @@ def get_llm(role: str, temperature: float = 0.2):
 
     from langchain.chat_models import init_chat_model
 
-    llm = init_chat_model(MODELS[role], temperature=temperature)
+    model_options = {"temperature": temperature}
+    if reasoning_effort is not None:
+        model_options["reasoning_effort"] = reasoning_effort
+    if max_tokens is not None:
+        model_options["max_tokens"] = max_tokens
+    llm = init_chat_model(MODELS[role], **model_options)
     if role == "reasoner":
-        cheap = init_chat_model(MODELS["cheap"], temperature=temperature)
+        cheap = init_chat_model(MODELS["cheap"], **model_options)
         llm = llm.with_fallbacks([cheap])
     return llm
 
@@ -103,9 +185,15 @@ def chat(llm, system: str, user: str) -> str:
     Returns the raw response text.
     """
     t0 = time.time()
+    call_id = f"llm_{uuid.uuid4().hex[:10]}"
+    _telemetry("llm call started", call_id=call_id, operation="chat",
+               schema=None, structured_attempts=1)
     messages = [SystemMessage(content=system), HumanMessage(content=user)]
-    text = _invoke_with_retry(lambda: llm.invoke(messages)).content
+    text = _invoke_with_retry(lambda: llm.invoke(messages), call_id=call_id,
+                              operation="chat").content
     _trace("chat", system, user, schema=None, output=text, t0=t0)
+    _telemetry("llm call finished", call_id=call_id, operation="chat",
+               duration_s=round(time.time() - t0, 3))
     return text
 
 
@@ -114,8 +202,8 @@ def chat_with_structured_output(llm, system: str, user: str, schema: type[T]) ->
     `llm.with_structured_output(schema).invoke(...)`.
 
     The model is steered via function calling to return exactly `schema`, and
-    the validated instance is returned. Recovers from DeepSeek's occasional
-    `{"parameters": {...}}` nesting of the tool-call arguments instead of
+    the validated instance is returned. Provider-specific envelopes around the
+    tool-call arguments are unwrapped by `_normalize_structured_args` rather than
     raising a pydantic ValidationError.
 
     `tool_choice` is left as ``"auto"`` rather than forcing the function call:
@@ -130,31 +218,63 @@ def chat_with_structured_output(llm, system: str, user: str, schema: type[T]) ->
     messages = [SystemMessage(content=system), HumanMessage(content=user)]
 
     t0 = time.time()
+    call_id = f"llm_{uuid.uuid4().hex[:10]}"
+    _telemetry("llm call started", call_id=call_id,
+               operation="chat_with_structured_output", schema=schema.__name__,
+               structured_attempts=_STRUCTURED_ATTEMPTS)
     if isinstance(llm, _MockChat):
         # Offline dev run: skip tool binding and return an unvalidated instance.
         result = schema.model_construct()
         _trace("chat_with_structured_output", system, user, schema=schema,
                output=result.model_dump(), t0=t0)
+        _telemetry("llm call finished", call_id=call_id,
+                   operation="chat_with_structured_output", schema=schema.__name__,
+                   duration_s=round(time.time() - t0, 3), offline=True)
         return result
 
     bound = llm.bind_tools([schema], tool_choice="auto")
-    resp = _invoke_with_retry(lambda: bound.invoke(messages))
-    if resp.tool_calls:
-        args = resp.tool_calls[0]["args"]
-        args = _normalize_structured_args(args, schema)
-    else:
+    args = None
+    for attempt in range(_STRUCTURED_ATTEMPTS):
+        _telemetry("llm structured attempt started", call_id=call_id,
+                   schema=schema.__name__, attempt=attempt + 1,
+                   max_attempts=_STRUCTURED_ATTEMPTS)
+        resp = _invoke_with_retry(
+            lambda: bound.invoke(messages), call_id=call_id,
+            operation="chat_with_structured_output", structured_attempt=attempt + 1,
+        )
+        if resp.tool_calls:
+            args = _normalize_structured_args(resp.tool_calls[0]["args"], schema)
+            break
         # Thinking-mode models sometimes answer with the JSON inline (as prose)
-        # instead of emitting a tool call — recover by parsing it from the text
-        # before giving up.
+        # instead of emitting a tool call — recover by parsing it from the text.
         args = _json_from_text(resp.content)
-        if args is None:
-            raise ValueError(
-                f"{schema.__name__}: model returned no parseable structured output"
-            )
+        if args is not None:
+            break
+        # Neither: the model just answered in prose. Since `tool_choice` can't be
+        # forced on these models, the only lever is asking again — measured at
+        # roughly 1 call in 3 on deepseek-reasoner, so one attempt isn't enough.
+        if attempt < _STRUCTURED_ATTEMPTS - 1:
+            _telemetry("llm structured reask", call_id=call_id,
+                       schema=schema.__name__, completed_attempt=attempt + 1,
+                       next_attempt=attempt + 2, reason="no structured tool call or JSON")
+            print(f"[llm] {schema.__name__}: no tool call in response — retrying "
+                  f"({attempt + 1}/{_STRUCTURED_ATTEMPTS - 1})", file=sys.stderr)
+            # This is a corrective re-ask, not an identical replay. Keeping the
+            # assistant response preserves DeepSeek's reasoning_content while the new
+            # user turn states exactly what was invalid and what must come next.
+            messages = messages + _structured_reask_messages(resp, schema.__name__)
+    if args is None:
+        raise ValueError(
+            f"{schema.__name__}: model returned no parseable structured output "
+            f"in {_STRUCTURED_ATTEMPTS} attempts"
+        )
     result = schema.model_validate(_normalize_structured_args(args, schema))
 
     _trace("chat_with_structured_output", system, user, schema=schema,
            output=result.model_dump(), t0=t0)
+    _telemetry("llm call finished", call_id=call_id,
+               operation="chat_with_structured_output", schema=schema.__name__,
+               duration_s=round(time.time() - t0, 3))
     return result
 
 

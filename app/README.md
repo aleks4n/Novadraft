@@ -5,9 +5,10 @@ app from one codebase. It renders the persistent knowledge base
 (`workspace/<slug>/…`) using the *Research Ideation v2* design, and drives the
 **paper agent** as a live, streamed run.
 
-This is separate from the internal `dev/` harness (a debug tool). Phase-1 (paper
-agent: papers, gaps, summaries, topic switching) is wired to real data; Ideas /
-Phases 2–3 are present as placeholders.
+This is separate from the internal `dev/` harness (a debug tool). Phase 1 (paper
+agent: papers, gaps, summaries, topic switching) and the first integrated Phase 2
+flow (orchestrator, investigator, creative thinker, ideas, and sessions) are wired
+to real data.
 
 ```
 app/
@@ -39,12 +40,11 @@ Or run each piece manually — useful for the desktop app, or when you want
 backend/frontend logs in separate terminals. Three pieces; the backend is
 shared by both the web and desktop apps.
 
-**1 — Backend** (from the `code/novadraft` root, so `dev.*`/`src.*` resolve):
+**1 — Backend** (from the `novadraft` root, so `dev.*`/`src.*` resolve):
 
 ```bash
-cd code/novadraft
-python -m uvicorn app.backend.main:app --reload --port 8787
-# `_env_bootstrap` re-execs into the novadraft conda env automatically.
+cd novadraft
+.venv/bin/python -m uvicorn app.backend.main:app --reload --port 8787
 ```
 
 Smoke-test it:
@@ -58,7 +58,7 @@ curl localhost:8787/api/topics/transformers/gaps
 **2 — Web app:**
 
 ```bash
-cd code/novadraft/app/frontend
+cd novadraft/app/frontend
 npm install        # first time
 npm run dev        # http://localhost:5173  (proxies /api → :8787)
 ```
@@ -66,7 +66,7 @@ npm run dev        # http://localhost:5173  (proxies /api → :8787)
 **3 — Desktop app** (optional; needs Rust + Xcode Command Line Tools):
 
 ```bash
-cd code/novadraft/app/frontend
+cd novadraft/app/frontend
 npm run tauri dev    # dev: opens a window on the Vite server (proxies /api)
 npm run tauri build  # bundle: → src-tauri/target/release/bundle/{macos/*.app, dmg/*.dmg}
 ```
@@ -89,9 +89,46 @@ sidecar so the desktop app is self-contained.
   agent (`fetch → extract → summarize → gap`) runs and streams each step inline
   in the Add-paper step. On completion the KB refreshes and the new paper opens.
 
-The AI lives inside these workflow steps, not as a separate chat assistant — so
-there is no standalone agent sidebar. Collaborators / History (and ideation in
-Phases 2–3) are out of scope for now.
+For paper work the AI lives inside the workflow steps rather than in a sidebar —
+run progress shows where the work happens. Ideation is the exception, and
+deliberately so: it is a conversation, so it has its own surface (below).
+Collaborators / History remain out of scope.
+
+## What's live (Phase 2 — idea agent)
+
+- **Ideas** — list, and an **idea page** with two tabs. *Content* is the record as
+  a researcher reads and edits it: the spine (one-liner, description, problem)
+  plus each open section as a collapsible block, editable in place. *Thinking* is
+  the decision-graph window — every recorded run end to end, nodes coloured by
+  status and badged by style, with truncation marked.
+- **Idea graph** — the sidebar's *Research Ideas* header. Gaps on top, the ideas
+  attacking them below, `addresses` plus the typed idea→idea relations, each edge
+  carrying its rationale. Clicking a node opens its page.
+- **Sessions** — one chat-like surface per line of work, stored under
+  `workspace/<slug>/sessions/`. The chat is always on the left; the right is a
+  column of windows you add, remove and resize (graph · loaded context · the agent
+  plan · an idea page · a run trace). Context enters by clicking a graph node, dragging from the
+  nav tree, pasting an id, dropping a file, or the composer's **+** search. It
+  stages above the composer until you send, then joins the session context — lit
+  in the graph and listed in the Loaded Context window.
+- **A turn is planned by the orchestrator.** It reads the message and loaded
+  context, then answers directly or calls the investigator and creative thinker
+  with the mode, width, depth and styles it decides are appropriate. The reply and
+  every proposed idea render together in the transcript.
+- **The plan is shown before it runs.** A turn that would call a subagent stops at
+  its plan: the chat lists each step with the agent it calls *and the arguments it
+  calls it with*, every one of them editable in place (the creative thinker's width
+  and depth above all), and nothing is dispatched until you press **Start** —
+  which runs a second run with the plan as you left it. **Discard** turns it down.
+  The *Agent plan* window carries the same plan read-only, with a live status per
+  step while the run goes. The editor's fields come from the tools' own argument
+  models, so it cannot offer a value the tool would reject.
+- **Accept / dismiss.** Everything a run produces lands as a **working copy** —
+  a real `idea.json` in `sessions/<id>/drafts/`, not in the knowledge base.
+  *Save as an idea* mints an id and writes it; *Accept into the idea* overwrites
+  the record the run modified, carrying the run into its `runs[]`; *Dismiss*
+  records the decision without writing globally. Deleting a session takes its
+  working copies with it.
 
 ## Backend ↔ design mapping
 
@@ -110,3 +147,17 @@ returned `null` and the UI hides those widgets rather than inventing values.
 | GET | `/api/topics/{slug}/papers/{id}` | one paper (full: abstract, survey) |
 | GET | `/api/topics/{slug}/gaps` | mapped gaps |
 | POST | `/api/topics/{slug}/papers/run` | run the paper agent, **SSE** stream |
+| PATCH | `/api/topics/{slug}/ideas/{id}` | hand-edit an idea's spine / sections (never `runs[]`) |
+| GET/POST | `/api/topics/{slug}/sessions` | list / create ideation sessions |
+| GET/PATCH/DELETE | `/api/topics/{slug}/sessions/{id}` | one session (transcript + loaded context) |
+| POST | `/api/topics/{slug}/sessions/{id}/context` | load items into the session context |
+| DELETE | `…/sessions/{id}/context/{kind}/{id}` | unload one item |
+| POST | `…/sessions/{id}/files` | attach a dropped document as context |
+| POST | `…/sessions/{id}/send` | one chat turn → an orchestrator run |
+| POST | `…/sessions/{id}/land` | write the reply onto the transcript + file all offered working copies |
+| GET | `/api/agents/orchestrator/tools` | what the orchestrator can call and the arguments each call takes (the plan editor's fields) |
+| POST | `…/sessions/{id}/plan/approve` | start a proposed plan, with the arguments the user edited |
+| POST | `…/sessions/{id}/plan/cancel` | turn a proposed plan down; nothing runs |
+| GET | `…/sessions/{id}/drafts` | the session's unaccepted working copies |
+| POST | `…/sessions/{id}/drafts/{id}/accept` | write one into the global workspace |
+| DELETE | `…/sessions/{id}/drafts/{id}` | dismiss one and record the decision in the session |

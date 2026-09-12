@@ -1,8 +1,0 @@
-{
-  "category_slug": "computer_vision",
-  "name": "Computer vision",
-  "description": "Computer vision tasks include methods for acquiring, processing, analyzing, and understanding digital images, and extraction of high-dimensional data from the real world in order to produce numerical or symbolic information, e.g. in the form of decisions. \"Understanding\" in this context signifies the transformation of visual images into descriptions of the world that make sense to thought processes and can elicit appropriate action.",
-  "source_url": "https://en.wikipedia.org/wiki/Computer_vision",
-  "created_at": "2026-07-21T07:32:48Z",
-  "updated_at": "2026-07-21T07:32:48Z"
-}

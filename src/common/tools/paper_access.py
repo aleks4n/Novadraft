@@ -40,6 +40,27 @@ def get_venue(category_slug: str, paper_id: str) -> Optional[str]:
     return paper.metadata.venue if paper else None
 
 
+def get_venue_acronyms(category_slug: str, paper_id: str) -> List[str]:
+    """Venue acronyms as the enrichment provider reported them (["ICLR"], ["NeurIPS"]);
+    empty when the paper has not been enriched. Preferred over the ranking agent's LLM
+    name->acronym resolver, which only ever sees the messy venue string."""
+    paper = get_paper(category_slug, paper_id)
+    return list(paper.metadata.venue_acronyms) if paper else []
+
+
+def get_venue_type(category_slug: str, paper_id: str) -> Optional[str]:
+    """Venue kind ("conference", "journal", "workshop"); None if unknown. Lets the
+    ranking agent refuse to score a workshop with its host conference's rank."""
+    paper = get_paper(category_slug, paper_id)
+    return paper.metadata.venue_type if paper else None
+
+
+def get_citation_count(category_slug: str, paper_id: str) -> Optional[int]:
+    """Citation count from the last enrichment; None if never enriched."""
+    paper = get_paper(category_slug, paper_id)
+    return paper.metadata.citation_count if paper else None
+
+
 def get_keywords(category_slug: str, paper_id: str) -> List[str]:
     """The source paper's anchor terms: `summary.keywords` followed by
     `summary.topics`, deduped in order. Empty when the paper has no summary yet.

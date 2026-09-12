@@ -15,7 +15,9 @@ check — so a run's tree always shows *some* grounding leaf under "critic" for
 either subagent.
 
 It runs inside the `critic` graph node, so its LLM call and that grounding leaf
-nest under that node in the dev UI's run tree.
+nest under that node in the dev UI's run tree. The critic uses the faster
+``cheap`` role: it only classifies and checks already-grounded candidates, while
+the stronger ``reasoner`` remains responsible for proposing the gaps.
 """
 from __future__ import annotations
 
@@ -140,7 +142,9 @@ def run_critic(sections: dict[str, str], inline_section_names: list[str],
 
     user_prompt = build_critic_prompt(sections, inline_section_names, candidates,
                                       open_issues=open_issues, open_hints=open_hints)
-    raw = chat_with_structured_output(get_llm("reasoner"), CRITIC_SYSTEM_PROMPT, user_prompt, GapCritique).model_dump()
+    raw = chat_with_structured_output(
+        get_llm("cheap"), CRITIC_SYSTEM_PROMPT, user_prompt, GapCritique
+    ).model_dump()
     raw_issues = raw.get("issues") or []
     valid_issues = [issue for issue in raw_issues if issue.get("gap_id") in live_gap_ids]
     if len(valid_issues) != len(raw_issues):
