@@ -1,18 +1,17 @@
 """What happens on one turn — every scenario the orchestrator can take, recorded.
 
-Each test drives a real turn through the real graph with the two LLM steps and the two
-subagents replaced by recorders. What is exercised is therefore all of the orchestrator's
-own logic — routing, context assembly, step chaining, budget slicing, the accept gate —
-while the parts that would cost money and vary run to run are pinned.
+Each test drives a real turn through the real graph with the two LLM steps and the
+two subagents replaced by recorders, so all of the orchestrator's own logic —
+routing, context assembly, step chaining, budget slicing, the accept gate — is
+exercised while the parts that would cost money and vary run to run are pinned.
 
-The recorder captures **who called whom with what**, so a test asserts the call chain
-rather than only the end state: that the thinker was handed exactly one idea in refinement
-mode, that a chained step received the previous step's output, that a skipped step never
-reached a subagent at all. `dev/record_flows.py` replays these same scenarios to write
-the flows document, so the depiction and the assertions cannot drift apart.
+The recorder captures who called whom with what, so a test asserts the call chain
+rather than only the end state: that the thinker was handed exactly one idea in
+refinement mode, that a chained step received the previous step's output, that a
+skipped step never reached a subagent at all.
 
-Nothing here touches the real workspace: `NOVADRAFT_WORKSPACE` is pointed at a tmp dir per
-test, seeded with one gap and one idea.
+Nothing here touches the real workspace: ``NOVADRAFT_WORKSPACE`` is pointed at a tmp
+dir per test, seeded with one gap and one idea.
 """
 
 from __future__ import annotations

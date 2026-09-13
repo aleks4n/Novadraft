@@ -30,7 +30,7 @@ independent recursion budget), and the pipeline strip shows the validator as one
 aggregate stage — the per-gap detail is read back from disk on the paper page.
 
 ``run(category_slug, query, force=False)`` streams the whole graph through the
-shared ``GraphRunLog`` (same ``.jsonl`` the dev harness/app produce), so the app's
+shared ``GraphRunLog`` (the same ``.jsonl`` the app produces), so the app's
 "Add paper" flow renders the entire pipeline live from one SSE stream.
 """
 from __future__ import annotations

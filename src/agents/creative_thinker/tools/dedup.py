@@ -1,14 +1,12 @@
-"""Deduplication — against the batch *and* against the ideas already in context.
+"""Deduplication — against the batch and against the ideas already in context.
 
 Generation has no LLM judge: candidates are not filtered for quality, only for
-being the same idea twice. Two things count as "already there":
+being the same idea twice. Two things count as already present:
 
 - another candidate in this fan-out (batch dedup), and
-- an idea the plan loaded into the context (context dedup) — re-proposing an idea
-  the workspace already holds is the failure mode this exists to prevent.
+- an idea the plan loaded into the context (context dedup).
 
-Deterministic on purpose: it is what the "``generation`` with ``n = k`` returns
-``k`` deduplicated drafts" test actually asserts.
+Deterministic, so ``generation`` with ``n = k`` returns ``k`` deduplicated drafts.
 """
 
 from __future__ import annotations

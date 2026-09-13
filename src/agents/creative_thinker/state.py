@@ -1,23 +1,18 @@
 """The creative thinker's graph state — what flows between its nodes.
 
-``total=False`` so each node returns only the keys it sets. Two things are worth
-knowing about it:
+``total=False`` so each node returns only the keys it sets.
 
-- The **working copy** (``idea``) is a deep copy of the caller's snapshot, made in
+- The working copy (``idea``) is a deep copy of the caller's snapshot, made in
   ``prepare``. Every content edit lands on that copy; the caller's object is never
-  touched, which is the isolation property the whole design exists to guarantee.
-- ``trace`` and ``ledger`` are *live objects* mutated in place as the run goes, not
+  touched.
+- ``trace`` and ``ledger`` are live objects mutated in place as the run goes, not
   values passed between nodes. They are returned once by ``prepare`` and then
   written through, so the thinking graph and the budget stay in one place even
   when a subgraph node owns the loop.
 
-Nothing here is persisted mid-run: partial state lives in the loop, and only
-``assemble`` produces something the caller can keep.
-
-``summary`` is built here rather than derived later for one reason: only the nodes
-know why a branch was dropped, and the summary is the form that survives into the
-next run's prompt. Deriving it after the fact would mean re-reading the graph to
-recover something the graph had already said.
+Nothing here is persisted mid-run; only ``assemble`` produces something the caller
+can keep. ``summary`` is built by the nodes, since only they know why a branch was
+dropped.
 """
 
 from __future__ import annotations

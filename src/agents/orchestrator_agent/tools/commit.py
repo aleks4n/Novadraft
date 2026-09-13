@@ -1,16 +1,15 @@
 """The accept step — the only path from a draft to the idea graph.
 
-Not a graph node: accepting needs no LLM, no plan and no reflection, so it is a plain
-function the API calls when the user decides. Nothing an agent produced reaches `ideas/`
-without passing through here, which is what makes "an idea node is created only by an
-explicit user action" true mechanically rather than by convention.
+Not a graph node: accepting needs no LLM, no plan and no reflection, so it is a
+plain function the API calls when the user decides. Nothing reaches ``ideas/``
+without passing through here.
 
-The write itself is `idea_agent.apply_envelope`, which mints the `idea_id` at the moment
-of acceptance, attaches the typed relation back to the parent, and records what was
-*refused* on the parent's run outcome so the same branch is not proposed again. What this
-module adds is the rule that survives from the orchestrator's own commit path: **only what
-a named run actually offered may be written.** Ids are checked against that run's stored
-result, so a request naming something the run never produced writes nothing.
+The write itself is ``idea_agent.apply_envelope``, which mints the ``idea_id`` at
+the moment of acceptance, attaches the typed relation back to the parent, and
+records what was refused on the parent's run outcome. What this module adds is the
+rule that only what a named run actually offered may be written: ids are checked
+against that run's stored result, so a request naming something the run never
+produced writes nothing.
 """
 
 from __future__ import annotations

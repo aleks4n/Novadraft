@@ -1,34 +1,26 @@
-"""`idea.json` — the record an idea is developed in, and the graph of its own thinking.
+"""``idea.json`` — the record an idea is developed in, and the graph of its own
+thinking.
 
-**Field names and enums here follow the design of record**, the vault note
-`Agent System/Idea Agent/Creative Thinker (Tree of Thoughts)/idea.json` — including
-`edges[].from` / `.to`, `relations[].target` / `.run`, `header.agent_styles`, the
-`root | derived | merge | provisional` idea states, `provenance` as a *list* of tagged
-claims, and `run_id` / `session_id` / `timestamp` on the run entry rather than in its
-header. Anything this file adds beyond that note is additive and marked as such.
+Four parts, with different rigidity:
 
-Four parts, with deliberately different rigidity:
-
-- **spine** — `idea_id`, `title`, `state`, `one_liner`, `description`, `problem`,
-  `addresses`, `relations`. Fixed, validated, and the only part the idea-graph panel
-  reads. A
-  *draft* (an idea with no workspace identity yet) is the same model with
-  `idea_id = None` and `state = "provisional"` — minting an id is the orchestrator's job.
-- **`sections`** — open. Lowercase slug keys, markdown or list values. **Deliberately
-  not validated**: validating it would remove the flexibility the format exists for.
-- **`evaluation` / `provenance`** — many writers, one record. Each agent owns its block
-  and *appends*; nobody rewrites another's. Any factual claim entering the description is
-  tagged with its source and the agent that brought it in.
-- **`runs`** — the thinking graph. Mandatory and **append-only**: one entry per
-  creative-thinker invocation. Consecutive runs concatenate into one continuous graph —
-  generation run, then refinements weeks apart, then a split — so the file *is* the
-  history of how the idea came to be. Never edited: the graph is evidence, and a
-  rewritten trace is worthless. Each entry also carries a `RunSummary` — the
-  compressed form, and the only part a *later* run reads, so the prompt does not grow
-  with the file.
+- **spine** — ``idea_id``, ``title``, ``state``, ``one_liner``, ``description``,
+  ``problem``, ``addresses``, ``relations``. Fixed, validated, and the only part
+  the idea-graph panel reads. A draft (an idea with no workspace identity yet) is
+  the same model with ``idea_id = None`` and ``state = "provisional"``; minting an
+  id is the orchestrator's job.
+- **``sections``** — open. Lowercase slug keys, markdown or list values. Not
+  validated.
+- **``evaluation`` / ``provenance``** — many writers, one record. Each agent owns
+  its block and appends; nobody rewrites another's. Any factual claim entering the
+  description is tagged with its source and the agent that brought it in.
+- **``runs``** — the thinking graph. Mandatory and append-only: one entry per
+  creative-thinker invocation, so consecutive runs concatenate into one continuous
+  graph. Never edited. Each entry also carries a ``RunSummary`` — the compressed
+  form, and the only part a later run reads, so the prompt does not grow with the
+  file.
 
 Nothing here writes to disk. Persistence is the orchestrator's (see
-`src/agents/idea_agent/apply.py`), and it is the only writer.
+``src/agents/idea_agent/apply.py``), and it is the only writer.
 """
 
 from __future__ import annotations

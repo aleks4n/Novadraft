@@ -1,21 +1,19 @@
-"""summarize · extractor subagent (Stage 3): one stateless LLM pass.
+"""summarize · extractor subagent (Stage 3) — one stateless LLM pass.
 
-Reads `content.sections` from paper.json, calls the LLM once with a structured
-JSON-output prompt, and writes the result to `paper.json::summary`. Called
-repeatedly by the summarize subgraph's extractor↔critic cycle (see
-`summarize/agent.py`) on a regenerate round, with `feedback` from the critic
-*and* the previous summary itself appended to the prompt.
+Reads ``content.sections`` from paper.json, calls the LLM once with a structured
+JSON-output prompt, and writes the result to ``paper.json::summary``. Called
+repeatedly by the summarize subgraph's extractor↔critic cycle on a regenerate
+round, with ``feedback`` from the critic and the previous summary appended to the
+prompt.
 
-On a feedback round the LLM is constrained to `PaperSummaryPatch` — only the
-top-level fields named by the critique's `field` paths — and the result is
-merged into the existing summary in code (`dict.update`), not written
-wholesale. A field no issue mentioned is therefore never touched, regardless
-of what the model does or doesn't echo back.
+On a feedback round the LLM is constrained to ``PaperSummaryPatch`` — only the
+top-level fields named by the critique's ``field`` paths — and the result is merged
+into the existing summary in code (``dict.update``), so a field no issue mentioned
+is never touched.
 
-`run_extract` is a pure pass: no graph/loop knowledge. It runs inside the
-`extractor` graph node, so the LLM call it makes (via `src/llm/registry.py`)
-and the informational events it emits show up nested under that node in the
-dev UI's run tree automatically.
+``run_extract`` is a pure pass with no graph/loop knowledge. It runs inside the
+``extractor`` graph node, so its LLM call (via ``src/llm/registry.py``) and the
+events it emits nest under that node in the run tree.
 """
 from __future__ import annotations
 

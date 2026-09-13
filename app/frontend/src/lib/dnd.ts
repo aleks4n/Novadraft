@@ -1,10 +1,9 @@
 // Dragging a workspace item into a session.
 //
-// Context enters a session four ways (vault: *Global Context & Session Loading*):
-// clicking an element in the panel, dragging it into the conversation, pasting an
-// id, and the agent loading more mid-run. The first three all end up here — one
-// MIME type, one payload shape, so any surface can be a drag source and the
-// composer only has to understand one thing.
+// Context enters a session by clicking an element in the panel, dragging it into
+// the conversation, pasting an id, or the agent loading more mid-run. The first
+// three all end up here — one MIME type, one payload shape, so any surface can be a
+// drag source and the composer only has to understand one thing.
 
 export const REF_MIME = "application/x-novadraft-ref";
 

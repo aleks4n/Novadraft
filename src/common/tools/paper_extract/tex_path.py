@@ -1,8 +1,8 @@
 """Tex extraction path.
 
-Strategy: regex-based passes, no full LaTeX parser. We preserve math, tables,
-and algorithm environments verbatim; strip preamble and pure-formatting
-commands; resolve \\input recursively; rewrite citations/refs to stable tokens.
+Regex-based passes, no full LaTeX parser: math, tables and algorithm environments
+are preserved verbatim; the preamble and pure-formatting commands are stripped;
+``\\input`` is resolved recursively; citations/refs are rewritten to stable tokens.
 """
 from __future__ import annotations
 

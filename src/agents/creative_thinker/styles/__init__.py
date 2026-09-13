@@ -1,15 +1,12 @@
-"""The agent-style roster — the diversity mechanism, and it is prompts, not temperature.
+"""The agent-style roster — diversity expressed as prompts.
 
-A style is a *way of thinking*: a stance, its preferred moves, what it considers a
+A style is a way of thinking: a stance, its preferred moves, what it considers a
 good idea, and what it refuses to do. Each lives in its own ``<name>.md`` beside
-this file so the roster can be tuned without touching Python, and a style may
-carry its own model and decoding settings (:class:`AgentStyle`).
+this file, and a style may carry its own model and decoding settings
+(:class:`AgentStyle`).
 
-Every thought node records the style that produced it, which is what makes the
-roster measurable over time — "which stance produced the branches that survived".
-
-**Breadth wants variety, depth wants consistency**: generation fans out over
-distinct styles (:func:`pick_styles`), refinement runs one, usually ``neutral``.
+Every thought node records the style that produced it. Generation fans out over
+distinct styles (:func:`pick_styles`); refinement runs one, usually ``neutral``.
 """
 
 from __future__ import annotations

@@ -1,5 +1,5 @@
-// API client for the ideation backend. Reads are plain fetch; the paper-agent
-// run is an SSE stream (the reader mirrors dev/static/index.html::runStreaming).
+// API client for the ideation backend. Reads are plain fetch; an agent run is an
+// SSE stream.
 
 import type {
   AgentPlan, ChatMessage, ContextRef, Idea, Paper, RunEvent, RunMeta, Session,

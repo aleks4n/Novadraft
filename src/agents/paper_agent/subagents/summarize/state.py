@@ -1,22 +1,20 @@
-"""The summarize subgraph's state — what flows between its nodes.
+"""The summarize subgraph state — what flows between its nodes.
 
-A LangGraph TypedDict; `total=False` so each node returns only the keys it sets.
-The flow is a bounded extractor↔critic cycle:
+A LangGraph ``TypedDict``; ``total=False`` so each node returns only the keys it
+sets. The flow is a bounded extractor↔critic cycle::
 
     enter → extractor → critic → (route: regenerate? → extractor : → finalize) → END
 
-The loop-carry keys (attempt, feedback, persisted issues/hints, prev_signature,
-regenerated, critique) are exactly the locals the old imperative
-`summarize.summarize()` `while` loop carried between iterations — moved into
-state so the cycle's nodes can read/update them.
+The loop-carry keys are attempt, feedback, persisted issues/hints, prev_signature,
+regenerated and critique.
 
-This graph is also mounted as a node inside the parent `paper_agent` graph, so
-its state shares keys with `PaperState`. The shared keys are the inputs
-(`category_slug`/`paper_id`/`force`) and the single output `summary_result`,
-which flows back into the parent. Everything else is subgraph-private. In
-particular this stage's own extractor output is `summarize_extract`, NOT
-`extract_result` — `PaperState.extract_result` is the parent's section
-extraction, and a shared name would clobber it on the way out.
+This graph is also mounted as a node inside the parent ``paper_agent`` graph, so
+its state shares keys with ``PaperState``: the inputs
+(``category_slug``/``paper_id``/``force``) and the single output
+``summary_result``. Everything else is subgraph-private. This stage's own extractor
+output is ``summarize_extract``, not ``extract_result`` —
+``PaperState.extract_result`` is the parent's section extraction, and a shared name
+would clobber it on the way out.
 """
 from __future__ import annotations
 

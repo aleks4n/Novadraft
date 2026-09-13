@@ -1,17 +1,16 @@
 """Deep Read (LLM, cheap) — Stage 5 of the validator.
 
 Walks the ranked shortlist, downloads each paper's full text, and reads it against
-the gap — one LLM call and one PaperAssessment **per paper**. Takes the first
-`target` papers whose source resolves; fetch/extraction failures are skipped and
-backfilled by the next-ranked paper (their ids go to `skipped_ids`), so one bad paper
-never aborts the whole gap.
+the gap — one LLM call and one ``PaperAssessment`` per paper. Takes the first
+``target`` papers whose source resolves; fetch/extraction failures are skipped and
+backfilled by the next-ranked paper (their ids go to ``skipped_ids``), so one bad
+paper never aborts the whole gap.
 
-Each candidate is fetched once into a shared hidden cache category (`_validator_cache`)
-via paper_fetch + paper_extract, then read from its paper.json; cache hits are reused
-across gaps. Reads use the fast `cheap` model (deepseek-chat) rather than the reasoner —
-full-paper comprehension it handles well while keeping each gap's latency down — and the
-per-paper LLM reads (the bulk of deep_read's latency) run concurrently, bounded by
-`_MAX_PARALLEL_READS`; transient provider errors are retried inside the registry.
+Each candidate is fetched once into a shared hidden cache category
+(``_validator_cache``) via paper_fetch + paper_extract, then read from its
+paper.json; cache hits are reused across gaps. Reads use the ``cheap`` role, and the
+per-paper LLM reads run concurrently, bounded by ``_MAX_PARALLEL_READS``; transient
+provider errors are retried inside the registry.
 """
 
 from __future__ import annotations

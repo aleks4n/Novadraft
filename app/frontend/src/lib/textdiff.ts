@@ -1,17 +1,11 @@
 // Segment-level diff between two versions of one field or section.
 //
-// A run's result view used to say only *that* a block was rewritten. For a
-// six-line description that is close to useless: the reader has to re-read the
-// whole block and reconstruct the change themselves. So the block is rendered as
-// the diff — what the run deleted struck through, what it wrote marked — and the
-// prose that survived untouched stays plain, which is what makes the change
-// visible at a glance.
+// A changed block is rendered as the diff — what the run deleted struck through,
+// what it wrote marked — with untouched prose left plain.
 //
-// The unit is a **segment**: a list item, a markdown line, or a sentence inside a
-// line. Lines alone are the wrong granularity for prose (a rewritten paragraph is
-// one line, so a line diff reports "everything changed" and says nothing); words
-// are too fine (a re-worded sentence becomes confetti). Sentences are the unit a
-// researcher actually compares.
+// The unit is a segment: a list item, a markdown line, or a sentence inside a line.
+// Lines alone are too coarse for prose (a rewritten paragraph is one line); words
+// are too fine (a re-worded sentence becomes confetti).
 
 export type DiffOp = "same" | "ins" | "del";
 

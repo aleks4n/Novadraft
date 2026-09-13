@@ -1,12 +1,8 @@
 """What a step can see: the workspace index, and how loaded records reach the thinker.
 
-Two failures these cover, both of which were silent:
-
-- The thinker's context renderer picked one "body" field per record and dropped the rest,
-  so a gap arrived without the evidence quote it rests on and a paper without its summary.
-  Nothing raised; the runs were just thinner than they should have been.
-- Nothing told a step what the workspace held beyond its own slice, so it could not know
-  there was anything to ask for.
+Covers that the thinker's context renderer keeps each record type's own material (a
+gap's evidence quote, a paper's summary), and that the catalog tells a step what
+the workspace holds beyond its own slice.
 """
 from __future__ import annotations
 

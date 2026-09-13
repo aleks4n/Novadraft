@@ -1,5 +1,4 @@
-// Inline SVG icons — thin-stroke, monoline aesthetic. Ported verbatim from the
-// Research Ideation v2 design bundle.
+// Inline SVG icons — thin-stroke, monoline aesthetic.
 import type { ReactElement } from "react";
 
 const PATHS: Record<string, ReactElement> = {

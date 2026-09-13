@@ -281,8 +281,8 @@ export interface Idea {
   addresses: string[];
   relations: IdeaRelation[];
   // Set when this record's content was copied from a parent (a child or a
-  // variant). Spine-level per the design of record: it is a claim about the
-  // *record* — which parts were not independently arrived at — where `origin` is
+  // variant). Spine-level: it is a claim about the *record* — which parts were
+  // not independently arrived at — where `origin` is
   // a claim about the run that produced the idea.
   inheritedFrom: { ideaId: string | null; uptoRunId: string | null } | null;
   // open part
@@ -333,7 +333,7 @@ export interface TopicBundle {
   rankingConfig?: RankingConfig;  // view-time ranking knobs (defaults from the agent config)
 }
 
-// One flat run event (dev/runlog.py shape), forwarded over SSE.
+// One flat run event (src/common/utils/logging/runlog.py shape), forwarded over SSE.
 export interface RunEvent {
   seq: number;
   t: string;
@@ -420,8 +420,8 @@ export interface RunState {
 
 // --- sessions ------------------------------------------------------------------
 // A session is the chat-like surface idea work happens in. It owns its transcript,
-// its loaded context and the ids of every artefact it touched (vault: *Global
-// Context & Session Loading*), stored at workspace/<slug>/sessions/<id>.json.
+// its loaded context and the ids of every artefact it touched, stored at
+// workspace/<slug>/sessions/<id>.json.
 
 export type ContextKind = "gap" | "idea" | "paper" | "file" | "note";
 

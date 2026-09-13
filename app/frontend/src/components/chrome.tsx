@@ -1,6 +1,6 @@
 // Shared view chrome — header (title + actions) and tab buttons.
-// Ported from the design's ViewHeader / TabButton. The breadcrumb a view passes
-// is not drawn here: it is published to the top nav bar, which owns the path.
+// The breadcrumb a view passes is not drawn here: it is published to the top nav
+// bar, which owns the path.
 import type { ReactNode } from "react";
 import { Icon } from "./Icon";
 import { usePublishBreadcrumb } from "../lib/breadcrumb";

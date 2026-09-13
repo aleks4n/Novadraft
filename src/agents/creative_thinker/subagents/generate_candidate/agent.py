@@ -1,8 +1,7 @@
 """generate_candidate (LLM) — one styled thinker, one rough candidate.
 
 The generation fan-out calls this ``n`` times, once per style, with no shared
-state: each call sees the same brief and its own stance, which is what makes the
-batch diverse in a way temperature cannot.
+state: each call sees the same brief and its own stance.
 """
 
 from __future__ import annotations
@@ -60,9 +59,8 @@ def _ensure_usable(candidate: Candidate, style: AgentStyle, context_md: str) -> 
     """Keep an empty model response from collapsing the whole batch into one node.
 
     The offline mock model (no API key configured) returns a defaults-only
-    object; without this every style would produce byte-identical text, dedup
-    would fold them into a single candidate, and a dev run would look broken
-    rather than un-configured. The filler is clearly labelled as such.
+    object; without this every style would produce byte-identical text and dedup
+    would fold them into a single candidate. The filler is labelled as such.
     """
     if (candidate.title or candidate.description).strip():
         return candidate

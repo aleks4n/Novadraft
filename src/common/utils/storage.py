@@ -47,10 +47,9 @@ def now_iso() -> str:
 
 
 def agent_log_dir(category_slug: str, agent: str) -> Path:
-    """Directory a given agent's run-tree logs are written to, for a workspace.
+    """Directory a given agent's run logs are written to, for a workspace.
 
-    The dev UI assembles each streamed run into a tree and persists it here so a
-    finished run can be reopened from history (see dev/ui.py)."""
+    A finished run can be reopened from history by reading its file back."""
     return category_dir(category_slug) / "logs" / agent
 
 
@@ -167,6 +166,45 @@ def paper_json_path(category_slug: str, paper_id: str) -> Path:
     """Where a paper's record lives. Exposed for callers that need the file's mtime to
     decide whether a derived index is stale, without reading the record itself."""
     return paper_dir(category_slug, paper_id) / "paper.json"
+
+
+def fully_extracted_papers(category_slug: str) -> list[str]:
+    """Papers whose PDF has been through extraction — the ones downstream stages can read.
+
+    A paper exists on disk from the moment it is fetched, so `list_paper_ids` also names
+    records that are still just metadata. Anything that needs the full text (summarize,
+    gap extraction, a paper count shown to the researcher) wants this list instead."""
+    pdir = papers_dir(category_slug)
+    if not pdir.exists():
+        return []
+    out = []
+    for d in sorted(pdir.iterdir()):
+        rec = read_paper_json(category_slug, d.name)
+        if rec and rec.get("processing", {}).get("extracted"):
+            out.append(d.name)
+    return out
+
+
+def list_workspaces() -> list[dict]:
+    """All categories under the workspace root, with their extracted-paper count.
+
+    A directory counts as a workspace only once it has a `meta.json` (the record the
+    category agent writes); leading-underscore names are internal caches, not topics —
+    e.g. the validator's `_validator_cache`."""
+    root = workspace_root()
+    if not root.exists():
+        return []
+    out = []
+    for d in sorted(root.iterdir()):
+        if d.name.startswith("_"):
+            continue
+        if not d.is_dir() or not (d / "meta.json").exists():
+            continue
+        out.append({
+            "category_slug": d.name,
+            "n_extracted_papers": len(fully_extracted_papers(d.name)),
+        })
+    return out
 
 
 # --- ideas/<idea_id>.json ----------------------------------------------------

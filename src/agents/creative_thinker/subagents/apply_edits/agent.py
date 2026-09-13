@@ -1,14 +1,11 @@
 """apply_edits (LLM) — write the surviving reasoning back, and answer the task.
 
-The one place a refinement run changes the idea's *content*, and the one place it
-produces its reply. Both come from the same call because they are the same act of
-writing-up: a run asked "would this work for video?" answers in prose and, if the
-answer changed the idea, edits it — asking twice would let the two disagree.
+The one place a refinement run changes the idea's content and produces its reply;
+both come from the same call.
 
-The edits arrive as **named operations** and are applied deterministically by
-:func:`apply_ops`. A section the model did not mention is still left alone; a
-section it wants gone has to be named in a ``delete``. That asymmetry is the point:
-growing the record should be easy and shrinking it should be deliberate.
+The edits arrive as named operations and are applied deterministically by
+:func:`apply_ops`. A section the model did not mention is left alone; a section it
+wants removed has to be named in a ``delete``.
 """
 
 from __future__ import annotations

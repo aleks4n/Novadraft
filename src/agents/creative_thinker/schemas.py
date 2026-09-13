@@ -1,15 +1,15 @@
-"""Creative thinker — the call spec, the result envelope, and the LLM leaf outputs.
+"""Creative thinker — call spec, result envelope, and LLM leaf outputs.
 
-Three groups, kept apart on purpose:
+Three groups:
 
 1. **Inputs** — :class:`ThinkerCall`, the slots the orchestrator fills (mode, idea,
    context, task, styles, width, depth, tool_use) plus a :class:`Budget`. Fully
-   serializable, so the dev harness can hand one over as JSON.
-2. **Output** — :class:`Envelope`, the single return value. Identical shape in
-   both modes, and always complete: even a run that accepted nothing returns a
-   valid ``idea`` with its trace appended and an empty ``drafts``.
-3. **Leaf outputs** — the structured shapes the four LLM subagents are forced to
-   return. Every field has a default so an offline/mock model still yields a
+   serializable.
+2. **Output** — :class:`Envelope`, the single return value. Identical shape in both
+   modes and always complete: even a run that accepted nothing returns a valid
+   ``idea`` with its trace appended and an empty ``drafts``.
+3. **Leaf outputs** — the structured shapes the four LLM subagents must return.
+   Every field has a default, so an offline/mock model still yields a
    structurally valid object.
 """
 
@@ -110,8 +110,7 @@ class ThinkerCall(BaseModel):
     def _accept_legacy_n(cls, data: Any) -> Any:
         """A caller still passing ``n`` gets it read onto the axis it used to mean.
 
-        Kept because the dev fixtures, the dev UI form and any stored plan predate
-        the split; an explicit ``width``/``depth`` always wins over it.
+        An explicit ``width``/``depth`` always wins over it.
         """
         if not isinstance(data, dict) or "n" not in data:
             return data

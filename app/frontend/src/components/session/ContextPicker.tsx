@@ -1,11 +1,11 @@
 // The **+** button's window: everything in the workspace that can enter a
 // session's context, searchable, multi-select.
 //
-// It is the same selection the graph panel and drag-and-drop make — this is just
-// the path for the case those two are bad at: finding one paper among sixty by
-// name. A paper/note/file already loaded is shown but not selectable — loading it
-// twice is a no-op. A gap/idea already loaded stays selectable: picking it again is
-// how you tell the agent this turn is about it, same as clicking it in the graph.
+// The same selection the graph panel and drag-and-drop make, for the case those
+// are bad at: finding one paper among sixty by name. A paper/note/file already
+// loaded is shown but not selectable — loading it twice is a no-op. A gap/idea
+// already loaded stays selectable: picking it again tells the agent this turn is
+// about it, same as clicking it in the graph.
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../Icon";
 import { useWorkspace } from "../../lib/store";

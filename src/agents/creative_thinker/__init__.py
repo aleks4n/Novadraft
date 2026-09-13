@@ -1,12 +1,10 @@
-"""Creative thinker — the divergent worker of the idea agent.
+"""Creative thinker package — registry manifest and public entry points.
 
-Produces and develops candidate ideas rather than answering questions. Pure and
-callable: :func:`think` returns an :class:`Envelope` and touches nothing else.
+The divergent worker of the idea agent: it produces and develops candidate ideas.
+:func:`think` returns an :class:`Envelope` and writes nothing.
 
-The manifest declares **no** ``workspace_field`` on purpose. Every other agent
-logs into ``workspace/<slug>/logs/``; this one has no workspace at all, so the
-harness falls back to its own graph-log directory and the agent's isolation is
-visible in the registration itself.
+The manifest declares no ``workspace_field``: this agent has no workspace of its
+own, so run logs fall back to the shared graph-log directory.
 """
 
 from .agent import build_creative_thinker_graph, input_adapter, post_run, run, think

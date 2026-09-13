@@ -1,28 +1,26 @@
 """PaperAgent — the top-level LangGraph that runs one paper through the pipeline.
 
-Wires the stages in sequence:
+Wires the stages in sequence::
 
     START → fetch → [ambiguous? → END] → extract → summarize → gap → assemble → END
 
-- `fetch` / `extract` are deterministic common tools (shared with other agents).
-- `summarize` / `gap` ARE their subgraphs, mounted directly as nodes (each
-  owns its own bounded extractor↔critic cycle — see `subagents/summarize/agent.py`
-  and `subagents/gap/agent.py`). Because they're real subgraph nodes,
-  `get_graph(xray=True).draw_mermaid()` expands them inline inside this graph's
-  diagram, and with `stream(stream_mode=[...], subgraphs=True)` every internal
-  extractor/critic step and LLM call streams through nested under this graph
-  (see `src/common/utils/logging/trace.py` and `src/common/utils/logging/runlog.py`).
+- ``fetch`` / ``extract`` are deterministic common tools, shared with other agents.
+- ``summarize`` / ``gap`` are subgraphs mounted directly as nodes, each owning its
+  own bounded extractor↔critic cycle (see ``subagents/summarize/agent.py`` and
+  ``subagents/gap/agent.py``). Being real subgraph nodes,
+  ``get_graph(xray=True).draw_mermaid()`` expands them inline in this graph's
+  diagram, and with ``stream(stream_mode=[...], subgraphs=True)`` every internal
+  extractor/critic step and LLM call streams nested under this graph (see
+  ``src/common/utils/logging/trace.py`` and ``src/common/utils/logging/runlog.py``).
 
-  The subgraphs share state keys with `PaperState`: the inputs
-  (`category_slug`/`paper_id`/`force`) flow in, and each writes back exactly one
-  output key — `summary_result` / `gaps_result`. Their loop-internal keys are
-  private to each subgraph and never touch this state (see their `state.py`).
+  The subgraphs share state keys with ``PaperState``: the inputs
+  (``category_slug``/``paper_id``/``force``) flow in, and each writes back exactly
+  one output key — ``summary_result`` / ``gaps_result``. Their loop-internal keys
+  are private to each subgraph (see their ``state.py``).
 
-`run(category_slug, query, force=False)` streams the graph through a
-`GraphRunLog` (the shared stream→record→file engine), writing the same per-run
-`.jsonl` the dev harness/app produce and echoing progress to the terminal, then
-returns the result dict. The dev UI and app backend stream the same graph the
-same way to render progress live — one logging implementation for all three.
+``run(category_slug, query, force=False)`` streams the graph through a
+``GraphRunLog``, writing the per-run ``.jsonl``, echoing progress to the terminal,
+and returning the result dict.
 """
 from __future__ import annotations
 
@@ -159,11 +157,11 @@ def run(category_slug: str, query: str, force: bool = False, *,
     """Fetch a paper into ``category_slug`` and run it through extract,
     summarize+critique, and gap extraction+critique. Returns the fetch result
     as-is if the fetch was ambiguous (no paper stored). Standalone-callable
-    (the dev harness and eval pipeline import it directly).
+    (callers import it directly).
 
     By default (``stream=True``) the agent owns its own logging: it streams the
     graph through a :class:`~src.common.utils.logging.runlog.GraphRunLog`, writing the
-    *same* per-run ``.jsonl`` the dev harness/app produce to
+    *same* per-run ``.jsonl`` the app produces to
     ``workspace/<slug>/logs/paper_agent/``, and echoes progress to the terminal
     when attached to a TTY (override with ``echo=True/False``). Pass
     ``stream=False`` for a quiet, log-free ``.invoke()`` (used by the eval

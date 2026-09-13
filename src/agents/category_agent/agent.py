@@ -1,27 +1,22 @@
-"""Category agent — bootstrap a workspace from just a topic name.
+"""Category agent — bootstrap a workspace from a topic name.
 
-The pipeline's entry point: everything downstream (paper, director, validator,
-ranking) keys off a category *slug* and refuses to run until that category has a
-``meta.json`` (see ``storage.ensure_category``). Nothing else creates it — this
-agent does. Given a topic like ``"Machine Learning"`` it:
+Everything downstream (paper, director, validator, ranking) keys off a category
+*slug* and requires that category to have a ``meta.json`` (see
+``storage.ensure_category``). This agent creates it. Given a topic like
+``"Machine Learning"`` it:
 
-1. **describe** — asks the LLM (the fast ``cheap`` role, no reasoning model) for
-   a corrected spelling of the topic name plus a short, technical description of
-   it as a research category. The *slug* (and thus the workspace folder) is
-   still derived from the raw input topic, so a typo doesn't change which
-   folder gets written to — only the displayed ``name`` is corrected.
-2. **find_seminal_papers** — asks the LLM (also the ``cheap`` role) for a short
-   list of foundational/seminal papers for the category, given the name and
-   description from ``describe``.
-3. **write_category** — slugifies the topic and writes ``workspace/<slug>/meta.json``,
-   the record the rest of the pipeline depends on. Re-running an existing category
-   refreshes name/description/seminal_papers while preserving ``created_at``.
+1. **describe** — asks the LLM (``cheap`` role) for a corrected spelling of the
+   topic name plus a short technical description of it as a research category.
+   The slug is derived from the raw input topic, so a typo does not change which
+   folder is written to — only the displayed ``name`` is corrected.
+2. **find_seminal_papers** — asks the LLM for a short list of foundational papers
+   for the category, given the name and description from ``describe``.
+3. **write_category** — slugifies the topic and writes
+   ``workspace/<slug>/meta.json``. Re-running an existing category refreshes
+   name/description/seminal_papers while preserving ``created_at``.
 
-Built as a tiny LangGraph (``describe → find_seminal_papers → write_category``)
-so it streams and logs through the shared ``GraphRunLog`` like every other agent.
-
-The description written here is only a starting point — the app UI lets the user
-edit it by hand afterwards (``PATCH /api/topics/{slug}``).
+Built as a LangGraph (``describe → find_seminal_papers → write_category``) so it
+streams and logs through the shared ``GraphRunLog`` like every other agent.
 """
 from __future__ import annotations
 

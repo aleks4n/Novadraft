@@ -1,9 +1,8 @@
 """Section selection + truncation shared by the gap extractor and critic.
 
-The extractor (which proposes gaps) and the critic (which judges them) must
-read the same inlined sections, so the exclusion rule, the per-section char
-budget, and the truncation helper live here as a tool both import — not
-duplicated, not cross-imported between the two sibling subagents.
+The extractor (which proposes gaps) and the critic (which judges them) must read
+the same inlined sections, so the exclusion rule, the per-section char budget and
+the truncation helper live here as a tool both import.
 """
 from __future__ import annotations
 

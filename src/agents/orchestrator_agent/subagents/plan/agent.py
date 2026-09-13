@@ -1,13 +1,10 @@
 """Plan (LLM, cheap) — the user's message plus context into a tool plan.
 
-Deliberately unconstrained in *how* it composes tools: it sees the goal and the tool
-catalogue and decides. The one thing it must always produce is `done_criteria`, since
-that is all reflect has to judge against.
+Unconstrained in how it composes tools: it sees the goal and the tool catalogue and
+decides. It must always produce ``done_criteria``, which is what reflect judges
+against.
 
-Runs on `cheap` (deepseek-chat), not the reasoner. Measured over repeated runs: the
-reasoner answers in prose instead of emitting the tool call often enough to fail
-outright ~1 in 3 times even with the registry's re-ask, and it is slower (9-11s vs
-5-9s) — while producing the same plan shape. Revisit if plans get more complex.
+Runs on the ``cheap`` role rather than the reasoner.
 """
 
 from __future__ import annotations

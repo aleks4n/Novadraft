@@ -1,15 +1,15 @@
-"""Typed read accessors over paper.json — the downstream (validator / ranking) read side.
+"""Typed read accessors over paper.json — the downstream (validator / ranking) read
+side.
 
-`storage.read_paper_json` returns a raw dict, and `PaperRecord`'s nested blocks
-(`content`, `summary`) are untyped dicts, so callers would otherwise index into
-paper.json by hand. These getters centralise that: load + validate the record
-once, then expose the handful of fields the downstream agents actually consume —
-year + venue (metadata), keywords (summary), sections + full text (content).
+``storage.read_paper_json`` returns a raw dict, and ``PaperRecord``'s nested blocks
+(``content``, ``summary``) are untyped dicts. These getters load and validate the
+record once, then expose the fields the downstream agents consume: year + venue
+(metadata), keywords (summary), sections + full text (content).
 
-All keyed by `(category_slug, paper_id)`: the workspace partitions papers by
-category, so a `paper_id` alone can't locate the file. Every getter returns a
-safe empty/None when the paper (or the block it reads) isn't there yet, so a
-not-yet-fetched or not-yet-summarised paper degrades gracefully rather than raising.
+All keyed by ``(category_slug, paper_id)``, since the workspace partitions papers by
+category. Every getter returns a safe empty/None when the paper (or the block it
+reads) is not there yet, so a not-yet-fetched or not-yet-summarised paper degrades
+gracefully rather than raising.
 """
 from __future__ import annotations
 

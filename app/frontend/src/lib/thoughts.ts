@@ -2,14 +2,13 @@
 //
 // A creative-thinker run streams its tree as it grows — `tools/trace.py` emits a
 // `branch created` the moment a node is minted, then `branch <status>` as the
-// selector judges it. There is no score in any of it: one branch is kept per round
-// and generation returns its batch unranked, so what a node carries is its status
-// and the comparison line that explains it. So the tree is watchable live, not
-// only after the fact, which is the whole point of showing it beside the chat.
+// selector judges it. There are no scores: one branch is kept per round and
+// generation returns its batch unranked, so a node carries its status and the
+// comparison line that explains it.
 //
 // Once the run ends the authoritative copy is the run entry the envelope carries
-// (`envelope.idea.runs[-1]`) — same nodes, plus the outcome. Prefer it; fall back
-// to the events while the run is still going.
+// (`envelope.idea.runs[-1]`) — same nodes, plus the outcome. Prefer it; fall back to
+// the events while the run is still going.
 
 import type { Envelope, IdeaRun, RunEvent, RunState, ThoughtNode } from "./types";
 

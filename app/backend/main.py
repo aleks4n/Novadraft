@@ -1,13 +1,12 @@
-"""Ideation UI backend — a thin product API over the novadraft workspace.
+"""Ideation UI backend — HTTP API over the novadraft workspace.
 
 Maps the persistent knowledge base (``workspace/<slug>/...``) onto the data model
-the Research Ideation v2 frontend expects, and exposes the **paper agent** as a
-live, streamed run. It deliberately reuses the dev-harness internals rather than
-reimplementing them:
+the frontend expects and exposes agent runs as live SSE streams. It holds no
+agent logic of its own; every run goes through the shared pieces:
 
-  - ``dev.registry.GRAPH_BUILDERS["paper_agent"]`` — the compiled LangGraph.
-  - ``dev.runlog.RunRecorder`` — turns the graph stream into the same flat
-    ``.jsonl`` events the dev UI renders (so a run streams + persists in one pass).
+  - ``src.common.registry.GRAPH_BUILDERS`` — the compiled LangGraph per agent.
+  - ``src.common.utils.logging.runlog.RunRecorder`` — turns the graph stream into
+    the flat ``.jsonl`` events the frontend renders.
   - ``src.common.utils.storage`` — the workspace filesystem layout.
 
 Run it from the novadraft root::
@@ -15,17 +14,16 @@ Run it from the novadraft root::
     cd code/novadraft
     python -m uvicorn app.backend.main:app --reload --port 8787
 
-``_env_bootstrap`` re-execs into the project's declared interpreter, so the agent
-(langgraph + marker-pdf + litellm) runs in the right env regardless of how it was
-launched.
+``_env_bootstrap`` re-execs into the project's declared interpreter so the agents
+run in the right environment regardless of how the server was launched.
 """
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
-# Make the novadraft package root importable (dev.*, src.*) and hop into the
-# declared interpreter — same prelude the dev harness uses.
+# Make the novadraft package root importable (src.*, app.*) and hop into the
+# declared interpreter, so the agents run in the env they were pinned to.
 _NOVADRAFT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_NOVADRAFT_ROOT))
 import _env_bootstrap  # noqa: F401,E402
@@ -45,9 +43,9 @@ from fastapi.responses import StreamingResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel, Field  # noqa: E402
 
-from dev.registry import _truthy  # noqa: E402
-from dev.eval_paper_pipeline import _fully_extracted_papers, list_workspaces  # noqa: E402
+from src.common.registry import _truthy  # noqa: E402
 from src.common.utils import storage  # noqa: E402
+from src.common.utils.storage import list_workspaces  # noqa: E402
 from src.agents.ranking_agent.schemas import RankingConfig  # noqa: E402
 
 from app.backend import mappers, sessions  # noqa: E402
@@ -323,9 +321,9 @@ def api_idea_patch(slug: str, idea_id: str, req: IdeaPatchRequest):
 
 
 # --- sessions -----------------------------------------------------------------
-# One chat-like surface split into many sessions (vault: *Global Context &
-# Session Loading*). A session owns its transcript, its loaded context and the
-# ids of everything it touched; the records live in workspace/<slug>/sessions/.
+# One chat-like surface split into many sessions. A session owns its transcript,
+# its loaded context and the ids of everything it touched; the records live in
+# workspace/<slug>/sessions/.
 
 class SessionCreateRequest(BaseModel):
     title: str = ""

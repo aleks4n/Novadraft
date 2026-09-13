@@ -1,7 +1,7 @@
-"""Orchestrator agent — turns one user turn into tool calls, and the user's choice into
-idea nodes.
+"""Orchestrator agent — turns one user turn into tool calls, and the user's choice
+into idea nodes.
 
-One path through the graph:
+One path through the graph::
 
     assemble_context -> plan -> execute -> reflect -> finish
              |           | ^                  |         ^
@@ -10,24 +10,22 @@ One path through the graph:
              |           +-- awaiting approval --> propose -> END
              +-- an approved plan came in --> adopt_plan --> execute
 
-A turn that needs no tools is answered by the planner itself and skips straight to
-finish: there is nothing to dispatch, and reflect checks results against done-criteria
-it would not have.
+A turn that needs no tools is answered by the planner itself and skips to
+``finish``: there is nothing to dispatch, and reflect has no done-criteria to check
+against.
 
-A turn that *does* call tools is shown to the user first. The run ends at `propose`,
-having written its plan to the session; the user reads it, adjusts the arguments the
-planner chose, and presses Start, which begins a second run carrying that plan as
-`approved_plan`. That run re-assembles the context (deterministic, and the state it is
-built from may have moved), adopts the plan without planning again, and executes it.
-Two runs rather than a suspended one, for the same reason accepting a draft is a separate
-call: a run always completes, and the pending state lives in the session file.
+A turn that does call tools is shown to the user first. The run ends at
+``propose``, having written its plan to the session; the user adjusts the arguments
+the planner chose and presses Start, which begins a second run carrying that plan
+as ``approved_plan``. That run re-assembles the context, adopts the plan without
+planning again, and executes it. Pending state lives in the session file rather
+than in a suspended graph.
 
-A run always completes. It ends by *offering* draft ideas (written to the session's run
-result, returned to the chat); accepting them is `commit_selection()`, a plain function
-with no LLM in it. Nothing suspends mid-graph, so this reuses the same one-run-per-call /
-GraphRunLog shape as the validator and ranking agents.
+A run always completes. It ends by offering draft ideas (written to the session's
+run result, returned to the chat); accepting them is ``commit_selection()``, a
+plain function with no LLM in it.
 
-Standalone: `python src/agents/orchestrator_agent/agent.py "<message>" [category] [gap_id ...]`
+Standalone: ``python src/agents/orchestrator_agent/agent.py "<message>" [category] [gap_id ...]``
 """
 
 from __future__ import annotations
@@ -523,7 +521,7 @@ def run(category_slug: str, message: str = "", session_id: str = "",
         active_ids: str | list[str] = "",
         require_approval: bool = False, approved_plan: dict | None = None,
         stream: bool = True) -> dict:
-    """Flat-argument entry point — what the dev harness and the app backend call.
+    """Flat-argument entry point — what the app backend calls.
 
     Returns JSON (not a model) because the harness renders the result directly.
     `session_id` is generated when omitted, so a one-off run needs no ceremony.

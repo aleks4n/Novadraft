@@ -1,35 +1,29 @@
 """Venue + citation enrichment for paper.json — Semantic Scholar, OpenAlex fallback.
 
-Why this exists: the arXiv fetcher can only report a venue from `arxiv:journal_ref`,
-which authors add by hand after journal publication. Across a real workspace that field
-is set on ~6% of papers, so `metadata.venue` was almost always None and the ranking
-agent's impact score fell back to its neutral prior for every gap — see
-`ranking_agent/tools/score_impact.py`.
+The arXiv fetcher can only report a venue from ``arxiv:journal_ref``, which authors
+add by hand after journal publication and which is set on a small fraction of
+papers, leaving ``metadata.venue`` mostly ``None``.
 
-Semantic Scholar resolves an arXiv id straight to the *published* venue and a citation
-count (e.g. ARXIV:2305.10601 -> "Neural Information Processing Systems", 4767 citations),
-and its `publicationVenue` carries both the venue `type` and the acronyms. That matters
-twice over:
+Semantic Scholar resolves an arXiv id to the published venue and a citation count,
+and its ``publicationVenue`` carries both the venue ``type`` and the acronyms:
 
-- `alternate_names` gives the CORE acronym directly, so the LLM name->acronym resolver
-  becomes a fallback rather than the only path.
-- `type` distinguishes a real conference from a workshop or journal. Resolving the raw
-  string was actively dangerous here: "4th Deployable AI Workshop at AAAI 2026" contains
-  a flagship acronym, and scoring it as AAAI would hand a workshop paper an A* rating.
+- ``alternate_names`` gives the CORE acronym directly, so the LLM name→acronym
+  resolver is a fallback rather than the only path.
+- ``type`` distinguishes a real conference from a workshop or journal, so e.g. "4th
+  Deployable AI Workshop at AAAI 2026" is not scored as AAAI.
 
-No API key is required. A free key (SEMANTIC_SCHOLAR_API_KEY) lifts S2 out of its shared
-pool, but without one the batch endpoint still succeeds about a third of the time and
-rejects the rest in well under a second — so many cheap retries get through, and because
-one batch request covers up to 500 papers there are very few requests to make. The retry
-budget below is sized from that measured rate.
+No API key is required; a free key (``SEMANTIC_SCHOLAR_API_KEY``) lifts S2 out of
+its shared pool. Without one the batch endpoint succeeds roughly a third of the
+time and rejects the rest in well under a second, and one batch request covers up
+to 500 papers, so the retry budget below is sized for cheap retries.
 
-OpenAlex is the fallback and needs no key at all (it answered every probe). It is weaker
-on venues: keyed by the arXiv DOI it returns the *preprint* record, whose venue is arXiv
-itself, so a venue is taken from it only when the record is not a preprint. Its citation
-counts also trail S2's, but a real count beats none.
+OpenAlex is the fallback and needs no key. It is weaker on venues: keyed by the
+arXiv DOI it returns the preprint record, whose venue is arXiv itself, so a venue is
+taken from it only when the record is not a preprint. Its citation counts also trail
+S2's.
 
 Everything here is best-effort: any failure leaves the record untouched rather than
-failing the fetch, since a paper without a venue is still a usable paper.
+failing the fetch.
 """
 from __future__ import annotations
 

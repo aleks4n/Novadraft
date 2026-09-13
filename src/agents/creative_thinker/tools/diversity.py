@@ -1,8 +1,7 @@
 """Diversity measures for the run's metrics.
 
-Styles are the diversity mechanism, so diversity is the number that says whether
-the roster is doing its job. Both measures are deterministic and text-only, which
-makes them comparable across runs and across style rosters over time.
+Both measures are deterministic and text-only, so they are comparable across runs
+and across style rosters.
 """
 
 from __future__ import annotations

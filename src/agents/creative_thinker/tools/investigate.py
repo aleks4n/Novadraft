@@ -1,17 +1,15 @@
 """The Investigator seam — the thinker's only outward call, and it is optional.
 
-The Investigator (the convergent worker) is a separate component; here it is just
-a callable ``(question: str) -> dict`` with ``{"answer", "sources", "found"}``.
+The Investigator (the convergent worker) is a separate component; here it is a
+callable ``(question: str) -> dict`` returning ``{"answer", "sources", "found"}``.
 The orchestrator injects it; nothing is imported from it, so the thinker stays
 callable with no network and no workspace.
 
-Two rules this enforces:
+In two cases the question is returned as an ``investigate`` suggestion carrying
+the concrete question rather than answered:
 
-- ``tool_use`` off, no callable injected, or the ledger out of investigations →
-  the question is **not** answered by guessing. It comes back as an
-  ``investigate`` suggestion carrying the concrete question.
-- ``tool_use`` on and the Investigator returns nothing → same outcome. An empty
-  answer is a knowledge gap the thinker may not close, not licence to invent.
+- ``tool_use`` off, no callable injected, or the ledger out of investigations.
+- ``tool_use`` on and the Investigator returns nothing.
 """
 
 from __future__ import annotations

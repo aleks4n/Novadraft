@@ -1,9 +1,8 @@
 """Budget accounting — deterministic, outside the model calls.
 
-The ledger is the only thing that decides a run is over for cost reasons, and it
-names the ceiling that tripped. Because divergent thinking has no goal test,
-hitting a ceiling is the ordinary way a run ends: the caller returns the last
-*completed* round's survivors and labels the run ``truncated``.
+The ledger decides when a run is over for cost reasons and names the ceiling that
+tripped. The caller then returns the last completed round's survivors and labels
+the run ``truncated``.
 """
 
 from __future__ import annotations

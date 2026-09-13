@@ -1,13 +1,12 @@
 """What the orchestrator can do, and how the planner learns about it.
 
-The orchestrator is deliberately *not* constrained to a fixed set of operations: it is
-given a goal and a catalogue of tools and composes them itself. That makes this catalogue
-the real specification — `catalog()` renders it straight into the planner's prompt, so
-what a tool declares is what the orchestrator knows how to do.
+The orchestrator is not constrained to a fixed set of operations: it is given a
+goal and a catalogue of tools and composes them itself. ``catalog()`` renders this
+registry straight into the planner's prompt, so what a tool declares is what the
+orchestrator knows how to do.
 
-This module is only the machinery. Each tool lives in its own module and exports a
-`TOOL`, so adding one is a new file plus a line below, and integrating a real subagent is
-a change confined to that tool's file.
+Each tool lives in its own module and exports a ``TOOL``; adding one is a new file
+plus a line below.
 """
 
 from __future__ import annotations

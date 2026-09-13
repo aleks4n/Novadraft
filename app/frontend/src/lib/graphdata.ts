@@ -1,10 +1,10 @@
 // Which gaps the idea graph draws.
 //
-// The master list is the live, validated one — that is what an idea is allowed to
-// address — but an idea may cite a gap that has since moved stage (or been
-// archived as a duplicate), and dropping it would silently cut the edge that
-// explains why the idea exists. So: every master gap, plus any other gap some
-// idea addresses, in master-first order.
+// The master list is the live, validated one — what an idea is allowed to address
+// — but an idea may cite a gap that has since moved stage or been archived as a
+// duplicate, and dropping it would cut the edge that explains why the idea exists.
+// So: every master gap, plus any other gap some idea addresses, in master-first
+// order.
 import type { Gap, TopicBundle } from "./types";
 
 export function graphGaps(bundle: TopicBundle | null): Gap[] {

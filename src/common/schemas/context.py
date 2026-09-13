@@ -1,11 +1,11 @@
 """The context bundle — what an agent is allowed to look at for one turn.
 
-Assembled deterministically by the orchestrator from what the user selected in the UI,
-then passed to whichever subagent runs. One schema for everyone: the orchestrator builds
-it, the creative thinker and investigator read it.
+Assembled deterministically by the orchestrator from what the user selected in the
+UI, then passed to whichever subagent runs. One schema for everyone: the
+orchestrator builds it, the creative thinker and investigator read it.
 
-Records that fail validation are skipped and named in `missing_ids` rather than raising —
-a stale id in the UI, or a file written by an earlier prototype, shouldn't kill a turn.
+Records that fail validation are skipped and named in ``missing_ids`` rather than
+raising.
 """
 
 from __future__ import annotations

@@ -1,40 +1,27 @@
-"""Ideation **sessions** — the persistent record behind the session chat surface.
+"""Ideation sessions — the persistent record behind the session chat surface.
 
-The vault's *Global Context & Session Loading* note is the design of record: one
-chat-like surface split into many sessions, each storing "its own transcript, its
-loaded-context history and the ids of every artefact it touched, so a decision can
-be traced back to the conversation that produced it."
-
-Storage mirrors the rest of the workspace — plain JSON per record, the files are
-the truth. One **isolated folder per session**, as the creative thinker's SPEC
-names it::
+One folder per session, plain JSON per record::
 
     workspace/<slug>/sessions/<session_id>/session.json   transcript + context
     workspace/<slug>/sessions/<session_id>/drafts/*.json  working copies
     workspace/<slug>/sessions/<session_id>/files/<name>   dropped pdfs / notes
 
-**Working copies** are the point of the folder. The creative thinker writes
-nothing: it returns a modified copy of the idea and a list of drafts, and until a
-human accepts one those records have no business in the global workspace — but
-they cannot live only in a chat bubble either, or the session's own work
-disappears on reload. So each lands here as a standalone ``idea.json``: real
-records, in the real schema, in a folder that is not the knowledge base.
-
-Three ways one leaves: **accepted** (written into the global workspace, minting an
-id for a new idea or overwriting the record it modified), **dismissed** (the file
-is deleted — a rejected draft is not a smaller idea, it is not an idea), or left
-alone, in which case it is still there next session.
+**Drafts** are working copies. The creative thinker writes nothing to the global
+workspace: it returns a modified copy of an idea plus a list of drafts, and each
+lands here as a standalone ``idea.json`` in the real schema. A draft leaves the
+folder when it is accepted (written into the global workspace, minting an id for a
+new idea or overwriting the record it modified) or dismissed (the file is
+deleted); otherwise it stays.
 
 Two representations of one selection, both served from here:
 
-- ``context`` — the session's **loaded** context, append-only across turns. This is
-  the single source of truth for what the model can see; the frontend highlights
-  these ids in the graph panel and lists them in the Loaded Context window.
-- ``messages[].context`` — what *that turn* added, so the transcript shows when
-  each item entered.
+- ``context`` — the session's loaded context, append-only across turns. The single
+  source of truth for what the model can see.
+- ``messages[].context`` — what that turn added, so the transcript shows when each
+  item entered.
 
-Context entries are **references, not payload** (id + short digest); the full text
-is re-read from the workspace when a run needs it (:func:`render_context`).
+Context entries are references, not payload (id + short digest); the full text is
+re-read from the workspace when a run needs it (:func:`render_context`).
 """
 from __future__ import annotations
 

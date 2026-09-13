@@ -1,40 +1,37 @@
-"""Agent + subagent + flow registry for the dev/test harness.
+"""Agent + subagent + flow registry — the one place that knows what agents exist.
 
-**Auto-discovery.** This module no longer hard-codes the agent tables. On import
-it scans ``src/agents/*/`` and reads a ``MANIFEST`` from each package's
-``__init__.py``. Drop a new agent folder in with a ``MANIFEST`` and it is
-registered automatically — no edit to this file. A package without a ``MANIFEST``
-is skipped (so half-built agents don't break the harness).
+**Auto-discovery.** This module hard-codes no agent tables. On import it scans
+``src/agents/*/`` and reads a ``MANIFEST`` from each package's ``__init__.py``, so
+a new agent folder with a ``MANIFEST`` is registered without editing this file. A
+package without a ``MANIFEST`` is skipped.
 
-The discovered manifests are fanned out into the same tables the rest of the
-harness already consumes, so ``dev/run.py``, ``dev/ui.py`` and the frontend are
-unchanged:
+The discovered manifests are fanned out into the tables the app backend consumes
+(``app/backend/runs.py`` picks a graph out of ``GRAPH_BUILDERS`` and an adapter out
+of ``INPUT_ADAPTERS`` for every run it starts):
+
   - AGENTS:    top-level flows the user runs (e.g. ``paper_agent``). The value is
                 the manifest's ``run`` callable, wrapped so bool-typed params
-                (e.g. ``force``) accept "true"/"1"/"yes" strings from the UI.
+                (e.g. ``force``) accept "true"/"1"/"yes" strings from a form.
   - GRAPH_BUILDERS: agents built as LangGraph graphs, keyed name -> builder the
-                dev UI streams. Set by a manifest's ``graph_builder``.
+                run manager streams. Set by a manifest's ``graph_builder``.
   - LOGGED_AGENTS:  graph agents that write a per-run ``.jsonl``, keyed by the
                 input field holding the workspace/category slug
                 (manifest ``workspace_field``).
   - AGENT_STEPS:    pipeline-order step labels, a display hint (manifest ``steps``).
-  - POST_RUN:  optional per-agent hook run *after* a streamed run, on
+  - POST_RUN:  optional per-agent hook run after a streamed run, on
                 ``(form inputs, output)``, returning the output to record. For work
                 that belongs to the caller rather than the graph — e.g. the creative
-                thinker's optional persist step, which is the orchestrator's write and
-                must stay outside the agent. Set by a manifest's ``post_run``.
+                thinker's optional persist step.
   - EXAMPLES:   ready-made showcase runs, keyed agent -> [{name, label, description}].
-                ``name`` is a file in ``dev/fixtures/``, so the same example runs
-                from the CLI (``--fixture``) and from the UI's example dropdown
-                (which fetches it via ``/api/fixture/<name>`` and fills the form).
+                ``name`` names a stored example run.
   - SUBAGENTS: individual stages kept for isolated testing. Each agent declares
                 its own under the manifest's ``subagents`` list.
   - INPUT_ADAPTERS: optional per-agent ``form-inputs -> graph-inputs`` transform,
                 for graph agents whose state isn't directly form-typeable (e.g.
-                the validator takes a ``Gap`` object). Applied by ui.py before
+                the validator takes a ``Gap`` object). Applied before
                 ``graph.stream``. Set by a manifest's ``input_adapter``.
   - FLOWS:     multi-agent flows spanning more than one top-level agent.
-  - SCHEMAS:   UI form fields, taken from the manifest's ``schema`` or, when
+  - SCHEMAS:   form fields, taken from the manifest's ``schema`` or, when
                 omitted, auto-derived from the callable signature.
 
 Manifest shape (everything except ``run`` is optional)::
@@ -52,7 +49,7 @@ Manifest shape (everything except ``run`` is optional)::
         "examples": [ {"name": "<fixture>.json", "label", "description"}, ... ],
     }
 
-``name`` is taken from the package directory, so it never has to be repeated.
+``name`` is taken from the package directory.
 """
 from __future__ import annotations
 
@@ -62,7 +59,7 @@ import sys
 from pathlib import Path
 
 # Make the package importable when running this file directly.
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 

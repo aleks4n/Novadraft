@@ -44,7 +44,7 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# 1 — Backend (run from novadraft root so `dev.*` / `src.*` imports resolve).
+# 1 — Backend (run from novadraft root so `src.*` / `app.*` imports resolve).
 echo "› Starting backend on http://localhost:$BACKEND_PORT …"
 (
   cd "$NOVADRAFT_ROOT"

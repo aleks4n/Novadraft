@@ -1,8 +1,8 @@
 """Run one ideation turn and print what each step did.
 
-For showing the orchestrator without a UI: it streams the graph and renders every
-node's output as it arrives — the context that was loaded, the plan the LLM wrote,
-which tools ran, the reflection's verdict, and the drafts on offer.
+Streams the graph and renders every node's output as it arrives: the context that
+was loaded, the plan the LLM wrote, which tools ran, the reflection's verdict, and
+the drafts on offer.
 
     # generate from a gap — bare --gap picks one that parses
     python src/agents/orchestrator_agent/demo.py computer_vision --gap
@@ -15,7 +15,7 @@ which tools ran, the reflection's verdict, and the drafts on offer.
     python src/agents/orchestrator_agent/demo.py computer_vision --accept
 
     # refine an existing idea
-    python src/agents/orchestrator_agent/demo.py computer_vision --idea idea_1234abcd \\
+    python src/agents/orchestrator_agent/demo.py computer_vision --idea idea_1234abcd \
         -m "make the evaluation plan concrete"
 
     # two turns of one conversation: the second selects nothing, and works from what the
@@ -23,8 +23,8 @@ which tools ran, the reflection's verdict, and the drafts on offer.
     python src/agents/orchestrator_agent/demo.py --session demo -m "give me 2 ideas for this gap"
     python src/agents/orchestrator_agent/demo.py --session demo -m "make the second one more concrete"
 
-Nothing reaches the idea graph unless you pass --accept: a run ends by *offering*
-drafts, and accepting them is a separate call (`commit_selection`).
+Nothing reaches the idea graph unless ``--accept`` is passed: a run ends by
+offering drafts, and accepting them is a separate call (``commit_selection``).
 """
 
 from __future__ import annotations

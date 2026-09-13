@@ -1,11 +1,10 @@
-"""The paper_agent graph's state — what flows between its top-level nodes.
+"""The paper_agent graph state — what flows between its top-level nodes.
 
-A LangGraph TypedDict; `total=False` so each node returns only the keys it sets.
-The linear flow: query → fetch → extract → summarize → gap → assemble.
+A LangGraph ``TypedDict``; ``total=False`` so each node returns only the keys it
+sets. Linear flow: query → fetch → extract → summarize → gap → assemble.
 
-`summary_result`/`gaps_result` are the dicts the summarize/gap subgraphs return
-(invoked from their nodes, so their internal steps stream through nested under
-this graph). `result` is the final value `run()` returns.
+``summary_result``/``gaps_result`` are the dicts the summarize/gap subgraphs
+return. ``result`` is the final value ``run()`` returns.
 """
 from __future__ import annotations
 

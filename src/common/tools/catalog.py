@@ -1,26 +1,18 @@
 """The workspace index — what exists, by id and title, and nothing more.
 
-Context assembly answers "what is this turn *about*": the selected gaps and ideas, one
-hop out, in full. This module answers the other question — "what else is there at all" —
-and the two must not be confused. A step that only ever sees its own slice cannot know
-that the workspace holds thirty other gaps, so it never thinks to ask for one; a step
-handed those thirty gaps in full has no room left for the one it is working on.
+Context assembly answers what a turn is about: the selected gaps and ideas, one
+hop out, in full. This module answers what else is there at all.
 
-So a catalog entry is a **pointer, not a record**: an id, a title, and one short marker
-(a gap's stage, a paper's year). No description, no evidence, no summary. The entry is
-big enough to recognise something by and too small to reason from — which is the point.
-When a step wants the record behind an entry it asks the investigator by id, and that
-call is a visible step rather than a silent widening of scope.
+A catalog entry is a pointer, not a record: an id, a title, and one short marker (a
+gap's stage, a paper's year). No description, no evidence, no summary — big enough
+to recognise something by and too small to reason from. When a step wants the
+record behind an entry it asks the investigator by id, which is a visible step
+rather than a silent widening of scope.
 
-Cost is what forces this. The `transformers` workspace holds 106 gaps; at a title each
-that is ~1.3k tokens, and at a description each it would be ten times that and would
-crowd out the gap the run is actually about.
-
-Reading 120 files to build one index is cheap in wall-clock but not free, and a turn
-rebuilds it repeatedly. Entries are therefore memoised per file by `(path, mtime, size)`:
-a file that has not changed since the last build is not re-read, and one that has is
-picked up without any explicit invalidation. The cache lives in the process, so a fresh
-run always starts from disk and there is no stale index file to garbage-collect.
+Entries are memoised per file by ``(path, mtime, size)``: a file unchanged since
+the last build is not re-read, and a changed one is picked up without explicit
+invalidation. The cache lives in the process, so a fresh run always starts from
+disk.
 """
 from __future__ import annotations
 

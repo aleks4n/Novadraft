@@ -75,8 +75,8 @@ config.local.*
 # Logs / runs / artifacts
 *.log
 logs/
-dev/runs/
 runs/
+workspace/_graph_logs/
 outputs/
 tmp/
 .tmp/
@@ -89,14 +89,11 @@ workspace/knowledge/*.md
 # Validator prior-art fetch cache (runtime, regenerable — not a committed fixture)
 workspace/_validator_cache/
 
-# Per-run agent logs (runtime, regenerable; the dev UI replays local copies)
+# Per-run agent logs (runtime, regenerable; the app replays local copies)
 workspace/*/logs/
 
 # Orchestrator per-session run results (pending proposals between turns — runtime state)
 workspace/*/sessions/
-
-# Eval harness output (regenerable; label a run and keep the report locally to diff)
-dev/eval_runs/
 
 # Data / models (uncomment as needed)
 # *.csv

@@ -1,10 +1,9 @@
 """Ranking agent output: the per-gap dimension scores attached to a gap.
 
-Produced by the ranking agent, consumed by the UI. Deliberately holds the three
-raw dimension scores but *not* a combined final score: the final ordering is a
-weighted geometric mean of these three, and the weights are user-tunable at view
-time — so re-weighting must never require re-scoring. Only real opportunities
-(open / partially-solved gaps) are ranked; solved gaps carry no RankingScores.
+Holds the three raw dimension scores but not a combined final score: the final
+ordering is a weighted geometric mean of the three, and the weights are
+user-tunable at view time, so re-weighting never requires re-scoring. Only open /
+partially-solved gaps are ranked; solved gaps carry no ``RankingScores``.
 """
 
 from __future__ import annotations

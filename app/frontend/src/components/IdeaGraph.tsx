@@ -3,11 +3,10 @@
 // and the compact panel inside a session, where nodes carry context highlights
 // and clicking one stages it for the next turn.
 //
-// Design of record: the vault's *Idea Graph* note. Node types are `gap` and
-// `idea`; edges are `addresses` (idea → gap) plus the typed idea → idea relations
-// `child-of` / `variant-of` / `merged-into` / `inspired-by`. **Reasoning never
-// leaks in** — the thinking graph (`runs[]`) is a different surface entirely, on
-// the idea page's Thinking tab.
+// Node types are `gap` and `idea`; edges are `addresses` (idea → gap) plus the
+// typed idea → idea relations `child-of` / `variant-of` / `merged-into` /
+// `inspired-by`. The thinking graph (`runs[]`) is a separate surface, on the idea
+// page's Thinking tab.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Gap, Idea } from "../lib/types";
@@ -461,8 +460,7 @@ export function IdeaGraph({
                 // Deliberately **not** an HTML5 drag source. A draggable node hands
                 // the browser a translucent copy of itself the moment you press and
                 // move, which is what you get when you meant to pan — and panning
-                // starts on a node as often as not. Clicking already stages it (the
-                // vault's own "clicking an element in the workspace panel" path), and
+                // starts on a node as often as not. Clicking already stages it, and
                 // the nav tree is still draggable for the drag-into-chat gesture.
                 onDragStart={(e) => e.preventDefault()}
               >

@@ -1,10 +1,9 @@
 """Section selection + truncation shared by the summarize extractor and critic.
 
-Both the extractor (which produces the summary) and the critic (which judges it)
-must see the *same* slice of the paper, so the canonical section order, the
-per-section character budgets, and the truncation/first-paragraph helpers live
-here as a tool both import — not duplicated, and not cross-imported between the
-two sibling subagents.
+The extractor (which produces the summary) and the critic (which judges it) must
+see the same slice of the paper, so the canonical section order, the per-section
+character budgets and the truncation/first-paragraph helpers live here as a tool
+both import.
 """
 from __future__ import annotations
 

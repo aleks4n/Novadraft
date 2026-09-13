@@ -1,22 +1,21 @@
 """Director agent — the pipeline's gap de-duplicator.
 
-Sits between the paper agent and the validator. It drains the freshly mined
-gaps from ``gaps/pending/`` and, for each one, decides whether it is a *duplicate*
-of a gap the workspace already knows about (anything in ``gaps/master/``,
-``gaps/to_validate/`` or ``gaps/to_rank/``) or a *novel* gap:
+Sits between the paper agent and the validator. It drains the freshly mined gaps
+from ``gaps/pending/`` and, for each one, decides whether it duplicates a gap the
+workspace already knows about (anything in ``gaps/master/``, ``gaps/to_validate/``
+or ``gaps/to_rank/``) or is novel:
 
-- **duplicate** → merge its evidence into the matching known gap (so the master
-  record accumulates every paper that raised it), then park the incoming copy in
-  ``gaps/archive/`` marked ``status="duplicate"`` with ``duplicate_of`` pointing
-  at the survivor. Nothing is deleted — the user can still see it on the paper.
-- **novel** → move it to ``gaps/to_validate/`` for the validator, and expose its
-  id in ``novel_gap_ids`` so the pipeline graph can fan the validator out over it.
+- **duplicate** → merge its evidence into the matching known gap, then park the
+  incoming copy in ``gaps/archive/`` marked ``status="duplicate"`` with
+  ``duplicate_of`` pointing at the survivor. Nothing is deleted.
+- **novel** → move it to ``gaps/to_validate/`` and expose its id in
+  ``novel_gap_ids`` so the pipeline graph can fan the validator out over it.
 
-Built as a small LangGraph (``load_known → collect_pending → dedup → finalize``)
-so it mounts as a subgraph node in ``src/graph/pipeline.py`` and streams/logs
-through the shared ``GraphRunLog`` engine like every other agent. Duplicate
-detection reuses the local-Qwen cosine-similarity check (with a deterministic
-title/canonical fallback when torch/embeddings are unavailable).
+Built as a LangGraph (``load_known → collect_pending → dedup → finalize``) so it
+mounts as a subgraph node in ``src/graph/pipeline.py`` and streams/logs through the
+shared ``GraphRunLog``. Duplicate detection uses a local-Qwen cosine-similarity
+check, with a deterministic title/canonical fallback when torch/embeddings are
+unavailable.
 """
 from __future__ import annotations
 

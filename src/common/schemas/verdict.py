@@ -1,9 +1,8 @@
-"""Validator outputs: PaperAssessment + Verdict — the cross-agent contract.
+"""Validator outputs: ``PaperAssessment`` + ``Verdict`` — the cross-agent contract.
 
-Produced by the validator, consumed by the ranking agent (which reads the Verdict
-from shared graph state). `PaperAssessment` is the per-paper judgment that backs
-the verdict (renamed from the stage-specific "DeepReadNote" to be self-explanatory
-to anyone reading common/).
+Produced by the validator, consumed by the ranking agent (which reads the
+``Verdict`` from shared graph state). ``PaperAssessment`` is the per-paper judgment
+that backs the verdict.
 """
 
 from __future__ import annotations

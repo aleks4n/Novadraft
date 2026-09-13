@@ -1,8 +1,8 @@
 // Visualises a paper's persisted lifecycle (paper.json `processing`): the five
 // stages fetch → extract → summarize → verify → gaps. Each stage is simply done
 // or not — the flags are independent (a paper can have gaps extracted without a
-// verified summary), so we don't infer a single "current" position here; that
-// only belongs to a live run (see RunTranscript). `compact` is the row variant.
+// verified summary), so no single "current" position is inferred here; that only
+// belongs to a live run (see RunTranscript). `compact` is the row variant.
 import { Icon } from "./Icon";
 import type { GapStep, PaperStage } from "../lib/types";
 

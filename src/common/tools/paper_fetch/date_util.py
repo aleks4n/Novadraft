@@ -1,10 +1,10 @@
 """Normalize publication dates to partial-ISO strings.
 
-A publication date is stored as the most precise ISO-8601 prefix we can
-recover from the source: ``"YYYY"``, ``"YYYY-MM"``, or ``"YYYY-MM-DD"``.
-We never pad missing components (a year-only source stays ``"2023"``, not
-``"2023-01-01"``) so the stored value is honest about its precision.
-``year`` is always derivable from it via :func:`year_of`.
+A publication date is stored as the most precise ISO-8601 prefix recoverable from
+the source: ``"YYYY"``, ``"YYYY-MM"``, or ``"YYYY-MM-DD"``. Missing components are
+never padded (a year-only source stays ``"2023"``, not ``"2023-01-01"``), so the
+stored value is honest about its precision. ``year`` is always derivable from it
+via :func:`year_of`.
 """
 from __future__ import annotations
 

@@ -2,8 +2,8 @@
 
 Takes one user turn (a message plus whatever they selected in the UI), plans which
 subagents to call, runs them, and offers back draft ideas. Accepting a draft is a
-separate, LLM-free call (`commit_selection`) — the agent never writes to the idea graph
-on its own.
+separate, LLM-free call (``commit_selection``); the agent never writes to the idea
+graph on its own.
 """
 from .agent import build_orchestrator_graph, commit_selection, input_adapter, run, run_turn
 

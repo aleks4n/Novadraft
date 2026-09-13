@@ -1,16 +1,15 @@
-"""The gap subgraph's state — what flows between its nodes.
+"""The gap subgraph state — what flows between its nodes.
 
-A LangGraph TypedDict; `total=False` so each node returns only the keys it sets.
-The flow is a bounded extractor↔critic cycle:
+A LangGraph ``TypedDict``; ``total=False`` so each node returns only the keys it
+sets. The flow is a bounded extractor↔critic cycle::
 
     enter → extractor → critic → (route: converged? → finalize : → extractor) → END
 
-`ctx` is the one-time static context (sections, summary, metadata, inline
-section names) the `enter` node reads from paper.json. `loop` is the mutable
-cross-pass bookkeeping the old imperative loop carried in a single `state` dict
-(accepted / rejected / retry_anchor / issues / missing_hints / warnings /
-loop_trail / converged) — the extractor and critic nodes mutate it in place and
-return it.
+``ctx`` is the one-time static context (sections, summary, metadata, inline section
+names) the ``enter`` node reads from paper.json. ``loop`` is the mutable cross-pass
+bookkeeping (accepted / rejected / retry_anchor / issues / missing_hints /
+warnings / loop_trail / converged); the extractor and critic nodes mutate it in
+place and return it.
 """
 from __future__ import annotations
 

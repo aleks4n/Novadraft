@@ -1,11 +1,8 @@
-"""The idea graph as a read-time view over `ideas/`.
+"""The idea graph as a read-time view over ``ideas/``.
 
-There is no graph file. Edges live on each child node, so a write is always one file and
-two concurrent sessions never contend — but that makes "children of X" awkward to ask
-directly. This module scans the folder once and answers those questions.
-
-Cheap at the scale we have (a few hundred ideas, one JSON each); if it ever isn't, cache
-the index rather than introducing a central graph file.
+There is no graph file. Edges live on each child node, so a write is always one
+file and two concurrent sessions never contend, but "children of X" is then awkward
+to ask directly. This module scans the folder once and answers those questions.
 
     graph = IdeaGraph.load("transformers")
     graph.for_gap("gap_0963b7ff")      # ideas addressing that gap

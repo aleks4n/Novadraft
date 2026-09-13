@@ -1,10 +1,9 @@
 """Envelope assembly — the last deterministic step of every run.
 
-Both modes end here, and the shape is identical: this is where the run entry is
-appended to the idea copy, the metrics are computed from the trace, and the
-status is fixed. A run that accepted nothing still returns a valid ``idea`` with
-its trace appended and an empty ``drafts`` — the envelope is never partial, only
-its ``status`` says the *search* was.
+Both modes end here with the same shape: the run entry is appended to the idea
+copy, the metrics are computed from the trace, and the status is fixed. A run that
+accepted nothing still returns a valid ``idea`` with its trace appended and an
+empty ``drafts``; only ``status`` reports that the search was partial.
 """
 
 from __future__ import annotations

@@ -1,10 +1,11 @@
 """CORE conference-ranking lookup for venue scoring.
 
-CORE publishes A*/A/B/C ranks in dated editions, and ranks drift between them — so we
-match a paper to the edition closest to its publication year. Editions live in
-data/core/<EDITION>.csv (exported from portal.core.edu.au). Venue names are resolved to
-CORE acronyms upstream by the LLM resolver (venue_resolver.py), so the lookup here is an
-exact acronym -> rank -> [0,1] score; unknown -> None (impact then falls back to citation).
+CORE publishes A*/A/B/C ranks in dated editions and ranks drift between them, so a
+paper is matched to the edition closest to its publication year. Editions live in
+``data/core/<EDITION>.csv`` (exported from portal.core.edu.au). Venue names are
+resolved to CORE acronyms upstream by the LLM resolver (``resolver.py``), so the
+lookup here is an exact acronym → rank → [0, 1] score; unknown → ``None``, and
+impact then falls back to citation.
 """
 
 from __future__ import annotations

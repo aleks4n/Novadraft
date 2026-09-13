@@ -1,32 +1,24 @@
-"""Turning the plan's loaded context into prompt text — deterministically.
+"""Render the plan's loaded context into prompt text, deterministically.
 
-The thinker does not decide what to load; the plan does. This module only
-*renders* what arrived, and records which ids were in view so the run header says
-exactly what the run could see.
+The thinker does not decide what to load; the plan does. This module renders what
+arrived and records which ids were in view, so the run header states exactly what
+the run could see.
 
-It also renders **prior ground**: what earlier runs on this idea already tried. That
-is the whole reason ``runs[]`` is append-only — the next run reads it so it does not
-re-tread the same branches.
-
-How much of it is rendered matters more than it looks. ``runs[]`` grows forever, so
-pasting every pruned branch into the prompt means run twenty is mostly a recitation
-of runs one through nineteen and the idea itself is a footnote. Older runs are
-therefore rendered from their :class:`RunSummary` — one paragraph each — and only the
-most recent runs contribute raw branch text, where the detail is still worth its
-tokens.
+It also renders prior ground: what earlier runs on this idea already tried, read
+from the append-only ``runs[]``. Older runs are rendered from their
+:class:`RunSummary` — one paragraph each — and only the most recent runs
+contribute raw branch text, which keeps the prompt from filling up with history.
 
 Recognized context keys (all optional, all lists of dicts): ``gaps``, ``papers``,
 ``ideas``, ``catalog``, ``findings``, ``user_input``, ``discussion``, ``documents``.
 
-**Loaded records are rendered per type, not generically.** A generic renderer picks one
-"body" field per record and drops the rest, which for a gap means losing the evidence
-quote it rests on and for a paper means losing the whole structured summary — exactly the
-material ideation runs on. Each type therefore has its own block, and only unrecognised
-keys fall back to the generic one-line form.
+Each record type has its own block so type-specific material survives — a gap's
+evidence quote, a paper's structured summary. Unrecognised keys fall back to a
+generic one-line form.
 
-The ``catalog`` key is different in kind from the rest and is rendered as such: it is an
-index of what the workspace holds but did *not* load, one line per record, there so a run
-knows what it could ask for. See :mod:`src.common.tools.catalog`.
+The ``catalog`` key is rendered as an index of what the workspace holds but did
+not load, one line per record, so a run knows what it could ask for. See
+:mod:`src.common.tools.catalog`.
 """
 
 from __future__ import annotations

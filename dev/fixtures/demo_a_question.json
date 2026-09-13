@@ -1,7 +1,0 @@
-{
-  "idea": "demo_idea.json", "context": "demo_context.json",
-  "mode": "refinement", "width": 2, "depth": 1, "styles": "neutral",
-  "task": "Does this still work if the gardener takes the photo in the evening, in bad light?",
-  "tool_use": false, "max_llm_calls": 12,
-  "triggering_action": "DEMO A - a plain question"
-}

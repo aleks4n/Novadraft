@@ -1,11 +1,11 @@
-"""LLM venue -> CORE acronym resolver (batched, grounded, cached).
+"""LLM venue → CORE acronym resolver (batched, grounded, cached).
 
-Venue names in paper.json are messy ("Advances in Neural Information Processing Systems",
-"2022 IEEE/CVF Conference ... (CVPR)"); CORE keys on acronyms. The LLM does the
-name->acronym normalization (its strength, no ranking list needed in the prompt), then
-venue_rankings looks the acronym up by year. We GROUND each answer against the CORE list
-(drop acronyms not present, so a hallucinated acronym can't produce a rank) and CACHE
-name->acronym to disk, so each unique venue is resolved once across runs.
+Venue names in paper.json are messy ("Advances in Neural Information Processing
+Systems", "2022 IEEE/CVF Conference ... (CVPR)"); CORE keys on acronyms. The LLM
+does the name→acronym normalization, then ``rankings`` looks the acronym up by
+year. Each answer is grounded against the CORE list (acronyms not present are
+dropped, so a hallucinated acronym cannot produce a rank) and name→acronym results
+are cached to disk, so each unique venue is resolved once across runs.
 """
 
 from __future__ import annotations

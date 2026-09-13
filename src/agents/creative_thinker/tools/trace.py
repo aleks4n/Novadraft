@@ -1,17 +1,15 @@
 """The thinking graph, assembled as the run happens.
 
-One :class:`TraceBuilder` per invocation. It does three things at once, and that
-is the point — they must not drift apart:
+One :class:`TraceBuilder` per invocation. It does three things:
 
-1. mints the thought **nodes and edges** that become the ``runs[]`` entry,
-2. **emits** each of them into the LangGraph custom stream, so the run log shows
-   the tree growing instead of a spinner (branch created / kept / pruned /
-   investigated / escalated), and
-3. hands back the finished :class:`RunEntry` for :func:`append_run`, which is the
-   only function anywhere that touches ``idea.runs`` — and it only ever appends.
+1. mints the thought nodes and edges that become the ``runs[]`` entry,
+2. emits each of them into the LangGraph custom stream, so the run log shows the
+   tree growing (branch created / kept / pruned / investigated / escalated), and
+3. hands back the finished :class:`RunEntry` for :func:`append_run`, the only
+   function that touches ``idea.runs``, and only ever by appending.
 
-Trace assembly is deterministic and model-free: node ids are ``<run_id>:n<k>``
-in creation order, so a replayed run yields identical ids.
+Trace assembly is deterministic and model-free: node ids are ``<run_id>:n<k>`` in
+creation order, so a replayed run yields identical ids.
 """
 
 from __future__ import annotations

@@ -1,14 +1,8 @@
-"""The category_agent graph's state — what flows between its top-level nodes.
+"""The category_agent graph state — what flows between its top-level nodes.
 
-A LangGraph ``TypedDict`` (``total=False`` so each node returns only the keys it
-sets), mirroring the other agents' ``state.py``. The category agent bootstraps a
-workspace from just a topic name: given free-text ``topic`` it asks the LLM for a
-short technical category description and writes the ``meta.json`` that
-``storage.ensure_category`` requires before any paper can be ingested.
-
-Linear flow: describe the category -> write it. ``result`` is what ``run()``
-returns. The description can later be hand-edited by the user in the app UI —
-this agent only sets its initial value.
+A LangGraph ``TypedDict`` (``total=False``, so each node returns only the keys it
+sets). Linear flow: describe the category, then write it. ``result`` is what
+``run()`` returns.
 """
 from __future__ import annotations
 

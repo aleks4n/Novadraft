@@ -1,18 +1,18 @@
-"""summarize · critic subagent (Stage 3b): one stateless critique pass.
+"""summarize · critic subagent (Stage 3b) — one stateless critique pass.
 
-Runs two checks against the paper's *current* `paper.json::summary`:
-  1. Grounding check (deterministic) — do the metric values / dataset names /
-     headline numbers actually appear in `content.sections`? (see
-     `summarize/tools/grounding.py`)
-  2. Critic check (single LLM call) — does the summary faithfully and
-     completely represent the source sections?
+Runs two checks against the paper's current ``paper.json::summary``:
 
-`run_critic()` only judges — it never regenerates the summary and never
-writes to paper.json. The extractor↔critic cycle that decides whether to
-regenerate lives in `summarize/agent.py`.
+1. Grounding check (deterministic) — do the metric values / dataset names /
+   headline numbers actually appear in ``content.sections``? (see
+   ``summarize/tools/grounding.py``)
+2. Critic check (single LLM call) — does the summary faithfully and completely
+   represent the source sections?
 
-It runs inside the `critic` graph node, so its LLM call and its deterministic
-grounding leaf show up nested under that node in the dev UI's run tree.
+``run_critic()`` only judges: it never regenerates the summary and never writes to
+paper.json. The extractor↔critic cycle lives in ``summarize/agent.py``.
+
+It runs inside the ``critic`` graph node, so its LLM call and its deterministic
+grounding leaf nest under that node in the run tree.
 """
 from __future__ import annotations
 

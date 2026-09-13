@@ -1,25 +1,15 @@
 """Reading the workspace — the investigator's fourth source, beside papers, web and URLs.
 
-The investigator could research anything except what the project already knew. Asked
-"what does gap_04e60ada say", it had no route to the file holding the answer and went to
-the web instead: slower, and wrong, since the answer was on disk. This module is that
-missing route.
+A read surface only: no writes, no staging, no promotion. Two ways in:
 
-It is a *read* surface and nothing more. No writes, no staging, no promotion — those are
-the orchestrator's, and keeping them out is what lets a workspace lookup be as cheap and
-as unremarkable as a web search.
+- **By id** — the asker saw the id in a catalog entry and wants the record behind
+  it.
+- **By query** — scored lexically over titles and descriptions rather than by
+  embeddings; the corpus is a few hundred short records and the terms are the
+  user's own.
 
-Two ways in, because the caller knows one of two things:
-
-- **By id** — the asker saw the id in a catalog entry and wants the record behind it.
-  Exact, and the common case now that every step's context carries the index.
-- **By query** — the asker knows what they are looking for but not what it is called.
-  Scored over titles and descriptions, not embeddings: the corpus is a few hundred short
-  records, the terms are the user's own, and a lexical match that can be explained beats a
-  semantic one that cannot when the answer has to be defended later.
-
-What comes back is text for an LLM to answer from, not records for code to consume — the
-investigator's whole contract is question in, prose out.
+What comes back is text for an LLM to answer from, not records for code to
+consume.
 """
 from __future__ import annotations
 

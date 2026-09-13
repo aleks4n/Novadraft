@@ -1,6 +1,6 @@
-// Sidebar v2 — workspace brand, topic card with a real topic picker, and
-// per-topic Papers / Gaps / Ideas sections fed from the backend. Entities with
-// a live agent run get a spinner, so parallel runs are visible at a glance.
+// Sidebar — workspace brand, topic card with a topic picker, and per-topic
+// Papers / Gaps / Ideas sections fed from the backend. Entities with a live agent
+// run get a spinner, so parallel runs are visible at a glance.
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Icon, SeverityDot } from "./Icon";

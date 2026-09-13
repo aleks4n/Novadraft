@@ -1,10 +1,9 @@
 // One ideation session — the chat on the left, a column of workspace windows on
 // the right, a draggable splitter between them.
 //
-// The same component renders a **new** session (`sessionId = null`): the page is
-// identical, and the record is created on the first turn rather than by a
-// separate "create" step. That is why the sidebar's *Sessions* header opens this
-// straight away — an empty session and a new one look the same because they are.
+// The same component renders a new session (`sessionId = null`): the page is
+// identical, and the record is created on the first turn rather than by a separate
+// "create" step.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../Icon";
 import { NavHistory } from "../NavHistory";

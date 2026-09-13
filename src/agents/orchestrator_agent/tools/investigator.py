@@ -1,7 +1,7 @@
 """The investigator as the orchestrator calls it.
 
-Unlike the creative thinker this one is already real — `src/agents/investigator_agent`
-takes a free-text instruction and returns plain text.
+``src/agents/investigator_agent`` takes a free-text instruction and returns plain
+text.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ def run(args: InvestigatorArgs, _ctx: Context, env: ToolEnv) -> ToolResult:
     """Call the investigator agent and return what it reported.
 
     The import is lazy: the agent pulls in the paper pipeline and the web stack, and this
-    module is imported at dev-harness discovery time.
+    module is imported at registry discovery time.
 
     Passing `category_slug` is what puts its downloads where the next turn will look:
     with it the investigator writes to `workspace/<category>/sessions/<session_id>/`,

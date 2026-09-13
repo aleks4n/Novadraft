@@ -1,15 +1,14 @@
-"""Pydantic schema for the GapAgent's critic pass (Stage 4b).
+"""Pydantic schema for the gap subagent's critic pass (Stage 4b).
 
-The critic only judges gap candidates an upstream extractor already
-proposed — it never invents or rewrites a gap itself. See
-`subagents/gap/critic.py` for how its verdict is used.
+The critic only judges gap candidates an upstream extractor proposed; it never
+invents or rewrites a gap.
 
-Mirrors `common/schemas/summary_verify.py`'s tracked-item shape exactly:
-two growing/resolved-tracked lists (`issues` and `missing_hints`), each with
-an LLM-facing shape (`*LLM`, what the critic returns for a single round) and
-a persisted shape (`id` + `resolved` + round bookkeeping, maintained by
-`gap.py` in `gap_verification` across rounds and across separate top-level
-`extract_gaps()` calls).
+Mirrors ``common/schemas/summary_verify.py``'s tracked-item shape: two
+growing/resolved-tracked lists (``issues`` and ``missing_hints``), each with an
+LLM-facing shape (``*LLM``, what the critic returns for a single round) and a
+persisted shape (``id`` + ``resolved`` + round bookkeeping, maintained in
+``gap_verification`` across rounds and across separate top-level
+``extract_gaps()`` calls).
 """
 from __future__ import annotations
 

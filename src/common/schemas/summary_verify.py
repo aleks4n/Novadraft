@@ -1,20 +1,21 @@
-"""Pydantic schemas for the SummaryVerifyAgent (Stage 3b).
+"""Pydantic schemas for the summarize critic pass (Stage 3b).
 
-Two tracked-item lists, both following the same growing/resolved pattern
-(see `common/utils/issue_tracking.py`):
-- `issues` — a field that exists but is wrong, imprecise, or incomplete.
-- `missing_hints` — something the source states that isn't reflected
-  ANYWHERE in the summary yet.
+Two tracked-item lists, both following the same growing/resolved pattern (see
+``common/utils/issue_tracking.py``):
 
-For each, there's an LLM-facing shape (what the critic returns for a single
-round: an `id` echoed back to confirm a previously-open item is still open,
-or omitted for a new one) and a persisted shape (the LLM shape plus
-`resolved`/`created_round`/`resolved_round` bookkeeping that `critic.py`
-maintains across rounds — and across separate top-level `summarize()`
-calls, since it's loaded from `paper.json::summary_verification` each time).
+- ``issues`` — a field that exists but is wrong, imprecise, or incomplete.
+- ``missing_hints`` — something the source states that is not reflected anywhere in
+  the summary yet.
 
-`SummaryVerification` is the combined record (both persisted lists + the
-deterministic grounding check) written to `paper.json::summary_verification`.
+For each there is an LLM-facing shape (what the critic returns for a single round:
+an ``id`` echoed back to confirm a previously-open item is still open, or omitted
+for a new one) and a persisted shape (the LLM shape plus
+``resolved``/``created_round``/``resolved_round`` bookkeeping maintained across
+rounds and across separate top-level ``summarize()`` calls, since it is loaded from
+``paper.json::summary_verification`` each time).
+
+``SummaryVerification`` is the combined record (both persisted lists plus the
+deterministic grounding check) written to ``paper.json::summary_verification``.
 """
 from __future__ import annotations
 

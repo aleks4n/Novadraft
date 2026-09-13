@@ -1,21 +1,14 @@
 // One run's tree of thoughts, drawn as a tree: nodes on depth rows, each joined
 // to its parent by a branch line.
 //
-// It was a stack of rows before, which showed the same nodes and none of the
-// shape — and the shape is the content here. Which branch a thought came out of,
-// where the tree widened, which sub-tree got pruned whole: all of that is the
-// edges, and a list has no edges.
+// Shared by two surfaces: the decision-graph window on an idea's Thinking tab
+// (every run, end to end) and the live tree beside the session chat (the current
+// run, growing as it goes). Same reading aids in both — colour by status, a style
+// badge per node, and truncation marked, so a partial exploration never looks
+// finished.
 //
-// Shared by the two surfaces the vault's *UI Surfaces* note asks for: the
-// decision-graph window on an idea's Thinking tab (every run, end to end) and the
-// live tree beside the session chat (the current run, growing as it goes). Same
-// reading aids in both — colour by status, a style badge per node, and truncation
-// marked, because a partial exploration must never look finished.
-//
-// No node carries a number. A round keeps one branch, so a score was either the
-// constant 1.0 on the survivor or a presentation order read as a verdict; the
-// comparison line in the inspector says why a branch won or died, which is the
-// thing a reader actually wants.
+// Nodes carry no score: a round keeps one branch, so the inspector's comparison
+// line is what says why a branch won or died.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "./Icon";
 import type { IdeaRun, ThoughtNode } from "../lib/types";

@@ -1,14 +1,11 @@
-// The **Thinking** tab — the decision-graph surface from the vault's *UI Surfaces*
-// note: "a separate panel showing the *whole* accumulated graph for one idea:
-// every run appended end to end, each under its own header (mode, N, model,
-// styles, context)."
+// The **Thinking** tab — the decision-graph surface: the whole accumulated graph
+// for one idea, every run appended end to end, each under its own header (mode, N,
+// model, styles, context).
 //
-// This is the reasoning graph, and it is deliberately kept apart from the idea
-// graph: `runs[]` is append-only evidence of how the idea came to be, and nothing
-// on this tab writes. Reading aids the note asks for and this implements: node
-// colour by status, a style badge per node, run boundaries as bands, a `show
-// pruned` toggle, and a visible truncation marker so a partial run can never look
-// like a finished one.
+// This is the reasoning graph, kept apart from the idea graph: `runs[]` is
+// append-only, and nothing on this tab writes. Reading aids: node colour by status,
+// a style badge per node, run boundaries as bands, a `show pruned` toggle, and a
+// visible truncation marker so a partial run never looks finished.
 import { useState } from "react";
 import { Icon } from "../Icon";
 import { NodeInspector, ThoughtTree, TruncationNote } from "../ThoughtTree";

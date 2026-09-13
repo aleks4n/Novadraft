@@ -1,7 +1,7 @@
 """Orchestrator schemas — its own I/O and the LLM output shapes.
 
-Every field carries a default so `model_construct()` (what the offline `_MockChat`
-returns when no API key is set) yields a usable object and a dev run still terminates.
+Every field carries a default, so ``model_construct()`` (what the offline
+``_MockChat`` returns when no API key is set) yields a usable object.
 """
 
 from __future__ import annotations

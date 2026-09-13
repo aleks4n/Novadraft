@@ -1,20 +1,17 @@
 """The chat surface driven by the orchestrator, through the real HTTP API.
 
-The backend was built around one shape: a turn *is* one creative-thinker call, and what
-comes back is one envelope, which is unpacked into the cards the user accepts from. A
-planned turn does not fit that shape — it may think several times, or not at all — so
-these tests drive the endpoints a browser drives and check the three places that had to
-learn the difference:
+A planned turn may think several times, or not at all, so these tests drive the
+endpoints a browser drives and check three places:
 
-  * `/send` starts a planned turn instead of a thinker call when asked to
-  * `/land` reads the turn's own record, so a reply with no ideas is an ordinary turn
-    rather than a failure, and cards come from every run rather than the first
-  * accepting a card hands it back to the orchestrator's accept step, which is what
-    carries the branch of reasoning behind it onto the record that gets written
+  * ``/send`` starts a planned turn instead of a thinker call when asked to
+  * ``/land`` reads the turn's own record, so a reply with no ideas is an ordinary
+    turn rather than a failure, and cards come from every run rather than the first
+  * accepting a card hands it back to the orchestrator's accept step, which carries
+    the branch of reasoning behind it onto the record that gets written
 
-The LLM steps and the subagents are recorded, as in `test_orchestrator_flows`; everything
-between the HTTP request and them is real, including the background thread the run
-executes on.
+The LLM steps and the subagents are recorded, as in ``test_orchestrator_flows``;
+everything between the HTTP request and them is real, including the background
+thread the run executes on.
 """
 
 from __future__ import annotations

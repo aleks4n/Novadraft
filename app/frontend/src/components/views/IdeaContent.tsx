@@ -1,15 +1,15 @@
 // The **Content** tab of an idea — the record as a researcher reads and edits it.
 //
-// Two parts, with deliberately different rigidity (see src/common/schemas/idea.py):
-// the validated *spine* (title, one-liner, description, problem) at the top, and
-// the open *sections* below as collapsible blocks. Each section toggles like a
-// dropdown and edits in place; the section slugs are the agent's contract, so the
-// slug stays visible. No section is privileged — `open_questions` is one like any
-// other, deletable and renameable, and a run that finds it gone writes it again.
+// Two parts with different rigidity (see src/common/schemas/idea.py): the
+// validated spine (title, one-liner, description, problem) at the top, and the open
+// sections below as collapsible blocks. Each section toggles like a dropdown and
+// edits in place; the section slugs are the agent's contract, so the slug stays
+// visible. No section is privileged — `open_questions` is one like any other,
+// deletable and renameable, and a run that finds it gone writes it again.
 //
-// The same component renders a *result* — a copy a run produced, not yet accepted
-// — with every changed part marked. That is the point of `diff`: read-only, but
-// showing exactly what the run touched.
+// The same component renders a result — a copy a run produced, not yet accepted —
+// with every changed part marked. That is what `diff` does: read-only, showing
+// exactly what the run touched.
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Icon } from "../Icon";

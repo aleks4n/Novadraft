@@ -1,16 +1,13 @@
-"""Reading Phase-1 idea records as the current `idea.json` — on the way in only.
+"""Read Phase-1 idea records as the current ``idea.json`` — on the way in only.
 
-The ideas already in `workspace/*/ideas/` were written by the Phase-1 pipeline, before
-the format spec existed: `summary` / `method` / `related_gaps` / `related_papers`,
-`status: "draft"`, and **no `runs[]`** — no thinking graph at all, because nothing that
-wrote them had one.
+The ideas in ``workspace/*/ideas/`` written by the Phase-1 pipeline use
+``summary`` / ``method`` / ``related_gaps`` / ``related_papers``, ``status:
+"draft"``, and carry no ``runs[]``.
 
-:func:`normalize` maps such a record onto :class:`IdeaRecord` so the dev viewer and the
-orchestrator's apply step can read it. It is a **read-side adapter**: it returns a new
-object and never writes, so the legacy files stay exactly as they are until something
-deliberately persists over them.
-
-A record already in the current shape passes through unchanged.
+:func:`normalize` maps such a record onto :class:`IdeaRecord`. It is a read-side
+adapter: it returns a new object and never writes, so the older files stay as they
+are until something deliberately persists over them. A record already in the
+current shape passes through unchanged.
 """
 
 from __future__ import annotations

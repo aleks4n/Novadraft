@@ -1,13 +1,13 @@
 // What one creative-thinker run produced, rendered inside the chat.
 //
-// Everything here is a *proposal*: the thinker returns a modified copy of the idea
-// and writes nothing. So the result view shows the copy as its own idea page with
+// Everything here is a proposal: the thinker returns a modified copy of the idea
+// and writes nothing. The result view shows that copy as its own idea page with
 // every changed part marked, and nothing reaches the workspace until an accept.
 //
-// A refinement run produces three things and no more: the rewritten copy, the answer
-// to the task, and — only when carrying out the task moved the idea far enough that
-// overwriting would lose it — one suggestion to keep both. Drafts are a *generation*
-// output: candidate ideas, one card each.
+// A refinement run produces the rewritten copy, the answer to the task, and — only
+// when the task moved the idea far enough that overwriting would lose it — one
+// suggestion to keep both. Drafts are a generation output: candidate ideas, one
+// card each.
 //
 // Decisions are stored on the working copy, not in component state, so a reloaded
 // transcript shows what was chosen instead of offering the choice again.

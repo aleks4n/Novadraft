@@ -4,16 +4,15 @@
         <run_id>.json   one run's outcome: the answer plus the drafts it offered
         papers/         papers the investigator fetched for this session
 
-A thinking run ends by writing its drafts here and returning them to the chat. When the
-user accepts some, `commit_selection` reads them back by `run_id` — so what gets written
-to the idea graph is exactly what the user was shown, not a regenerated set.
+A thinking run ends by writing its drafts here and returning them to the chat.
+When the user accepts some, ``commit_selection`` reads them back by ``run_id``, so
+what is written to the idea graph is exactly what the user was shown.
 
-This is what lets a run finish instead of suspending mid-graph: the pending state lives on
-disk between turns rather than in a LangGraph checkpointer. See SPEC.md.
+Keeping pending state on disk between turns is what lets a run finish instead of
+suspending mid-graph.
 
-It also doubles as the run's result record, because `GraphRunLog.run()` returns only the
-output it was handed and the streaming path hands it none — the same reason the validator
-re-reads its finalized gap instead of using the return value.
+It also doubles as the run's result record, since ``GraphRunLog.run()`` returns
+only the output it was handed and the streaming path hands it none.
 """
 
 from __future__ import annotations

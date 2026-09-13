@@ -1,34 +1,31 @@
 """gap subagent — the LangGraph subgraph (Stage 4 + 4b).
 
-Wires the extractor and critic subagents into a bounded cycle:
+Wires the extractor and critic subagents into a bounded cycle::
 
     enter → extractor → critic → (route: converged? → finalize : → extractor) → END
 
-`extractor.run_extract` (one LLM pass + deterministic anchor-grounding) and
-`critic.run_critic` (one LLM pass) are both stateless single-pass functions with
-no disk I/O. This module owns everything around them: reading the paper once in
-`enter`, the extract/critique loop (merging candidates across passes, deciding
-what counts as converged), and writing the final accepted set in `finalize`.
+``extractor.run_extract`` (one LLM pass + deterministic anchor-grounding) and
+``critic.run_critic`` (one LLM pass) are stateless single-pass functions with no
+disk I/O. This module owns everything around them: reading the paper once in
+``enter``, the extract/critique loop (merging candidates across passes, deciding
+what counts as converged), and writing the final accepted set in ``finalize``.
 
-The loop is bounded by `MAX_GAP_LOOPS` rounds (enforced in the router) and stops
-early once there's no outstanding cleanup work and either the critic confirms
+The loop is bounded by ``MAX_GAP_LOOPS`` rounds (enforced in the router) and stops
+early once there is no outstanding cleanup work and either the critic confirms
 coverage is complete or the extractor stops finding anything new. A minor issue
-re-flagged `MAX_MINOR_RECONFIRMS` times in a row is auto-resolved rather than
-counted as outstanding work, so it alone can't exhaust the loop budget. This is
-the same logic the old imperative `while` loop ran, now expressed as a graph
-cycle so each round's extractor/critic step (and its LLM call) streams into the
-dev UI's run tree.
+re-flagged ``MAX_MINOR_RECONFIRMS`` times in a row is auto-resolved rather than
+counted as outstanding work.
 
-`extract_gaps(category_slug, paper_id, force=False)` compiles and invokes the
-graph and returns the same result dict as before — it stays importable and
-standalone-callable (used by the dev harness and eval pipeline).
+``extract_gaps(category_slug, paper_id, force=False)`` compiles and invokes the
+graph and returns the result dict.
 
 Out of scope (handled later by GapCheckAgent):
+
 - Cross-paper dedup
 - Online "is this already solved?" check
 - Severity / novelty judgment
 - Promotion from pending/ to verified gaps
-- Resolving ambiguous-anchor gaps (left for a future GapEvaluator stage)
+- Resolving ambiguous-anchor gaps
 """
 from __future__ import annotations
 
@@ -449,7 +446,7 @@ _GRAPH = None
 def extract_gaps(category_slug: str, paper_id: str, force: bool = False,
                  max_loops: int = MAX_GAP_LOOPS) -> dict:
     """Run the gap subgraph for one paper, returning the same result dict the
-    old `extract_gaps()` did. Standalone-callable (the dev harness and eval
+    old `extract_gaps()` did. Standalone-callable (callers and eval
     pipeline import it directly)."""
     global _GRAPH
     if _GRAPH is None:

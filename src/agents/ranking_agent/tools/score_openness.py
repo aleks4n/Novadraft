@@ -1,8 +1,8 @@
-"""score_openness: maps the gap's validator verdict to an openness score in [0, 1].
+"""score_openness — maps the gap's validator verdict to an openness score in [0, 1].
 
-High validator confidence raises openness for `open` gaps (we're sure it's untouched) but
-lowers it for `partially_solved` gaps (we're sure real progress exists). Solved gaps never
-reach the ranking agent — the validator parks them in master/.
+High validator confidence raises openness for ``open`` gaps and lowers it for
+``partially_solved`` ones. Solved gaps never reach the ranking agent; the validator
+parks them in ``master/``.
 """
 
 from __future__ import annotations

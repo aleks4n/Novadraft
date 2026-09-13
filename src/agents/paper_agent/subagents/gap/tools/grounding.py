@@ -1,12 +1,11 @@
 """Deterministic grounding check for the gap subagent's extractor (Stage 4).
 
-No LLM. The LLM no longer transcribes a full quote (its plain-text rendering
-of in-paper LaTeX, e.g. "p_g(x)" for source "$p_g(\\bm{x})$", almost never
-matches byte-for-byte). Instead it gives a short *anchor* — a few distinctive
-words it expects to occur exactly once in the section. `find_anchor` locates
-that anchor deterministically and expands it to its containing sentence; the
-*stored* quote is always a literal substring of paper.json, so grounding is
-structural rather than dependent on LLM transcription.
+No LLM. The model gives a short *anchor* — a few distinctive words it expects to
+occur exactly once in the section — rather than transcribing a full quote, whose
+plain-text rendering of in-paper LaTeX (e.g. "p_g(x)" for source "$p_g(\\bm{x})$")
+rarely matches byte-for-byte. :func:`find_anchor` locates that anchor
+deterministically and expands it to its containing sentence, so the stored quote is
+always a literal substring of paper.json.
 """
 from __future__ import annotations
 

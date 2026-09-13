@@ -1,26 +1,25 @@
-"""LangGraph-native run tracing
+"""LangGraph-native run tracing.
 
-Inside a running LangGraph graph, :func:`emit` pushes a structured event into
-the graph's *custom* stream (``stream_mode="custom"``). The dev UI consumes that
-stream alongside ``"updates"`` and reassembles the same nested step tree it used
-to read from ``runlog`` on disk: graph nodes are the *steps*, and the LLM/tool/
-event leaves emitted here nest underneath whichever node emitted them.
+Inside a running LangGraph graph, :func:`emit` pushes a structured event into the
+graph's custom stream (``stream_mode="custom"``). A consumer reads that stream
+alongside ``"updates"`` and reassembles a nested step tree: graph nodes are the
+steps, and the LLM/tool/event leaves emitted here nest underneath whichever node
+emitted them.
 
 Each event is auto-tagged with the executing node name (``_node``), read from
-LangGraph's run config, so the UI can attach the leaf to the right step without
-any contextvar bookkeeping of our own.
+LangGraph's run config, so a leaf attaches to the right step without any
+contextvar bookkeeping.
 
-Outside a graph run — a leaf subagent called directly, the eval harness's
-``.invoke()`` path, tests — there is no active stream, so :func:`emit` is a
-silent no-op and nothing is recorded. A main agent's ``run()`` instead streams
-the graph through :class:`src.common.utils.logging.runlog.GraphRunLog`, which makes the
-custom stream live: the same ``emit`` calls then land in the run's ``.jsonl``
-and on the terminal (and over SSE in the dev UI / app).
+Outside a graph run — a leaf subagent called directly, an ``.invoke()`` path,
+tests — there is no active stream, so :func:`emit` is a silent no-op. An agent's
+``run()`` instead streams the graph through
+:class:`src.common.utils.logging.runlog.GraphRunLog`, which makes the custom stream
+live: the same ``emit`` calls then land in the run's ``.jsonl``, on the terminal,
+and over SSE in the app.
 
-LLM and tool calls are emitted centrally from ``src/llm/registry.py`` (every
-agent calls the LLM exclusively through that module), so prompts/responses show
-up nested under whichever node triggered them with no tracing code in the agents
-themselves.
+LLM and tool calls are emitted centrally from ``src/llm/registry.py``, so
+prompts/responses show up nested under whichever node triggered them with no
+tracing code in the agents themselves.
 """
 from __future__ import annotations
 
@@ -58,9 +57,8 @@ def log_event(message: str, **data) -> None:
     """Emit a fine-grained informational note as an ``event`` leaf.
 
     A convenience wrapper over :func:`emit` for deterministic tool functions
-    (e.g. the fetch/extract common tools) that want to narrate progress the
-    way the old ``runlog.log_event`` did. Renders as a plain terminal-style
-    line in the dev UI's run tree, nested under the current node's step.
-    No-op outside a running graph.
+    (e.g. the fetch/extract common tools) that want to narrate progress.
+    Renders as a plain terminal-style line nested under the current node's
+    step. No-op outside a running graph.
     """
     emit({"type": "event", "name": message, "data": data})

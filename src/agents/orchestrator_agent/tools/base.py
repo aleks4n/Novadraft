@@ -1,8 +1,7 @@
 """What a tool is, and what it gets told about the run calling it.
 
-Separate from `registry.py` so a tool module can import `Tool` without importing the
-registry that collects it — otherwise every adapter and the registry would import each
-other.
+Separate from ``registry.py`` so a tool module can import ``Tool`` without
+importing the registry that collects it.
 """
 
 from __future__ import annotations

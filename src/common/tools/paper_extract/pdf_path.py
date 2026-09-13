@@ -1,11 +1,10 @@
 """PDF extraction path via marker-pdf.
 
-Marker converts a PDF to Markdown with LaTeX math preserved. We then split the
-markdown by headings into a flat section dict.
+Marker converts a PDF to Markdown with LaTeX math preserved; the markdown is then
+split by headings into a flat section dict.
 
-Install:  pip install marker-pdf
-
-First call downloads ~1-2GB of models; subsequent calls are fast.
+Install: ``pip install marker-pdf``. The first call downloads ~1-2GB of models;
+subsequent calls are fast.
 """
 from __future__ import annotations
 

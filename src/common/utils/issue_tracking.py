@@ -1,15 +1,13 @@
-"""Shared merge logic for the critic-side "growing tracked-item list"
-pattern used by both `subagents/summarize/critic.py` and
-`subagents/gap/critic.py` — for their critique `issues` lists AND their
-`missing_hints` lists alike (both are tracked the same way).
+"""Shared merge logic for the critic-side growing tracked-item list, used by both the
+summarize and gap critics for their ``issues`` and ``missing_hints`` lists.
 
-The persisted list never shrinks — an item is only ever appended or flipped
-to `resolved`. Each round the critic LLM sees the currently-open items (with
-their `id`s) and returns, for this round only: items it's re-confirming are
-still open (by echoing back their `id`) and brand-new items (no `id`).
-`merge_items` reconciles that single-round verdict into the persisted list:
-anything previously open that wasn't re-confirmed this round gets marked
-resolved; anything new gets appended with a fresh id.
+The persisted list never shrinks — an item is only appended or flipped to
+``resolved``. Each round the critic LLM sees the currently-open items (with their
+``id``s) and returns, for this round only: items it is re-confirming as still open
+(by echoing back their ``id``) and brand-new items (no ``id``).
+:func:`merge_items` reconciles that single-round verdict into the persisted list:
+anything previously open that was not re-confirmed this round is marked resolved;
+anything new is appended with a fresh id.
 """
 from __future__ import annotations
 

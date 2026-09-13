@@ -1,8 +1,7 @@
 // Live view of an agent run, shown inline in the Add-paper / New-idea step.
-// The agent is part of that workflow, not a separate assistant, so we show the
-// *process* as a small stage pipeline (fetch → extract → summarize → gaps →
-// save) rather than a wall of internal nodes. The raw event log is still there,
-// one click away, for when you want the detail.
+// Renders the process as a small stage pipeline (fetch → extract → summarize →
+// gaps → save) rather than a wall of internal nodes; the raw event log is one
+// click away.
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
 import { SourceDropZone } from "./SourceDropZone";

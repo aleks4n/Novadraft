@@ -1,9 +1,7 @@
-"""Paper agent — fetch -> extract -> summarize -> gap, as one streamed graph.
+"""Paper agent package — registry manifest and public entry points.
 
-The ``MANIFEST`` below is what the dev harness auto-discovers (see
-``dev/registry.py``). Keeping it here means everything the harness needs to run,
-stream, log and render this agent — plus its isolated-testing subagents — lives
-next to the agent itself, not in a central registry.
+The pipeline is fetch → extract → summarize → gap, run as one streamed graph. The
+``MANIFEST`` below is what ``src/common/registry.py`` auto-discovers.
 """
 from src.common.tools.paper_fetch import fetch as paper_fetch
 from src.common.tools.paper_extract import extract as paper_extract

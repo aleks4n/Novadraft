@@ -1,15 +1,10 @@
 """expand_branch (LLM) — one level of the refinement tree.
 
-Called once per depth level on the surviving branch: given the idea, **the task the
-run was set**, and the path so far, propose the next siblings.
+Called once per depth level on the surviving branch: given the idea, the task the
+run was set, and the path so far, it proposes the next siblings. The idea's stored
+``open_questions`` are supplied as material, not as the agenda.
 
-The task is what this branches on. Earlier it branched on whatever the idea had
-stored under ``open_questions``, which made refinement useless for anything a
-session actually asks — you cannot answer "would this work for video?" by
-expanding the idea's own navel-gazing. Open questions are still supplied, but as
-*material*, not as the agenda.
-
-The tree's *shape* — how wide, how deep, how many survive — is decided by the graph
+The tree's shape — how wide, how deep, how many survive — is decided by the graph
 and the budget ledger, not here.
 """
 

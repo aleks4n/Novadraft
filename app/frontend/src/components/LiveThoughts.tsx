@@ -1,13 +1,8 @@
 // A run in progress, in the chat: its tree of thoughts as it grows.
 //
-// This replaced the stage pipeline (prepare → generate → … → assemble). The stages
-// say *where* the agent is, which is a progress bar with extra words; the tree says
-// *what it is considering*, which is the thing a researcher is actually waiting for.
-// Both come from the same stream — `tools/trace.py` emits every node as it is
-// minted — so this costs nothing the pipeline was not already paying.
-//
-// The failure and paused states still get plain text: a run that died owes an
-// error, not a diagram.
+// Nodes arrive on the same stream the run already emits — `tools/trace.py` emits
+// every node as it is minted. The failure and paused states render as plain text
+// rather than a diagram.
 import { useState } from "react";
 import { Icon } from "./Icon";
 import { OrchestratorProgress } from "./OrchestratorProgress";

@@ -1,15 +1,12 @@
 """Deterministic grounding check for the summarize subagent's critic.
 
-No LLM. Pulls every quoted value out of a produced `summary` (metric values,
-dataset names, numbers in the results headline) and substring-matches them
-against the paper's extracted `content.sections`. Anything that doesn't show
-up verbatim (modulo whitespace/case normalization) is a candidate
-hallucination and gets flagged as a `major` issue upstream.
+No LLM. Pulls every quoted value out of a produced ``summary`` (metric values,
+dataset names, numbers in the results headline) and substring-matches them against
+the paper's extracted ``content.sections``. Anything that does not show up verbatim
+(modulo whitespace/case normalization) is flagged as a ``major`` issue upstream.
 
-Deliberately simple: substring matching over normalized text, no fuzzy
-matching. False negatives (a real value phrased slightly differently, e.g.
-re-rounded) are acceptable — they fall through to the LLM critic instead of
-silently passing, and a human/critic can judge the rare false positive.
+Substring matching over normalized text, no fuzzy matching: false negatives fall
+through to the LLM critic rather than passing silently.
 """
 from __future__ import annotations
 

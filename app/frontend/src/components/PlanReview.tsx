@@ -1,15 +1,14 @@
 // The orchestrator's plan, before it runs.
 //
-// A planned turn stops once it knows what it would do: which subagent it would call,
-// in which order, and with which arguments. That is what this renders — and, while the
-// plan is still only proposed, what it lets the user change. Nothing is dispatched
-// until Start is pressed; pressing it runs a second run over the same turn carrying
-// the plan exactly as it is on screen.
+// A planned turn stops once it knows what it would do: which subagent it would
+// call, in which order, and with which arguments. This renders that plan and, while
+// it is still only proposed, lets the user change it. Nothing is dispatched until
+// Start is pressed, which runs a second run over the same turn carrying the plan
+// exactly as it is on screen.
 //
-// The fields are generated from the backend's tool specs, which are themselves derived
-// from each tool's own argument model. So the editor cannot offer a knob the tool does
-// not have, or a range the tool would reject — a creative thinker's width stops at the
-// number of distinct stances there are, because that is where the schema stops it.
+// The fields are generated from the backend's tool specs, themselves derived from
+// each tool's argument model, so the editor cannot offer a knob the tool does not
+// have or a range the tool would reject.
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "./Icon";
 import { agentApi } from "../lib/api";

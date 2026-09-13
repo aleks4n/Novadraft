@@ -1,10 +1,8 @@
 """Creative thinker — the divergent worker of the idea agent.
 
-A **pure, callable worker with no side effects**. The orchestrator calls it, it
-thinks, it returns. Between those two moments it touches nothing outside its own
-inputs: no workspace access, no session state, no chat channel. It cannot create
-an idea, write a file, or speak to the user — everything it produces goes back in
-one :class:`Envelope` and the orchestrator decides what becomes global.
+A pure, callable worker with no side effects: no workspace access, no session
+state, no chat channel. Everything it produces is returned in one
+:class:`Envelope`, and the orchestrator decides what becomes global.
 
 One graph, two parameter sets::
 
@@ -13,38 +11,29 @@ One graph, two parameter sets::
                           └→ writeback
              └→ assemble → END
 
-There is no third mode: a chain of thought is ``refinement`` with ``depth = 1``
-through this same code path, and a graph of thoughts is refinement plus the
-aggregate operator. Merging is refinement seeded from two source ideas.
+A chain of thought is ``refinement`` with ``depth = 1`` through the same code
+path; a graph of thoughts is refinement plus the aggregate operator. Merging is
+refinement seeded from two source ideas.
 
-Refinement is driven by ``spec.task`` — the free instruction the orchestrator passes
-down. That is what lets one mode serve a question, a change, an addition, a critique
-or an open develop, instead of only ever expanding the idea's own stored open
-questions. A refinement run therefore owes two things back: the edited idea *and* an
-``answer`` to the task it was set. Those two are its whole output — it returns no
-drafts, and it raises **one** kind of suggestion and only when the write-up says the
-result has stopped being the same idea (:func:`_divergence`). Nothing else escalates:
-a losing branch is a verdict on the record, and a question the Investigator could not
-settle is an open question, not a proposal.
+Refinement is driven by ``spec.task``, the free instruction the orchestrator
+passes down, so one mode serves a question, a change, an addition, a critique or
+an open develop. A refinement run returns the edited idea and an ``answer`` to the
+task; it returns no drafts, and raises a suggestion only when the write-up says
+the result has stopped being the same idea (:func:`_divergence`).
 
-**Stateless across calls.** Everything it knows about the idea's history comes
-from the copy it was handed — specifically from that copy's ``runs[]``, which is
-why the trace is append-only and mandatory.
+Stateless across calls: everything it knows about the idea's history comes from
+the copy it was handed, specifically that copy's ``runs[]``.
 
-**Anytime.** Stopped at any round it still returns a usable result, labelled
-partial. Because divergent thinking has no goal test, hitting a ceiling is the
-normal path, not the error path.
+Anytime: stopped at any round it still returns a usable result, labelled partial.
 
 Entry points:
 
-- :func:`think` — the callable interface for the orchestrator. Pure: it neither
-  writes a file nor logs to disk.
-- :func:`run` — the dev-harness/standalone entry point. Same graph, streamed
-  through a :class:`GraphRunLog` so the run is recorded as a ``.jsonl``. It reads
-  the idea (a fixture, or ``ws:<slug>/<idea_id>`` for a real workspace record) and
-  writes a run log. It performs **no workspace write** unless explicitly asked with
-  ``persist=<slug>``, and that write is the *orchestrator's* step, applied to the
-  returned envelope after the agent is done — see
+- :func:`think` — the callable interface for the orchestrator. Writes nothing.
+- :func:`run` — the standalone/CLI entry point. Same graph, streamed through a
+  :class:`GraphRunLog` so the run is recorded as a ``.jsonl``. It reads the idea
+  (a fixture, or ``ws:<slug>/<idea_id>`` for a workspace record) and writes a run
+  log. It performs no workspace write unless asked with ``persist=<slug>``, which
+  applies the returned envelope via
   :func:`src.agents.idea_agent.apply_envelope`.
 """
 
@@ -921,16 +910,17 @@ def _load_idea(value: str | None) -> IdeaRecord:
     return IdeaRecord.model_validate(_load_json(text, FIXTURES) or {})
 
 
-FIXTURES = REPO_ROOT / "dev" / "fixtures"
+# Base for relative ``idea``/``context`` paths handed to ``run()``. An idea may be
+# given as a path, as inline JSON, or as ``ws:<slug>/<id>``.
+FIXTURES = REPO_ROOT
 
 
 def _shape(mode: str, *, width: Any = None, depth: Any = None,
            n: Any = None) -> dict[str, int]:
     """``width``/``depth`` for the call, honouring a legacy ``n``.
 
-    Both harness entry points resolve the shape identically, so a UI run and a CLI
-    run are the same run. An explicit ``width``/``depth`` always wins; ``n`` fills
-    whichever axis its mode used it for, and generation is depth 1 by definition.
+    An explicit ``width``/``depth`` always wins; ``n`` fills whichever axis its
+    mode used it for, and generation is depth 1 by definition.
     """
     def number(value: Any, fallback: int) -> int:
         try:
@@ -943,7 +933,7 @@ def _shape(mode: str, *, width: Any = None, depth: Any = None,
         return {"width": number(width, 3), "depth": number(depth, legacy or 3)}
     return {"width": number(width, legacy or 3), "depth": 1}
 
-# The dev harness may wire a real Investigator so ``tool_use`` can be shown end to
+# A caller may wire a real Investigator so ``tool_use`` can be shown end to
 # end. The wiring lives here, at the boundary — the thinker itself imports nothing
 # from the Investigator and only ever sees a callable.
 _INVESTIGATOR_ON = {"web", "investigator", "true", "1", "yes", "on"}
@@ -975,12 +965,12 @@ def _make_investigator(kind: str | None) -> Callable[[str], dict] | None:
 
 def run(idea: str = "", mode: str = "generation", width: int = 3, depth: int = 3,
         task: str = "", styles: str = "", context: str = "", tool_use: bool = False,
-        max_llm_calls: int = 60, triggering_action: str = "dev harness",
+        max_llm_calls: int = 60, triggering_action: str = "standalone run",
         investigator: str = "none", persist: str = "", stream: bool = True,
         echo: bool | None = None, n: int | None = None) -> dict:
-    """Standalone / dev-harness entry point — same graph, recorded as a run log.
+    """Standalone (CLI) entry point — same graph, recorded as a run log.
 
-    ``idea`` and ``context`` are fixture filenames (in ``dev/fixtures/``), paths,
+    ``idea`` and ``context`` are paths (relative to the repo root), inline JSON,
     or inline JSON. Reading them and writing the run's ``.jsonl`` are this
     function's only disk touches: **no workspace record is created or modified**,
     which is why the manifest declares no ``workspace_field`` and the log lands in
@@ -1012,7 +1002,7 @@ def run(idea: str = "", mode: str = "generation", width: int = 3, depth: int = 3
 
     if echo is None:
         echo = sys.stderr.isatty()
-    rl = GraphRunLog("creative_thinker", log_dir=REPO_ROOT / "dev" / "runs" / "graph_logs",
+    rl = GraphRunLog("creative_thinker", log_dir=REPO_ROOT / "workspace" / "_graph_logs",
                      run_hint=f"{spec.mode}-{spec.idea.title or 'idea'}")
     rl.run(graph, inputs, echo=echo)
     if rl.error:
@@ -1038,22 +1028,21 @@ def _persist(envelope: dict, slug: str) -> dict:
 
 
 def post_run(inputs: dict, output: dict) -> dict:
-    """Harness hook: apply the envelope after a *streamed* run, if asked.
+    """Harness hook: apply the envelope after a streamed run, if asked.
 
-    The dev UI streams the graph directly rather than calling :func:`run`, so the
-    orchestrator's persist step has to hang off the run rather than off the entry point.
-    Same function either way, and still outside the graph: the agent has finished and
-    returned before anything is written.
+    A streamed run drives the graph directly rather than calling :func:`run`, so
+    the persist step hangs off the run rather than off the entry point. It stays
+    outside the graph: the agent has finished and returned before anything is
+    written.
     """
     return _persist(output, str(inputs.get("persist") or ""))
 
 
 def input_adapter(inputs: dict) -> dict:
-    """Dev-UI form values → graph inputs.
+    """Form values (all strings) → graph inputs.
 
-    The UI can only send strings, and the graph takes a :class:`ThinkerCall`
-    holding a whole ``idea.json``. This builds the spec the same way :func:`run`
-    does, so a UI run and a CLI run are the same run.
+    The graph takes a :class:`ThinkerCall` holding a whole ``idea.json``; this
+    builds the spec the same way :func:`run` does.
     """
     resolved = ("refinement" if str(inputs.get("mode", "")).lower().startswith("r")
                 else "generation")
@@ -1068,7 +1057,7 @@ def input_adapter(inputs: dict) -> dict:
                  n=inputs.get("n")),
         tool_use=str(inputs.get("tool_use", "")).strip().lower() in {"1", "true", "yes", "on"},
         budget=Budget(max_llm_calls=int(inputs.get("max_llm_calls") or 60)),
-        triggering_action=str(inputs.get("triggering_action") or "dev UI"),
+        triggering_action=str(inputs.get("triggering_action") or "manual run"),
     )
     return {"spec": spec, "investigator": _make_investigator(inputs.get("investigator"))}
 

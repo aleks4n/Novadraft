@@ -1,19 +1,17 @@
-"""What the LLM steps see — of the context that was loaded, and of what the tools returned.
+"""What the LLM steps see — of the context that was loaded, and of what the tools
+returned.
 
-`context_view` and `results_view` are the only two things a prompt is ever handed, so this
-module decides what an LLM reads. Three rules hold in both:
+``context_view`` and ``results_view`` are the only two things a prompt is handed.
+Three rules hold in both:
 
-1. **No raw `model_dump()` JSON.** Field names outweigh content and nothing reads well.
-2. **Never cut at a character count.** Slicing a record at N chars removes something
-   without saying so, and a step that judges a truncated view reports a shortfall that
-   isn't there. Drop whole fields instead, by name, and say why.
-3. **State counts outright.** Anything a step has to establish by counting entries, it can
-   get wrong.
+1. No raw ``model_dump()`` JSON.
+2. Never cut at a character count — drop whole fields instead, by name, and say
+   why, so a step never judges a silently truncated view.
+3. State counts outright rather than leaving a step to count entries.
 
-These two views feed the planner and reflect, which route and check structure. They are
-not what the creative thinker reads: it receives the whole `Context` object and renders it
-per record type (`creative_thinker.tools.context`), so nothing left out here is withheld
-from the step that thinks about it.
+These two views feed the planner and reflect. The creative thinker instead
+receives the whole ``Context`` object and renders it per record type
+(``creative_thinker.tools.context``).
 """
 
 from __future__ import annotations

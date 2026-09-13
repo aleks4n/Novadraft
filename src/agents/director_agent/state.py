@@ -1,13 +1,13 @@
-"""The director_agent graph's state — what flows between its top-level nodes.
+"""The director_agent graph state — what flows between its top-level nodes.
 
-A LangGraph TypedDict; ``total=False`` so each node returns only the keys it sets.
-Linear flow: load the master list -> collect the pending inbox -> dedup each
-pending gap against the known gaps -> finalize.
+A LangGraph ``TypedDict`` (``total=False``, so each node returns only the keys it
+sets). Linear flow: load the master list, collect the pending inbox, dedup each
+pending gap against the known gaps, finalize.
 
 The director communicates with the rest of the pipeline through the workspace
 filesystem (``gaps/<stage>/``), so this state carries control info only, not the
-gap payloads themselves. ``novel_gap_ids`` is the handoff the pipeline graph fans
-out to the validator; ``result`` is what ``run()`` returns.
+gap payloads. ``novel_gap_ids`` is the handoff the pipeline graph fans out to the
+validator; ``result`` is what ``run()`` returns.
 """
 from __future__ import annotations
 

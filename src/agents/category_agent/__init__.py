@@ -1,10 +1,7 @@
-"""Category agent — LLM-write a short technical category description.
+"""Category agent package — registry manifest and public entry points.
 
-The ``MANIFEST`` below is what the dev harness auto-discovers (see
-``dev/registry.py``). The agent (``agent.py``) asks the LLM (fast ``cheap``
-role) for a short technical description of the topic and writes ``meta.json``.
-The description is just a starting point — the app UI lets the user edit it by
-hand afterwards.
+The ``MANIFEST`` below is what ``src/common/registry.py`` auto-discovers. The
+agent itself lives in ``agent.py``.
 """
 from .agent import build_category_graph, run
 
@@ -14,9 +11,8 @@ MANIFEST = {
     "kind": "agent",
     "run": run,
     "graph_builder": build_category_graph,
-    # The agent *creates* the workspace, so there is no pre-existing slug field on
-    # the form. The dev UI logs to its shared graph_logs dir; the standalone
-    # ``run()`` logs under the workspace it creates.
+    # The agent creates the workspace, so there is no pre-existing slug field on
+    # the form; ``run()`` logs under the workspace it creates.
     "workspace_field": None,
     "steps": [
         "describe",

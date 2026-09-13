@@ -1,29 +1,27 @@
-"""Append-only run log = the live stream and the on-disk history, in one pass.
+"""Append-only run log — the live stream and the on-disk history, in one pass.
 
 A graph agent is streamed with::
 
     graph.stream(inputs, stream_mode=["updates", "custom"], subgraphs=True)
 
-Each ``(namespace, mode, data)`` chunk is normalized by :class:`RunRecorder`
-into one *flat* event, which is (a) appended as a single JSON line to the run's
-``.jsonl`` file and (b) handed back to the caller to forward (over SSE) or echo
-(to a terminal). There is no nested tree on the write side: the log is a linear
-event stream, and any hierarchy (subgraph events under their parent, the live
-diagram's current-step highlight) is reconstructed at read time on the frontend
-from each event's ``ns``/``gnode`` fields.
+Each ``(namespace, mode, data)`` chunk is normalized by :class:`RunRecorder` into
+one flat event, which is (a) appended as a single JSON line to the run's ``.jsonl``
+file and (b) handed back to the caller to forward (over SSE) or echo (to a
+terminal). There is no nested tree on the write side: the log is a linear event
+stream, and any hierarchy (subgraph events under their parent, the live diagram's
+current-step highlight) is reconstructed at read time on the frontend from each
+event's ``ns``/``gnode`` fields.
 
-Because the bytes written to disk are byte-identical to the bytes streamed,
-"live run" and "reopened past run" render from the same source: live = forward
-each event as it's recorded; history = read the file back with :func:`read_run`.
-Writing incrementally (one flushed line per event) also means a crash leaves a
-complete log up to the point of failure, instead of losing everything.
+The bytes written to disk are identical to the bytes streamed, so a live run and a
+reopened past run render from the same source: live = forward each event as it is
+recorded; history = read the file back with :func:`read_run`. Writing incrementally
+(one flushed line per event) also means a crash leaves a complete log up to the
+point of failure.
 
 :class:`GraphRunLog` wraps the whole loop (pick the log path, draw the diagram,
-stream, record, finish) so there is **one** implementation shared by every
-caller: a main agent's standalone ``run()`` (echo to terminal), the dev harness,
-and the product app backend (forward each event over SSE). All three therefore
-produce byte-identical logs — a run renders the same whether it was launched
-from a python file, the dev UI, or the app.
+stream, record, finish) so there is one implementation shared by every caller: an
+agent's standalone ``run()`` (echo to terminal) and the app backend (forward each
+event over SSE). Both produce identical logs.
 
 Event shape (one JSON object per line)::
 
@@ -41,8 +39,8 @@ Event shape (one JSON object per line)::
     {"seq": 9, "t": "...", "kind": "run_end",
      "status": "done", "output": {...}, "error": null, "duration_s": 17.4}
 
-``gnode`` is the id the event maps to in ``get_graph(xray=True)``: a top-level
-node keeps its name (``fetch``), a subgraph-internal node is namespaced
+``gnode`` is the id the event maps to in ``get_graph(xray=True)``: a top-level node
+keeps its name (``fetch``), a subgraph-internal node is namespaced
 (``summarize:extractor``) so the frontend can light up the right box.
 """
 from __future__ import annotations
@@ -158,9 +156,8 @@ class RunRecorder:
 def _echo(event: dict) -> None:
     """Print one terminal-friendly line for a streamed event (to stderr).
 
-    The standalone-run counterpart of the dev UI's run tree: enough to watch a
-    pipeline progress live without the full JSON. Indented leaves nest visually
-    under their node the way the UI nests them under their step."""
+    Enough to watch a pipeline progress live without the full JSON; indented
+    leaves nest visually under their node."""
     kind = event.get("kind")
     if kind == "run_start":
         line = f"▶ {event.get('agent')}  workspace={event.get('workspace') or '-'}"
@@ -187,7 +184,7 @@ class GraphRunLog:
 
     - :meth:`stream` — a generator yielding every event (``run_start``, the
       node/llm/tool/event leaves, then ``run_end``). Forward each over SSE, or
-      pass ``echo=True`` to also print it. Used by the dev harness / app backend.
+      pass ``echo=True`` to also print it. Used by the app backend.
     - :meth:`run` — consume :meth:`stream` to completion and return the output.
       Used by a main agent's standalone entrypoint.
 

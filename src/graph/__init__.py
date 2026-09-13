@@ -2,10 +2,10 @@
 
 Kept separate from ``src/agents/*`` (which hold the individual agents): this
 package wires them into one end-to-end ingestion graph, plus a ``resume`` graph
-that runs just the director+validator tail for gaps that haven't finished (using
-each gap's stage folder as the checkpoint). Both ``MANIFEST``s are discovered by
-``dev/registry.py`` just like an agent's, so the dev harness and app backend can
-stream ``pipeline`` / ``resume`` with the shared logging engine.
+that runs just the director+validator tail for gaps that have not finished, using
+each gap's stage folder as the checkpoint. Both ``MANIFEST``s are discovered by
+``src/common/registry.py`` like an agent's, so the app backend can stream
+``pipeline`` / ``resume`` with the shared logging engine.
 """
 from .pipeline import build_pipeline_graph, build_resume_graph, resume, run
 

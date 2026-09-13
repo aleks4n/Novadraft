@@ -13,8 +13,8 @@ helpers make one call on it:
   validated instance is returned — no text parsing needed.
 
 Provider API keys are read from the environment (`.env` at the novadraft root).
-When no key is set, `get_llm` returns a deterministic offline mock so dev runs
-work without network access.
+When no key is set, `get_llm` returns a deterministic offline mock so runs work
+without network access.
 """
 from __future__ import annotations
 
@@ -223,7 +223,7 @@ def chat_with_structured_output(llm, system: str, user: str, schema: type[T]) ->
                operation="chat_with_structured_output", schema=schema.__name__,
                structured_attempts=_STRUCTURED_ATTEMPTS)
     if isinstance(llm, _MockChat):
-        # Offline dev run: skip tool binding and return an unvalidated instance.
+        # Offline run: skip tool binding and return an unvalidated instance.
         result = schema.model_construct()
         _trace("chat_with_structured_output", system, user, schema=schema,
                output=result.model_dump(), t0=t0)
@@ -379,7 +379,7 @@ def _trace(name: str, system: str, user: str, *, schema, output, t0: float) -> N
 
 class _MockChat:
     """Deterministic offline stand-in for a LangChain chat model, used when no
-    provider API key is configured so dev runs stay functional without network
+    provider API key is configured, so runs stay functional without network
     access. Plain calls return empty text; structured calls return an empty
     (unvalidated) instance of the requested schema.
 

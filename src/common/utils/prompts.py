@@ -1,8 +1,7 @@
-"""Tiny prompt loader.
+"""Prompt loader.
 
-Each LLM sub-agent keeps its system prompt in a sibling `prompt.md` so non-coders
-can tune wording without touching Python. The agent loads it with
-`load_prompt(__file__)`.
+Each LLM subagent keeps its system prompt in a sibling ``prompt.md``; the agent
+loads it with ``load_prompt(__file__)``.
 """
 
 from __future__ import annotations

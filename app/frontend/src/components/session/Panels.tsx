@@ -1,17 +1,13 @@
 // The session's right-hand column: a stack of windows the user adds, removes and
-// resizes. The chat is deliberately *not* one of them — it is always there, on the
-// left, because it is the session; these are views onto the workspace beside it.
+// resizes. The chat is not one of them — it is always there, on the left.
 //
-// One window is one white block with **one** header row: its name, whatever
-// controls that kind needs, and the close button. Anything a window would have put
-// in a second toolbar row goes into that same row instead. *Which* windows are
-// open is not a per-window decision — it is the Windows menu in the session bar.
+// One window is one white block with a single header row: its name, whatever
+// controls that kind needs, and the close button. Which windows are open is
+// controlled by the Windows menu in the session bar.
 //
-// The kinds are the two representations of one selection the vault asks for — the
-// graph with loaded items highlighted **in place**, and the Loaded Context list
-// which "is the single source of truth for what the model can see" — plus two
-// working surfaces: an idea page, and the tree of thoughts of the session's
-// current run.
+// The kinds are the graph with loaded items highlighted in place, the Loaded
+// Context list (the source of truth for what the model can see), an idea page, and
+// the tree of thoughts of the session's current run.
 import { Fragment, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Icon } from "../Icon";

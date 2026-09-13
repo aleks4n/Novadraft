@@ -1,10 +1,9 @@
 // What a creative-thinker run changed about an idea.
 //
-// The envelope carries a *modified copy* of the record — the agent never writes,
-// so before an accept there are two versions of the same idea side by side. The
+// The envelope carries a modified copy of the record — the agent never writes — so
+// before an accept there are two versions of the same idea side by side. The
 // session's result view renders the copy as an idea page with every changed part
-// marked, which is the only honest way to show "here is what it did": a prose
-// summary of a rewrite is not the rewrite.
+// marked.
 
 import type { Idea, IdeaRecordRaw, IdeaSection } from "./types";
 

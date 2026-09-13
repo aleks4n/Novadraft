@@ -1,11 +1,12 @@
 """The creative thinker as the orchestrator calls it.
 
-Owns two things: what the planner may fill in (`ThinkerArgs`), and how those become the
-subagent's real call (`ThinkerCall` in `src/agents/creative_thinker/schemas.py`).
+Owns two things: what the planner may fill in (``ThinkerArgs``), and how those
+become the subagent's real call (``ThinkerCall`` in
+``src/agents/creative_thinker/schemas.py``).
 
-The thinker is pure — it deep-copies the idea it is handed, mutates the copy, and returns
-an `Envelope`. Nothing here writes; persisting an accepted result is
-`idea_agent.apply_envelope`, and only after the user decides.
+The thinker is pure — it deep-copies the idea it is handed, mutates the copy, and
+returns an ``Envelope``. Nothing here writes; persisting an accepted result is
+``idea_agent.apply_envelope``.
 """
 
 from __future__ import annotations

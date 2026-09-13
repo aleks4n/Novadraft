@@ -1,14 +1,13 @@
 """Reflect (LLM, cheap) — did the plan meet its own criteria, and what now?
 
-A check rather than a judgment call, so it runs on the cheap model. It also drafts the
-message the user sees, since it is the step that knows both what was asked and what came
-back — but only on turns where tools actually ran. A turn that needed none is answered by
-the planner and routed straight to finish, because there would be nothing here to check.
+A structural check, so it runs on the cheap model. It also drafts the message the
+user sees, since it knows both what was asked and what came back — but only on
+turns where tools actually ran; a turn that needed none is answered by the planner
+and routed straight to finish.
 
-It gets the same context summary the planner got. Without it, a run where the tools
-returned nothing is indistinguishable from a run where nothing was selected, and it
-reports the wrong one. It also sees the steps themselves, not only their output: "the
-approach was wrong" is not a verdict that can be reached from results alone.
+It gets the same context summary the planner got, plus the steps themselves rather
+than only their output, so it can distinguish "the tools returned nothing" from
+"nothing was selected" and report on the approach as well as the results.
 """
 
 from __future__ import annotations

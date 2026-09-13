@@ -4,18 +4,19 @@
 
 - quality: venue + citation blend (a neutral prior when neither is known)
 - recency_decay: soft decay from the newest evidence paper's year
-- evidence_bonus: multiplier >= 1, rewards gaps corroborated by multiple evidence papers
+- evidence_bonus: multiplier >= 1, rewards gaps corroborated by multiple evidence
+  papers
 
-Per-paper facts (venue, year, citations) are read from paper.json via paper_access, keyed by
-(category_slug, paper_id), and are populated by paper_fetch/enrich.py. `compute_impact` is the
-reusable core: the node wraps it, and the director re-runs it (via
-ranking_agent.agent.rescore_impact) to cheaply re-score impact alone when it merges evidence
-into an already-ranked gap.
+Per-paper facts (venue, year, citations) are read from paper.json via
+``paper_access``, keyed by (category_slug, paper_id), and are populated by
+``paper_fetch/enrich.py``. :func:`compute_impact` is the reusable core: the node
+wraps it, and the director re-runs it (via ``ranking_agent.agent.rescore_impact``)
+to re-score impact alone when it merges evidence into an already-ranked gap.
 
 Venue resolution prefers the acronym the enrichment provider reported over the LLM
-name->acronym resolver, and refuses to score a venue the provider marked as a workshop:
-"4th Deployable AI Workshop at AAAI 2026" resolves to AAAI by name, which would award a
-workshop paper the flagship conference's A* score.
+name→acronym resolver, and refuses to score a venue the provider marked as a
+workshop: "4th Deployable AI Workshop at AAAI 2026" resolves to AAAI by name, which
+would award a workshop paper the flagship conference's A* score.
 """
 
 from __future__ import annotations

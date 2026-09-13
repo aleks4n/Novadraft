@@ -1,15 +1,14 @@
-"""gap · extractor subagent (Stage 4): one stateless extraction pass.
+"""gap · extractor subagent (Stage 4) — one stateless extraction pass.
 
 Single-paper, grounded extraction, no tool calling: operates over whatever
-sections/summary the gap subgraph's `enter` node already read out of paper.json.
-`run_extract()` makes one LLM call given whatever loop context the caller hands
-it (already-found / rejected / needs-a-better-anchor / missing-coverage-hints)
-and returns validated, anchor-grounded candidates. It knows nothing about
-looping or merging across passes — that's the gap subgraph's job, since only
-the loop holds cross-pass state.
+sections/summary the gap subgraph's ``enter`` node read out of paper.json.
+``run_extract()`` makes one LLM call given the loop context the caller hands it
+(already-found / rejected / needs-a-better-anchor / missing-coverage-hints) and
+returns validated, anchor-grounded candidates. Looping and merging across passes
+are the gap subgraph's job.
 
-It runs inside the `extractor` graph node, so its LLM call and its per-candidate
-deterministic grounding leaves nest under that node in the dev UI's run tree.
+It runs inside the ``extractor`` graph node, so its LLM call and its per-candidate
+deterministic grounding leaves nest under that node in the run tree.
 """
 from __future__ import annotations
 

@@ -1,13 +1,13 @@
-"""Map persistent workspace JSON → the Research Ideation v2 design data model.
+"""Map persistent workspace JSON onto the frontend data model.
 
-Pure functions, no I/O. The design (ported from the claude.ai "Research Ideation
-v2" project) expects ``topic → { meta, papers[], gaps[], ideas[] }``; the backend
-stores ``workspace/<slug>/{meta.json, papers/<id>/paper.json, gaps/pending/*.json}``
-shaped by ``src/common/schemas/{summary,gap}.py``. These functions bridge the two.
+Pure functions, no I/O. The frontend expects ``topic → { meta, papers[], gaps[],
+ideas[] }``; the workspace stores ``workspace/<slug>/{meta.json,
+papers/<id>/paper.json, gaps/pending/*.json}`` shaped by
+``src/common/schemas/{summary,gap}.py``. These functions bridge the two.
 
-Fields the current agents don't produce (relevance / novelty / feasibility
-scores, repo, collaborators, goals, citations) are returned as ``None``/empty so
-the UI can hide the corresponding widget rather than invent a value.
+Fields the agents do not produce (relevance / novelty / feasibility scores, repo,
+collaborators, goals, citations) are returned as ``None``/empty so the UI can hide
+the corresponding widget.
 """
 from __future__ import annotations
 
@@ -526,8 +526,7 @@ def map_idea(rec: dict, *, full: bool = True) -> dict:
     ev = rec.get("evaluation") or {}
     origin = rec.get("origin") or {}
     sections = map_sections(rec.get("sections"), rec.get("section_order"))
-    # Spine-level per the design of record; records written before it lived there
-    # carry the same two values inside ``origin``.
+    # Spine-level; older records carry the same two values inside ``origin``.
     inherited = rec.get("inherited_from")
     if not isinstance(inherited, dict):
         inherited = ({"idea_id": origin.get("inherited_from"),

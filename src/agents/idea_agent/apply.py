@@ -1,25 +1,21 @@
-"""Applying a creative-thinker envelope to the workspace — the orchestrator's half.
+"""Apply a creative-thinker envelope to the workspace.
 
-The creative thinker is a pure worker: it returns a modified `idea.json` copy and
-proposals, and writes nothing. **Something has to persist that copy, or the thinking
-graph never reaches the file** — which is the whole point of `runs[]` being mandatory
-and append-only.
-
-This module is that step, and only that step: the field-by-field contract from the
-Orchestrator Loop note, without the planner and reflector around it.
+The creative thinker is a pure worker: it returns a modified ``idea.json`` copy and
+proposals, and writes nothing. This module is the persistence step, field by
+field::
 
     idea                  → persist the modified copy over the workspace record, or discard
-    drafts + suggestions  → node/edge creation **only after an explicit accept**
+    drafts + suggestions  → node/edge creation only after an explicit accept
     questions             → handed back to the caller, batched (never written)
     status                → returned for the reflector; a partial run is never treated
                             as a finished one
 
-Two invariants it exists to enforce:
+Two invariants:
 
-- **Nothing is written without a decision.** `accept` is an explicit list of indices;
+- Nothing is written without a decision. ``accept`` is an explicit list of indices;
   an empty list persists the idea and creates nothing else.
-- **A rejection is recorded, not dropped** — it goes into the run's outcome on the
-  parent record so the same branch is not proposed again next session.
+- A rejection is recorded rather than dropped — it goes into the run's outcome on
+  the parent record, so the same branch is not proposed again next session.
 """
 
 from __future__ import annotations

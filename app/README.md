@@ -5,9 +5,8 @@ app from one codebase. It renders the persistent knowledge base
 (`workspace/<slug>/…`) using the *Research Ideation v2* design, and drives the
 **paper agent** as a live, streamed run.
 
-This is separate from the internal `dev/` harness (a debug tool). Phase 1 (paper
-agent: papers, gaps, summaries, topic switching) and the first integrated Phase 2
-flow (orchestrator, investigator, creative thinker, ideas, and sessions) are wired
+Phase 1 (paper agent: papers, gaps, summaries, topic switching) and the first
+integrated Phase 2 flow (orchestrator, investigator, creative thinker, ideas, and sessions) are wired
 to real data.
 
 ```
@@ -21,8 +20,9 @@ app/
 
 - **Web app:** Vite + React 18 + TypeScript SPA (`frontend/`).
 - **Desktop app:** Tauri v2 (`frontend/src-tauri/`) loading the same build.
-- **Backend:** FastAPI (`backend/`) reusing the dev-harness internals
-  (`dev.registry`, `dev.runlog.RunRecorder`, `src.common.utils.storage`).
+- **Backend:** FastAPI (`backend/`) driving the agents directly
+  (`src.common.registry`, `src.common.utils.logging.runlog.RunRecorder`,
+  `src.common.utils.storage`).
 
 ## Run it
 
@@ -40,7 +40,7 @@ Or run each piece manually — useful for the desktop app, or when you want
 backend/frontend logs in separate terminals. Three pieces; the backend is
 shared by both the web and desktop apps.
 
-**1 — Backend** (from the `novadraft` root, so `dev.*`/`src.*` resolve):
+**1 — Backend** (from the `novadraft` root, so `src.*`/`app.*` resolve):
 
 ```bash
 cd novadraft

@@ -1,13 +1,10 @@
 // Which run's tree of thoughts the *Tree of thoughts* window is currently showing.
 //
-// The window and the chat card render the same tree from the same run, so with the
-// window open the same branches sit on screen twice, side by side, looking like the
-// thinker ran twice. The card is the one that gives way: it is the smaller of the two
-// and it owns the button that opened the window in the first place.
+// The window and the chat card render the same tree from the same run, so the card
+// hides itself while the window is open.
 //
 // A context rather than a prop because the card is four levels below the session
-// (SessionWorkspace → PanelGrid → Chat → LiveThoughts → the card), and none of the
-// levels in between has any business knowing about window layout.
+// (SessionWorkspace → PanelGrid → Chat → LiveThoughts → the card).
 import { createContext, useContext } from "react";
 import type { RunState } from "../../lib/types";
 

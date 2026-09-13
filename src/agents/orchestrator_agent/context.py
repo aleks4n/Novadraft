@@ -1,42 +1,33 @@
 """Context assembly — the session's focus ids turned into records, plus one hop.
 
-Deterministic on purpose: the planner decides *what to do*, never *what to read*. An LLM
-that fetches its own context can quietly widen or narrow scope; this cannot.
+Deterministic: the planner decides what to do, never what to read.
 
 What goes in:
-  - the gaps and ideas the user selected (looked up across every gap stage, since a
-    selected gap may sit in to_rank/ or master/)
-  - **one hop out from each**: a gap's source papers, and where a selected idea came from
-    (the gaps in its `addresses`, the ideas in its `relations`, plus those gaps' papers).
-    A gap on its own is a sentence or two — the paper it came from is what says which
-    setting the idea has to work in, and an idea without its gap can't be meaningfully
-    refined.
-  - every paper the investigator fetched into this session, so the next turn sees what the
-    last one found
-  - the notes the user pasted and the documents they dropped into this session — the only
-    context entries that are payload rather than a reference to a workspace record
-  - the drafts the previous turn offered, and the last few turns of the exchange, so a
-    follow-up can refer to what just happened
 
-Exactly one hop. Two would pull in most of the workspace and stop being focus.
+- the gaps and ideas the user selected (looked up across every gap stage, since a
+  selected gap may sit in ``to_rank/`` or ``master/``)
+- one hop out from each: a gap's source papers, and where a selected idea came
+  from (the gaps in its ``addresses``, the ideas in its ``relations``, plus those
+  gaps' papers)
+- every paper the investigator fetched into this session
+- the notes the user pasted and the documents they dropped into this session — the
+  only context entries that are payload rather than a reference to a workspace
+  record
+- the drafts the previous turn offered, and the last few turns of the exchange
+- the catalog: everything one hop did not reach, as an index — id, title, one
+  marker, no body — so a step knows what it could ask for. The record behind an
+  entry is fetched by handing the investigator its id. See
+  ``src.common.tools.catalog``.
 
-  - **the catalog**: everything one hop did *not* reach, as an index — id, title, one
-    marker, no body. A step that only ever sees its own slice cannot know the workspace
-    holds a hundred other gaps, so it never thinks to ask for one. The index is what makes
-    asking possible; the record behind an entry is fetched by handing the investigator its
-    id, which is a step the plan shows rather than a silent widening of scope. See
-    `src.common.tools.catalog`.
+Exactly one hop. What does not go in: any paper's full text (~60k chars each; the
+investigator can fetch the rest on request), and the bodies of anything reached
+only through the catalog.
 
-What deliberately does not go in: any paper's full text (~60k chars each — the summary is
-what's useful for ideation, and the investigator can fetch the rest on purpose), and the
-*bodies* of anything reached only through the catalog.
+Records that fail validation are named in ``missing_ids`` rather than raising.
 
-Records that fail validation are named in `missing_ids` rather than raising — a stale id,
-or a file written by an earlier prototype, shouldn't kill a turn.
-
-This module decides what is *loaded*. `render.context_view` decides what the planner and
-reflect then see of it, which is deliberately less; the creative thinker gets the whole
-`Context` object.
+This module decides what is loaded. ``render.context_view`` decides what the
+planner and reflect see of it, which is less; the creative thinker gets the whole
+``Context`` object.
 """
 
 from __future__ import annotations

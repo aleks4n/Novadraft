@@ -1,20 +1,12 @@
-"""select_branch (LLM) — the refinement evaluator, in exactly one call.
+"""select_branch (LLM) — the refinement evaluator, in one call.
 
 Given the idea, the task the run was set, and every sibling produced by one
-expansion, decide which single branch to deepen — or say that you cannot.
+expansion, it decides which single branch to deepen — or reports that it cannot.
+Seeing the whole frontier at once is what lets it tell three facets of one idea
+from three genuinely different ideas, which decides whether an undecided round
+becomes "pick one" or "make a variant of each".
 
-This replaced a round-robin of pairwise votes. Three reasons it is one call now:
-
-- **Cost.** ``k`` siblings cost ``k(k-1)/2`` comparisons; the same judgement is
-  available from one call that sees all of them at once.
-- **Honesty.** Round-robin arithmetic can crown a winner no single comparison ever
-  endorsed — a → b, b → c, c → a resolves to a tie the model never expressed.
-- **Shape.** Only a call that looks at the whole frontier can tell three facets of
-  one idea from three genuinely different ideas, which is exactly the distinction
-  that decides whether an undecided round becomes "pick one" or "make a variant of
-  each".
-
-The model is still only ever asked a *relative* question. It never scores a branch.
+The model is only ever asked a relative question; it never scores a branch.
 """
 
 from __future__ import annotations

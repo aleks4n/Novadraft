@@ -1,33 +1,22 @@
 """Server-side run manager — agent runs detached from HTTP connections.
 
-Previously a run executed *inside* the SSE response generator, so its lifetime
-was tied to one browser request: a reload (or anything that dropped the
-connection) killed the run mid-flight, and nothing survived a page refresh.
-
-The manager fixes that architecture:
-
 - **Detached execution** — ``start()`` launches the graph in a daemon thread that
-  streams through :class:`RunRecorder` into the standard per-run ``.jsonl``
-  (byte-identical to the dev harness / standalone logs). The HTTP layer only
-  *observes*: ``GET /api/runs/{id}/stream`` replays the log file from any ``seq``
-  and follows it live, so any number of clients can attach, detach, and reload
-  freely without touching the run.
-- **Cancel** — ``cancel()`` sets a per-run event checked between streamed chunks;
-  the run stops after the current step (a long LLM call finishes first), writes a
-  ``run_end`` footer with ``error="cancelled"``, and can later be *restarted*
-  (``restart()`` re-runs the same inputs — stage folders / paper.json are the
-  checkpoints, so completed work is skipped).
-- **Persistence** — every run's metadata (query, kind, status, target,
-  candidates, log file) lives in ``workspace/<slug>/logs/app_runs.json``. On
-  backend restart, entries still marked ``running`` become ``interrupted``
-  (resumable); the frontend re-populates its queue from this index after a
-  reload.
-- **Duplicate guard** — starting a run whose (slug, agent, query) matches one
-  already active returns the existing entry instead of racing a second copy.
+  streams through :class:`RunRecorder` into the per-run ``.jsonl``. The HTTP layer
+  only observes: ``GET /api/runs/{id}/stream`` replays the log file from any
+  ``seq`` and follows it live, so clients can attach, detach and reload without
+  affecting the run.
+- **Cancel / restart** — ``cancel()`` sets a per-run event checked between
+  streamed chunks; the run stops after the current step, writes a ``run_end``
+  footer with ``error="cancelled"``, and ``restart()`` re-runs the same inputs
+  (stage folders / paper.json act as checkpoints, so completed work is skipped).
+- **Persistence** — run metadata (query, kind, status, target, candidates, log
+  file) lives in ``workspace/<slug>/logs/app_runs.json``. On backend restart,
+  entries still marked ``running`` become ``interrupted``.
+- **Duplicate guard** — starting a run whose (slug, agent, query) matches an
+  active one returns the existing entry.
 
-Gap-level double-processing across parallel runs is prevented one layer down by
-``src/common/utils/claims.py``; this module is about run lifecycle, not work
-claiming.
+Gap-level double-processing across parallel runs is prevented by
+``src/common/utils/claims.py``; this module covers run lifecycle only.
 """
 from __future__ import annotations
 
@@ -37,10 +26,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from dev.registry import GRAPH_BUILDERS, INPUT_ADAPTERS
-from dev.runlog import RunRecorder
+from src.common.registry import GRAPH_BUILDERS, INPUT_ADAPTERS
 from src.common.utils import storage
-from src.common.utils.logging.runlog import slugify
+from src.common.utils.logging.runlog import RunRecorder, slugify
 
 # Mirrors the pipeline's outer super-step budget (see src/graph/pipeline.py).
 GRAPH_RECURSION_LIMIT = 300
@@ -232,8 +220,7 @@ class RunManager:
         # The stored inputs are always **JSON** (they round-trip through the run
         # index and a restart). Agents whose graph state isn't JSON-typeable —
         # the creative thinker takes a whole ``ThinkerCall`` — declare an
-        # ``input_adapter`` in their manifest, applied here exactly as the dev UI
-        # applies it, so an app run and a dev run are the same run.
+        # ``input_adapter`` in their manifest, applied here before streaming.
         adapter = INPUT_ADAPTERS.get(meta["agent"])
         try:
             graph_inputs = adapter(meta["inputs"]) if adapter else meta["inputs"]

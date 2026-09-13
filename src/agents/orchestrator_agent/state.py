@@ -1,6 +1,7 @@
-"""The orchestrator graph's state — what flows between its nodes.
+"""The orchestrator graph state — what flows between its nodes.
 
-A LangGraph TypedDict; `total=False` so each node returns only the keys it sets.
+A LangGraph ``TypedDict``; ``total=False`` so each node returns only the keys it
+sets.
 
     assemble_context -> plan -> execute -> reflect -> finish
              |           | ^        |                  ^
@@ -9,12 +10,12 @@ A LangGraph TypedDict; `total=False` so each node returns only the keys it sets.
              |           +-- awaiting approval --> propose -> END
              +-- an approved plan came in --> adopt_plan --> execute
 
-Approving a plan is *not* part of this graph either: the run that proposed one ends at
-`propose`, and the user's Start button begins a second run carrying `approved_plan`.
-Same reason as the commit gate below — a run always completes rather than suspending.
+Approving a plan is not part of this graph: the run that proposed one ends at
+``propose``, and the user's Start button begins a second run carrying
+``approved_plan``.
 
-Accepting an idea is *not* part of this graph — it needs no LLM, so it is a plain
-function call (`agent.commit_selection`).
+Accepting an idea is not part of this graph either — it needs no LLM, so it is a
+plain function call (``agent.commit_selection``).
 """
 
 from __future__ import annotations

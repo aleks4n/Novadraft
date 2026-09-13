@@ -1,23 +1,18 @@
-"""gap · critic subagent (Stage 4b): one stateless critique pass.
+"""gap · critic subagent (Stage 4b) — one stateless critique pass.
 
-Reviews gap candidates an extractor pass already produced: is each one
-genuinely stated (not hallucinated/inferred), does its quote actually support
-its description, and does anything clearly stated in the given sections look
-missing. Only ever returns a verdict over candidates handed to it — never
-invents or rewrites a gap, never merges across passes. That bookkeeping (drop a
-flagged gap, decide convergence) is the gap subgraph's job.
+Reviews gap candidates an extractor pass produced: is each one genuinely stated
+(not hallucinated/inferred), does its quote actually support its description, and
+does anything clearly stated in the given sections look missing. It only returns a
+verdict over candidates handed to it — it never invents or rewrites a gap and never
+merges across passes; that bookkeeping is the gap subgraph's job.
 
-Each candidate already carries a `grounding_status` computed by the extractor's
-own anchor-in-section search. This module just emits a deterministic summary of
-that precomputed status (matched/ambiguous/not_found counts) as a grounding
-leaf, the same way the summarize critic emits its literal value-in-section
-check — so a run's tree always shows *some* grounding leaf under "critic" for
-either subagent.
+Each candidate already carries a ``grounding_status`` computed by the extractor's
+anchor-in-section search. This module emits a deterministic summary of that status
+(matched/ambiguous/not_found counts) as a grounding leaf.
 
-It runs inside the `critic` graph node, so its LLM call and that grounding leaf
-nest under that node in the dev UI's run tree. The critic uses the faster
-``cheap`` role: it only classifies and checks already-grounded candidates, while
-the stronger ``reasoner`` remains responsible for proposing the gaps.
+It runs inside the ``critic`` graph node, so its LLM call and that grounding leaf
+nest under that node in the run tree. It uses the ``cheap`` role: it classifies and
+checks already-grounded candidates, while the ``reasoner`` role proposes the gaps.
 """
 from __future__ import annotations
 

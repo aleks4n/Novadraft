@@ -1,25 +1,21 @@
 """summarize subagent — the LangGraph subgraph (Stage 3 + 3b).
 
-Wires the extractor and critic subagents into a bounded cycle:
+Wires the extractor and critic subagents into a bounded cycle::
 
     enter → extractor → critic → (route: regenerate? → extractor : → finalize) → END
 
-`extractor.run_extract` (one LLM pass) and `critic.run_critic` (one grounding
-check + one LLM pass) are both stateless single-pass functions. This module
-owns everything between them — the regenerate/critique loop, deciding when a
-critique counts as "major enough to retry", shaping that critique into
-feedback for the next extractor pass, and writing the final
-`summary_verification` record once the loop ends.
+``extractor.run_extract`` (one LLM pass) and ``critic.run_critic`` (one grounding
+check + one LLM pass) are stateless single-pass functions. This module owns
+everything between them — the regenerate/critique loop, deciding when a critique
+counts as major enough to retry, shaping that critique into feedback for the next
+extractor pass, and writing the final ``summary_verification`` record once the loop
+ends.
 
-The loop is bounded by `MAX_SUMMARY_LOOPS` rounds (enforced in the router) and
-stops early once a round's critique passes clean or plateaus. This is the same
-logic the old imperative `while` loop ran; it is now expressed as a graph cycle
-so each round's extractor/critic step (and its LLM call) streams into the dev
-UI's run tree.
+The loop is bounded by ``MAX_SUMMARY_LOOPS`` rounds (enforced in the router) and
+stops early once a round's critique passes clean or plateaus.
 
-`summarize(category_slug, paper_id, force=False)` compiles and invokes the
-graph and returns the same result dict as before — it stays importable and
-standalone-callable (used by the dev harness and the eval pipeline).
+``summarize(category_slug, paper_id, force=False)`` compiles and invokes the graph
+and returns the result dict.
 """
 from __future__ import annotations
 
@@ -296,7 +292,7 @@ _GRAPH = None
 def summarize(category_slug: str, paper_id: str, force: bool = False,
               max_loops: int = MAX_SUMMARY_LOOPS) -> dict:
     """Run the summarize subgraph for one paper, returning the same result
-    dict the old `summarize()` did. Standalone-callable (the dev harness and
+    dict the old `summarize()` did. Standalone-callable (callers and
     eval pipeline import it directly)."""
     global _GRAPH
     if _GRAPH is None:
