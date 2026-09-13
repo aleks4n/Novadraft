@@ -477,11 +477,6 @@ def expand(state: CreativeThinkerState) -> dict:
     trace: TraceBuilder = state["trace"]
     ledger: BudgetLedger = state["ledger"]
     style = style_roster.refinement_style(spec.styles)
-    # A one-pass refinement is the interactive fast path: one Flash expansion and no
-    # evaluator. Deeper trees retain the requested reasoner for consistency across
-    # rounds and for choosing between their wider frontiers.
-    expansion_style = (style.model_copy(update={"model": "cheap"})
-                       if spec.depth == 1 else style)
     tip = state["path"][-1]
 
     if not ledger.can_spend_llm():
@@ -489,7 +484,7 @@ def expand(state: CreativeThinkerState) -> dict:
                 "status_reason": f"budget exhausted before depth {state['depth'] + 1}"}
 
     branches = expand_branch(
-        style=expansion_style,
+        style=style,
         idea_md=state["idea_md"],
         path_md=_path_md(state),
         open_questions=_open_questions(state["idea"]),
@@ -684,8 +679,7 @@ def writeback(state: CreativeThinkerState) -> dict:
         # is the write-up of *what happened*, not a reward for having succeeded.
         edit = apply_edits(style=style, idea_md=state["idea_md"], task=spec.task,
                            path_md=_path_md(state) if len(path) > 1 else "",
-                           findings="\n".join(state.get("findings") or []),
-                           fast=spec.depth == 1)
+                           findings="\n".join(state.get("findings") or []))
         ledger.spend_llm()
         answer = edit.answer.strip()
         if len(path) > 1:

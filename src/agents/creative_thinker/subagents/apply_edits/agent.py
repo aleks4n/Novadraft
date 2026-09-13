@@ -18,7 +18,6 @@ from src.common.utils.prompts import load_prompt
 from src.llm.registry import chat_with_structured_output, get_llm
 
 _SYSTEM = load_prompt(__file__)
-_FAST_WRITEBACK_MAX_TOKENS = 6_000
 
 # No section is protected. ``open_questions`` used to be: the next run reads it by
 # name, so deleting or renaming it was blocked. But the next run reading it and
@@ -28,13 +27,12 @@ _FAST_WRITEBACK_MAX_TOKENS = 6_000
 
 
 def apply_edits(*, style: AgentStyle, idea_md: str, path_md: str, task: str = "",
-                findings: str = "", fast: bool = False) -> IdeaEdit:
+                findings: str = "") -> IdeaEdit:
     """One model call → the patch to apply, and the answer to the task.
 
-    A one-pass refinement uses Flash at low effort and a bounded completion. Deeper
-    refinement retains its requested reasoner because its writeback must reconcile a
-    multi-round path. ``IdeaEdit`` is already a patch contract: unchanged spine fields
-    stay empty and only named section operations are returned.
+    The writeback runs on the style's own model: it has to reconcile the surviving
+    path against the record. ``IdeaEdit`` is already a patch contract — unchanged
+    spine fields stay empty and only named section operations are returned.
     """
     sections = [f"# The idea as it stands\n\n{idea_md}"]
     if task:
@@ -45,17 +43,8 @@ def apply_edits(*, style: AgentStyle, idea_md: str, path_md: str, task: str = ""
     )
     if findings:
         sections.append(f"# Verified findings\n\n{findings}")
-    model = "cheap" if fast else style.model
     return chat_with_structured_output(
-        get_llm(
-            model,
-            style.temperature,
-            reasoning_effort="low" if fast else None,
-            max_tokens=_FAST_WRITEBACK_MAX_TOKENS if fast else None,
-        ),
-        _SYSTEM,
-        "\n\n".join(sections),
-        IdeaEdit,
+        get_llm(style.model, style.temperature), _SYSTEM, "\n\n".join(sections), IdeaEdit
     )
 
 

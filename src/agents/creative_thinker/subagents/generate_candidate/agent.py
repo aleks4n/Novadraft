@@ -45,9 +45,7 @@ def generate_candidate(*, style: AgentStyle, context_md: str, idea_md: str = "",
     sections.append(f"# Already tried in earlier runs\n\n{prior_ground or '_(nothing)_'}")
 
     candidate = chat_with_structured_output(
-        # Rough candidates favor latency. The heavier reasoner is retained for
-        # multi-level refinement, comparison, and final writeback.
-        get_llm("cheap", style.temperature, reasoning_effort="low"),
+        get_llm(style.model, style.temperature),
         _system(style),
         "\n\n".join(sections),
         Candidate,

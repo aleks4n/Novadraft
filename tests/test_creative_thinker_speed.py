@@ -6,7 +6,7 @@ from src.agents.creative_thinker.schemas import IdeaEdit, ThinkerCall
 from src.agents.creative_thinker import agent as thinker_agent
 
 
-def test_rough_candidate_uses_flash_with_low_reasoning(monkeypatch):
+def test_candidate_generation_uses_the_style_model(monkeypatch):
     requested = []
     marker = object()
 
@@ -18,15 +18,15 @@ def test_rough_candidate_uses_flash_with_low_reasoning(monkeypatch):
     monkeypatch.setattr(
         generate_agent,
         "chat_with_structured_output",
-        lambda llm, *_args: Candidate(title="Fast candidate") if llm is marker else None,
+        lambda llm, *_args: Candidate(title="Candidate") if llm is marker else None,
     )
 
     result = generate_agent.generate_candidate(
         style=AgentStyle(name="skeptic", model="reasoner"), context_md="brief",
     )
 
-    assert result.title == "Fast candidate"
-    assert requested == [("cheap", "low")]
+    assert result.title == "Candidate"
+    assert requested == [("reasoner", None)]
 
 
 def test_fast_refinement_expansion_uses_low_effort(monkeypatch):
@@ -54,12 +54,12 @@ def test_fast_refinement_expansion_uses_low_effort(monkeypatch):
     assert requested == [("cheap", "low")]
 
 
-def test_one_pass_writeback_uses_bounded_flash_low_effort(monkeypatch):
+def test_writeback_uses_the_style_model(monkeypatch):
     requested = []
     marker = object()
 
-    def get_llm(role, temperature, reasoning_effort=None, max_tokens=None):
-        requested.append((role, reasoning_effort, max_tokens))
+    def get_llm(role, temperature):
+        requested.append(role)
         return marker
 
     monkeypatch.setattr(edits_agent, "get_llm", get_llm)
@@ -71,11 +71,11 @@ def test_one_pass_writeback_uses_bounded_flash_low_effort(monkeypatch):
 
     result = edits_agent.apply_edits(
         style=AgentStyle(name="skeptic", model="reasoner"), idea_md="idea",
-        path_md="one branch", fast=True,
+        path_md="one branch",
     )
 
     assert result.answer == "Written back"
-    assert requested == [("cheap", "low", 6_000)]
+    assert requested == ["reasoner"]
 
 
 def test_grounding_question_contains_candidate_task_and_loaded_paper():

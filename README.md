@@ -62,8 +62,7 @@ in separate terminals, see [`app/README.md`](app/README.md).
 Set your API keys in `.env` first:
 
 ```
-DEEPSEEK_API_KEY=...   # primary provider
-OPENAI_API_KEY=...     # optional fallback
+DEEPSEEK_API_KEY=...
 ```
 
 Without a key the agents still run end to end against a deterministic mock, so
