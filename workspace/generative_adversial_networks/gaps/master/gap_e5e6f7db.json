@@ -1,0 +1,110 @@
+{
+  "gap_id": "gap_e5e6f7db",
+  "status": "validated",
+  "title": "Momentum-based optimizers destabilize WGAN training",
+  "description": "The authors report as a negative result that WGAN training becomes unstable when using momentum-based optimizers such as Adam on the critic, or when using high learning rates; they switched to RMSProp to mitigate this.",
+  "type": "negative_result",
+  "canonical_description": "critic training unstable with momentum-based optimizers or high learning rates",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1701.07875",
+      "section": "empirical_results",
+      "anchor": "as a negative result, we report that WGAN training becomes unstable",
+      "quote": "Finally, as a negative result, we report that WGAN training becomes unstable",
+      "char_offset": [
+        5633,
+        5709
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-09-09T04:11:13Z",
+  "verdict": {
+    "gap_id": "gap_e5e6f7db",
+    "status": "partially_solved",
+    "confidence": 0.6,
+    "reasoning": "The subsequent literature touches the gap's broad phenomenon but does not squarely resolve its specific negative result. The Optimistic Mirror Descent paper addresses WGAN/GAN training instability and explicitly notes that vanilla Adam \"performs poorly,\" showing that momentum-augmented GD still produces limit cycles while Optimistic Adam stabilizes training — relevant evidence that momentum-based optimizers remain problematic and that an alternative optimizer helps. However, it neither reproduces/diagnoses instability from Adam on the WGAN *critic* specifically nor tests high learning rates or the RMSProp mitigation named in the gap; its formal results are restricted to bilinear zero-sum games and its experiments are mostly toy/CIFAR10 inception scores. The GDA local-convergence paper gives explicit learning-rate stability thresholds and phase transitions (convergence/oscillation/divergence), bearing on the \"high learning rate\" half, but only for plain non-momentum gradient ascent in an idealized kernel/RKHS discriminator setting far from the Wasserstein critic — it never models Adam, momentum, or RMSProp. The conjugate-gradient paper does not address the WGAN setting or momentum instability at all. What remains open is a direct account of why momentum-based optimizers (especially Adam on the critic) and high learning rates destabilize WGAN training and whether they can be made stable in that specific regime, including comparison against the RMSProp baseline.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_1711.00141",
+          "title": "Training GANs with Optimism",
+          "abstract": "We address the issue of limit cycling behavior in training Generative Adversarial Networks and propose the use of Optimistic Mirror Decent (OMD) for training Wasserstein GANs. Recent theoretical results have shown that optimistic mirror decent (OMD) can enjoy faster regret rates in the context of zero-sum games. WGANs is exactly a context of solving a zero-sum game with simultaneous no-regret dynamics. Moreover, we show that optimistic mirror decent addresses the limit cycling problem in training WGANs. We formally show that in the case of bi-linear zero-sum games the last iterate of OMD dynamics converges to an equilibrium, in contrast to GD dynamics which are bound to cycle. We also portray the huge qualitative difference between GD and OMD dynamics with toy examples, even when GD is modified with many adaptations proposed in the recent literature, such as gradient penalty or momentum. We apply OMD WGAN training to a bioinformatics problem of generating DNA sequences. We observe that models trained with OMD achieve consistently smaller KL divergence with respect to the true underlying distribution, than models trained with GD variants. Finally, we introduce a new algorithm, Optimistic Adam, which is an optimistic variant of Adam. We apply it to WGAN training on CIFAR10 and observe improved performance in terms of inception score as compared to Adam.",
+          "authors": [
+            "Constantinos Daskalakis",
+            "Andrew Ilyas",
+            "Vasilis Syrgkanis",
+            "Haoyang Zeng"
+          ],
+          "published_date": "2017-10-31T23:09:08Z",
+          "url": "https://arxiv.org/abs/1711.00141v2"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper tackles instability in WGAN training, which is the same broad phenomenon named in the gap (limit cycling / oscillation when training the critic against the generator with standard GD and Adam-like momentum optimizers). It proposes Optimistic Mirror Descent (OMD) as the training algorithm, proves last-iterate convergence for OMD in bilinear zero-sum games while showing GD dynamics cycle, and demonstrates in toy and CIFAR10 experiments that vanilla momentum-based GD variants still cycle while optimistic variants stabilize training. Most relevantly, it notes that vanilla Adam \"performs poorly\" in WGAN training and introduces Optimistic Adam, which outperforms Adam in inception score on CIFAR10.",
+        "what_remains_open": "The paper does not directly address the gap's specific claim: it does not reproduce or diagnose the original observation that momentum-based optimizers (e.g., Adam) applied to the *critic* specifically, or high learning rates, destabilize WGAN training, nor does it compare against the RMSProp remedy that the gap describes. Its instability analysis is framed as limit cycling of simultaneous no-regret dynamics, with the formal theory restricted to bilinear zero-sum games and the empirical evidence based on toy mean-learning, a DNA-sequence task, and CIFAR10 inception scores rather than the exact deep-WGAN critic/learning-rate regimes of the original negative result. Thus it provides a related stabilization method (OMD / Optimistic Adam) and evidence that momentum alone does not remove cycling, but leaves open the specific question of why momentum-based optimizers / high learning rates destabilize the WGAN critic and whether such optimizers can be made stable in that regime.",
+        "evidence_snippets": [
+          "We address the issue of limit cycling behavior in training Generative Adversarial Networks and propose the use of Optimistic Mirror Decent (OMD) for training Wasserstein GANs.",
+          "In the appendix we also portray the behavior of the GD dynamics even when we add gradient penalty [CITE:Gulrajani2017] to the game loss (instead of weight clipping), adding Nesterov momentum to the GD update rule [CITE:Nesterov] or when we train the discriminator multiple times in between a train iteration of the generator. We see that even though these modifications do improve the stability of the GD dynamics, in the sense that they narrow the band of the limit cycle, they still lead to a non-vanishing limit cycle, unlike OMD.",
+          "We see that vanilla Adam performs poorly when the discriminator is trained only once in between iterations of the generator training. Moreover, even if we use vanilla Adam and train $5$ times (D) in between a training of (G), as proposed by [CITE:arjovsky2017wasserstein], then performance is again worse than Optimistic Adam with a 1:1 ratio of training."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2203.14495",
+          "title": "Conjugate Gradient Method for Generative Adversarial Networks",
+          "abstract": "One of the training strategies of generative models is to minimize the Jensen--Shannon divergence between the model distribution and the data distribution. Since data distribution is unknown, generative adversarial networks (GANs) formulate this problem as a game between two models, a generator and a discriminator. The training can be formulated in the context of game theory and the local Nash equilibrium (LNE). It does not seem feasible to derive guarantees of stability or optimality for the existing methods. This optimization problem is far more challenging than the single objective setting. Here, we use the conjugate gradient method to reliably and efficiently solve the LNE problem in GANs. We give a proof and convergence analysis under mild assumptions showing that the proposed method converges to a LNE with three different learning rate update rules, including a constant learning rate. Finally, we demonstrate that the proposed method outperforms stochastic gradient descent (SGD) and momentum SGD in terms of best Frechet inception distance (FID) score and outperforms Adam on average. The code is available at \\url{https://github.com/Hiroki11x/ConjugateGradient_GAN}.",
+          "authors": [
+            "Hiroki Naganuma",
+            "Hideaki Iiduka"
+          ],
+          "published_date": "2022-03-28T04:44:45Z",
+          "url": "https://arxiv.org/abs/2203.14495v3"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "The paper proposes conjugate-gradient (CG) optimizers for GAN training formulated as a local Nash equilibrium (LNE) problem, provides convergence/convergence-rate analyses under constant and diminishing learning rates, and empirically compares CG against SGD, momentum SGD, and Adam on a toy minimax problem and SNGAN/ResNet on CIFAR10, reporting better/competitive FID and lower sensitivity to learning-rate hyperparameters. This is a general optimizer proposal for GANs that relates tangentially to momentum-based optimization in GANs (its direction uses a negative momentum-like coefficient), but it does not target the gap's specific phenomenon of WGAN/critic instability under momentum optimizers or high learning rates.",
+        "what_remains_open": "The gap's specific problem — WGAN critic training becoming unstable with momentum-based optimizers (e.g., Adam on the critic) or high learning rates — is not addressed at all. The paper never studies the Wasserstein GAN (WGAN) setting or its critic loss, never compares against RMSProp (the mitigation used in the original report), and does not diagnose or analyze why momentum optimizers or high learning rates destabilize critic training. Its empirical claims are limited to SNGAN with a ResNet generator on CIFAR10 (plus a toy minimax example), which is a different model/loss, so no evidence is provided that its CG-type optimizer stabilizes WGAN critic training under momentum or high learning rates.",
+        "evidence_snippets": []
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2305.08277",
+          "title": "Local Convergence of Gradient Descent-Ascent for Training Generative Adversarial Networks",
+          "abstract": "Generative Adversarial Networks (GANs) are a popular formulation to train generative models for complex high dimensional data. The standard method for training GANs involves a gradient descent-ascent (GDA) procedure on a minimax optimization problem. This procedure is hard to analyze in general due to the nonlinear nature of the dynamics. We study the local dynamics of GDA for training a GAN with a kernel-based discriminator. This convergence analysis is based on a linearization of a non-linear dynamical system that describes the GDA iterations, under an \\textit{isolated points model} assumption from [Becker et al. 2022]. Our analysis brings out the effect of the learning rates, regularization, and the bandwidth of the kernel discriminator, on the local convergence rate of GDA. Importantly, we show phase transitions that indicate when the system converges, oscillates, or diverges. We also provide numerical simulations that verify our claims.",
+          "authors": [
+            "Evan Becker",
+            "Parthe Pandit",
+            "Sundeep Rangan",
+            "Alyson K. Fletcher"
+          ],
+          "published_date": "2023-05-14T23:23:08Z",
+          "url": "https://arxiv.org/abs/2305.08277v2"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper analyzes the local stability/convergence of gradient descent–ascent (GDA) training for a GAN with a kernel/RKHS (MMD-type) discriminator, providing an eigenvalue characterization of the linearized dynamics around equilibrium. It derives explicit necessary/sufficient conditions on the discriminator and generator learning rates (eta_d, eta_g) for local stability and characterizes phase transitions among convergence, oscillation, and divergence as a function of learning rates, regularization, and kernel width. This bears on the \"high learning rate makes critic training unstable\" component of the gap by showing that eta_d small enough guarantees local stability in this stylized setting.",
+        "what_remains_open": "The paper does not address the core \"momentum-based optimizer\" half of the gap at all: it only studies plain (non-momentum) gradient ascent/descent and never models Adam, RMSProp, momentum, or adaptive step sizes — none of these appear in the dynamics. The analysis is also far from the original WGAN setting: it assumes a kernel (RBF/RKHS) discriminator under an isolated-points, point-mass model with equal generated weights, and it concerns a kernel-GAN/MMD loss rather than the Wasserstein critic with gradient penalty used in the WGAN paper where Adam instability was reported. Consequently it neither explains why momentum destabilizes the WGAN critic nor proposes a momentum-aware fix; it only gives stability thresholds for plain GDA learning rates in a simplified, heavily-idealized model.",
+        "evidence_snippets": [
+          "We assume the generator performs gradient descent on the above minimax optimization problem with a step size $\\eta_g$ and the discriminator performs gradient ascent with step size $\\eta_d$.",
+          "In particular, by choosing $\\eta_d$ small enough, we can always guarantee the system is locally stable when $\\lambda > 0$ and $\\Delta_i > 0$, meaning that there is at least some regularization and the true point mass exceeds the generated point mass.",
+          "the spectral radius of the Jacobian, $\\rhomax(\\mathrm{spec}(\\J^*_i)) < 1$, if and only if: $0 < \\eta_d < \\ldots$"
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 3,
+      "skipped_ids": []
+    }
+  },
+  "ranking": {
+    "openness": 0.3,
+    "impact": 0.40132153631826967,
+    "feasibility": 0.8,
+    "feasibility_reasoning": "This is a focused, empirically tractable gap. Reproducing WGAN instability with Adam on the critic is cheap: standard datasets (CIFAR-10, toy/Dirac-GAN) and modest GPU compute suffice, and the original DCGAN/WGAN setup is widely reimplemented. There is a clear ablation path to diagnose the mechanism — e.g., weight clipping vs. gradient penalty, Adam vs. RMSProp, momentum vs. no momentum, and learning-rate sweeps — and a strong prior hypothesis (momentum accumulation interacting with weight clipping / non-stationary critic dynamics) that can be tested directly. Existing work (Optimistic Mirror Descent, GDA stability thresholds) supplies mature tools for toy-model and dynamical-systems analysis. Progress is measurable via FID/Inception scores, critic loss/gradient-norm stability, and direct comparison against the RMSProp baseline. The main limitation is that a fully rigorous theory of Adam in non-convex min-max games is hard, so the \"why\" may be resolved only at the level of controlled experiments plus simplified models — but that is sufficient for meaningful progress on this specific negative result."
+  }
+}

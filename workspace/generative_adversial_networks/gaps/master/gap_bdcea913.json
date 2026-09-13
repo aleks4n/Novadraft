@@ -1,0 +1,111 @@
+{
+  "gap_id": "gap_bdcea913",
+  "status": "validated",
+  "title": "Theory relies on infinite-capacity non-parametric setting",
+  "description": "The theoretical results on global optimality and convergence are established in a non-parametric setting with infinite capacity, rather than directly for finite-capacity multilayer perceptrons.",
+  "type": "assumption",
+  "canonical_description": "theoretical guarantees established only in non-parametric infinite-capacity setting",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1406.2661",
+      "section": "theoretical_results",
+      "anchor": "done in a non-parametric setting",
+      "quote": "results of this section are done in a non-parametric setting, e.g. we represent a",
+      "char_offset": [
+        306,
+        387
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-09-09T04:12:53Z",
+  "verdict": {
+    "gap_id": "gap_bdcea913",
+    "status": "partially_solved",
+    "confidence": 0.8,
+    "reasoning": "The three papers jointly move some theory from the infinite-capacity setting toward finite-capacity networks, but none delivers global-optimality or training-convergence guarantees for finite-capacity MLPs. Paper 1 gives finite-sample statistical rates for neural-net generator/discriminator pairs, yet these are oracle bounds for the idealized empirical minimax estimator, with no optimization analysis and with fast rates tied to realizable architectures. Paper 2 is still largely nonparametric; its finite ReLU-network results only approximate infinite-capacity Sobolev classes and explicitly exclude the optimization side. Paper 3 is the most direct: it proves finite-parameter generalization for a weaker neural-net distance, shows standard metrics cannot generalize polynomially, and establishes an approximate pure equilibrium for a specially constructed augmented architecture. However, that is an existence result, not a convergence result for any training algorithm, and it still routes through infinite mixtures before folding them into a finite net. Thus the gap's specific demand — global optimality and convergence established directly for finite-capacity multilayer perceptrons — remains substantively open even though finite-capacity statistical and equilibrium-existence results now exist.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_1811.03179",
+          "title": "How Well Generative Adversarial Networks Learn Distributions",
+          "abstract": "This paper studies the rates of convergence for learning distributions implicitly with the adversarial framework and Generative Adversarial Networks (GANs), which subsume Wasserstein, Sobolev, MMD GAN, and Generalized/Simulated Method of Moments (GMM/SMM) as special cases. We study a wide range of parametric and nonparametric target distributions under a host of objective evaluation metrics. We investigate how to obtain valid statistical guarantees for GANs through the lens of regularization. On the nonparametric end, we derive the optimal minimax rates for distribution estimation under the adversarial framework. On the parametric end, we establish a theory for general neural network classes (including deep leaky ReLU networks) that characterizes the interplay on the choice of generator and discriminator pair. We discover and isolate a new notion of regularization, called the generator-discriminator-pair regularization, that sheds light on the advantage of GANs compared to classical parametric and nonparametric approaches for explicit distribution estimation. We develop novel oracle inequalities as the main technical tools for analyzing GANs, which are of independent interest.",
+          "authors": [
+            "Tengyuan Liang"
+          ],
+          "published_date": "2018-11-07T23:14:45Z",
+          "url": "https://arxiv.org/abs/1811.03179v4"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper provides a statistical (finite-sample, rate-based) theory for GANs. Besides the nonparametric adversarial framework (Sobolev, RKHS/MMD, GMM/SMM minimax rates), it devotes an entire section to GANs whose generator and discriminator are finite-capacity neural networks, deriving oracle-inequality rates under TV/KL/Wasserstein metrics with explicit dependence on the pseudo-dimensions Pdim(F) and Pdim(F∘G), and showing near-optimal sample complexity for realizable deep leaky ReLU generators and multivariate Gaussians with two-layer networks. Thus it gives theoretical guarantees directly for finite-capacity multilayer perceptrons rather than only in the infinite-capacity nonparametric setting.",
+        "what_remains_open": "The gap's \"global optimality and convergence\" is only partially addressed. The paper's guarantees are statistical convergence rates for the idealized empirical minimax estimator \\hat\\theta_{m,n} (argmin of the empirical max-min objective), not proofs that a finite-capacity MLP training algorithm actually converges to a global optimum of the nonconvex GAN game; no optimization/training-dynamics analysis is given. Moreover, the fast parametric rates for finite-capacity networks are oracle-type bounds whose approximation terms A1(F,G,ν) and A2(G,ν) only vanish when the log-density ratios are exactly realizable/approximable by the specific network architectures (deep leaky ReLU / quadratic-activation constructions), so global-optimality-type guarantees are not obtained for arbitrary finite-capacity MLPs. The minimax-optimal (lower-bound matching) results themselves remain in the infinite-capacity nonparametric setting.",
+        "evidence_snippets": [
+          "In this section, we consider when both the generator and discriminator are parameterized by neural networks, and derive rates applicable to GAN used in practice (as well as SMM).",
+          "(1) we derive the parametric rates on the closeness between the implicit distribution estimator (distribution of $g_{\\widehat{\\theta}_{m,n}}(Z)$) and the target $\\nu$ under objective metrics, when both $\\G$ and $\\F$ are parametrized by general neural networks;",
+          "(a) learning distributions realizable by deep leaky ReLU networks, and (b) learning multivariate Gaussian distributions with two-layer networks. In both cases, the upper rates we obtain provide optimal sample complexity (up to logarithmic factors)."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_1712.08244",
+          "title": "How Well Can Generative Adversarial Networks Learn Densities: A Nonparametric View",
+          "abstract": "We study in this paper the rate of convergence for learning densities under the Generative Adversarial Networks (GAN) framework, borrowing insights from nonparametric statistics. We introduce an improved GAN estimator that achieves a faster rate, through simultaneously leveraging the level of smoothness in the target density and the evaluation metric, which in theory remedies the mode collapse problem reported in the literature. A minimax lower bound is constructed to show that when the dimension is large, the exponent in the rate for the new GAN estimator is near optimal. One can view our results as answering in a quantitative way how well GAN learns a wide range of densities with different smoothness properties, under a hierarchy of evaluation metrics. As a byproduct, we also obtain improved generalization bounds for GAN with deeper ReLU discriminator network.",
+          "authors": [
+            "Tengyuan Liang"
+          ],
+          "published_date": "2017-12-21T23:13:27Z",
+          "url": "https://arxiv.org/abs/1712.08244v2"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper derives minimax convergence rates for GAN-based density estimation, mostly in a fully nonparametric (Sobolev-space) framework: upper bounds via smoothed empirical measures when target density is in W^{α,2} and the discriminator class is W^{β,2}, plus matching minimax lower bounds. It also contains one section that moves toward finite networks: a rate bound when the discriminator is a finite-depth ReLU network F^{(ℓ)}(V), and guarantees when discriminator/generator network classes approximate Sobolev classes within ε. However, these results are statistical rates for the oracle GAN estimator, and the finite-network treatment still relies on networks approximating infinite-capacity nonparametric classes.",
+        "what_remains_open": "The gap concerns guarantees for finite-capacity MLPs — in particular global optimality and convergence — instead of relying on an infinite-capacity nonparametric setting. This paper does not close that gap: (1) its central theorems are themselves stated for nonparametric classes (target densities and discriminators in Sobolev spaces, generator handled only through the abstract approximation error min_{μ∈μ_G} d_{F_D}(μ,ν)), i.e., exactly the infinite-capacity setting; (2) it explicitly excludes the optimization side, so it gives no global-optimality or training-dynamics convergence results for fixed finite-capacity MLPs; (3) where ReLU networks appear, the bounds contain an approximation error term ε and attaining the stated nonparametric rate requires network size to grow with n (depth O(log n), units poly(n) / ε^{-d/β}), which is again the infinite-capacity limit rather than guarantees for a fixed finite-capacity architecture; (4) the generator is never treated as a finite MLP producing a transformed distribution, only as approximating densities in sup-norm. Thus part of the gap (finite ReLU discriminators with bounded weights get an improved statistical bound) is touched, but the specific problem — theoretical global optimality/convergence established directly for finite-capacity MLPs — remains open.",
+        "evidence_snippets": [
+          "The focus of the current paper is not on the optimization side of how to solve for $\\tilde{\\mu}_n$ efficiently, rather on the statistical front: how well $\\tilde{\\mu}_n$ estimates a wide range of nonparametric distributions $\\nu$ under a wide collection of objective metrics",
+          "Consider the density function class that lies in Sobolev space with smoothness parameter $\\alpha$, and the discriminator function class with smoothness $\\beta$, ... $\\F_{R} := \\left\\{ \\nu: \\frac{d \\nu(x)}{d x} \\in W^{\\alpha,2}(L) \\right\\},~~ \\F_D = W^{\\beta,2}(L).$ Then there exist a smoothed version of empirical measure $\\tilde{\\nu}_n$ that satisfies $\\sup_{\\nu \\in \\F_{R}} \\E d_{\\F_D}(\\nu, \\tilde{\\nu}_n) \\precsim n^{-\\frac{\\alpha+\\beta}{2(\\alpha+\\beta)+d}}.$",
+          "Roughly, this means that one may need a deep discriminator network (scales logarithmically with number of samples in depth, and polynomially in number of units) to recover the density in a strong sense such as under the Wasserstein metric."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_1703.00573",
+          "title": "Generalization and Equilibrium in Generative Adversarial Nets (GANs)",
+          "abstract": "We show that training of generative adversarial network (GAN) may not have good generalization properties; e.g., training may appear successful but the trained distribution may be far from target distribution in standard metrics. However, generalization does occur for a weaker metric called neural net distance. It is also shown that an approximate pure equilibrium exists in the discriminator/generator game for a special class of generators with natural training objectives when generator capacity and training set sizes are moderate. This existence of equilibrium inspires MIX+GAN protocol, which can be combined with any existing GAN training, and empirically shown to improve some of them.",
+          "authors": [
+            "Sanjeev Arora",
+            "Rong Ge",
+            "Yingyu Liang",
+            "Tengyu Ma",
+            "Yi Zhang"
+          ],
+          "published_date": "2017-03-02T01:14:03Z",
+          "url": "https://arxiv.org/abs/1703.00573v5"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper directly confronts the reliance on non-parametric/infinite-capacity analysis: it shows that standard-metric guarantees obtained by choosing the optimal discriminator over all functions (or all 1-Lipschitz functions) fail to generalize with polynomial samples, and instead proves generalization bounds for a \"neural net distance\" where the discriminator class is a finite-parameter (p-parameter) neural net. It also gives an existence theorem for an approximate pure equilibrium: starting from infinite mixtures, it shows O~(p/eps^2) generators suffice, and then folds the mixture into a single (k+1)-layer neural network with O(p^2) parameters, yielding an epsilon-approximate pure equilibrium for finite-capacity nets. Thus parts of the theory are moved from the infinite-capacity non-parametric regime to explicit finite-capacity statements.",
+        "what_remains_open": "The gap asks for global-optimality/convergence theory stated directly for finite-capacity multilayer perceptrons, and this paper does not fully deliver that. The finite-capacity guarantees it obtains are under clear limitations: (1) the generalization guarantee holds only for the weaker neural-net distance, while the paper proves that in standard metrics (JS, Wasserstein) a finite-capacity/parametric setup cannot generalize with polynomial samples, so the usual \"generator wins => D close to D_real\" optimality statement is not rescued; (2) the approximate pure equilibrium exists only for a specially constructed, augmented architecture — a k+1-layer net with multiway selectors and O(p^2) parameters — and the authors state it is open whether pure equilibria exist for the original structured (e.g., convolutional) architectures; (3) it is an existence theorem for an equilibrium, not a convergence result for any training algorithm, and the paper even shows best-response training can fail to converge (cycle) with finite capacity; (4) the equilibrium argument still passes first through infinite mixtures and then approximates them. So the specific problem of providing global optimality/convergence guarantees directly for standard finite-capacity MLP training remains open.",
+        "evidence_snippets": [
+          "in the discriminator/generator game for a special class of generators with natural training objectives when generator capacity and training set sizes are moderate",
+          "there exists $k+1$-layer neural networks of generators $G$ and discriminator $D$ with $O\\left(\\frac{\\Delta^2 p^2\\log (L L' L_{\\phi}\\cdot p/\\epsilon)}{\\epsilon^2}\\right)$ parameters, such that there exists an $\\epsilon$-approximate pure equilibrium with value $2\\phi(1/2)$",
+          "It is left for future work whether pure equilibria exist for the original structured architectures."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 3,
+      "skipped_ids": []
+    }
+  },
+  "ranking": {
+    "openness": 0.19999999999999996,
+    "impact": 0.3990274132982,
+    "feasibility": 0.2,
+    "feasibility_reasoning": "This is a pure-theory gap, so data and compute barriers are essentially absent, but the methodological barrier is severe. Proving global optimality and training-convergence guarantees for finite-capacity MLPs requires taming nonconvex-nonconcave minimax objectives and non-convergent gradient dynamics — a long-standing open problem, not an incremental extension. The validator's finding makes this worse: standard GAN metrics are shown not to generalize polynomially, and existing finite-capacity results are oracle/existence results rather than algorithmic convergence. Progress is possible only under strong restrictive assumptions or with a substantial new analytical approach, and the gap as stated is broad rather than a focused, measurable subproblem."
+  }
+}

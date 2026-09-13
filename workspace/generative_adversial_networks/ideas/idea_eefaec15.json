@@ -1,0 +1,286 @@
+{
+  "idea_id": "idea_eefaec15",
+  "title": "Sync-Gate: A Feedback-Controlled D/G Update Ratio",
+  "state": "root",
+  "one_liner": "Replace the fixed alternating (or fixed-k) D/G update schedule with a closed-loop controller that measures a live desynchronization signal and adjusts the number of discriminator steps per generator step in real time.",
+  "description": "Keep the standard minimax objective and network architectures exactly as in Goodfellow et al. (2014); change only the scheduler that decides, at each iteration, whether to take a G step or a D step. Track a cheap per-batch statistic — mean D(G(z)) over the current minibatch, averaged with an exponential moving average — as a proxy for how far D has fallen behind G (if D hasn't been updated in a while, G can exploit it and D(G(z)) drifts high even though D was previously well-calibrated). Feed this signal into a PI controller with a target band (e.g. D(G(z)) settling around 0.5) that outputs the number of consecutive D steps to run before the next G step, so the update ratio becomes a controlled variable instead of a fixed constant. This directly targets the paper's own stated failure mode rather than a downstream symptom (blurry samples, low IS/FID), and is a drop-in scheduler swap, not a new loss or architecture.",
+  "problem": "The original GAN training loop updates G and D on a fixed schedule (typically 1:1 or a hand-picked k:1 ratio), with no mechanism to detect when G has outrun D and is heading toward the 'Helvetica scenario' (mode collapse from an under-trained discriminator); this leaves synchronization to a static hyperparameter chosen before training rather than to anything measured during it.",
+  "addresses": [
+    "gap_f19d02aa"
+  ],
+  "relations": [],
+  "inherited_from": null,
+  "sections": {
+    "technique": "\n- Baseline schedule: fixed 1:1 update (original GAN paper) and fixed k:1 update (k=5, common DCGAN/WGAN-era convention) as two separate baselines.\n- Signal: EMA of mean D(G(z)) on the most recent generated minibatch, computed after each G step, before deciding whether to run extra D steps.\n- Controller: PI controller with target band [0.4, 0.6]; error = signal − 0.5; output integrated and thresholded to an integer number of D steps (clamped to [0, k_max]) run before the next G update.\n- Stress test: artificially force N consecutive G updates with D frozen (simulating the exact 'train G too much without updating D' scenario described in the paper) and measure how many iterations the controller needs to detect the drift and how much mode loss occurs during the window, compared to fixed schedules subjected to the same forced perturbation.\n- Metrics: number of modes recovered on stacked-MNIST (following the mode-counting protocol used in the unrolled-GAN literature, unverified whether directly reusable), FID/IS trajectory across training, and variance of these metrics across seeds as a stability measure.\n",
+    "baselines": "\n- Fixed 1:1 alternating SGD (original 1406.2661 formulation).\n- Fixed k:1 schedule with k tuned by grid search (standard practice baseline).\n- (unverified) BEGAN-style equilibrium ratio (γ-controlled balance between real/fake losses) as a related but architecture-specific alternative — included only if it can be adapted to the vanilla GAN objective without its autoencoder discriminator.\n",
+    "open_questions": [
+      "What is the actual per-minibatch standard error of mean D(G(z)) at the intended batch size, relative to the 0.2-wide target band? This single measurement decides whether a proportional term is usable at all, and it has not been made.",
+      "Does an active probe (one D step on a held-out batch, measure the drop in D(G(z))) actually separate 'D has slack' from 'D is at equilibrium' in practice, or does the drop magnitude also collapse to an uninformative value late in training?",
+      "How wide is the plant-gain variation (Δ signal per extra D step) between early and late training? If it spans orders of magnitude, no fixed-gain controller — PI or otherwise — is defensible without scheduling or normalization.",
+      "Does the collapse-latching failure (controller freezes D exactly when G has collapsed) actually occur in a run, and does it show as bimodal seed outcomes as predicted? This is the single most important empirical check, and a seed-averaged metric will hide it.",
+      "Does the benefit persist once training uses the non-saturating G loss and modern normalization tricks — and under the non-saturating loss, what replaces 0.5 as the target, since the equilibrium value of D(G(z)) is no longer 0.5?",
+      "Does the controller's overhead net out to a wall-clock win under a compute-matched comparison against fixed k:1 given the same total budget?"
+    ],
+    "rationale": "\nStance is optimizer: the fix stays inside the original alternating-SGD training loop and swaps only the scheduling rule, which is exactly the kind of 'usually left fixed' constant (the D:G update ratio k) this stance targets. The paper itself names the mechanism of failure (G outrunning D) precisely, which gives a concrete, measurable signal to control against rather than an abstract 'instability' to hand-wave about. The comparison points (fixed 1:1, fixed k:1) are named and already standard, so the delta is measurable directly. The BEGAN-style equilibrium comparison and the stacked-MNIST mode-counting protocol are marked unverified since their applicability to a vanilla-GAN controller setup is not confirmed in the supplied context.\n",
+    "failure_modes": "Stress test of the controller loop. Each entry: what breaks, why, severity, likelihood. Severities are reasoned, not measured — none of these were run.\n\n**1. The proxy is not invertible (severity: critical, likelihood: high).** Mean D(G(z)) ≈ 0.5 is the equilibrium value, the desynchronized value (D stale, G exploiting it), *and* a value a freshly-collapsing G passes through. The same reading therefore maps to opposite correct interventions. The concrete damage: near convergence the controller reads 0.5, sees no error, or drifts slightly high and adds D steps, over-training D into the vanishing-G-gradient regime — the failure the idea was built to avoid. A passive scalar cannot distinguish 'D has slack' from 'D is at its optimum'.\n\n**2. Mode collapse is a stable fixed point of the closed loop (severity: critical, likelihood: moderate).** A collapsed G produces samples D separates easily, so D(G(z)) reads *low*. Error is negative, the PI integrator drives extra-D-steps toward 0, and the controller holds D frozen precisely in the state where D must keep moving to push G off the collapsed mode. Feedback here does not damp the failure, it latches it: collapse becomes self-reinforcing. This is a failure mode neither fixed baseline has, i.e. the controller can be strictly worse than 1:1. Expected signature is bimodal outcomes across seeds rather than a degraded mean, so a seed-averaged metric would hide it.\n\n**3. Minibatch noise is comparable to the control band (severity: moderate, likelihood: high).** At B=64 the standard error of mean D(G(z)) is plausibly of the same order as the width of the whole [0.4, 0.6] band (unverified — this is a one-line measurement and should be made before any gain is chosen). If so, Kp feeds sampling noise directly into the actuator. The obvious fix, a longer EMA, buys noise rejection with lag, on a plant that is already delayed.\n\n**4. Ill-conditioned actuator: clamped integer output on a varying-gain plant (severity: moderate-to-high, likelihood: high).** The plant gain — Δ signal per extra D step — varies by orders of magnitude between early training and late training, so a single (Kp, Ki) cannot be right throughout. The output is an integer clamped to [0, k_max], which invites (a) integral windup while saturated at k_max, producing a long refractory period after the drift is corrected, and (b) quantization limit cycles, chattering between 0 and 1 extra steps.\n\n**5. Measurement deadtime (severity: moderate, likelihood: high).** The signal is read after a G step, but the effect of the D steps taken in response only appears in a later read, and the EMA adds further phase lag. PI control of a delayed plant with unknown, drifting gain is the classic recipe for oscillation, and the stress test in `technique` (forced N frozen-D steps) measures detection latency but not this loop-stability question.\n\n**6. Compute overhead and evaluation confound (severity: moderate for compute, high for validity).** Every intervention is extra D forward/backward passes, so Sync-Gate is not compute-neutral relative to 1:1. Any comparison against fixed k:1 at equal *iteration* count confounds 'the controller schedules better' with 'the controller spent more on D'. The comparison must be compute-matched — equal total D+G gradient steps or equal wall clock — for the delta to mean anything.\n\n**7. The failure mode may already be absorbed by modern practice (severity: existential to the idea's value, likelihood: unknown).** With the non-saturating G loss, D(G(z)) no longer sits at 0.5 at any meaningful equilibrium, so the target band is not obviously transportable; with spectral norm and other Lipschitz controls, the 'G outruns D' failure the paper describes may rarely be the binding constraint. This does not break the mechanism but may leave it with nothing to fix.",
+    "candidate_mitigations": "Recommendations produced by the stress test, **not adopted** — the idea's mechanism in `description` is unchanged. Each names which failure mode it targets.\n\n- **Active probe instead of a passive scalar** (targets #1). Rather than reading D(G(z)) and guessing, take one D step on a held-out batch and measure how far D(G(z)) *drops*. A large recoverable drop means D had slack (true desync); a small drop near 0.5 means genuine equilibrium. This directly separates the two states the passive reading confounds, at a cost of one extra D step per decision.\n- **One-sided actuator with a 1:1 floor** (targets #2). The controller may only *add* D steps above 1:1, never withhold them. This removes the mechanism by which collapse latches the loop. Consequence: Sync-Gate then always costs ≥ the 1:1 baseline, which makes compute-matched evaluation mandatory rather than optional (#6).\n- **Diversity co-signal** (targets #2). Mean pairwise distance or feature variance of G(z) within the minibatch, as a second cheap input: low D(G(z)) *with* healthy diversity means D is legitimately ahead; low D(G(z)) *with* collapsed diversity means intervene, not back off.\n- **Bang-bang gate with hysteresis and minimum dwell time, instead of PI** (targets #3, #4, #5). Deadband sized to the *measured* minibatch standard error of the signal; a dwell time prevents chatter. This eliminates windup and limit cycles by construction and shrinks the tuning surface from (Kp, Ki, band) to (threshold, dwell) — a partial answer to the 'trades one hyperparameter for three' objection.\n- **System identification before controller tuning** (targets #4, #5). Measure the step response of D(G(z)) to k extra D steps at three points in training (early, mid, late) and record the gain range and settling time. Without this, any (Kp, Ki) is guessed; with it, the deadband and dwell time are derived rather than searched."
+  },
+  "section_order": [
+    "technique",
+    "baselines",
+    "open_questions",
+    "rationale",
+    "failure_modes",
+    "candidate_mitigations"
+  ],
+  "evaluation": {
+    "novelty": null,
+    "feasibility": null,
+    "significance": null
+  },
+  "provenance": [],
+  "origin": {
+    "run_id": "run_7d6c02c5-54b6",
+    "node_id": "run_7d6c02c5-54b6:n1",
+    "node_path": [
+      "run_7d6c02c5-54b6:n0",
+      "run_7d6c02c5-54b6:n1"
+    ],
+    "style": "optimizer",
+    "mode": "generation",
+    "parent_idea_id": null,
+    "suggested": null,
+    "inherited_from": null,
+    "inherited_upto_run": null
+  },
+  "runs": [
+    {
+      "run_id": "run_7d6c02c5-54b6",
+      "session_id": "sess_a83c40cd",
+      "timestamp": "2026-09-09T17:04:03Z",
+      "header": {
+        "mode": "generation",
+        "width": 3,
+        "depth": 1,
+        "model": "reasoner",
+        "agent_styles": [
+          "optimizer",
+          "transferer",
+          "skeptic"
+        ],
+        "context_ids": [
+          "gap_f19d02aa",
+          "arxiv_1406.2661"
+        ],
+        "triggering_action": "",
+        "tool_use": true,
+        "task": "The gap: in the original GAN formulation, the discriminator must stay synchronized with the generator during training, since training G too much without updating D risks the 'Helvetica scenario' where many z values collapse to the same x, losing diversity (mode collapse). Generate 3 concrete research ideas that address this synchronization problem directly -- e.g. mechanisms to detect or prevent D/G training imbalance, adaptive update schedules, or alternative training dynamics that make the two networks robust to being out of sync. Ground each candidate in what is already known from the literature about GAN training instability and mode collapse."
+      },
+      "nodes": [
+        {
+          "node_id": "run_7d6c02c5-54b6:n0",
+          "parent_id": null,
+          "text": "# (untitled idea)",
+          "style": "-",
+          "status": "kept",
+          "depth": 0,
+          "kind": "root",
+          "title": "The gap: in the original GAN formulation, the discriminator must stay synchroniz",
+          "comparison": "",
+          "question": null,
+          "sources": []
+        },
+        {
+          "node_id": "run_7d6c02c5-54b6:n1",
+          "parent_id": "run_7d6c02c5-54b6:n0",
+          "text": "Sync-Gate: A Feedback-Controlled D/G Update Ratio\nReplace the fixed alternating (or fixed-k) D/G update schedule with a closed-loop controller that measures a live desynchronization signal and adjusts the number of discriminator steps per generator step in real time.\nKeep the standard minimax objective and network architectures exactly as in Goodfellow et al. (2014); change only the scheduler that decides, at each iteration, whether to take a G step or a D step. Track a cheap per-batch statistic — mean D(G(z)) over the current minibatch, averaged with an exponential moving average — as a proxy for how far D has fallen behind G (if D hasn't been updated in a while, G can exploit it and D(G(z)) drifts high even though D was previously well-calibrated). Feed this signal into a PI controller with a target band (e.g. D(G(z)) settling around 0.5) that outputs the number of consecutive D steps to run before the next G step, so the update ratio becomes a controlled variable instead of a fixed constant. This directly targets the paper's own stated failure mode rather than a downstream symptom (blurry samples, low IS/FID), and is a drop-in scheduler swap, not a new loss or architecture.\n\n- Baseline schedule: fixed 1:1 update (original GAN paper) and fixed k:1 update (k=5, common DCGAN/WGAN-era convention) as two separate baselines.\n- Signal: EMA of mean D(G(z)) on the most recent generated minibatch, computed after each G step, before deciding whether to run extra D steps.\n- Controller: PI controller with target band [0.4, 0.6]; error = signal − 0.5; output integrated and thresholded to an integer number of D steps (clamped to [0, k_max]) run before the next G update.\n- Stress test: artificially force N consecutive G updates with D frozen (simulating the exact 'train G too much without updating D' scenario described in the paper) and measure how many iterations the controller needs to detect the drift and how much mode loss occurs during the window, compared to fixed schedules subjected to the same forced perturbation.\n- Metrics: number of modes recovered on stacked-MNIST (following the mode-counting protocol used in the unrolled-GAN literature, unverified whether directly reusable), FID/IS trajectory across training, and variance of these metrics across seeds as a stability measure.\n\n\n- Fixed 1:1 alternating SGD (original 1406.2661 formulation).\n- Fixed k:1 schedule with k tuned by grid search (standard practice baseline).\n- (unverified) BEGAN-style equilibrium ratio (γ-controlled balance between real/fake losses) as a related but architecture-specific alternative — included only if it can be adapted to the vanilla GAN objective without its autoencoder discriminator.\n\n\n- Is mean D(G(z)) the best desynchronization proxy, or would a gradient-norm ratio between G's and D's updates, or the slope of D's loss curve, give earlier/cleaner detection?\n- How sensitive is training stability to the controller's target band and gain constants — does this just trade one hyperparameter (k) for three (Kp, Ki, band)?\n- Does the controller's overhead (extra D forward/backward passes when triggered) net out to a wall-clock win once mode-collapse-recovery time is priced in, versus simply always running a conservative fixed k:1 schedule?\n- Does the benefit persist once training uses the non-saturating G loss and modern normalization tricks, or was the original synchronization failure mode already mostly absorbed by those unrelated fixes?\n\n\nStance is optimizer: the fix stays inside the original alternating-SGD training loop and swaps only the scheduling rule, which is exactly the kind of 'usually left fixed' constant (the D:G update ratio k) this stance targets. The paper itself names the mechanism of failure (G outrunning D) precisely, which gives a concrete, measurable signal to control against rather than an abstract 'instability' to hand-wave about. The comparison points (fixed 1:1, fixed k:1) are named and already standard, so the delta is measurable directly. The BEGAN-style equilibrium comparison and the stacked-MNIST mode-counting protocol are marked unverified since their applicability to a vanilla-GAN controller setup is not confirmed in the supplied context.\n",
+          "style": "optimizer",
+          "status": "accepted",
+          "depth": 1,
+          "kind": "candidate",
+          "title": "Sync-Gate: A Feedback-Controlled D/G Update Ratio",
+          "comparison": "",
+          "question": null,
+          "sources": []
+        }
+      ],
+      "edges": [
+        {
+          "from": "run_7d6c02c5-54b6:n0",
+          "to": "run_7d6c02c5-54b6:n1",
+          "type": "expanded-into"
+        }
+      ],
+      "outcome": {
+        "accepted_node": "run_7d6c02c5-54b6:n1",
+        "escalation": null,
+        "truncated": false,
+        "escalation_node": null,
+        "escalation_diagnosis": "",
+        "status": "completed",
+        "reason": "3 candidates survived deduplication",
+        "limit": null,
+        "accepted_nodes": [
+          "run_7d6c02c5-54b6:n1"
+        ],
+        "summary": {
+          "objective": "The gap: in the original GAN formulation, the discriminator must stay synchronized with the generator during training, since training G too much without updating D risks the 'Helvetica scenario' where many z values collapse to the same x, losing diversity (mode collapse). Generate 3 concrete research ideas that address this synchronization problem directly -- e.g. mechanisms to detect or prevent D/G training imbalance, adaptive update schedules, or alternative training dynamics that make the two networks robust to being out of sync. Ground each candidate in what is already known from the literature about GAN training instability and mode collapse.",
+          "accepted": "carved from run_7d6c02c5-54b6 on acceptance: Sync-Gate: A Feedback-Controlled D/G Update Ratio; Kuramoto-Coupled Learning Rates: Phase-Locking G and D as Coupled Oscillators; Decoupling Diversity from D: A Synchronization-Free Anti-Collapse Channel",
+          "rejected": "",
+          "open": [
+            "\n",
+            "-",
+            " ",
+            "I",
+            "s"
+          ]
+        },
+        "answer": "",
+        "proposed_changes": []
+      }
+    },
+    {
+      "run_id": "run_681ca6a1-1fa1",
+      "session_id": "sess_4f6b10fb",
+      "timestamp": "2026-09-09T17:10:11Z",
+      "header": {
+        "mode": "refinement",
+        "width": 2,
+        "depth": 2,
+        "model": "reasoner",
+        "agent_styles": [
+          "skeptic"
+        ],
+        "context_ids": [
+          "gap_f19d02aa",
+          "arxiv_1406.2661"
+        ],
+        "triggering_action": "",
+        "tool_use": true,
+        "task": "Stress-test the Sync-Gate idea (closed-loop PI controller adjusting D:G update ratio using an EMA of mean D(G(z)) as a desynchronization proxy). Identify concrete problems that could occur when applying it in practice: e.g. failure modes of the proxy signal itself (does mean D(G(z)) reliably indicate desync, or can it be misleading near convergence or with non-saturating loss), controller instability or oscillation (tuning Kp/Ki/band), interaction with minibatch noise, added compute/wall-clock overhead from extra D steps, sensitivity to the target band choice, behavior once training uses modern tricks (spectral norm, non-saturating loss) that may already prevent the failure mode, and any risk the controller reacts too late or overcorrects into over-training D. Return these as a revised idea capturing the problems and how serious/likely each is."
+      },
+      "nodes": [
+        {
+          "node_id": "run_681ca6a1-1fa1:n0",
+          "parent_id": null,
+          "text": "# Sync-Gate: A Feedback-Controlled D/G Update Ratio\n_Replace the fixed alternating (or fixed-k) D/G update schedule with a closed-loop controller that measures a live desynchronization signal and adjusts the number of discriminator steps per generator step in real time._\n\n## the problem it addresses\nThe original GAN training loop updates G and D on a fixed schedule (typically 1:1 or a hand-picked k:1 ratio), with no mechanism to detect when G has outrun D and is heading toward the 'Helvetica scenario' (mode collapse from an under-trained discriminator); this leaves synchronization to a static hyperparameter chosen before training rather than to anything measured during it.\n\n## description\nKeep the standard minimax objective and network architectures exactly as in Goodfellow et al. (2014); change only the scheduler that decides, at each iteration, whether to take a G step or a D step. Track a cheap per-batch statistic — mean D(G(z)) over the current minibatch, averaged with an exponential moving average — as a proxy for how far D has fallen behind G (if D hasn't been updated in a while, G can exploit it and D(G(z)) drifts high even though D was previously well-calibrated). Feed this signal into a PI controller with a target band (e.g. D(G(z)) settling around 0.5) that outputs the number of consecutive D steps to run before the next G step, so the update ratio becomes a controlled variable instead of a fixed constant. This directly targets the paper's own stated failure mode rather than a downstream symptom (blurry samples, low IS/FID), and is a drop-in scheduler swap, not a new loss or architecture.\n\n## addresses gaps\ngap_f19d02aa\n\n## technique\n\n- Baseline schedule: fixed 1:1 update (original GAN paper) and fixed k:1 update (k=5, common DCGAN/WGAN-era convention) as two separate baselines.\n- Signal: EMA of mean D(G(z)) on the most recent generated minibatch, computed after each G step, before deciding whether to run extra D steps.\n- Controller: PI controller with target band [0.4, 0.6]; error = signal − 0.5; output integrated and thresholded to an integer number of D steps (clamped to [0, k_max]) run before the next G update.\n- Stress test: artificially force N consecutive G updates with D frozen (simulating the exact 'train G too much without updating D' scenario described in the paper) and measure how many iterations the controller needs to detect the drift and how much mode loss occurs during the window, compared to fixed schedules subjected to the same forced perturbation.\n- Metrics: number of modes recovered on stacked-MNIST (following the mode-counting protocol used in the unrolled-GAN literature, unverified whether directly reusable), FID/IS trajectory across training, and variance of these metrics across seeds as a stability measure.\n\n\n## baselines\n\n- Fixed 1:1 alternating SGD (original 1406.2661 formulation).\n- Fixed k:1 schedule with k tuned by grid search (standard practice baseline).\n- (unverified) BEGAN-style equilibrium ratio (γ-controlled balance between real/fake losses) as a related but architecture-specific alternative — included only if it can be adapted to the vanilla GAN objective without its autoencoder discriminator.\n\n\n## open_questions\n\n- Is mean D(G(z)) the best desynchronization proxy, or would a gradient-norm ratio between G's and D's updates, or the slope of D's loss curve, give earlier/cleaner detection?\n- How sensitive is training stability to the controller's target band and gain constants — does this just trade one hyperparameter (k) for three (Kp, Ki, band)?\n- Does the controller's overhead (extra D forward/backward passes when triggered) net out to a wall-clock win once mode-collapse-recovery time is priced in, versus simply always running a conservative fixed k:1 schedule?\n- Does the benefit persist once training uses the non-saturating G loss and modern normalization tricks, or was the original synchronization failure mode already mostly absorbed by those unrelated fixes?\n\n\n## rationale\n\nStance is optimizer: the fix stays inside the original alternating-SGD training loop and swaps only the scheduling rule, which is exactly the kind of 'usually left fixed' constant (the D:G update ratio k) this stance targets. The paper itself names the mechanism of failure (G outrunning D) precisely, which gives a concrete, measurable signal to control against rather than an abstract 'instability' to hand-wave about. The comparison points (fixed 1:1, fixed k:1) are named and already standard, so the delta is measurable directly. The BEGAN-style equilibrium comparison and the stacked-MNIST mode-counting protocol are marked unverified since their applicability to a vanilla-GAN controller setup is not confirmed in the supplied context.\n",
+          "style": "-",
+          "status": "kept",
+          "depth": 0,
+          "kind": "root",
+          "title": "Sync-Gate: A Feedback-Controlled D/G Update Ratio",
+          "comparison": "",
+          "question": null,
+          "sources": []
+        },
+        {
+          "node_id": "run_681ca6a1-1fa1:n1",
+          "parent_id": "run_681ca6a1-1fa1:n0",
+          "text": "The load-bearing assumption is that mean D(G(z)) is an invertible, low-noise, monotonically-actuatable measurement of how far D has fallen behind G. All three parts fail: (i) invertibility — D(G(z))≈0.5 is simultaneously the equilibrium value, the desynchronized value, and a value a freshly-collapsed G can pass through, so the same reading maps to opposite interventions (most serious problem: the controller can add D steps at convergence and over-train D into vanishing G gradients, exactly the failure it was meant to avoid); (ii) noise — per-minibatch mean D(G(z)) at B=64 has a standard error plausibly comparable to the whole [0.4,0.6] band, so Kp feeds sampling noise straight into the actuator and the EMA that fixes this adds lag on top of an already delayed plant; (iii) actuation — the plant gain (Δ signal per D step) varies by orders of magnitude across training and the output is a clamped integer, which invites integral windup at the k_max clamp and quantization limit cycles between 0 and 1 extra steps. The constructive revision: replace the passive scalar with an *active probe* — take one D step on a held-out batch and measure how much D(G(z)) drops; a large recoverable drop means D had slack (true desync), a small drop near 0.5 means genuine equilibrium, which disambiguates the two states the passive signal confounds. Then replace the PI with a bang-bang gate with hysteresis and a minimum dwell time, deadband sized to the measured minibatch standard error, so the integer actuator cannot limit-cycle and the tuning surface shrinks from (Kp, Ki, band) to (probe threshold, dwell); the revised technique section prepends a system-identification step (step-response of D(G(z)) to k extra D steps at three points in training) before any controller is tuned.",
+          "style": "skeptic",
+          "status": "kept",
+          "depth": 1,
+          "kind": "branch",
+          "title": "Attack the loop's well-posedness: D(G(z)) is not an observable of desync, and the PI/integer-actuator pairing is ill-conditioned — revise into an active-probe measurement plus a hysteresis gate.",
+          "comparison": "The run asked for a broad stress-test of Sync-Gate's practical failure modes with severities; Branch 0 covers most of the requested list (signal non-invertibility, minibatch noise vs. band width, integer-actuator windup/limit cycles, over-training D at convergence) and converts each into a concrete design change (active probe, hysteresis + dwell, system-identification step), whereas Branch 1 develops only one item on the list (is the failure mode still live under modern tricks) and resolves it by re-scoping Sync-Gate into a compute-allocation controller — valuable, but a narrower answer to the question asked and a change of the idea's purpose.",
+          "question": "What is the empirical per-minibatch standard deviation of mean D(G(z)) during vanilla GAN training at batch size 64, relative to the proposed 0.2-wide target band?",
+          "sources": []
+        },
+        {
+          "node_id": "run_681ca6a1-1fa1:n2",
+          "parent_id": "run_681ca6a1-1fa1:n0",
+          "text": "The assumption doing all the work is not about the signal but about the regime: that under-trained-D mode collapse is a failure mode that still occurs in the training setups anyone uses, rather than one already absorbed by the non-saturating loss, spectral norm, and 1:1 Adam schedules that became standard for unrelated reasons. If it has been absorbed, every other problem in the stress-test list is moot and the honest result is a null one — so the revised idea puts that test first: a 2x2 (fixed 1:1 vs Sync-Gate) x (vanilla saturating loss, no normalization vs non-saturating + spectral norm) grid, with the forced-N-G-steps perturbation applied to all four cells, and a pre-registered statement that if the modern cell shows no collapse under perturbation the stability claim is withdrawn. The constructive inversion: in that case Sync-Gate is re-scoped from a stability device to a *compute* device — the controller's target flips from 'drive D(G(z)) to 0.5' to 'find the smallest number of D steps that keeps the real/fake margin above tau', competing against fixed k=5 on wall-clock-to-fixed-FID rather than on mode counts. Under this framing the severity ranking changes completely: overhead accounting becomes the primary metric (probe steps and extra D passes must be charged), and the risk that matters most is the controller settling on k systematically higher than a tuned constant, which would make it a strictly worse scheduler.",
+          "style": "skeptic",
+          "status": "pruned",
+          "depth": 1,
+          "kind": "branch",
+          "title": "Attack the premise that the controlled failure mode is still live: make the revision falsification-first, and pre-commit the pivot to Sync-Gate as a compute-allocation controller if the null result holds.",
+          "comparison": "Strong on the one concern it takes up — whether under-trained-D collapse still occurs under non-saturating loss and spectral norm — with a concrete pre-registered 2x2 perturbation grid, but it leaves the proxy-signal, noise, oscillation and over-correction problems untouched and its constructive move (retarget the controller at wall-clock-to-FID rather than stability) turns Sync-Gate into a different device rather than hardening this one.",
+          "question": "Is there published evidence that mode collapse attributable to an under-trained discriminator still occurs at a fixed 1:1 schedule when using the non-saturating loss plus spectral normalization?",
+          "sources": []
+        },
+        {
+          "node_id": "run_681ca6a1-1fa1:n3",
+          "parent_id": "run_681ca6a1-1fa1:n1",
+          "text": "Depth 1 fixed the measurement; this branch attacks the reference the measurement is compared against. The load-bearing assumption is that D(G(z))=0.5 marks synchronization, but 0.5 is the equilibrium of the *infinite-capacity minimax* game; under the non-saturating G loss actually used in practice, plus spectral norm or any Lipschitz constraint, the empirical steady-state D(G(z)) of a healthy run can sit well away from 0.5 and drift monotonically over training, so a controller with a fixed [0.4,0.6] band will spend most of training saturated at k_max — silently reducing Sync-Gate to 'always run the conservative fixed k:1 baseline' (severity: high, likelihood: high; it makes the method look neutral rather than harmful, which is the hardest failure to diagnose). The constructive move is twofold: (i) control the *relative* quantity m = EMA[D(x)] − EMA[D(G(z))] against a setpoint estimated online from the run's own recent history (e.g. a slow quantile of m over the last few thousand iterations), so the controller regulates deviation-from-own-trend rather than deviation-from-a-theoretical-constant; (ii) prepend a susceptibility experiment that, for each configuration in the grid {saturating vs non-saturating loss} × {no norm, spectral norm}, forces N G-only steps and measures dm/dN — if the drift is already near zero under modern settings, the honest conclusion is that Sync-Gate is a fix scoped to the unregularized 2014 regime, and the paper should say so and report it there rather than claim generality.",
+          "style": "skeptic",
+          "status": "pruned",
+          "depth": 2,
+          "kind": "branch",
+          "title": "Attack the setpoint and the plant, not the sensor: 0.5 is an artifact of the non-parametric proof, so replace the absolute target with a self-calibrated relative margin — and gate the whole idea behind a susceptibility test that checks the drift still exists in the training regime being used.",
+          "comparison": "Correctly identifies that 0.5 is an infinite-capacity artifact and that a fixed [0.4,0.6] band will saturate at k_max under non-saturating loss + spectral norm, and offers a concrete replacement (relative margin m = EMA[D(x)] − EMA[D(G(z))] against a self-estimated slow quantile) plus a susceptibility grid; loses because its central finding is a sharpened version of two concerns the task already named, and its strongest conclusion is to narrow the idea's scope rather than to harden the controller — the dm/dN susceptibility test is worth carrying into the winner's development.",
+          "question": "In a healthy modern GAN run (non-saturating loss, spectral-normalized D), what value does mean D(G(z)) actually settle at, and how much does it drift when G is updated for N steps with D frozen?",
+          "sources": []
+        },
+        {
+          "node_id": "run_681ca6a1-1fa1:n4",
+          "parent_id": "run_681ca6a1-1fa1:n1",
+          "text": "The unexamined assumption is that adding feedback can only help — that the controller's own dynamics cannot create a failure mode that neither fixed schedule has. It can: a collapsed G produces samples D separates easily, so D(G(z)) reads *low*, the error is negative, the PI integrator drives extra-D-steps to 0, and the controller then holds D frozen precisely in the state where D must keep moving to push G off the collapsed mode — collapse becomes a self-reinforcing attractor of the loop (severity: critical, likelihood: moderate; it converts an occasional failure into an absorbing one, and would show up as bimodal seed outcomes rather than a worse mean). The revision: make the actuator strictly one-sided — the controller may only add D steps above a floor of 1:1, never subtract — and disambiguate the low-signal reading with a second, cheap input, the mean pairwise distance (or feature variance) of G(z) within the minibatch: low D(G(z)) *with* healthy sample diversity means D is legitimately ahead, low D(G(z)) *with* collapsed diversity means intervene, not back off. One-sidedness means Sync-Gate now always costs at least as much compute as 1:1, so the evaluation must be re-specified as compute-matched: equal total D+G gradient steps (or equal wall clock), with fixed k:1 given the same budget, otherwise any measured gain is confounded with simply spending more on D.",
+          "style": "skeptic",
+          "status": "accepted",
+          "depth": 2,
+          "kind": "branch",
+          "title": "Attack the closed loop itself: symmetric control makes mode collapse a stable fixed point of the controller, so make the actuator one-sided (k≥1 floor, never withhold D steps) with a diversity co-signal, and compute-match the comparison.",
+          "comparison": "Added two new sections: `failure_modes` (seven concrete problems with severity and likelihood, led by the non-invertibility of mean D(G(z)) and the collapse-latching fixed point of the closed loop) and `candidate_mitigations` (active probe, one-sided actuator, diversity co-signal, hysteresis gate, system identification — recorded explicitly as unadopted recommendations). Rewrote open_questions to reflect what the stress test sharpened or raised. Description, problem, technique and baselines left untouched: the task asked for problems, not a mechanism swap; the two mechanism changes the run would recommend are in proposed_changes.",
+          "question": "During an observed mode collapse in a vanilla GAN, does mean D(G(z)) fall (D easily detects the collapsed mode) or rise (G exploits a stale D)?",
+          "sources": []
+        }
+      ],
+      "edges": [
+        {
+          "from": "run_681ca6a1-1fa1:n0",
+          "to": "run_681ca6a1-1fa1:n1",
+          "type": "expanded-into"
+        },
+        {
+          "from": "run_681ca6a1-1fa1:n0",
+          "to": "run_681ca6a1-1fa1:n2",
+          "type": "expanded-into"
+        },
+        {
+          "from": "run_681ca6a1-1fa1:n1",
+          "to": "run_681ca6a1-1fa1:n3",
+          "type": "expanded-into"
+        },
+        {
+          "from": "run_681ca6a1-1fa1:n1",
+          "to": "run_681ca6a1-1fa1:n4",
+          "type": "expanded-into"
+        }
+      ],
+      "outcome": {
+        "accepted_node": "run_681ca6a1-1fa1:n4",
+        "escalation": null,
+        "truncated": false,
+        "escalation_node": null,
+        "escalation_diagnosis": "",
+        "status": "completed",
+        "reason": "reached the requested depth 2",
+        "limit": null,
+        "accepted_nodes": [
+          "run_681ca6a1-1fa1:n4"
+        ],
+        "summary": {
+          "objective": "Stress-test the Sync-Gate idea (closed-loop PI controller adjusting D:G update ratio using an EMA of mean D(G(z)) as a desynchronization proxy). Identify concrete problems that could occur when applying it in practice: e.g. failure modes of the proxy signal itself (does mean D(G(z)) reliably indicate desync, or can it be misleading near convergence or with non-saturating loss), controller instability or oscillation (tuning Kp/Ki/band), interaction with minibatch noise, added compute/wall-clock overhead from extra D steps, sensitivity to the target band choice, behavior once training uses modern tricks (spectral norm, non-saturating loss) that may already prevent the failure mode, and any risk the controller reacts too late or overcorrects into over-training D. Return these as a revised idea capturing the problems and how serious/likely each is.",
+          "accepted": "Added two new sections: `failure_modes` (seven concrete problems with severity and likelihood, led by the non-invertibility of mean D(G(z)) and the collapse-latching fixed point of the closed loop) and `candidate_mitigations` (active probe, one-sided actuator, diversity co-signal, hysteresis gate, system identification — recorded explicitly as unadopted recommendations). Rewrote open_questions to reflect what the stress test sharpened or raised. Description, problem, technique and baselines left untouched: the task asked for problems, not a mechanism swap; the two mechanism changes the run would recommend are in proposed_changes.",
+          "rejected": "Attack the premise that the controlled failure mode is still live: make the revision falsification-first, and pre-commit the pivot to Sync-Gate as a compute-allocation controller if the null result holds.: Strong on the one concern it takes up — whether under-trained-D collapse still occurs under non-saturating loss and spectral norm — with a concrete pre-registered 2x2 perturbation grid, but it leaves the proxy-signal, noise, oscillation and over-correction problems untouched and its constructive move (retarget the controller at wall-clock-to-FID rather than stability) turns Sync-Gate into a different device rather than hardening this one.; Attack the setpoint and the plant, not the sensor: 0.5 is an artifact of the non-parametric proof, so replace the absolute target with a self-calibrated relative margin — and gate the whole idea behind a susceptibility test that checks the drift still exists in the training regime being used.: Correctly identifies that 0.5 is an infinite-capacity artifact and that a fixed [0.4,0.6] band will saturate at k_max under non-saturating loss + spectral norm, and offers a concrete replacement (relative margin m = EMA[D(x)] − EMA[D(G(z))] against a self-estimated slow quantile) plus a susceptibility grid; loses because its central finding is a sharpened version of two concerns the task already named, and its strongest conclusion is to narrow the idea's scope rather than to harden the controller — the dm/dN susceptibility test is worth carrying into the winner's development.",
+          "open": [
+            "What is the actual per-minibatch standard error of mean D(G(z)) at the intended batch size, relative to the 0.2-wide target band? This single measurement decides whether a proportional term is usable at all, and it has not been made.",
+            "Does an active probe (one D step on a held-out batch, measure the drop in D(G(z))) actually separate 'D has slack' from 'D is at equilibrium' in practice, or does the drop magnitude also collapse to an uninformative value late in training?",
+            "How wide is the plant-gain variation (Δ signal per extra D step) between early and late training? If it spans orders of magnitude, no fixed-gain controller — PI or otherwise — is defensible without scheduling or normalization.",
+            "Does the collapse-latching failure (controller freezes D exactly when G has collapsed) actually occur in a run, and does it show as bimodal seed outcomes as predicted? This is the single most important empirical check, and a seed-averaged metric will hide it.",
+            "Does the benefit persist once training uses the non-saturating G loss and modern normalization tricks — and under the non-saturating loss, what replaces 0.5 as the target, since the equilibrium value of D(G(z)) is no longer 0.5?",
+            "Does the controller's overhead net out to a wall-clock win under a compute-matched comparison against fixed k:1 given the same total budget?"
+          ]
+        },
+        "answer": "The stress test found two problems serious enough to threaten the idea as written, and both stem from the same root: mean D(G(z)) is not an invertible observable of desynchronization. First, the reading ≈0.5 is simultaneously the equilibrium value, the desynchronized value, and a value a transiently-collapsing G passes through, so the same measurement maps to opposite correct interventions — at convergence the controller adds D steps and over-trains D into vanishing G gradients, the very failure it exists to prevent. Second, and worse, the closed loop makes mode collapse an attractor: a collapsed G is easy for D to separate, so D(G(z)) reads *low*, the PI integrator drives the extra-D-step count to zero, and D is held frozen exactly when it must keep moving to push G off the collapsed mode — this converts an occasional failure into an absorbing one and would show up as bimodal seed outcomes, not a worse mean. Below those sit four mechanical problems: per-minibatch standard error at B=64 plausibly comparable to the whole [0.4,0.6] band (unverified — needs measuring before any gain is tuned), a plant whose gain per D step varies by orders of magnitude across training driving a clamped integer actuator (integral windup at k_max, quantization limit cycles between 0 and 1 extra steps), measurement deadtime from the EMA stacked on an already-delayed plant, and an evaluation confound where one-sided extra D steps mean any gain over fixed k:1 is confounded with simply spending more compute on D. I recorded all of these with severity and likelihood in a new `failure_modes` section, plus a `candidate_mitigations` section (active probe instead of passive scalar, hysteresis gate with deadband sized to measured noise, one-sided actuator with a 1:1 floor, diversity co-signal, system-identification before tuning) — these are recommendations only; I did not change the mechanism in the description, since the task asked me to find the problems, not to pick the fix.",
+        "proposed_changes": [
+          "description: Replace the passive-signal PI controller with the mitigated design: an active probe (one D step on held-out data, measure the drop in D(G(z))) as the measurement, a one-sided actuator that may only add D steps above a 1:1 floor, a diversity co-signal to disambiguate low readings, and a hysteresis gate with minimum dwell time in place of the PI.",
+          "technique: Prepend a system-identification step (step response of D(G(z)) to k extra D steps, measured early/mid/late in training, plus the minibatch standard error of the signal) before any controller tuning, and re-specify the whole evaluation as compute-matched — equal total D+G gradient steps or equal wall clock — with fixed k:1 given the same budget."
+        ]
+      }
+    }
+  ],
+  "created_at": "2026-09-09T17:07:30Z",
+  "updated_at": "2026-09-09T17:15:48Z"
+}

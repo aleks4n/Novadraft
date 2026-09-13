@@ -1,0 +1,153 @@
+{
+  "gap_id": "gap_27d71fbd",
+  "status": "validated",
+  "title": "No claim of superiority over existing generative models",
+  "description": "The authors qualify their sample-quality results by stating that they make no claim the generated samples are better than those produced by existing methods, only that they are at least competitive with the better generative models in the literature.",
+  "type": "caveat",
+  "canonical_description": "generated sample quality only claimed competitive, not superior to existing methods",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1406.2661",
+      "section": "experiments",
+      "anchor": "we make no claim that these samples are better than",
+      "quote": "While we make no claim that these samples are better than",
+      "char_offset": [
+        1708,
+        1765
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-09-09T04:12:53Z",
+  "verdict": {
+    "gap_id": "gap_27d71fbd",
+    "status": "solved",
+    "confidence": 0.9,
+    "reasoning": "The gap is specifically the absence of a superiority claim for generated-sample quality (only \"competitive\" was claimed). Three deep-read papers squarely resolve this. Cooperative Training (CoT) explicitly reports state-of-the-art sample quality and diversity on discrete sequence generation (BLEU/n-gram metrics), asserting \"superior performance\" over all baselines at matched architecture capacity. Inclusive-NRFs claim to \"consistently improve over state-of-the-art results\" and back it with quantitative CIFAR-10 IS/FID scores. Splitting GAN likewise claims state-of-the-art Inception scores on CIFAR-10 and STL-10 in both supervised and unsupervised settings, describing images as \"clearly better.\" These are direct, quantitative superiority claims over existing generative models, so the specific shortcoming identified in the gap is addressed. The two partial assessments (ARF's hedged \"comparable or superior\" on tabular data only, and Ways of Conditioning's superiority only over concatenation baselines via a density metric) do not undermine this: they are narrower in scope and remain hedged, but the central gap is covered by the stronger papers. Confidence is high because the direct-solution papers present concrete metrics rather than vague assertions; the only residual caveat is that a few superiority claims are tied to particular architectures/datasets rather than being unconditional across all scenarios.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_1804.03782",
+          "title": "CoT: Cooperative Training for Generative Modeling of Discrete Data",
+          "abstract": "In this paper, we study the generative models of sequential discrete data. To tackle the exposure bias problem inherent in maximum likelihood estimation (MLE), generative adversarial networks (GANs) are introduced to penalize the unrealistic generated samples. To exploit the supervision signal from the discriminator, most previous models leverage REINFORCE to address the non-differentiable problem of sequential discrete data. However, because of the unstable property of the training signal during the dynamic process of adversarial training, the effectiveness of REINFORCE, in this case, is hardly guaranteed. To deal with such a problem, we propose a novel approach called Cooperative Training (CoT) to improve the training of sequence generative models. CoT transforms the min-max game of GANs into a joint maximization framework and manages to explicitly estimate and optimize Jensen-Shannon divergence. Moreover, CoT works without the necessity of pre-training via MLE, which is crucial to the success of previous methods. In the experiments, compared to existing state-of-the-art methods, CoT shows superior or at least competitive performance on sample quality, diversity, as well as training stability.",
+          "authors": [
+            "Sidi Lu",
+            "Lantao Yu",
+            "Siyuan Feng",
+            "Yaoming Zhu",
+            "Weinan Zhang",
+            "Yong Yu"
+          ],
+          "published_date": "2018-04-11T02:10:55Z",
+          "url": "https://arxiv.org/abs/1804.03782v3"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "The paper proposes Cooperative Training (CoT) for sequence generation of discrete data and — in contrast to a paper that only claims competitiveness — explicitly asserts superiority over existing generative models. In synthetic experiments it states that its algorithm \"reaches the state-of-the-art performance with exactly the same network architecture,\" and in real-data text generation it claims CoT-basic \"achieves state-of-the-art performance over all the baselines\" on quality (BLEU) and diversity metrics. The conclusion likewise states \"CoT achieves superior performance on sample quality, diversity, as well as training stability,\" directly countering the gap's \"no claim of superiority\" weakness.",
+        "what_remains_open": "The specific gap (absence of a superiority claim for generated-sample quality) is directly addressed: the paper does claim state-of-the-art/superior sample quality and diversity over existing baselines in both synthetic and real-data experiments. The only residual hedging is that the abstract still phrases results as \"superior or at least competitive,\" and the strongest superiority claims are tied to particular settings/architectures (e.g., same architecture-level capacity baselines, CoT-strong with an inverse-temperature strategy), so a fully unconditional, across-all-scenarios superiority claim is not made. But the central shortcoming identified by the gap — making no claim of superiority — is resolved.",
+        "evidence_snippets": [
+          "In the experiments, compared to existing state-of-the-art methods, CoT shows superior or at least competitive performance on sample quality, diversity, as well as training stability.",
+          "We show that under this more reasonable setting, our proposed algorithm reaches the state-of-the-art performance with exactly the same network architecture.",
+          "In terms of generative quality, CoT-basic achieves state-of-the-art performance over all the baselines with the same architecture-level capacity, especially the long-term robustness at n-gram level."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_1806.00271",
+          "title": "Generative Modeling by Inclusive Neural Random Fields with Applications in Image Generation and Anomaly Detection",
+          "abstract": "Neural random fields (NRFs), referring to a class of generative models that use neural networks to implement potential functions in random fields (a.k.a. energy-based models), are not new but receive less attention with slow progress. Different from various directed graphical models such as generative adversarial networks (GANs), NRFs provide an interesting family of undirected graphical models for generative modeling. In this paper we propose a new approach, the inclusive-NRF approach, to learning NRFs for continuous data (e.g. images), by introducing inclusive-divergence minimized auxiliary generators and developing stochastic gradient sampling in an augmented space. Based on the new approach, specific inclusive-NRF models are developed and thoroughly evaluated in two important generative modeling applications - image generation and anomaly detection. The proposed models consistently improve over state-of-the-art results in both applications. Remarkably, in addition to superior sample generation, one additional benefit of our inclusive-NRF approach is that, unlike GANs, it can directly provide (unnormalized) density estimate for sample evaluation. With these contributions and results, this paper significantly advances the learning and applications of NRFs to a new level, both theoretically and empirically, which have never been obtained before.",
+          "authors": [
+            "Yunfu Song",
+            "Zhijian Ou"
+          ],
+          "published_date": "2018-06-01T10:26:15Z",
+          "url": "https://arxiv.org/abs/1806.00271v5"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper proposes inclusive-NRFs and, unlike a paper that only claims \"competitive\" sample quality, it explicitly claims and empirically demonstrates superiority over existing generative models. In image generation on CIFAR-10 it reports state-of-the-art Inception Score (IS 8.28, FID 20.9 with ResNet; IS 7.54, FID 27.9 with CNN) computed in the same way as the spectral-normalized GAN baselines, with the authors stating the models \"consistently improve over state-of-the-art results.\" It also claims superior results in anomaly detection via density estimates.",
+        "what_remains_open": "The paper directly resolves the gap's core issue: rather than hedging generated-sample quality as merely competitive, it makes explicit superiority/state-of-the-art claims backed by IS/FID numbers. The only residual caveats are scope limitations that do not undermine the gap resolution: the sample-quality superiority claims are demonstrated on CIFAR-10 (and only against compared state-of-the-art methods with comparable architectures, mainly GAN/energy-model baselines), and on other datasets superiority is shown for anomaly detection rather than raw sample quality. Still, the specific problem of the gap — a missing superiority claim for generated sample quality — is addressed.",
+        "evidence_snippets": [
+          "The proposed models consistently improve over state-of-the-art results in both applications.",
+          "Inclusive-NRFs achieve state-of-the-art sample generation quality, measured by both Inception Score (IS) and Frechet Inception Distance (FID), obtaining IS 8.28 (FID 20.9) with Resnet architecture [CITE:resnet] and {IS 7.54 (FID 27.9)} with CNN architecture [CITE:cnn] on CIFAR-10.",
+          "It is found that the inclusive-NRFs consistently improve over state-of-the-art results in both applications, which are summarized as follows."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_1709.07359",
+          "title": "Class-Splitting Generative Adversarial Networks",
+          "abstract": "Generative Adversarial Networks (GANs) produce systematically better quality samples when class label information is provided., i.e. in the conditional GAN setup. This is still observed for the recently proposed Wasserstein GAN formulation which stabilized adversarial training and allows considering high capacity network architectures such as ResNet. In this work we show how to boost conditional GAN by augmenting available class labels. The new classes come from clustering in the representation space learned by the same GAN model. The proposed strategy is also feasible when no class information is available, i.e. in the unsupervised setup. Our generated samples reach state-of-the-art Inception scores for CIFAR-10 and STL-10 datasets in both supervised and unsupervised setup.",
+          "authors": [
+            "Guillermo L. Grinblat",
+            "Lucas C. Uzal",
+            "Pablo M. Granitto"
+          ],
+          "published_date": "2017-09-21T14:55:54Z",
+          "url": "https://arxiv.org/abs/1709.07359v2"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "The paper proposes Splitting GAN, which augments class labels in a conditional WGAN-GP by k-means clustering in the critic's representation space, and it evaluates sample quality on CIFAR-10 and STL-10. Crucially for this gap, the paper does not stop at \"competitive\" claims: it explicitly claims superiority over existing generative models, reporting state-of-the-art Inception scores and stating that its images are \"clearly better.\"",
+        "what_remains_open": "The gap's specific concern — that sample quality is only claimed competitive and not superior to existing methods — is directly addressed: the paper claims superior sample quality backed by Inception scores \"well above the previous state-of-the-art\" on both datasets, in both supervised and unsupervised settings. A minor residual caveat is that for unsupervised CIFAR-10 the paper acknowledges the Inception score is \"similar\" to the state-of-the-art and partly supports better quality by qualitative visual inspection (\"samples generated seem to be of a higher quality\"); however, its overall claim of superiority over existing generative models is explicit and quantitative.",
+        "evidence_snippets": [
+          "Our generated samples reach state-of-the-art Inception scores for CIFAR-10 and STL-10 datasets in both supervised and unsupervised setup.",
+          "In this work we showed that our Splitting GAN method allows generating better images. This can be seen in the results on CIFAR-10 and STL-10 for which clearly better images were obtained. This is supported by an Inception score well above the previous state-of-the-art for both datasets."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2205.09435",
+          "title": "Adversarial random forests for density estimation and generative modeling",
+          "abstract": "We propose methods for density estimation and data synthesis using a novel form of unsupervised random forests. Inspired by generative adversarial networks, we implement a recursive procedure in which trees gradually learn structural properties of the data through alternating rounds of generation and discrimination. The method is provably consistent under minimal assumptions. Unlike classic tree-based alternatives, our approach provides smooth (un)conditional densities and allows for fully synthetic data generation. We achieve comparable or superior performance to state-of-the-art probabilistic circuits and deep learning models on various tabular data benchmarks while executing about two orders of magnitude faster on average. An accompanying $\\texttt{R}$ package, $\\texttt{arf}$, is available on $\\texttt{CRAN}$.",
+          "authors": [
+            "David S. Watson",
+            "Kristin Blesch",
+            "Jan Kapar",
+            "Marvin N. Wright"
+          ],
+          "published_date": "2022-05-19T09:50:25Z",
+          "url": "https://arxiv.org/abs/2205.09435v4"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper introduces adversarial random forests (ARF) with Forde/Forge for density estimation and synthetic tabular data generation, and — unlike the gap's premise that only \"competitive\" quality is claimed — it explicitly asserts results that are at least competitive and in places superior to existing generative models. It claims \"comparable or superior performance\" to state-of-the-art probabilistic circuits and deep learning models on tabular benchmarks, reports Forge attaining the top accuracy/F1 in three of five tabular tasks against ctgan/tvae and tabular GAN variants, Forde dominating CART/PC-based baselines in NLL simulations, and orders-of-magnitude faster runtimes.",
+        "what_remains_open": "The paper does not fully solve the gap because it stops short of an unqualified claim that its generated samples are better than those of existing generative models. Its superiority assertions are hedged (\"comparable or superior\") and confined to specific settings: tabular classification benchmarks (accuracy/F1 as a proxy for sample fidelity), a simulation NLL study, and speed — while on the Twenty Datasets PC benchmark Forde only ranks second overall (best on two datasets), and no superiority over deep generative models for non-tabular/structured data is claimed. Thus the specific deficiency identified in the gap — establishing that generated sample quality is superior (not merely competitive) to existing generative models generally — is only partially and contextually addressed.",
+        "evidence_snippets": [
+          "We achieve comparable or superior performance to state-of-the-art probabilistic circuits and deep learning models on various tabular data benchmarks while executing about two orders of magnitude faster on average.",
+          "$Forge$ fares well in this experiment, attaining the top accuracy and F1-score in three out of five tasks.",
+          "Perhaps most impressive, $Forge$ executes over 60 times faster than its nearest competitor on average, and over 100 times faster than the second fastest method."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_1611.01455",
+          "title": "Ways of Conditioning Generative Adversarial Networks",
+          "abstract": "The GANs are generative models whose random samples realistically reflect natural images. It also can generate samples with specific attributes by concatenating a condition vector into the input, yet research on this field is not well studied. We propose novel methods of conditioning generative adversarial networks (GANs) that achieve state-of-the-art results on MNIST and CIFAR-10. We mainly introduce two models: an information retrieving model that extracts conditional information from the samples, and a spatial bilinear pooling model that forms bilinear features derived from the spatial cross product of an image and a condition vector. These methods significantly enhance log-likelihood of test data under the conditional distributions compared to the methods of concatenation.",
+          "authors": [
+            "Hanock Kwak",
+            "Byoung-Tak Zhang"
+          ],
+          "published_date": "2016-11-04T17:08:54Z",
+          "url": "https://arxiv.org/abs/1611.01455v1"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper proposes two conditional-GAN conditioning mechanisms (Spatial Bilinear Pooling and Information Retrieving GAN) and evaluates them on MNIST and CIFAR-10 using Parzen-window log-likelihood of test data. It explicitly claims state-of-the-art results and superiority over the concatenation-based conditioning baselines it compares against (CGAN and FCGAN), reporting that SBP \"surpass[es] CGAN and FCGAN\" and that methods \"significantly enhance log-likelihood ... compared to the methods of concatenation.\"",
+        "what_remains_open": "The paper's superiority claims are limited in scope relative to the gap. First, its demonstrated superiority is only over two concatenation-based conditioning baselines (CGAN, FCGAN) sharing the same generator structure, not over the broader set of existing generative models in the literature, and the \"state-of-the-art\" claim is not backed by comparisons to those models. Second, the evidence is a quantitative density metric (Parzen-window log-likelihood of test data), not a claim or demonstration that generated sample quality (visual fidelity) is superior; there is no human evaluation or direct sample-quality comparison. Third, the authors concede the result is not uniform (\"IRGAN ... didn't perform well on CIFAR-10 due to inaccurate classifier Q(c|x)\") and call for further experiments. Thus the paper partially addresses the gap (it does make superiority claims over the compared conditioning methods) but does not establish that its generated samples are superior to existing generative models in general.",
+        "evidence_snippets": [
+          "We propose novel methods of conditioning generative adversarial networks (GANs) that achieve state-of-the-art results on MNIST and CIFAR-10.",
+          "These methods significantly enhance log-likelihood of test data under the conditional distributions compared to the methods of concatenation.",
+          "We found that SBP showed stable results on both datasets and most of the labels, surpassing CGAN and FCGAN."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 5,
+      "skipped_ids": []
+    }
+  },
+  "ranking": null
+}

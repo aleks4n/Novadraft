@@ -1,0 +1,25 @@
+{
+  "gap_id": "gap_efe42472",
+  "status": "unchecked",
+  "title": "Hyperparameter search conducted over limited space",
+  "description": "Hyperparameters and architectural choices were obtained by cross-validation with a mix of random grid search and manual selection, albeit over a somewhat limited search space.",
+  "type": "caveat",
+  "canonical_description": "hyperparameter and architecture search performed over limited space",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1411.1784",
+      "section": "results",
+      "anchor": "albeit over a somewhat limited search space",
+      "quote": "and a mix of random grid search and manual selection (albeit over a somewhat limited search space.)",
+      "char_offset": [
+        6597,
+        6696
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-09-09T04:10:46Z",
+  "verdict": null,
+  "ranking": null
+}

@@ -1,0 +1,154 @@
+{
+  "gap_id": "gap_99e468b2",
+  "status": "validated",
+  "title": "Learned approximate inference",
+  "description": "Approximate inference can be performed by training an auxiliary network to predict z given x, which may be trained for a fixed generator after the generator has finished training.",
+  "type": "future_work",
+  "canonical_description": "learned approximate inference via auxiliary network predicting latent from data",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1406.2661",
+      "section": "conclusions_and_future_work",
+      "anchor": "training an auxiliary network to predict",
+      "quote": "\\item { Learned approximate inference} can be performed by training an auxiliary network to predict",
+      "char_offset": [
+        230,
+        329
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-09-09T04:12:53Z",
+  "verdict": {
+    "gap_id": "gap_99e468b2",
+    "status": "solved",
+    "confidence": 0.85,
+    "reasoning": "The gap asks whether learned approximate inference can be done by training an auxiliary network to predict latent z from data x, including for a generator that is already trained and fixed. Two papers directly implement this exact scheme. SimVAE trains a generator to approximate a simulator, freezes it, and only then trains an encoder to invert it in data space (predicting z from x against the fixed generator), validating reconstruction and disentanglement across several simulator domains. EGAIN likewise trains auxiliary encoders to predict a latent code w from an image for a fixed, pre-trained SWAGAN generator and reconstructs through the frozen generator, demonstrating the approach on faces. Together these provide concrete, direct evidence that the technique works as posed. The remaining papers (BiCoGAN, IVE-GAN, ClusterGAN) also learn data-to-latent encoders but train them jointly with the generator rather than post-hoc, so they support the broader inverse-mapping idea without covering the fixed-generator instantiation. What remains open is mostly scope rather than the core mechanism: SimVAE relies on simulator access for paired training samples and evaluates in simulator/interpretability settings; EGAIN is confined to one image domain and uses point estimates rather than an uncertainty-aware posterior. These are extensions beyond the gap's conceptual claim, which is squarely addressed by the two direct implementations.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_1911.08051",
+          "title": "SimVAE: Simulator-Assisted Training forInterpretable Generative Models",
+          "abstract": "This paper presents a simulator-assisted training method (SimVAE) for variational autoencoders (VAE) that leads to a disentangled and interpretable latent space. Training SimVAE is a two-step process in which first a deep generator network(decoder) is trained to approximate the simulator. During this step, the simulator acts as the data source or as a teacher network. Then an inference network (encoder)is trained to invert the decoder. As such, upon complete training, the encoder represents an approximately inverted simulator. By decoupling the training of the encoder and decoder we bypass some of the difficulties that arise in training generative models such as VAEs and generative adversarial networks (GANs). We show applications of our approach in a variety of domains such as circuit design, graphics de-rendering and other natural science problems that involve inference via simulation.",
+          "authors": [
+            "Akash Srivastava",
+            "Jessie Rosenberg",
+            "Dan Gutfreund",
+            "David D. Cox"
+          ],
+          "published_date": "2019-11-19T02:39:27Z",
+          "url": "https://arxiv.org/abs/1911.08051v1"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "SimVAE directly implements the gap's scheme: it first trains a generator (decoder) to approximate a simulator and, only after this generator is finished/fixed, trains an auxiliary inference network (encoder) that predicts latent z from data x by inverting the fixed generator in data space (minimizing D[S(z_i), G_phi(mu_{E_theta}(S(z_i)))]). This is exactly learned approximate inference via an auxiliary network predicting latent from data for a fixed generator, and the paper validates it across image simulators (box plotter, polygon, dSprites, Fourier) and an RLC circuit simulator using reconstruction quality and mutual-information-based disentanglement metrics.",
+        "what_remains_open": "The paper solves the core technique (train an amortized encoder to predict z given x against a fixed, already-trained generator) but only in its simulator-assisted framing. It still requires ongoing access to a simulator to supply fresh (latent, data) pairs during encoder training, so it does not address the fully general case where the fixed generator was trained on real data and no simulator/paired sampling oracle is available during encoder training. It also does not provide coverage/approximation-error guarantees for the inferred posterior (e.g., for one-to-many inverse maps the non-reparameterized encoder captures only one branch), and its evaluation is confined to interpretability/disentanglement on simulator data rather than posterior accuracy more broadly.",
+        "evidence_snippets": [
+          "Upon successful training of the generator, $G_\\phi \\approx S$, the next step in \\xxxVAE is to train an inference network (encoder, $E_\\theta: \\mathbb{R}^D \\mapsto \\mathbb{R}^K$) to invert the generator, which in turn, if successfully trained, will give an approximate inversion of the simulator and as a result a disentangled and interpretable representation of the latent space.",
+          "Then an inference network (encoder) is trained to invert the decoder. As such, upon complete training, the encoder represents an approximately inverted simulator.",
+          "A key aspect of our approach is to separate the training to two stages: a supervised stage where a generative model approximating the simulator is learned, and an unsupervised stage where an inference model approximating the inverse of the simulator is learned."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2312.15116",
+          "title": "EGAIN: Extended GAn INversion",
+          "abstract": "Generative Adversarial Networks (GANs) have witnessed significant advances in recent years, generating increasingly higher quality images, which are non-distinguishable from real ones. Recent GANs have proven to encode features in a disentangled latent space, enabling precise control over various semantic attributes of the generated facial images such as pose, illumination, or gender. GAN inversion, which is projecting images into the latent space of a GAN, opens the door for the manipulation of facial semantics of real face images. This is useful for numerous applications such as evaluating the performance of face recognition systems. In this work, EGAIN, an architecture for constructing GAN inversion models, is presented. This architecture explicitly addresses some of the shortcomings in previous GAN inversion models. A specific model with the same name, egain, based on this architecture is also proposed, demonstrating superior reconstruction quality over state-of-the-art models, and illustrating the validity of the EGAIN architecture.",
+          "authors": [
+            "Wassim Kabbani",
+            "Marcel Grimmer",
+            "Christoph Busch"
+          ],
+          "published_date": "2023-12-22T23:25:17Z",
+          "url": "https://arxiv.org/abs/2312.15116v1"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "The paper builds a learning-based GAN inversion system (EGAIN architecture and the egain model) that is exactly an instance of learned approximate inference: it trains auxiliary encoder networks to predict a latent code w from an image x for a fixed, already-trained generator G (a custom-trained SWAGAN), and reconstructs the image by passing the predicted code through that frozen generator. It extends the standard encoder-only scheme with a second \"delta\" encoder that predicts residual details and an internal fusion module, and evaluates reconstruction/editability quality. Thus it directly addresses the gap's specific problem of training an auxiliary network to predict the latent from data for a pre-trained generator.",
+        "what_remains_open": "The gap's specific problem — learned approximate inference by an auxiliary network predicting z given x for a fixed, post-trained generator — is directly implemented and validated in this paper (for face images with StyleGAN/SWAGAN-type generators). What remains open is mainly scope, not the core method: the demonstration is confined to one data domain (faces) and one class of generator, uses point estimates of w rather than a posterior/uncertainty-aware distribution over latents, and offers no general recipe or guarantees for arbitrary generators/domains; these are extensions beyond what the gap itself requires. If the gap is read at its conceptual level, the paper addresses it fully.",
+        "evidence_snippets": [
+          "The typical learning-based GAN inversion architecture comprises two main components: an encoder $E$ and a decoder $G$, where $G$ is the generator part of a pre-trained GAN model. The encoder $E$ is trained such that given a source image $x$, it outputs a latent code $w$, which, when passed to the generator $G$, generates a reconstructed image $\\hat{y}$ that is as similar as possible to the source image $x$.",
+          "Learning-based methods train an encoder once to learn the mapping between image and latent space.",
+          "For the basic encoder $E_b$, a pre-trained model of the pSp encoder is used. ... The fusion process is done inside the generator using the internal fusion scheme ... Furthermore, a custom-trained SWAGAN generator is used, replacing the StyleGAN generator due to the better capability of preserving high-frequency details."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_1711.07461",
+          "title": "Bidirectional Conditional Generative Adversarial Networks",
+          "abstract": "Conditional Generative Adversarial Networks (cGANs) are generative models that can produce data samples ($x$) conditioned on both latent variables ($z$) and known auxiliary information ($c$). We propose the Bidirectional cGAN (BiCoGAN), which effectively disentangles $z$ and $c$ in the generation process and provides an encoder that learns inverse mappings from $x$ to both $z$ and $c$, trained jointly with the generator and the discriminator. We present crucial techniques for training BiCoGANs, which involve an extrinsic factor loss along with an associated dynamically-tuned importance weight. As compared to other encoder-based cGANs, BiCoGANs encode $c$ more accurately, and utilize $z$ and $c$ more effectively and in a more disentangled way to generate samples.",
+          "authors": [
+            "Ayush Jaiswal",
+            "Wael AbdAlmageed",
+            "Yue Wu",
+            "Premkumar Natarajan"
+          ],
+          "published_date": "2017-11-20T18:54:05Z",
+          "url": "https://arxiv.org/abs/1711.07461v4"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "The paper proposes BiCoGAN, a conditional GAN augmented with an auxiliary encoder E(x) that learns the inverse mapping from data x to both the latent intrinsic factors z and the extrinsic factors c. This is precisely learned approximate inference via an auxiliary network predicting the latent from data, in the bidirectional-GAN style, with the encoder trained jointly with the generator and discriminator rather than after the fact. The paper shows this learned encoder outperforms the post-hoc-trained IcGAN encoders on encoding z/c, facial attribute prediction, and disentangled conditional generation.",
+        "what_remains_open": "The core of the gap — learned approximate inference by an auxiliary network predicting the latent from data — is directly implemented and validated (the encoder predicts z and c from x and is used for downstream tasks). What the paper does NOT cover is the specific instantiation mentioned in the gap of training the auxiliary inference network for a fixed, already-trained generator after generator training has finished: BiCoGAN instead trains the encoder from scratch jointly with the generator/discriminator, and explicitly argues that post-hoc encoder training (as in IcGAN) is limiting. It therefore does not provide an inference network that can be appended to an arbitrary pretrained/frozen generator, and its encoder is evaluated in its own joint, conditional setting (predicting supervised c in addition to z) rather than as a general unconditional inference method.",
+        "evidence_snippets": [
+          "We propose the Bidirectional cGAN (BiCoGAN), which effectively disentangles $z$ and $c$ in the generation process and provides an encoder that learns inverse mappings from $x$ to both $z$ and $c$, trained jointly with the generator and the discriminator.",
+          "The generator learns a mapping $G(\\tilde{z}; \\theta_G)$ ... while the encoder models $E(x; \\theta_E)$ from $p_{data}$ to $p_E$ with the goal of bringing $p_E$ close to $p_{\\tilde{z}}$.",
+          "The limitations of post-hoc training of encoders in IcGANs are that it prevents them from (1) influencing the disentanglement of factors during generation, and (2) learning the inverse mapping to intrinsic factors effectively"
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_1711.08646",
+          "title": "IVE-GAN: Invariant Encoding Generative Adversarial Networks",
+          "abstract": "Generative adversarial networks (GANs) are a powerful framework for generative tasks. However, they are difficult to train and tend to miss modes of the true data generation process. Although GANs can learn a rich representation of the covered modes of the data in their latent space, the framework misses an inverse mapping from data to this latent space. We propose Invariant Encoding Generative Adversarial Networks (IVE-GANs), a novel GAN framework that introduces such a mapping for individual samples from the data by utilizing features in the data which are invariant to certain transformations. Since the model maps individual samples to the latent space, it naturally encourages the generator to cover all modes. We demonstrate the effectiveness of our approach in terms of generative performance and learning rich representations on several datasets including common benchmark image generation tasks.",
+          "authors": [
+            "Robin Winter",
+            "Djork-Arné Clevert"
+          ],
+          "published_date": "2017-11-23T10:36:52Z",
+          "url": "https://arxiv.org/abs/1711.08646v1"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper proposes IVE-GAN, a GAN extended with an auxiliary encoder network E that maps real samples x into the latent space (E(x) -> z-style representation), which is exactly a learned approximate-inference / inverse-mapping network of the kind the gap describes. It demonstrates that the learned encoding supports reconstruction G(E(x)), low-dimensional (e.g., 3-D MNIST) latent embeddings that cluster by class, t-SNE-visible feature clusters on CelebA, and latent-space interpolation between arbitrary dataset images.",
+        "what_remains_open": "The gap centers on amortized approximate inference via an auxiliary network predicting z given x, including the variant where such a network may be trained for a fixed generator after it has finished training. IVE-GAN only partially realizes this: (1) the encoder E is trained jointly and adversarially inside the full IVE-GAN framework, not post-hoc for an already-fixed/arbitrary generator; (2) inference quality depends on hand-picked invariant transformations T and on the extra noise z', so E(x) targets a transformation-invariant representation that conditions G(z', E(x)) rather than the posterior over the standard latent z of a plain generator G(z); (3) E provides a deterministic point encoding rather than an approximate posterior distribution (no uncertainty), and no comparison or analysis is given for general posterior approximation. Thus, the general \"auxiliary network predicting latent from data\" capability is demonstrated under the IVE-GAN's specific assumptions, but the broader post-hoc learned-inference-for-a-fixed-generator setting remains unaddressed.",
+        "evidence_snippets": [
+          "the framework misses an inverse mapping from data to this latent space. We propose \\emph{Invariant Encoding Generative Adversarial Networks} (IVE-GANs), a novel GAN framework that introduces such a mapping for individual samples from the data by utilizing features in the data which are invariant to certain transformations.",
+          "Work has also been done aiming at introducing an inverse mapping from data $\\mathbf{x}$ to latent space $\\mathbf{z}$. Bidirectional Generative Adversarial Networks (BiGANs) [CITE:donahue2016adversarial] and Adversarially Learning Inference [CITE:dumoulin2016adversarially] are two frameworks based on the same idea of extending the GAN framework by an additional encoder $E$",
+          "In contrast to the previous described related methods, we learn the mapping from the data to the latent space not by discriminating the representations $E(\\mathbf{x})$ and $\\mathbf{z}$ but by discriminating generated samples conditioned on encoded original samples $G(\\mathbf{z'},E(\\mathbf{x})$ and transformations of an original sample $T(\\mathbf{x})$ by taking the original sample as additional information into account."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_1809.03627",
+          "title": "ClusterGAN : Latent Space Clustering in Generative Adversarial Networks",
+          "abstract": "Generative Adversarial networks (GANs) have obtained remarkable success in many unsupervised learning tasks and unarguably, clustering is an important unsupervised learning problem. While one can potentially exploit the latent-space back-projection in GANs to cluster, we demonstrate that the cluster structure is not retained in the GAN latent space. In this paper, we propose ClusterGAN as a new mechanism for clustering using GANs. By sampling latent variables from a mixture of one-hot encoded variables and continuous latent variables, coupled with an inverse network (which projects the data to the latent space) trained jointly with a clustering specific loss, we are able to achieve clustering in the latent space. Our results show a remarkable phenomenon that GANs can preserve latent space interpolation across categories, even though the discriminator is never exposed to such vectors. We compare our results with various clustering baselines and demonstrate superior performance on both synthetic and real datasets.",
+          "authors": [
+            "Sudipto Mukherjee",
+            "Himanshu Asnani",
+            "Eugene Lin",
+            "Sreeram Kannan"
+          ],
+          "published_date": "2018-09-10T23:00:37Z",
+          "url": "https://arxiv.org/abs/1809.03627v2"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "ClusterGAN trains an auxiliary inverse-mapping network / encoder E: X -> Z that predicts latent variables (a continuous part z_n plus a discrete one-hot code z_c) from data, using cycle/reconstruction losses (L2 on z_n, cross-entropy on z_c) together with a WGAN-GP generator. This is an instance of learned (amortized) approximate inference — an auxiliary network mapping data to the latent code — which the paper uses to obtain latent-space clustering and to decode data points into the latent space via the encoder rather than iterative back-propagation decoding.",
+        "what_remains_open": "The gap describes learned approximate inference as a general mechanism in which an auxiliary network predicts z given x, possibly for a fixed generator after it has finished training (standard latent prior, posterior approximation). ClusterGAN only provides a clustering-specific encoder: it retrains the generator from scratch with a non-standard discrete–continuous prior (z = (z_n, e_k)) and a clustering-specific loss, and the encoder is updated jointly with the generator (not trained for an already-trained, fixed generator). The encoder is evaluated only through clustering metrics, mode/cycle losses, and mode-quality checks — never as a general posterior approximator for standard generator latents or for downstream inference tasks. Hence the general problem of learned approximate inference over a fixed generator's latent space remains open; the paper addresses only the narrow variant where encoder-based latent prediction is coupled to a jointly retrained clustering GAN.",
+        "evidence_snippets": [
+          "By sampling latent variables from a mixture of one-hot encoded variables and continuous latent variables, coupled with an inverse network (which projects the data to the latent space) trained jointly with a clustering specific loss, we are able to achieve clustering in the latent space.",
+          "We propose a novel backpropogation algorithm accommodating the discrete-continuous mixture, as well as an explicit inverse-mapping network to obtain the latent variables given the data points, since the problem is non-convex.",
+          "We therefore introduce an encoder $\\mathcal{E} : \\mathcal{X} \\mapsto \\mathcal{Z}$, a neural network parameterized by $\\Theta_E$."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 5,
+      "skipped_ids": []
+    }
+  },
+  "ranking": null
+}

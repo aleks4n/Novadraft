@@ -1,0 +1,112 @@
+{
+  "gap_id": "gap_934ee3dd",
+  "status": "validated",
+  "title": "Efficiency improvements in adversarial training",
+  "description": "Training could be accelerated greatly by devising better methods for coordinating G and D, or by determining better distributions from which to sample z during training.",
+  "type": "future_work",
+  "canonical_description": "more efficient coordination of generator and discriminator training",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1406.2661",
+      "section": "conclusions_and_future_work",
+      "anchor": "training could be accelerated greatly",
+      "quote": "\\item { Efficiency improvements:} training could be accelerated greatly by divising better methods for",
+      "char_offset": [
+        1096,
+        1198
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-09-09T04:12:53Z",
+  "verdict": {
+    "gap_id": "gap_934ee3dd",
+    "status": "partially_solved",
+    "confidence": 0.62,
+    "reasoning": "The coordination branch of the gap has received a meaningful but bounded answer. Balanced Training for Sparse GANs (ADAPT) directly targets more efficient generator/discriminator coordination via a balance-ratio metric and adaptive discriminator density control, demonstrating competitive FID with substantially lower training FLOPs. However, its gains are confined to the dynamic-sparse-training regime, require dataset/architecture-specific balance intervals, lack theoretical grounding, and were not tested on modern GAN architectures — so a general method for accelerating dense adversarial training is still missing. Triple-GAN offers a principled coordination fix (three-player formulation with compatible equilibria) but explicitly does not address efficiency or speed and adds computational overhead. The GDA local-convergence paper only characterizes the existing alternating scheme and proposes nothing new. The second branch of the gap — better distributions for sampling z during training — is entirely unaddressed by all three papers. Confidence is moderate: the evidence for the sparse-coordination gain is concrete, but its scope is narrow and the remaining pieces (dense training, theory, z-sampling) are substantial.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2302.14670",
+          "title": "Balanced Training for Sparse GANs",
+          "abstract": "Over the past few years, there has been growing interest in developing larger and deeper neural networks, including deep generative models like generative adversarial networks (GANs). However, GANs typically come with high computational complexity, leading researchers to explore methods for reducing the training and inference costs. One such approach gaining popularity in supervised learning is dynamic sparse training (DST), which maintains good performance while enjoying excellent training efficiency. Despite its potential benefits, applying DST to GANs presents challenges due to the adversarial nature of the training process. In this paper, we propose a novel metric called the balance ratio (BR) to study the balance between the sparse generator and discriminator. We also introduce a new method called balanced dynamic sparse training (ADAPT), which seeks to control the BR during GAN training to achieve a good trade-off between performance and computational cost. Our proposed method shows promising results on multiple datasets, demonstrating its effectiveness.",
+          "authors": [
+            "Yite Wang",
+            "Jing Wu",
+            "Naira Hovakimyan",
+            "Ruoyu Sun"
+          ],
+          "published_date": "2023-02-28T15:34:01Z",
+          "url": "https://arxiv.org/abs/2302.14670v2"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper targets efficient GAN training through better coordination of generator (G) and discriminator (D). It introduces a balance ratio (BR) metric that quantifies the imbalance between sparse G and D during training, and proposes ADAPT (relax and strict variants), which dynamically adjusts the discriminator's density (and its sparse connections in the strict setting) so that BR stays in a target interval while the generator is trained with dynamic sparse training (DST). Empirically it achieves competitive FID with substantially reduced training FLOPs on SNGAN/BigGAN over CIFAR-10, STL-10, and TinyImageNet, directly embodying \"more efficient coordination of generator and discriminator training.\"",
+        "what_remains_open": "The efficiency improvement is realized only in the dynamic-sparse-training regime: the generator density d_G is fixed a priori and all gains come from sparsifying networks trained from scratch plus adaptive discriminator density control. The paper does not provide a general method to accelerate dense adversarial training nor a theoretically grounded coordination rule; its BR control requires dataset/architecture-specific intervals and hyperparameters (e.g., [0.45,0.55] vs [0.3,0.4]) and was not evaluated on the latest GAN architectures (stated by the authors). The second branch of the gap — determining better distributions from which to sample z during training — is entirely unaddressed. Thus the coordination problem is only partially solved under limited (sparse-training, capacity-balancing) conditions.",
+        "evidence_snippets": [
+          "In this paper, we propose a novel metric called the balance ratio (BR) to study the balance between the sparse generator and discriminator. We also introduce a new method called balanced dynamic sparse training (ADAPT), which seeks to control the BR during GAN training to achieve a good trade-off between performance and computational cost.",
+          "By dynamically adjusting the discriminator, \\val{ADAPT} enables effective control of the balance ratio throughout training. Empirically, \\val{ADAPT} achieves a good trade-off between performance and computational cost on several datasets.",
+          "However, we must note that we have not yet evaluated our methods on the latest GAN architectures due to computational constraints."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_1703.02291",
+          "title": "Triple Generative Adversarial Nets",
+          "abstract": "Generative Adversarial Nets (GANs) have shown promise in image generation and semi-supervised learning (SSL). However, existing GANs in SSL have two problems: (1) the generator and the discriminator (i.e. the classifier) may not be optimal at the same time; and (2) the generator cannot control the semantics of the generated samples. The problems essentially arise from the two-player formulation, where a single discriminator shares incompatible roles of identifying fake samples and predicting labels and it only estimates the data without considering the labels. To address the problems, we present triple generative adversarial net (Triple-GAN), which consists of three players---a generator, a discriminator and a classifier. The generator and the classifier characterize the conditional distributions between images and labels, and the discriminator solely focuses on identifying fake image-label pairs. We design compatible utilities to ensure that the distributions characterized by the classifier and the generator both converge to the data distribution. Our results on various datasets demonstrate that Triple-GAN as a unified model can simultaneously (1) achieve the state-of-the-art classification results among deep generative models, and (2) disentangle the classes and styles of the input and transfer smoothly in the data space via interpolation in the latent space class-conditionally.",
+          "authors": [
+            "Chongxuan Li",
+            "Kun Xu",
+            "Jun Zhu",
+            "Bo Zhang"
+          ],
+          "published_date": "2017-03-07T09:26:56Z",
+          "url": "https://arxiv.org/abs/1703.02291v4"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "Triple-GAN diagnoses a coordination failure in standard two-player GANs — the discriminator/classifier has two incompatible convergence points so the generator and discriminator cannot be optimal simultaneously — and redesigns the game as a three-player formulation (generator, classifier, and a discriminator restricted to identifying fake image-label pairs) with compatible utilities and an added cross-entropy term, proving that the equilibrium is achieved iff p(x,y)=p_g(x,y)=p_c(x,y). This is a principled mechanism for coordinating the generator with the discriminator-side player, and empirically it yields simultaneous good classification and class-conditional generation in the semi-supervised setting.",
+        "what_remains_open": "The paper does not address the gap's core objective, which is efficiency: accelerating adversarial training (fewer iterations/samples/compute). No improvement in training speed, sample complexity, or wall-clock cost is proposed or measured; the paper only states that its convergence speed is \"at least comparable\" to Improved-GAN, and the method adds a third network plus a REINFORCE-style update and a late-start pseudo discriminative loss. It also does not propose better distributions from which to sample the latent z (it keeps a standard simple p_z(z)). Moreover, the coordination fix is validated only for semi-supervised classification/class-conditional generation quality, not as a general method for making adversarial training converge faster.",
+        "evidence_snippets": [
+          "It conflicts as $D$ has two incompatible convergence points, which indicates that $G$ and $D$ may not be optimal at the same time.",
+          "The equilibrium of $ \\tilde U(C, G, D)$ is achieved if and only if $p(x, y)=p_g(x, y)=p_c(x, y)$.",
+          "Though Triple-GAN has one more network, its convergence speed is at least comparable with Improved-GAN, as presented in Fig.~[REF:fig:convergence]."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2305.08277",
+          "title": "Local Convergence of Gradient Descent-Ascent for Training Generative Adversarial Networks",
+          "abstract": "Generative Adversarial Networks (GANs) are a popular formulation to train generative models for complex high dimensional data. The standard method for training GANs involves a gradient descent-ascent (GDA) procedure on a minimax optimization problem. This procedure is hard to analyze in general due to the nonlinear nature of the dynamics. We study the local dynamics of GDA for training a GAN with a kernel-based discriminator. This convergence analysis is based on a linearization of a non-linear dynamical system that describes the GDA iterations, under an \\textit{isolated points model} assumption from [Becker et al. 2022]. Our analysis brings out the effect of the learning rates, regularization, and the bandwidth of the kernel discriminator, on the local convergence rate of GDA. Importantly, we show phase transitions that indicate when the system converges, oscillates, or diverges. We also provide numerical simulations that verify our claims.",
+          "authors": [
+            "Evan Becker",
+            "Parthe Pandit",
+            "Sundeep Rangan",
+            "Alyson K. Fletcher"
+          ],
+          "published_date": "2023-05-14T23:23:08Z",
+          "url": "https://arxiv.org/abs/2305.08277v2"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "The paper is a local convergence analysis of the standard gradient descent-ascent (GDA) procedure for a stylized GAN with an RBF-kernel discriminator under an \"isolated points\" discrete-mass model. It derives exact eigenvalues of the linearized GDA dynamics, gives necessary and sufficient conditions on learning rates for local stability (e.g., η_d < 2/λ and η_g < λσ²), identifies phase transitions between convergence, oscillation, and divergence, and shows a saturation regime in which kernel width does not change the convergence rate. This is characterization of the existing alternating update scheme, not a new method for it.",
+        "what_remains_open": "The gap calls for efficiency improvements via better methods of coordinating generator and discriminator training, or better latent sampling distributions for z. The paper does neither: it keeps the vanilla alternating GDA scheme with fixed step sizes and a kernel (RKHS) discriminator, proposes no alternative coordination protocol or update scheme, gives no demonstration of training acceleration, and never considers the latent variable z or its sampling distribution (generated points are updated directly as coordinates in data space). Its results are also confined to local, linearized rates near equilibrium under restrictive assumptions (RBF kernel discriminator, isolated/separated point masses, equal generated weights), so it provides only hyperparameter-stability insight for one special case rather than efficiency improvements for general GAN training.",
+        "evidence_snippets": []
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 3,
+      "skipped_ids": []
+    }
+  },
+  "ranking": {
+    "openness": 0.29,
+    "impact": 0.3990274132982,
+    "feasibility": 0.55,
+    "feasibility_reasoning": "A small team can make concrete empirical progress: standard GAN datasets (CIFAR, CelebA, etc.) are available, training on modest GPUs is feasible, and existing partial methods (ADAPT, TTUR, adaptive update rules) give a methodological starting point. Progress is measurable via FID vs. training FLOPs/time or convergence speed. However, the gap is broad: general acceleration for dense adversarial training is still open, existing coordination gains are dataset/architecture-specific and lack theory, and the z-sampling branch is largely unaddressed. So it is moderately tractable but not a clearly bounded extension."
+  }
+}

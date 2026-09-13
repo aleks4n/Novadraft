@@ -1,0 +1,139 @@
+{
+  "idea_id": "idea_fd52665c",
+  "title": "Budget-aware checkpointed Hutchinson for DDIM-NLL",
+  "state": "root",
+  "one_liner": "Swap DDIM-NLL's one-projection-per-step Hutchinson estimator for a checkpointed, budget-matched estimator that concentrates projections where the deterministic trajectory moves fast and interpolates divergence between checkpoints, cutting NLL estimate variance at matched compute.",
+  "description": "The baseline DDIM-NLL spends exactly one Hutchinson projection per DDIM step, so the accumulated log-|det| term is dominated by trace-estimator noise that makes the reported NLL unstable — precisely the numbers the gap asks for. Because the DDIM trajectory is deterministic given z0, the states {x_t} are fixed by the sampling run independently of the trace directions, so the divergence integral can be re-estimated from those stored states as a pure numerical-integration problem. I propose checkpointing the trajectory at S < T sub-grid points, computing K_j ≥ 1 fresh Rademacher projections at each checkpoint with total vjp budget equal to the baseline's T, and reconstructing per-step divergence samples by linear interpolation before accumulating Δt-weighted sums. The projection budget is allocated proportional to the already-recorded per-step displacement ||x_{t+1}-x_t||, spending more projections where the drift Jacobian is presumably largest. This is a drop-in swap of the estimator module: it keeps the baseline's core property (NLL reported for the very deterministic sampler the model deploys) while the measurable delta is NLL estimate standard deviation at fixed vjp budget, or vjp budget at fixed standard deviation, against idea_92614563 as baseline.",
+  "problem": "",
+  "addresses": [
+    "gap_4fc22ace"
+  ],
+  "relations": [],
+  "inherited_from": null,
+  "sections": {
+    "technique": "(1) Run the T-step DDIM sampler once, storing intermediate states and per-step displacements. (2) Pick S checkpoints; set K_j ∝ local displacement (min 1) normalized so ΣK_j = T (matched budget, e.g. T=50, S=12, mean K≈4). (3) At each checkpoint compute K_j divergence samples via backward-mode vjp through the score network with fresh Rademacher directions; average per checkpoint. (4) Linearly interpolate checkpoint divergences to every DDIM step and accumulate Δt·div as in the baseline, then add log-density of the initial noise. (5) Evaluate on CIFAR-10/FFHQ-64: report NLL mean and std over ~10 independent estimator runs at matched vjp budget for baseline vs proposed, plus a fine-grid reference (T=1000, K=32) to verify the interpolation error is negligible; ablate S and displacement-proportional vs uniform allocation.",
+    "open_questions": [
+      "Does divergence interpolation error at S≈T/4 outweigh the trace-variance reduction at realistic DDIM step counts (50–100)? Needs the fine-grid reference experiment.",
+      "Is per-step displacement ||Δx_t|| a good proxy for per-step Jacobian magnitude; does a uniform allocation already beat the baseline?",
+      "How does the nonuniform DDIM time schedule (variable Δt) interact with both the interpolation grid and the displacement proxy?",
+      "Can the vjp at stored checkpoints reuse cached activations from the sampling run within autograd memory limits (unverified implementation detail)?",
+      "Is T the right matched budget, or does a slightly larger budget (≈1.5T) give strict wins on both variance and discretization error?"
+    ],
+    "rationale": "Optimizer stance: I keep idea_92614563 intact and swap only its trace-estimator module, stating the win as a measurable delta (estimate std at fixed vjp budget, or budget at fixed std) against that named baseline — no new paradigm, no unmeasurable benefit. The core insight is that the DDIM trajectory is deterministic given z0, so the log-det integral can be re-estimated from stored states without perturbing the deployed sampler, which preserves the baseline's central selling point while fixing its weakness (noisy NLL). Unverified claims, each testable in the proposed experiment: divergence varies smoothly enough for linear interpolation at S≈T/4; displacement correlates with Jacobian magnitude; vjp-at-stored-states fits in memory."
+  },
+  "section_order": [
+    "technique",
+    "open_questions",
+    "rationale"
+  ],
+  "evaluation": {
+    "novelty": null,
+    "feasibility": null,
+    "significance": null
+  },
+  "provenance": [],
+  "origin": {
+    "run_id": "run_03f8c476",
+    "node_id": "run_03f8c476:n1",
+    "node_path": [
+      "run_03f8c476:n0",
+      "run_03f8c476:n1"
+    ],
+    "style": "optimizer",
+    "mode": "generation",
+    "parent_idea_id": null,
+    "suggested": null,
+    "inherited_from": null,
+    "inherited_upto_run": null
+  },
+  "runs": [
+    {
+      "run_id": "run_03f8c476",
+      "session_id": null,
+      "timestamp": "2026-08-21T13:49:39Z",
+      "header": {
+        "mode": "generation",
+        "width": 2,
+        "depth": 1,
+        "model": "reasoner",
+        "agent_styles": [
+          "optimizer",
+          "combiner"
+        ],
+        "context_ids": [
+          "gap_4fc22ace",
+          "idea_92614563",
+          "user_input"
+        ],
+        "triggering_action": "session sess_c685e355",
+        "tool_use": false,
+        "task": "Generate an idea variant from that idea"
+      },
+      "nodes": [
+        {
+          "node_id": "run_03f8c476:n0",
+          "parent_id": null,
+          "text": "# (untitled idea)",
+          "style": "-",
+          "score": null,
+          "status": "kept",
+          "depth": 0,
+          "kind": "root",
+          "title": "Generate an idea variant from that idea",
+          "comparison": "",
+          "question": null,
+          "sources": []
+        },
+        {
+          "node_id": "run_03f8c476:n1",
+          "parent_id": "run_03f8c476:n0",
+          "text": "Budget-aware checkpointed Hutchinson for DDIM-NLL\nSwap DDIM-NLL's one-projection-per-step Hutchinson estimator for a checkpointed, budget-matched estimator that concentrates projections where the deterministic trajectory moves fast and interpolates divergence between checkpoints, cutting NLL estimate variance at matched compute.\nThe baseline DDIM-NLL spends exactly one Hutchinson projection per DDIM step, so the accumulated log-|det| term is dominated by trace-estimator noise that makes the reported NLL unstable — precisely the numbers the gap asks for. Because the DDIM trajectory is deterministic given z0, the states {x_t} are fixed by the sampling run independently of the trace directions, so the divergence integral can be re-estimated from those stored states as a pure numerical-integration problem. I propose checkpointing the trajectory at S < T sub-grid points, computing K_j ≥ 1 fresh Rademacher projections at each checkpoint with total vjp budget equal to the baseline's T, and reconstructing per-step divergence samples by linear interpolation before accumulating Δt-weighted sums. The projection budget is allocated proportional to the already-recorded per-step displacement ||x_{t+1}-x_t||, spending more projections where the drift Jacobian is presumably largest. This is a drop-in swap of the estimator module: it keeps the baseline's core property (NLL reported for the very deterministic sampler the model deploys) while the measurable delta is NLL estimate standard deviation at fixed vjp budget, or vjp budget at fixed standard deviation, against idea_92614563 as baseline.\n(1) Run the T-step DDIM sampler once, storing intermediate states and per-step displacements. (2) Pick S checkpoints; set K_j ∝ local displacement (min 1) normalized so ΣK_j = T (matched budget, e.g. T=50, S=12, mean K≈4). (3) At each checkpoint compute K_j divergence samples via backward-mode vjp through the score network with fresh Rademacher directions; average per checkpoint. (4) Linearly interpolate checkpoint divergences to every DDIM step and accumulate Δt·div as in the baseline, then add log-density of the initial noise. (5) Evaluate on CIFAR-10/FFHQ-64: report NLL mean and std over ~10 independent estimator runs at matched vjp budget for baseline vs proposed, plus a fine-grid reference (T=1000, K=32) to verify the interpolation error is negligible; ablate S and displacement-proportional vs uniform allocation.",
+          "style": "optimizer",
+          "score": 0.6741,
+          "status": "accepted",
+          "depth": 1,
+          "kind": "candidate",
+          "title": "Budget-aware checkpointed Hutchinson for DDIM-NLL",
+          "comparison": "rank 1/2",
+          "question": null,
+          "sources": []
+        }
+      ],
+      "edges": [
+        {
+          "from": "run_03f8c476:n0",
+          "to": "run_03f8c476:n1",
+          "type": "expanded-into"
+        }
+      ],
+      "outcome": {
+        "accepted_node": "run_03f8c476:n1",
+        "escalation": null,
+        "truncated": false,
+        "escalation_node": null,
+        "escalation_diagnosis": "",
+        "status": "completed",
+        "reason": "2 candidates survived deduplication",
+        "limit": null,
+        "accepted_nodes": [
+          "run_03f8c476:n1"
+        ],
+        "summary": {
+          "objective": "Generate an idea variant from that idea",
+          "accepted": "carved from run_03f8c476 on acceptance: Budget-aware checkpointed Hutchinson for DDIM-NLL; DPM-NLL: exact discrete log-det of the deployed DPM-Solver trajectory via residual Hutchinson",
+          "rejected": "",
+          "open": [
+            "Does divergence interpolation error at S≈T/4 outweigh the trace-variance reduction at realistic DDIM step counts (50–100)? Needs the fine-grid reference experiment.",
+            "Is per-step displacement ||Δx_t|| a good proxy for per-step Jacobian magnitude; does a uniform allocation already beat the baseline?",
+            "How does the nonuniform DDIM time schedule (variable Δt) interact with both the interpolation grid and the displacement proxy?",
+            "Can the vjp at stored checkpoints reuse cached activations from the sampling run within autograd memory limits (unverified implementation detail)?",
+            "Is T the right matched budget, or does a slightly larger budget (≈1.5T) give strict wins on both variance and discretization error?"
+          ]
+        },
+        "answer": ""
+      }
+    }
+  ],
+  "created_at": "2026-08-21T13:54:20Z",
+  "updated_at": "2026-08-21T13:54:20Z"
+}

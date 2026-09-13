@@ -1,0 +1,149 @@
+{
+  "gap_id": "gap_e59a2584",
+  "status": "validated",
+  "title": "Semi-supervised learning from discriminator features",
+  "description": "Features from the discriminator or inference network could improve classifier performance when limited labeled data is available.",
+  "type": "future_work",
+  "canonical_description": "semi-supervised learning using discriminator or inference network features",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1406.2661",
+      "section": "conclusions_and_future_work",
+      "anchor": "from the discriminator or inference net could improve",
+      "quote": "\\item { Semi-supervised learning}: features from the discriminator or inference net could improve performance",
+      "char_offset": [
+        931,
+        1040
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-09-09T04:12:53Z",
+  "verdict": {
+    "gap_id": "gap_e59a2584",
+    "status": "solved",
+    "confidence": 0.8,
+    "reasoning": "The strongest evidence comes from \"Good Semi-supervised Learning that Requires a Bad GAN,\" which directly addresses the discriminator-feature branch of the gap: in the (K+1)-class GAN SSL setup, the discriminator's learned feature representation is shared with the classifier, and the paper provides theory for when those shared features yield correct decision boundaries plus practical objectives that achieve state-of-the-art limited-label classification on MNIST, SVHN, and CIFAR-10. This is a direct, concrete solution to \"semi-supervised learning using discriminator features.\" The inference-network branch is only partially covered: AVAE (Paper 1) feeds VAE-learned inference features to a nearest-neighbor classifier and improves over SSL baselines, but it does not exploit discriminator features and does not demonstrate the very-low-label regime; its authors note that lower supervision remains future work. Papers 2 and 5 offer supporting theory/regularization for discriminator-as-classifier GAN-SSL but do not transfer or extract discriminator/inference features for a separate classifier, and Paper 3 is not addressed. Because the discriminator branch is squarely solved with strong results while the inference-network branch is demonstrated only partially, the overall verdict is solved with moderately high confidence.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_1905.02361",
+          "title": "Adversarial Variational Embedding for Robust Semi-supervised Learning",
+          "abstract": "Semi-supervised learning is sought for leveraging the unlabelled data when labelled data is difficult or expensive to acquire. Deep generative models (e.g., Variational Autoencoder (VAE)) and semisupervised Generative Adversarial Networks (GANs) have recently shown promising performance in semi-supervised classification for the excellent discriminative representing ability. However, the latent code learned by the traditional VAE is not exclusive (repeatable) for a specific input sample, which prevents it from excellent classification performance. In particular, the learned latent representation depends on a non-exclusive component which is stochastically sampled from the prior distribution. Moreover, the semi-supervised GAN models generate data from pre-defined distribution (e.g., Gaussian noises) which is independent of the input data distribution and may obstruct the convergence and is difficult to control the distribution of the generated data. To address the aforementioned issues, we propose a novel Adversarial Variational Embedding (AVAE) framework for robust and effective semi-supervised learning to leverage both the advantage of GAN as a high quality generative model and VAE as a posterior distribution learner. The proposed approach first produces an exclusive latent code by the model which we call VAE++, and meanwhile, provides a meaningful prior distribution for the generator of GAN. The proposed approach is evaluated over four different real-world applications and we show that our method outperforms the state-of-the-art models, which confirms that the combination of VAE++ and GAN can provide significant improvements in semisupervised classification.",
+          "authors": [
+            "Xiang Zhang",
+            "Lina Yao",
+            "Feng Yuan"
+          ],
+          "published_date": "2019-05-07T05:47:01Z",
+          "url": "https://arxiv.org/abs/1905.02361v2"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper proposes AVAE, a semi-supervised framework combining a modified VAE (\"VAE++\") that learns an exclusive latent code z_I directly from the input (i.e., an inference-network-derived feature) with a semi-supervised GAN whose discriminator adversarially constrains the stochastically sampled code z_s to match z_I's distribution. The learned z_I features are then fed to a classifier and evaluated for semi-supervised classification under various supervision rates across four applications, outperforming VAE- and GAN-based SSL baselines. This bears on the gap because it demonstrates that inference-network features, refined by adversarial/discriminator-driven training, improve classifier performance when labels are limited.",
+        "what_remains_open": "The gap's specific problem is learning from \"discriminator features\" as well as inference-network features. This paper only partially covers that: the classifier never uses discriminator-derived features — the discriminator is used purely as an adversarial constraint (real/fake + class labels), and the authors explicitly reject using the discriminator as the classifier and instead use a separate non-parametric nearest-neighbor classifier on z_I. It also does not demonstrate strong performance under truly small label budgets: experiments range from 20% to 100% supervision, and the authors state that lower supervision rates/unsupervised learning remain future work and that the model \"still requires adequate labelled training samples.\" Thus, exploiting the discriminator's own features as the classification representation, and doing so in a very-low-label regime, remains open.",
+        "evidence_snippets": [
+          "After convergence, the compressed representative code $\\bm{z}_I$ is fed into a non-parametric nearest neighbors classifier for recognition.",
+          "2) [CITE:salimans2016improved] employs the discriminator of GAN as the classifier while we adopt an extra non-parametric classifier since the former has poor performance in our case",
+          "Moreover, our model still requires adequate labelled training samples for good performance. The lower supervision rate or unsupervised learning is another major goal in the future."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_1705.08850",
+          "title": "Semi-supervised Learning with GANs: Manifold Invariance with Improved Inference",
+          "abstract": "Semi-supervised learning methods using Generative Adversarial Networks (GANs) have shown promising empirical success recently. Most of these methods use a shared discriminator/classifier which discriminates real examples from fake while also predicting the class label. Motivated by the ability of the GANs generator to capture the data manifold well, we propose to estimate the tangent space to the data manifold using GANs and employ it to inject invariances into the classifier. In the process, we propose enhancements over existing methods for learning the inverse mapping (i.e., the encoder) which greatly improves in terms of semantic similarity of the reconstructed sample with the input sample. We observe considerable empirical gains in semi-supervised learning over baselines, particularly in the cases when the number of labeled examples is low. We also provide insights into how fake examples influence the semi-supervised learning procedure.",
+          "authors": [
+            "Abhishek Kumar",
+            "Prasanna Sattigeri",
+            "P. Thomas Fletcher"
+          ],
+          "published_date": "2017-05-24T16:35:37Z",
+          "url": "https://arxiv.org/abs/1705.08850v2"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper improves semi-supervised classification under scarce labels within the GAN framework: it trains the discriminator as a k+1-way classifier (following Salimans et al.), estimates tangent directions to the data manifold from the generator's mapping and an improved inference/encoder network (Augmented-BiGAN), and injects invariance into the classifier via a TangentProp-style regularizer. It also analyzes how the strength of fake examples affects this discriminator-as-classifier SSL loss and shows gains on SVHN, especially at 500 labeled examples. Thus it does use inference-network/GAN-derived structure (encoder Jacobian tangents) to help a classifier, which partially overlaps the gap.",
+        "what_remains_open": "The gap specifically asks about using features of the discriminator or inference network to improve classifier performance. This paper does not propose such a mechanism: it does not transfer, concatenate, or otherwise exploit intermediate discriminator/encoder feature representations as inputs or regularizers of a classifier. Instead, its classifier IS the discriminator trained with the standard k+1 SSL loss, and the improvement comes from invariance regularization based on generator/encoder Jacobian tangents. Moreover, the benefit hinges on the generator approximating the data manifold well and on a good inverse encoder: results on CIFAR-10 are weak (\"we do not get as good results on CIFAR10 ... the tangents we get are not good enough\"), and even the improved encoder still shows class-switching. The core problem of the gap — showing that discriminator/inference-network features themselves boost classifier accuracy when labels are scarce — is not directly solved.",
+        "evidence_snippets": [
+          "Motivated by the ability of the GANs generator to capture the data manifold well, we propose to estimate the tangent space to the data manifold using GANs and employ it to inject invariances into the classifier.",
+          "In practice, it is computationally expensive to optimize these Jacobian based regularizers. Hence in all our experiments we use stochastic finite difference approximation for all Jacobian based regularizers. For TangentProp, we use $\\lVert c(x_i+v) - c(x_i)\\rVert_2^2$ with $v$ randomly sampled (i.i.d.) from the set of tangents $T_{x_i}$ every time example $x_i$ is visited by the SGD.",
+          "We do not get as good results on CIFAR10 which may be due to the fact that our encoder for CIFAR10 is still not able to approximate the inverse of the generator well (which is evident from the sub-optimal reconstructions we get for CIFAR10) and hence the tangents we get are not good enough."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_1707.02198",
+          "title": "Learning Loss Functions for Semi-supervised Learning via Discriminative Adversarial Networks",
+          "abstract": "We propose discriminative adversarial networks (DAN) for semi-supervised learning and loss function learning. Our DAN approach builds upon generative adversarial networks (GANs) and conditional GANs but includes the key differentiator of using two discriminators instead of a generator and a discriminator. DAN can be seen as a framework to learn loss functions for predictors that also implements semi-supervised learning in a straightforward manner. We propose instantiations of DAN for two different prediction tasks: classification and ranking. Our experimental results on three datasets of different tasks demonstrate that DAN is a promising framework for both semi-supervised learning and learning loss functions for predictors. For all tasks, the semi-supervised capability of DAN can significantly boost the predictor performance for small labeled sets with minor architecture changes across tasks. Moreover, the loss functions automatically learned by DANs are very competitive and usually outperform the standard pairwise and negative log-likelihood loss functions for both semi-supervised and supervised learning.",
+          "authors": [
+            "Cicero Nogueira dos Santos",
+            "Kahini Wadhawan",
+            "Bowen Zhou"
+          ],
+          "published_date": "2017-07-07T14:38:33Z",
+          "url": "https://arxiv.org/abs/1707.02198v1"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "The paper proposes Discriminative Adversarial Networks (DAN), which replace the GAN generator with a second discriminator: a Predictor P and a Judge J. J learns to distinguish human-labeled (x,y) pairs from predicted (x,P(x)) pairs, thereby implicitly learning a loss function used to train P, and unlabeled data can be fed to P so that DAN acts as a semi-supervised learner (shown for answer selection/ranking and text classification). This bears on SSL in the sense of adversarial loss-function learning, but the mechanism is not one of exploiting features of a discriminator or inference network.",
+        "what_remains_open": "The gap's specific claim — that features/representations extracted from a discriminator or inference network can improve a classifier when labels are scarce — is not tackled. In DAN the Judge's internal representations (r'_q, r'_a, r_pos, r_neg) are used only inside J for scoring; there is no parameter sharing, feature extraction, or representation transfer from the discriminator to a downstream classifier. The predictor is trained end-to-end against the judge's scalar judgment, and the SSL gains come from feeding unlabeled instances directly through P, not from re-using discriminator features. The paper also does not ablate/analyze which discriminator features help, nor does it compare with feature-transfer SSL methods.",
+        "evidence_snippets": []
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_1705.09783",
+          "title": "Good Semi-supervised Learning that Requires a Bad GAN",
+          "abstract": "Semi-supervised learning methods based on generative adversarial networks (GANs) obtained strong empirical results, but it is not clear 1) how the discriminator benefits from joint training with a generator, and 2) why good semi-supervised classification performance and a good generator cannot be obtained at the same time. Theoretically, we show that given the discriminator objective, good semisupervised learning indeed requires a bad generator, and propose the definition of a preferred generator. Empirically, we derive a novel formulation based on our analysis that substantially improves over feature matching GANs, obtaining state-of-the-art results on multiple benchmark datasets.",
+          "authors": [
+            "Zihang Dai",
+            "Zhilin Yang",
+            "Fan Yang",
+            "William W. Cohen",
+            "Ruslan Salakhutdinov"
+          ],
+          "published_date": "2017-05-27T07:53:53Z",
+          "url": "https://arxiv.org/abs/1705.09783v3"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "This paper studies precisely the \"discriminator features for SSL\" setting: in the (K+1)-class GAN formulation, the discriminator's feature representation f(x) is shared with the K-way classifier, so improving the discriminator's features is what improves classification under limited labels. The paper provides theory showing when these shared discriminator features yield correct decision boundaries (good SSL requires a \"bad\"/complement generator filling low-density regions, while a perfect generator adds nothing over supervised learning) and derives practical objectives (generator entropy maximization, low-density sample generation, conditional-entropy regularization on the discriminator) that obtain state-of-the-art semi-supervised classification on MNIST, SVHN, and CIFAR-10 with limited labeled data.",
+        "what_remains_open": "The gap's discriminator-feature branch is substantially addressed: the paper both explains and improves SSL built on discriminator features. What is not covered is the other branch of the gap — SSL from inference-network (e.g., encoder/VAE) features outside the GAN adversarial setting — and the practical method depends on several auxiliary/assumption-heavy components (a pretrained density model such as PixelCNN++, VI/PT entropy estimators, and theoretical assumptions about a complement generator, discriminator convergence, and a bounded convex feature-space support). The theory also targets the specific (K+1)-class discriminator objective rather than arbitrary discriminator-feature extraction pipelines.",
+        "evidence_snippets": [
+          "Theoretically we show that given the discriminator objective, good semi-supervised learning indeed requires a bad generator, and propose the definition of a preferred generator.",
+          "Proposition 5 guarantees that when $G$ is a complement generator, under mild assumptions, a near-optimal $D$ learns correct decision boundaries in each high-density subset $F_k$ (defined by $\\epsilon_k$) of the data support in the feature space.",
+          "We achieve new state-of-the-art results on all the datasets when only small discriminator architecture is considered."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2007.05692",
+          "title": "How Does GAN-based Semi-supervised Learning Work?",
+          "abstract": "Generative adversarial networks (GANs) have been widely used and have achieved competitive results in semi-supervised learning. This paper theoretically analyzes how GAN-based semi-supervised learning (GAN-SSL) works. We first prove that, given a fixed generator, optimizing the discriminator of GAN-SSL is equivalent to optimizing that of supervised learning. Thus, the optimal discriminator in GAN-SSL is expected to be perfect on labeled data. Then, if the perfect discriminator can further cause the optimization objective to reach its theoretical maximum, the optimal generator will match the true data distribution. Since it is impossible to reach the theoretical maximum in practice, one cannot expect to obtain a perfect generator for generating data, which is apparently different from the objective of GANs. Furthermore, if the labeled data can traverse all connected subdomains of the data manifold, which is reasonable in semi-supervised classification, we additionally expect the optimal discriminator in GAN-SSL to also be perfect on unlabeled data. In conclusion, the minimax optimization in GAN-SSL will theoretically output a perfect discriminator on both labeled and unlabeled data by unexpectedly learning an imperfect generator, i.e., GAN-SSL can effectively improve the generalization ability of the discriminator by leveraging unlabeled information.",
+          "authors": [
+            "Xuejiao Liu",
+            "Xueshuang Xiang"
+          ],
+          "published_date": "2020-07-11T06:16:43Z",
+          "url": "https://arxiv.org/abs/2007.05692v1"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper is a theoretical analysis of classic GAN-based semi-supervised learning (GAN-SSL, e.g., Salimans et al.), in which the discriminator D is simultaneously a K+1-way classifier built on learned features f(x). It proves that, for a fixed generator, optimizing the GAN-SSL discriminator is equivalent to optimizing the supervised-learning objective (perfect on labeled data), that the optimal generator is necessarily imperfect because the theoretical maximum is unreachable, and that under data-manifold assumptions (each connected subdomain has a labeled point, plus a feature-space interpolation condition), the optimal discriminator is also perfect on unlabeled data. It thereby provides a theoretical account of why sharing a discriminator/classifier network in GAN-SSL improves classification with limited labeled data.",
+        "what_remains_open": "The gap concerns using features from a discriminator or inference network to improve classifier performance under scarce labels — i.e., feature-based/SSL-from-discriminator-representations methods and evidence that those features help a classifier. This paper does not propose, implement, or empirically validate any approach that extracts discriminator/inference-network features to train or improve a classifier; it only theoretically analyzes the standard GAN-SSL setup where the discriminator itself is the classifier (its output layer, not transferred features, is used for prediction). Its conclusions rely on idealized conditions (infinite-capacity nonparametric discriminators, perfect optimality, and restrictive manifold assumptions such as every connected subdomain containing a labeled point and a feature-space interpolation condition), and it contains only toy synthetic experiments, not real SSL benchmarks. Whether and how discriminator/inference features actually improve classification under limited labels (practical feature-extraction pipelines, transfer/feature-matching settings) is left open.",
+        "evidence_snippets": [
+          "This theoretical result means that GAN-SSL can effectively improve the generalization ability of the discriminator by leveraging unlabeled information.",
+          "First, we study the relationship between the optimal discriminator in GAN-SSL and the one in the corresponding supervised learning. For a fixed generator, we prove that maximizing the GAN-SSL objective is indeed equivalent to maximizing the supervised learning objective.",
+          "In conclusion, semi-supervised learning based on GANs will yield a perfect discriminator on both labeled (Proposition 1) and unlabeled data (Proposition 3) by learning an imperfect generator (Proposition 2), i.e., GAN-SSL can effectively improve the generalization ability in semi-supervised classification."
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 5,
+      "skipped_ids": []
+    }
+  },
+  "ranking": null
+}

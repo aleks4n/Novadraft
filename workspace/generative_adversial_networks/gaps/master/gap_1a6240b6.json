@@ -1,0 +1,149 @@
+{
+  "gap_id": "gap_1a6240b6",
+  "status": "validated",
+  "title": "EM distance infimum is highly intractable",
+  "description": "The Wasserstein distance is defined through an infimum over couplings, which the authors note is highly intractable to compute directly, motivating the Kantorovich-Rubinstein dual approximation.",
+  "type": "limitation",
+  "canonical_description": "Wasserstein distance infimum is intractable to compute directly",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1701.07875",
+      "section": "wasserstein_gan",
+      "anchor": "is highly intractable",
+      "quote": "[REF:eq::W] is highly intractable.",
+      "char_offset": [
+        175,
+        209
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-09-09T04:11:13Z",
+  "verdict": {
+    "gap_id": "gap_1a6240b6",
+    "status": "partially_solved",
+    "confidence": 0.65,
+    "reasoning": "The gap targets the intractability of the exact Wasserstein/EM distance infimum over couplings and its usual Kantorovich-Rubinstein dual workaround. Three papers make genuine but restricted progress. The boundary method computes the semi-discrete optimal transport partition and Wasserstein distance without minimizing over all couplings, but only for absolutely continuous μ against finitely supported ν with p-norm costs, p in (1,∞), and it does not provide the KR dual computation; fully continuous, general-cost, general-domain problems are left as future work. The f-divergence regularized Sinkhorn paper proves strong duality and gives a tractable dual/Sinkhorn route, but only for the ε>0 regularized surrogate, with no ε→0 convergence or error bounds back to the true Wasserstein distance. The L-lag coupling paper produces simulation-based upper bounds on 1-Wasserstein distance between a Markov chain marginal and its invariant measure, avoiding the coupling infimum, but the bounds are explicitly loose and restricted to MCMC settings. The other papers (OT flow matching by design, entropic regularization theory) do not compute or approximate the Wasserstein/EM distance at all. Thus the exact unregularized Wasserstein infimum and a general Kantorovich-Rubinstein dual-based computation remain open, so the gap is only partially addressed.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_1702.03517",
+          "title": "The boundary method for semi-discrete optimal transport partitions and Wasserstein distance computation",
+          "abstract": "We introduce a new technique, which we call the boundary method, for solving semi-discrete optimal transport problems with a wide range of cost functions. The boundary method reduces the effective dimension of the problem, thus improving complexity. For cost functions equal to a p-norm with p in (1,infinity), we provide mathematical justification, convergence analysis, and algorithmic development. Our testing supports the boundary method with these p-norms, as well as other, more general cost functions.",
+          "authors": [
+            "Luca Dieci",
+            "J. D. Walsh"
+          ],
+          "published_date": "2017-02-12T11:58:08Z",
+          "url": "https://arxiv.org/abs/1702.03517v3"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper addresses the tractability concern behind the gap by proposing an algorithm (the boundary method) that computes the semi-discrete optimal transport partition and the Wasserstein distance (the primal infimum value P*) without explicitly minimizing over all couplings. It reduces the effective dimension of the problem by tracking only Laguerre-cell boundaries, solves each discretized subproblem with an auction solver, and uses the dual-based shift characterization to reconstruct shifts and partial costs. The paper gives convergence theory for p-norm costs with p in (1,∞) and numerical scaling results in R^2 and R^3.",
+        "what_remains_open": "The gap's specific problem is the intractability of the infimum over couplings for the (general) Wasserstein/EM distance and the need for Kantorovich-Rubinstein dual approximation in general continuous settings. This paper only treats a narrow special case: μ absolutely continuous on a convex compact set, ν supported on finitely many point masses (semi-discrete), and — for the rigorous convergence results — ground costs equal to a p-norm with p in (1,∞). Moreover, even within that setting the method computes an approximation from discretized subproblems (assuming exact mass/box-cost integrals and exact discrete solvers), and it does not compute the Kantorovich-Rubinstein dual supremum; it relies on the semi-discrete shift characterization plus discrete auction solves. The fully continuous, general-cost, general-domain Wasserstein infimum and its KR dual approximation remain unaddressed (the paper only notes fully continuous problems as future work), and no dual-based bound/algorithm for the general case is provided.",
+        "evidence_snippets": [
+          "Key challenges in numerical optimal transport are: (a) the design of numerical methods capable of handling general ground costs, (b) efficient computation of the Wasserstein metric, and (c) solutions of three (or higher) dimensional problems. The boundary method addresses these concerns by solving problems where the ground cost is a p-norm, p in (1, inf), and by doing so in a way that reduces the effective dimension of the transport problem.",
+          "We can approximate the Wasserstein distance P* by generating a running total over region interiors: P_tilde. This P_tilde is an increasing function of r, and for all r, P* >= P_tilde. The Wasserstein distance over any remaining boundary region is evaluated at completion.",
+          "In this work, we presented the boundary method, a new technique for approximating solutions to semi-discrete optimal transportation problems. ... Under the assumption that all computations are exact, we gave sharp convergence results for p-norms with p in (1, inf)"
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2606.04092",
+          "title": "Optimal Transport Flow Matching by Design",
+          "abstract": "Flow matching models learn to transport samples from a simple prior distribution to a complex data distribution. When prior-data pairs are coupled via optimal transport (OT), the learned trajectories are straight and non-crossing, enabling fast, even single-step, generation. However, computing the OT coupling in high dimensions is intractable, and existing methods attempt to solve the OT problem, at the cost of persistent bias or significant overhead. Rather than solving for the OT coupling, we reformulate the problem. Once the prior is treated as a design choice rather than a fixed input, the OT coupling between prior and data is no longer unique. Many priors admit an OT-optimal identity coupling to the data, leaving us free to choose one that is also tractable to sample. We identify low-frequency projection of natural images as such a choice. The identity coupling between data and its low-frequency representation is empirically OT-optimal, the prior is structured enough to be sampled by a lightweight model at inference, and the remaining flow-matching task reduces to synthesizing high-frequency detail. Interpolating the prior with Gaussian noise further improves generation quality while preserving the OT coupling. The approach requires no modifications to the flow model itself, and integrates naturally with latent-space models, classifier-free guidance, and one-step generation frameworks. Across all benchmarks, our method reduces trajectory curvature by more than $2\\times$ compared to existing flow matching methods, yielding better generation quality in the few-step regime.",
+          "authors": [
+            "Shimon Malnick",
+            "Matan Rusanovsky",
+            "Ohad Fried",
+            "Shai Avidan"
+          ],
+          "published_date": "2026-06-02T18:00:05Z",
+          "url": "https://arxiv.org/abs/2606.04092v1"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "The paper addresses a different OT intractability: computing the OT *coupling* between a Gaussian prior and data for flow matching. It proposes \"OT by design\" — replacing the fixed Gaussian prior with a low-frequency projection prior whose identity coupling to the data is (empirically) OT-optimal, thereby avoiding any OT solver and yielding straighter trajectories and better few-step generation. It does not compute, estimate, or bound the Wasserstein/EM distance between distributions, and it does not engage with the Kantorovich–Rubinstein dual at all.",
+        "what_remains_open": "The gap's specific problem is the intractability of computing the EM/Wasserstein distance value, whose primal definition is an infimum over couplings and which is normally approximated via the Kantorovich–Rubinstein dual (e.g., in WGAN-style estimation). This paper never computes or approximates a Wasserstein/EM distance, never discusses the KR dual, and proposes no alternative for evaluating the distance between two arbitrary distributions. Its \"OT-optimality\" claims concern the discrete Monge coupling (identity pairing) used to train a generative flow, verified with the Hungarian algorithm, not the value of an EM distance. Therefore the intractability of the Wasserstein-distance infimum and its dual-based approximation remain entirely open after this work.",
+        "evidence_snippets": []
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_1906.01333",
+          "title": "Entropic regularization of continuous optimal transport problems",
+          "abstract": "We analyze continuous optimal transport problems in the so-called Kantorovich form, where we seek a transport plan between two marginals that are probability measures on compact subsets of Euclidean space. We consider the case of regularization with the negative entropy with respect to the Lebesgue measure, which has attracted attention because it can be solved by the very simple Sinkhorn algorithm. We first analyze the regularized problem in the context of classical Fenchel duality and derive a strong duality result for a predual problem in the space of continuous functions. However, this problem may not admit a minimizer, which prevents obtaining primal-dual optimality conditions. We then show that the primal problem is naturally analyzed in the Orlicz space of functions with finite entropy in the sense that the entropically regularized problem admits a minimizer if and only if the marginals have finite entropy. We then derive a dual problem in the corresponding dual space, for which existence can be shown by purely variational arguments and primal-dual optimality conditions can be derived. For marginals that do not have finite entropy, we finally show Gamma-convergence of the regularized problem with smoothed marginals to the original Kantorovich problem.",
+          "authors": [
+            "Christian Clason",
+            "Dirk A. Lorenz",
+            "Hinrich Mahler",
+            "Benedikt Wirth"
+          ],
+          "published_date": "2019-06-04T10:50:13Z",
+          "url": "https://arxiv.org/abs/1906.01333v3"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "The paper studies the entropically regularized Kantorovich (optimal transport) problem in the continuous setting, rather than the unregularized Wasserstein/EM distance. It proves strong Fenchel duality between the regularized primal and a continuous-function predual, shows that a regularized primal minimizer exists iff the marginals have finite entropy (lie in the Orlicz space Llog), derives an Lexp-valued dual with existence of maximizers and primal-dual optimality conditions that can underpin the Sinkhorn iteration, and finally establishes Gamma-convergence of regularized problems with smoothed marginals to the original (unregularized) Kantorovich problem.",
+        "what_remains_open": "The gap concerns the specific intractability of the Wasserstein/EM distance infimum over couplings and the Kantorovich-Rubinstein dual approximation used to bypass it. This paper neither addresses the intractability of that primal infimum nor analyzes the KR dual of the original unregularized problem as a computable surrogate. Instead, it changes the problem via negative-entropy regularization (a different tractability route leading to Sinkhorn-type methods for the regularized surrogate) and focuses on well-posedness, duality, and Gamma-convergence theory. It provides no treatment of computing the actual Wasserstein distance or of the KR dual approximation, so the stated gap remains open in this paper.",
+        "evidence_snippets": []
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2105.14337",
+          "title": "Optimal transport with $f$-divergence regularization and generalized Sinkhorn algorithm",
+          "abstract": "Entropic regularization provides a generalization of the original optimal transport problem. It introduces a penalty term defined by the Kullback-Leibler divergence, making the problem more tractable via the celebrated Sinkhorn algorithm. Replacing the Kullback-Leibler divergence with a general $f$-divergence leads to a natural generalization. The case of divergences defined by superlinear functions was recently studied by Di Marino and Gerolin. Using convex analysis, we extend the theory developed so far to include all $f$-divergences defined by functions of Legendre type, and prove that under some mild conditions, strong duality holds, optimums in both the primal and dual problems are attained, the generalization of the $c$-transform is well-defined, and we give sufficient conditions for the generalized Sinkhorn algorithm to converge to an optimal solution. We propose a practical algorithm for computing an approximate solution of the optimal transport problem with $f$-divergence regularization via the generalized Sinkhorn algorithm. Finally, we present experimental results on synthetic 2-dimensional data, demonstrating the effects of using different $f$-divergences for regularization, which influences convergence speed, numerical stability and sparsity of the optimal coupling.",
+          "authors": [
+            "Dávid Terjék",
+            "Diego González-Sánchez"
+          ],
+          "published_date": "2021-05-29T16:37:31Z",
+          "url": "https://arxiv.org/abs/2105.14337v2"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper deals with tractability of an OT problem whose primal is an infimum over couplings, but only in its *regularized* form OT_ε with a general f-divergence penalty, not the Wasserstein/EM distance itself. It proves strong duality (primal infimum = dual supremum), existence/attainment of optima, a generalized (c,ε,φ)-transform, and convergence of a generalized Sinkhorn algorithm under mild assumptions, together with a practical parallel implementation. This shows that for the ε-regularized surrogate, the infimum over couplings can be avoided and solved via the dual/Sinkhorn iterations.",
+        "what_remains_open": "The gap's specific target — the exact, unregularized Wasserstein (EM) distance infimum over couplings, and its Kantorovich-Rubinstein dual approximation — is not solved. All main results are for ε > 0 (the ε = 0 case is only mentioned as the classical limit, not analyzed). Consequently the paper provides no tractable exact computation of the Wasserstein distance and no guarantee that its regularized value approximates the true EM distance as ε → 0 in this generalized f-divergence setting (no Γ-convergence/error bounds are established; such results are only cited for the KL case). Moreover, the regularized optimum is explicitly biased away from the true OT coupling, and the algorithmic guarantees require restrictive conditions (φ of Legendre type, compact/full-support spaces, Lipschitz setting, and for non-superlinear divergences a \"good triple\" hypothesis).",
+        "evidence_snippets": [
+          "In this paper we prove that if $\\phi$ is of Legendre type then the Primal and Dual Problems have equal optimums.",
+          "The case $\\epsilon=0$ with any $\\phi$ reduces to the original, unregularized optimal transport problem, the duality theory of which is named after its most prominent contributor L. V. Kantorovich",
+          "Entropic regularization introduces a tradeoff between convergence speed of the Sinkhorn algorithm and bias in the optimal coupling. Increasing $\\epsilon$ leads to faster convergence, but pushes the optimal coupling further away from the coupling which is optimal in the unregularized problem."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_1905.09971",
+          "title": "Estimating Convergence of Markov chains with L-Lag Couplings",
+          "abstract": "Markov chain Monte Carlo (MCMC) methods generate samples that are asymptotically distributed from a target distribution of interest as the number of iterations goes to infinity. Various theoretical results provide upper bounds on the distance between the target and marginal distribution after a fixed number of iterations. These upper bounds are on a case by case basis and typically involve intractable quantities, which limits their use for practitioners. We introduce L-lag couplings to generate computable, non-asymptotic upper bound estimates for the total variation or the Wasserstein distance of general Markov chains. We apply L-lag couplings to the tasks of (i) determining MCMC burn-in, (ii) comparing different MCMC algorithms with the same target, and (iii) comparing exact and approximate MCMC. Lastly, we (iv) assess the bias of sequential Monte Carlo and self-normalized importance samplers.",
+          "authors": [
+            "Niloy Biswas",
+            "Pierre E. Jacob",
+            "Paul Vanetti"
+          ],
+          "published_date": "2019-05-23T23:45:38Z",
+          "url": "https://arxiv.org/abs/1905.09971v3"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper introduces L-lag couplings of two Markov chains to obtain computable, simulation-based non-asymptotic upper bound estimates of integral probability metrics — including total variation and 1-Wasserstein distance — between a chain's marginal π_t and its invariant distribution π (Theorem 1 gives d_H(π_t,π) ≤ E[Σ_j M_H(X_{t+jL}, Y_{t+(j-1)L})]). Since it estimates the 1-Wasserstein distance without ever computing the infimum over transport couplings, it is a coupling/simulation-based workaround for Wasserstein-distance intractability, applied to MCMC burn-in, algorithm comparison, mixing-time comparison (ULA vs MALA), and SMC/self-normalized importance bias.",
+        "what_remains_open": "The gap concerns the general intractability of the Wasserstein (EM) distance defined as an infimum over couplings. This paper does not make the exact Wasserstein distance computable: it produces only non-tight UPPER BOUNDS (empirical estimates of the expectation in Theorem 1), applicable in the narrow special setting of the distance between a Markov chain marginal and its stationary distribution. It relies on restrictive conditions (ability to construct faithful, meeting-in-finite-time joint kernels; Assumptions 1–3 on moment bounds, sub-exponential meeting-time tails, and faithfulness) and its bounds are explicitly loose because \"the couplings considered in this work are chosen to be widely applicable but are not optimal in any way.\" It also says \"since the proposed upper bounds are not tight, the true convergence rates ... may be ordered differently.\" The exact optimal-transport infimum, and an exact or dual-based (Kantorovich–Rubinstein) computation of Wasserstein distance between general measures, remain unaddressed; the paper provides no lower bounds or exact distance evaluation and offers no computable scheme for arbitrary pairs of distributions, only for π_t vs π in MCMC settings.",
+        "evidence_snippets": [
+          "Here we directly aim at upper bounds on the total variation and Wasserstein distance.",
+          "d_{\\text{W}}(\\pi_t, \\pi) \\leq \\mathbb{E} \\Big[ \\sum_{j=1}^{ \\bigl\\lceil \\frac{\\tau^{(L)} - L -t}{L} \\bigr\\rceil } d_{\\mathcal{X}}(X_{t+jL}, Y_{t+(j-1)L}) \\Big] .",
+          "Irrespective of the cost, the benefits of increasing $L$ eventually diminish: the upper bounds are loose to some extent since the coupling operated by $\\bar{K}$ is not optimal"
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 5,
+      "skipped_ids": []
+    }
+  },
+  "ranking": {
+    "openness": 0.27499999999999997,
+    "impact": 0.40132153631826967,
+    "feasibility": 0.35,
+    "feasibility_reasoning": "The gap is broad and partly a statement of known hardness, not a focused problem: exact unregularized Wasserstein over general continuous distributions is a hard optimization/transport problem, and \"solving\" the intractability itself is not a well-posed target. Feasibility is moderate only because the field is methodologically mature — Sinkhorn/entropic regularization, semi-discrete methods, and KR-dual approximations already exist, so a researcher can plausibly extend these to specific subcases (e.g., error bounds for entropic ε→0, general-cost semi-discrete, faster discrete OT). Data is not a bottleneck (samples/densities suffice), and compute is modest for these subproblems. But the general exact-infimum problem remains open, lacks a clear success metric, and progress would be confined to restricted settings rather than the gap as stated."
+  }
+}

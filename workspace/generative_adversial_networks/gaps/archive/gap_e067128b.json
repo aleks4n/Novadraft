@@ -1,0 +1,103 @@
+{
+  "gap_id": "gap_e067128b",
+  "status": "validated",
+  "title": "Modeling all conditionals via shared parameters",
+  "description": "All conditionals p(x_S | x_notS) can be approximately modeled by training a family of conditional models that share parameters, as a stochastic extension of the deterministic MP-DBM.",
+  "type": "future_work",
+  "canonical_description": "shared-parameter family of conditional models for all conditionals",
+  "evidence": [
+    {
+      "paper_id": "arxiv_1406.2661",
+      "section": "conclusions_and_future_work",
+      "anchor": "training a family of conditional models that share parameters",
+      "quote": "by training a family of conditional models that share parameters.",
+      "char_offset": [
+        718,
+        783
+      ],
+      "grounding_status": "matched",
+      "ambiguous_offsets": null
+    }
+  ],
+  "extracted_at": "2026-09-09T04:12:53Z",
+  "verdict": {
+    "gap_id": "gap_e067128b",
+    "status": "solved",
+    "confidence": 0.82,
+    "reasoning": "The verdict is driven by the Posterior Matching paper, which is a direct solution to the gap's core claim. It trains a single posterior network q(z | x_o) with parameters shared across all observed subsets (encoded via masks) that, combined with any VAE decoder, returns approximate conditionals p(x_u | x_o) for arbitrary disjoint observed/unobserved subsets. The paper supplies a theoretical justification (equivalence of the Posterior Matching objective to arbitrary conditional likelihood) and empirical demonstrations on MNIST, UCI data, clustering, and active feature acquisition across several VAE families — squarely delivering a shared-parameter family of conditional models covering all conditionals. Partition Generative Models gives complementary but partial evidence (random two-way splits with shared parameters), while the Bottleneck Conditional Density Estimator addresses only a fixed conditional and is not relevant. The one caveat is that the gap's literal suggested route — a stochastic extension of the deterministic MP-DBM — is not constructed; Posterior Matching instead attaches the shared conditional mechanism to a VAE latent code, inheriting VAE assumptions. This tempers confidence but does not leave the central problem open, since the all-conditionals shared-parameter modeling claim is directly demonstrated.",
+    "assessments": [
+      {
+        "paper": {
+          "paper_id": "arxiv_2201.12414",
+          "title": "Posterior Matching for Arbitrary Conditioning",
+          "abstract": "Arbitrary conditioning is an important problem in unsupervised learning, where we seek to model the conditional densities $p(\\mathbf{x}_u \\mid \\mathbf{x}_o)$ that underly some data, for all possible non-intersecting subsets $o, u \\subset \\{1, \\dots , d\\}$. However, the vast majority of density estimation only focuses on modeling the joint distribution $p(\\mathbf{x})$, in which important conditional dependencies between features are opaque. We propose a simple and general framework, coined Posterior Matching, that enables Variational Autoencoders (VAEs) to perform arbitrary conditioning, without modification to the VAE itself. Posterior Matching applies to the numerous existing VAE-based approaches to joint density estimation, thereby circumventing the specialized models required by previous approaches to arbitrary conditioning. We find that Posterior Matching is comparable or superior to current state-of-the-art methods for a variety of tasks with an assortment of VAEs (e.g.~discrete, hierarchical, VaDE).",
+          "authors": [
+            "Ryan R. Strauss",
+            "Junier B. Oliva"
+          ],
+          "published_date": "2022-01-28T20:48:44Z",
+          "url": "https://arxiv.org/abs/2201.12414v4"
+        },
+        "relevance_to_gap": "direct_solution",
+        "contribution_summary": "The paper proposes Posterior Matching, which trains a single partially observed posterior network q_theta(z | x_o) (with shared parameters across all observed subsets o, encoded via a mask representation) that, combined with any VAE's decoder, yields approximate conditionals p(x_u | x_o) for arbitrary disjoint subsets o and u — i.e., exactly a shared-parameter family of conditional models covering all conditionals. The authors prove a theorem showing their KL-based Posterior Matching objective is equivalent to maximizing the arbitrary conditional likelihood p(x_u | x_o), and empirically validate arbitrary conditional density estimation/imputation on MNIST, UCI tabular data, clustering with partial observation, and active feature acquisition across several VAE families (VQ-VAE, hierarchical VDVAE, VaDE).",
+        "what_remains_open": "The central problem of the gap — approximately modeling all conditionals p(x_S | x_notS) with one shared-parameter conditional model — is directly addressed and demonstrated. What remains open is only the gap's literal suggested route: the paper does not construct a stochastic extension of the deterministic MP-DBM; instead it attaches the shared-parameter conditional network to a VAE latent code. Consequently the approach inherits VAE assumptions (fully observed training data, an existing/pretrained VAE, and typically a factorized decoder for easy sampling), and p(x_u | x_o) is delivered as a latent-matching approximation rather than by directly modeling conditionals of a DBM-type joint model.",
+        "evidence_snippets": [
+          "We propose a simple and general framework, coined Posterior Matching, that enables Variational Autoencoders (VAEs) to perform arbitrary conditioning, without modification to the VAE itself.",
+          "For flexibility and scalability, it is desirable for a single model to provide all such conditionals at inference time.",
+          "we can take an existing VAE that only models the joint distribution $p(\\x)$ and train an additional model that, when combined with the VAE, is able to assess any likelihood $p(\\xu \\mid \\xo)$ for arbitrary subsets of unobserved features $\\xu$ and observed features $\\xo$."
+        ]
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_1611.08568",
+          "title": "Bottleneck Conditional Density Estimation",
+          "abstract": "We introduce a new framework for training deep generative models for high-dimensional conditional density estimation. The Bottleneck Conditional Density Estimator (BCDE) is a variant of the conditional variational autoencoder (CVAE) that employs layer(s) of stochastic variables as the bottleneck between the input $x$ and target $y$, where both are high-dimensional. Crucially, we propose a new hybrid training method that blends the conditional generative model with a joint generative model. Hybrid blending is the key to effective training of the BCDE, which avoids overfitting and provides a novel mechanism for leveraging unlabeled data. We show that our hybrid training procedure enables models to achieve competitive results in the MNIST quadrant prediction task in the fully-supervised setting, and sets new benchmarks in the semi-supervised regime for MNIST, SVHN, and CelebA.",
+          "authors": [
+            "Rui Shu",
+            "Hung H. Bui",
+            "Mohammad Ghavamzadeh"
+          ],
+          "published_date": "2016-11-25T19:42:53Z",
+          "url": "https://arxiv.org/abs/1611.08568v3"
+        },
+        "relevance_to_gap": "not_addressed",
+        "contribution_summary": "The paper introduces the Bottleneck Conditional Density Estimator (BCDE), a CVAE-variant with stochastic bottleneck variables z between input x and target y for a single conditional p(y|x), together with a hybrid training objective that softly ties the BCDE's parameters to those of a sibling Bottleneck Joint Density Estimator (BJDE) so that unlabeled x and y data can regularize conditional training. Its focus is improving one fixed conditional density estimation task (quadrant prediction, one fixed occlusion split at a time) via joint-conditional blending for semi-supervised learning; it does not construct a shared-parameter family of conditional models covering many conditioning subsets.",
+        "what_remains_open": "The gap asks for a stochastic analogue of the deterministic MP-DBM in which ALL conditionals p(x_S | x_notS) over arbitrary subsets S of the variables are approximately modeled by a family of conditional models that share parameters, so that one network can answer any masking/partition query. The paper does not do this: it trains a separate conditional model for a fixed x/y partition (each quadrant sub-task is a distinct split, and the paper never ties models across different splits), and its parameter sharing is only between that single conditional BCDE and its joint BJDE sibling (plus factored inference for p(z|x), p(z|y), p(z|x,y)). There is no mechanism or experiment for answering p(x_S | x_notS) for many/general S, no shared family indexed by subsets, and no mention of multi-prediction training or MP-DBM. Thus the core \"model all conditionals via shared parameters\" problem remains unaddressed.",
+        "evidence_snippets": []
+      },
+      {
+        "paper": {
+          "paper_id": "arxiv_2505.18883",
+          "title": "Partition Generative Modeling: Masked Modeling Without Masks",
+          "abstract": "Masked generative models (MGMs) can generate tokens in parallel and in any order, unlike autoregressive models (ARMs), which decode one token at a time, left-to-right. However, MGMs process the full-length sequence at every sampling step, including mask tokens that carry no information. In contrast, ARMs process only the previously generated tokens. We introduce ``Partition Generative Models'' (PGMs), which replace masking with partitioning. Tokens are split into two groups that cannot attend to each other, and the model learns to predict each group conditioned on the other, eliminating mask tokens entirely. Because the groups do not interact, PGMs can process only the clean tokens during sampling, like ARMs, while retaining parallel, any-order generation, like MGMs. On OpenWebText, PGMs achieve $5-5.5\\times$ higher throughput than MDLM while producing samples with lower Generative Perplexity. On ImageNet, PGMs reach comparable FID to MaskGIT with a $7.5\\times$ throughput improvement. With twice as many steps, the FID improves to 4.56 while remaining $3.9\\times$ faster than MGMs. Finally, PGMs remain compatible with existing MGM samplers and distillation methods.",
+          "authors": [
+            "Justin Deschenaux",
+            "Lan Tran",
+            "Caglar Gulcehre"
+          ],
+          "published_date": "2025-05-24T21:44:32Z",
+          "url": "https://arxiv.org/abs/2505.18883v3"
+        },
+        "relevance_to_gap": "partial_solution",
+        "contribution_summary": "The paper introduces Partition Generative Models (PGMs), an encoder–decoder architecture (Partition Transformer with group-wise self-attention and a GroupSwap layer) in which each sequence is split into two non-interacting groups and every position is trained to predict the tokens of the opposite group, with a random group assignment per training sample and time step and fully shared parameters. This removes mask tokens while in expectation training, over random two-way splits, a shared-parameter family of complementary conditional distributions p(group0 | group1) and p(group1 | group0); the model is shown to match MDLM/MaskGIT sample quality at much higher inference throughput and to remain compatible with MGM samplers and distillation.",
+        "what_remains_open": "The gap asks for modeling *all* conditionals p(x_S | x_notS) for arbitrary subsets S via a shared-parameter family, as a stochastic extension of deterministic MP-DBM. PGM only realizes a restricted version: each forward pass models the two conditionals of a random bipartition (S and its exact complement), and the paper neither proves nor evaluates coverage/quality of arbitrary-subset conditionals. It is framed and validated purely as an unconditional generative model for text/images (perplexity, FID, throughput, distillation), not as a tool for querying arbitrary conditionals p(x_S | x_notS). Moreover, during its inference procedure each chunk is predicted conditioned only on the tokens decoded so far (clean set), not on the full complement x_notS, and the decoded group is sampled from factorized marginals; there is no treatment of the MP-DBM relationship or of all-conditionals modeling quality. Thus the gap's central claim is addressed only partially and indirectly.",
+        "evidence_snippets": [
+          "Instead of replacing tokens with \\mask, PGMs partition the sequence into two complementary groups. Given $\\x \\in \\mathcal D$ and $t \\sim \\mathcal{U}[0, 1]$, each token is assigned to group 1 with probability $p_t = 1 - \\alpha_t$, and to group 0 otherwise.",
+          "Predictions at positions in group 0 depend only on tokens in group 1, and vice-versa",
+          "by predicting each group from the other, PGMs implement a mechanism akin to training on two complementary masked sequences per batch, while also introducing a new architecture"
+        ]
+      }
+    ],
+    "metadata": {
+      "queries_used": [
+        "literal",
+        "reframed",
+        "broad"
+      ],
+      "candidate_count": 15,
+      "papers_deep_read": 3,
+      "skipped_ids": []
+    }
+  },
+  "ranking": null
+}

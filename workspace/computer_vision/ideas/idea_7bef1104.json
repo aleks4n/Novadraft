@@ -1,0 +1,135 @@
+{
+  "idea_id": "idea_7bef1104",
+  "title": "De-Smoothed Perplexity: Score the Sharp Component, Not the Injected Floor",
+  "state": "root",
+  "one_liner": "Label smoothing's perplexity penalty is largely an arithmetic artifact of scoring a deliberately smoothed distribution against a one-hot target; subtract the known uniform floor before computing perplexity and the paradox either dissolves or isolates true degradation.",
+  "description": "Label smoothing trains the model toward q = (1−α)δ_y + α/K, so at the optimum the true label receives probability 1−α+α/K and hard-target NLL is −log(1−α+α/K), not zero. A no-smoothing baseline optimizes a different target, δ_y, so raw perplexity compares models against different objectives rather than measuring the same thing. The proposal is to invert the smoothing transform at evaluation: compute r(k) = relu(p(k)−α/K)/Z with Z = Σ_j relu(p(j)−α/K), then report PPL_debias = exp(−log r(y)). At the label-smoothing optimum, r becomes one-hot and PPL_debias reaches 1, so the known penalty disappears; any residual gap isolates genuine failure to concentrate mass on the label. This differs from attempts to fix label smoothing itself by leaving training untouched and attacking the evaluation premise instead.",
+  "problem": "We cannot currently distinguish a model that is worse at identifying the true label from one that is merely reporting the uniform uncertainty label smoothing told it to report. The problem this idea attacks is that hard-target perplexity uses a scoring distribution that no longer matches the training objective, making the reported \"hurt\" uninterpretable.",
+  "addresses": [
+    "gap_ec9401af"
+  ],
+  "relations": [],
+  "inherited_from": null,
+  "sections": {
+    "assumption": "The load-bearing assumption is target-identity: that the test-time target is a noiseless one-hot and that raw model probabilities are directly comparable across training schemes. Under label smoothing this assumes the evaluation distribution equals the training distribution, which it does not.",
+    "technique": "- Train paired models: α = 0 baseline and α = 0.1 label smoothing, same architecture and data.\n- For each model compute raw hard-target PPL: exp(−log p(y|x)).\n- Compute de-smoothed PPL using the known α: subtract the uniform floor α/K from each class probability, clip negatives to zero, and renormalize.\n- Report the raw PPL gap and the de-smoothed PPL gap separately, then compare both against BLEU/accuracy.\n- Hypothesis: the de-smoothed gap shrinks and tracks downstream quality better than the raw gap.",
+    "open_questions": "- Does clipping tail probabilities to zero bias the metric when p(y) is below α/K, i.e. for genuinely uncertain predictions?\n- Should evaluation use the training α or fit α on held-out data to maximize debiased likelihood?\n- Is the renormalized de-smoothed distribution a proper scoring rule, and does using it for decoding change beam-search rankings?\n- If a residual gap remains after de-smoothing, is it real degradation or a temperature/calibration change caused by label smoothing?",
+    "rationale": "Skeptic stance: name the premise doing the work and invert it. The premise is that train and eval targets are identical. Dropping it yields a concrete research question: how much of label smoothing's perplexity penalty is explained by the known uniform floor? The de-smoothing transform is the constructive move, not mere criticism. The optimum formula follows from the standard label-smoothing target q, but the claims that trained models sit near that optimum and that de-smoothed PPL correlates with BLEU/accuracy are unverified and are the experiment."
+  },
+  "section_order": [
+    "assumption",
+    "technique",
+    "open_questions",
+    "rationale"
+  ],
+  "evaluation": {
+    "novelty": null,
+    "feasibility": null,
+    "significance": null
+  },
+  "provenance": [],
+  "origin": {
+    "run_id": "run_7b6595b4",
+    "node_id": "run_7b6595b4:n2",
+    "node_path": [
+      "run_7b6595b4:n0",
+      "run_7b6595b4:n2"
+    ],
+    "style": "skeptic",
+    "mode": "generation",
+    "parent_idea_id": null,
+    "suggested": null,
+    "inherited_from": null,
+    "inherited_upto_run": null
+  },
+  "runs": [
+    {
+      "run_id": "run_7b6595b4",
+      "session_id": "sess_dfde4f61",
+      "timestamp": "2026-08-30T08:09:58Z",
+      "header": {
+        "mode": "generation",
+        "width": 2,
+        "depth": 1,
+        "model": "reasoner",
+        "agent_styles": [
+          "optimizer",
+          "skeptic"
+        ],
+        "context_ids": [
+          "gap_ec9401af",
+          "arxiv_1706.03762"
+        ],
+        "triggering_action": "",
+        "tool_use": true,
+        "task": "The gap: label smoothing (e.g., 0.1) hurts perplexity — the model becomes more uncertain and reports worse perplexity — while improving downstream accuracy and BLEU. Generate two candidate ideas that engage with this tension: how to reconcile or exploit the fact that a model that scores worse on perplexity can still be a better model. One idea may improve label smoothing itself (e.g., a variant that keeps perplexity intact), the other may attack the premise (e.g., whether perplexity is even the right evaluation under label smoothing). Ground the ideas in what is actually published where possible."
+      },
+      "nodes": [
+        {
+          "node_id": "run_7b6595b4:n0",
+          "parent_id": null,
+          "text": "# (untitled idea)",
+          "style": "-",
+          "score": null,
+          "status": "kept",
+          "depth": 0,
+          "kind": "root",
+          "title": "The gap: label smoothing (e.g., 0.1) hurts perplexity — the model becomes more u",
+          "comparison": "",
+          "question": null,
+          "sources": []
+        },
+        {
+          "node_id": "run_7b6595b4:n2",
+          "parent_id": "run_7b6595b4:n0",
+          "text": "De-Smoothed Perplexity: Score the Sharp Component, Not the Injected Floor\nLabel smoothing's perplexity penalty is largely an arithmetic artifact of scoring a deliberately smoothed distribution against a one-hot target; subtract the known uniform floor before computing perplexity and the paradox either dissolves or isolates true degradation.\nLabel smoothing trains the model toward q = (1−α)δ_y + α/K, so at the optimum the true label receives probability 1−α+α/K and hard-target NLL is −log(1−α+α/K), not zero. A no-smoothing baseline optimizes a different target, δ_y, so raw perplexity compares models against different objectives rather than measuring the same thing. The proposal is to invert the smoothing transform at evaluation: compute r(k) = relu(p(k)−α/K)/Z with Z = Σ_j relu(p(j)−α/K), then report PPL_debias = exp(−log r(y)). At the label-smoothing optimum, r becomes one-hot and PPL_debias reaches 1, so the known penalty disappears; any residual gap isolates genuine failure to concentrate mass on the label. This differs from attempts to fix label smoothing itself by leaving training untouched and attacking the evaluation premise instead.\nThe load-bearing assumption is target-identity: that the test-time target is a noiseless one-hot and that raw model probabilities are directly comparable across training schemes. Under label smoothing this assumes the evaluation distribution equals the training distribution, which it does not.\n- Train paired models: α = 0 baseline and α = 0.1 label smoothing, same architecture and data.\n- For each model compute raw hard-target PPL: exp(−log p(y|x)).\n- Compute de-smoothed PPL using the known α: subtract the uniform floor α/K from each class probability, clip negatives to zero, and renormalize.\n- Report the raw PPL gap and the de-smoothed PPL gap separately, then compare both against BLEU/accuracy.\n- Hypothesis: the de-smoothed gap shrinks and tracks downstream quality better than the raw gap.\n- Does clipping tail probabilities to zero bias the metric when p(y) is below α/K, i.e. for genuinely uncertain predictions?\n- Should evaluation use the training α or fit α on held-out data to maximize debiased likelihood?\n- Is the renormalized de-smoothed distribution a proper scoring rule, and does using it for decoding change beam-search rankings?\n- If a residual gap remains after de-smoothing, is it real degradation or a temperature/calibration change caused by label smoothing?\nSkeptic stance: name the premise doing the work and invert it. The premise is that train and eval targets are identical. Dropping it yields a concrete research question: how much of label smoothing's perplexity penalty is explained by the known uniform floor? The de-smoothing transform is the constructive move, not mere criticism. The optimum formula follows from the standard label-smoothing target q, but the claims that trained models sit near that optimum and that de-smoothed PPL correlates with BLEU/accuracy are unverified and are the experiment.",
+          "style": "skeptic",
+          "score": 0.7902,
+          "status": "accepted",
+          "depth": 1,
+          "kind": "candidate",
+          "title": "De-Smoothed Perplexity: Score the Sharp Component, Not the Injected Floor",
+          "comparison": "rank 2/2",
+          "question": null,
+          "sources": []
+        }
+      ],
+      "edges": [
+        {
+          "from": "run_7b6595b4:n0",
+          "to": "run_7b6595b4:n2",
+          "type": "expanded-into"
+        }
+      ],
+      "outcome": {
+        "accepted_node": "run_7b6595b4:n2",
+        "escalation": null,
+        "truncated": false,
+        "escalation_node": null,
+        "escalation_diagnosis": "",
+        "status": "completed",
+        "reason": "2 candidates survived deduplication",
+        "limit": null,
+        "accepted_nodes": [
+          "run_7b6595b4:n2"
+        ],
+        "summary": {
+          "objective": "The gap: label smoothing (e.g., 0.1) hurts perplexity — the model becomes more uncertain and reports worse perplexity — while improving downstream accuracy and BLEU. Generate two candidate ideas that engage with this tension: how to reconcile or exploit the fact that a model that scores worse on perplexity can still be a better model. One idea may improve label smoothing itself (e.g., a variant that keeps perplexity intact), the other may attack the premise (e.g., whether perplexity is even the right evaluation under label smoothing). Ground the ideas in what is actually published where possible.",
+          "accepted": "carved from run_7b6595b4 on acceptance: Annealed label smoothing: decay ε→0 to reclaim perplexity while keeping BLEU; De-Smoothed Perplexity: Score the Sharp Component, Not the Injected Floor",
+          "rejected": "",
+          "open": [
+            "-",
+            " ",
+            "D",
+            "o",
+            " "
+          ]
+        },
+        "answer": "",
+        "proposed_changes": []
+      }
+    }
+  ],
+  "created_at": "2026-08-30T08:17:15Z",
+  "updated_at": "2026-08-30T08:17:15Z"
+}
