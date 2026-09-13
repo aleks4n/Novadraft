@@ -1,0 +1,64 @@
+{
+ "idea_id": null,
+ "title": "Sync-Gate: A Feedback-Controlled D/G Update Ratio",
+ "state": "provisional",
+ "one_liner": "Replace the fixed alternating (or fixed-k) D/G update schedule with a closed-loop controller that measures a live desynchronization signal and adjusts the number of discriminator steps per generator step in real time.",
+ "description": "Keep the standard minimax objective and network architectures exactly as in Goodfellow et al. (2014); change only the scheduler that decides, at each iteration, whether to take a G step or a D step. Track a cheap per-batch statistic \u2014 mean D(G(z)) over the current minibatch, averaged with an exponential moving average \u2014 as a proxy for how far D has fallen behind G (if D hasn't been updated in a while, G can exploit it and D(G(z)) drifts high even though D was previously well-calibrated). Feed this signal into a PI controller with a target band (e.g. D(G(z)) settling around 0.5) that outputs the number of consecutive D steps to run before the next G step, so the update ratio becomes a controlled variable instead of a fixed constant. This directly targets the paper's own stated failure mode rather than a downstream symptom (blurry samples, low IS/FID), and is a drop-in scheduler swap, not a new loss or architecture.",
+ "problem": "The original GAN training loop updates G and D on a fixed schedule (typically 1:1 or a hand-picked k:1 ratio), with no mechanism to detect when G has outrun D and is heading toward the 'Helvetica scenario' (mode collapse from an under-trained discriminator); this leaves synchronization to a static hyperparameter chosen before training rather than to anything measured during it.",
+ "addresses": [
+  "gap_f19d02aa"
+ ],
+ "relations": [],
+ "inherited_from": null,
+ "sections": {
+  "technique": "\n- Baseline schedule: fixed 1:1 update (original GAN paper) and fixed k:1 update (k=5, common DCGAN/WGAN-era convention) as two separate baselines.\n- Signal: EMA of mean D(G(z)) on the most recent generated minibatch, computed after each G step, before deciding whether to run extra D steps.\n- Controller: PI controller with target band [0.4, 0.6]; error = signal \u2212 0.5; output integrated and thresholded to an integer number of D steps (clamped to [0, k_max]) run before the next G update.\n- Stress test: artificially force N consecutive G updates with D frozen (simulating the exact 'train G too much without updating D' scenario described in the paper) and measure how many iterations the controller needs to detect the drift and how much mode loss occurs during the window, compared to fixed schedules subjected to the same forced perturbation.\n- Metrics: number of modes recovered on stacked-MNIST (following the mode-counting protocol used in the unrolled-GAN literature, unverified whether directly reusable), FID/IS trajectory across training, and variance of these metrics across seeds as a stability measure.\n",
+  "baselines": "\n- Fixed 1:1 alternating SGD (original 1406.2661 formulation).\n- Fixed k:1 schedule with k tuned by grid search (standard practice baseline).\n- (unverified) BEGAN-style equilibrium ratio (\u03b3-controlled balance between real/fake losses) as a related but architecture-specific alternative \u2014 included only if it can be adapted to the vanilla GAN objective without its autoencoder discriminator.\n",
+  "open_questions": "\n- Is mean D(G(z)) the best desynchronization proxy, or would a gradient-norm ratio between G's and D's updates, or the slope of D's loss curve, give earlier/cleaner detection?\n- How sensitive is training stability to the controller's target band and gain constants \u2014 does this just trade one hyperparameter (k) for three (Kp, Ki, band)?\n- Does the controller's overhead (extra D forward/backward passes when triggered) net out to a wall-clock win once mode-collapse-recovery time is priced in, versus simply always running a conservative fixed k:1 schedule?\n- Does the benefit persist once training uses the non-saturating G loss and modern normalization tricks, or was the original synchronization failure mode already mostly absorbed by those unrelated fixes?\n",
+  "rationale": "\nStance is optimizer: the fix stays inside the original alternating-SGD training loop and swaps only the scheduling rule, which is exactly the kind of 'usually left fixed' constant (the D:G update ratio k) this stance targets. The paper itself names the mechanism of failure (G outrunning D) precisely, which gives a concrete, measurable signal to control against rather than an abstract 'instability' to hand-wave about. The comparison points (fixed 1:1, fixed k:1) are named and already standard, so the delta is measurable directly. The BEGAN-style equilibrium comparison and the stacked-MNIST mode-counting protocol are marked unverified since their applicability to a vanilla-GAN controller setup is not confirmed in the supplied context.\n"
+ },
+ "section_order": [
+  "technique",
+  "baselines",
+  "open_questions",
+  "rationale"
+ ],
+ "evaluation": {
+  "novelty": null,
+  "feasibility": null,
+  "significance": null
+ },
+ "provenance": [],
+ "origin": {
+  "run_id": "run_7d6c02c5-54b6",
+  "node_id": "run_7d6c02c5-54b6:n1",
+  "node_path": [
+   "run_7d6c02c5-54b6:n0",
+   "run_7d6c02c5-54b6:n1"
+  ],
+  "style": "optimizer",
+  "mode": "generation",
+  "parent_idea_id": null,
+  "suggested": null,
+  "inherited_from": null,
+  "inherited_upto_run": null
+ },
+ "runs": [],
+ "created_at": "",
+ "updated_at": "",
+ "_session": {
+  "draft_id": "draft_35b4922a",
+  "session_id": "sess_a83c40cd",
+  "kind": "create",
+  "run_id": "20260910_010403_start-plan-20260910-010326-give-me-3-ide",
+  "source_index": 0,
+  "handle": "run_7d6c02c5#0",
+  "offer_run": "run_7d6c02c5",
+  "target_idea_id": null,
+  "baseline_idea": null,
+  "label": "Sync-Gate: A Feedback-Controlled D/G Update Ratio",
+  "status": "accepted",
+  "created_at": "2026-09-09T17:07:06Z",
+  "decided_at": "2026-09-09T17:07:30Z",
+  "result_idea_id": "idea_eefaec15"
+ }
+}

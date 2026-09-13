@@ -84,16 +84,16 @@ src/agents/validator_agent/test_runs/
 src/agents/ranking_agent/test_runs/
 
 # Generated knowledge files
-workspace/knowledge/*.md
+#workspace/knowledge/*.md
 
 # Validator prior-art fetch cache (runtime, regenerable — not a committed fixture)
 workspace/_validator_cache/
 
 # Per-run agent logs (runtime, regenerable; the app replays local copies)
-workspace/*/logs/
+#workspace/*/logs/
 
 # Orchestrator per-session run results (pending proposals between turns — runtime state)
-workspace/*/sessions/
+#workspace/*/sessions/
 
 # Data / models (uncomment as needed)
 # *.csv
@@ -114,3 +114,6 @@ yarn-error.log*
 
 #workspace/session*
 #workspace/
+# Keep per-run agent logs tracked (overrides the generic logs/ + *.log rules above)
+!workspace/*/logs/
+!workspace/*/logs/**

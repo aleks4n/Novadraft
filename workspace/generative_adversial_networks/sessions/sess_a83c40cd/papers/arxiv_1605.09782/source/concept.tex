@@ -1,0 +1,57 @@
+\begin{figure}[t]
+\tikzstyle{shadow} = [copy shadow={opacity=0.15, shadow xshift=0.5ex,shadow yshift=-0.25ex,fill=black}]
+\tikzstyle{all_nodes} = [minimum width=1cm, minimum height=0.5cm,text centered, draw=black,fill=white,shadow]
+\tikzstyle{observed_var} = [circle, all_nodes, fill=black!20]
+\tikzstyle{latent_var} = [circle, all_nodes]
+\tikzstyle{group_var} = [ellipse, all_nodes, inner sep=0.1cm]
+\tikzstyle{func} = [signal, signal to=east, all_nodes,minimum height=1cm,fill=red!10]
+\tikzstyle{arrow}= [->,thick,shorten <=1pt,shorten >=1pt, >=stealth']
+\tikzstyle{box}= [rectangle, rounded corners, draw=black, inner sep=0.15cm]
+\tikzset{
+  -|-/.style={
+    to path={
+      (\tikztostart) -| ($(\tikztostart)!#1!(\tikztotarget)$) |- (\tikztotarget)
+      \tikztonodes
+    }
+  },
+  -|-/.default=0.7,
+}
+\centering
+\scalebox{1.2}{
+ \begin{tikzpicture}[node distance=2cm]
+  \node (z) [observed_var] at (-2,1.25) {$\z$};
+  \node (G) [func] at (-0.25,1.25) {};
+  \node (Gtext) at (-0.1,1.25) {$G$};
+  \node (Gz) [latent_var] at (2,1.25) {$G(\z)$};
+  \node (x) [observed_var] at (2,-1.25) {$\x$};
+  \node (E) [func, shape border rotate=180,signal to=west] at (0.25,-1.25) {};
+  \node (Etext) at (0.1,-1.25) {$E$};
+  \node (Ex) [latent_var] at (-2,-1.25) {$E(\x)$};
+  \draw[arrow] (z) -> (G);
+  \draw[arrow] (G) -> (Gz);
+  \draw[arrow] (x) -> (E);
+  \draw[arrow] (E) -> (Ex);
+  \begin{scope}[on background layer]
+    \node[box,fill=blue!10,fit=(z) (Ex), label={above:features}] (container) {};
+    \node[box,fill=green!10,fit=(x) (Gz), label={above:data}] (container) {};
+  \end{scope}
+  \node (Gzz) [group_var] at (4,0.5) {$G(\z), \z$};
+  \node (xEx) [group_var] at (4,-0.5) {$\x, E(\x)$};
+  \draw[arrow] (z) |- (Gzz);
+  \draw[arrow] (Gz) |- (Gzz);
+  \draw[arrow] (x) |- (xEx);
+  \draw[arrow] (Ex) |- (xEx);
+  \node (D) [func] at (6,0) {};
+  \node (Dtext) at (6.15,0) {$D$};
+  \draw[arrow] (Gzz) to[-|-] ($(D.north west)!0.5!(D.west)$);
+  \draw[arrow] (xEx) to[-|-] ($(D.south west)!0.5!(D.west)$);
+  
+  \node (Py) [latent_var] at (8,0) {$P(y)$};
+  \draw[arrow] (D) -- (Py);
+ \end{tikzpicture}
+}
+
+\caption{The structure of Bidirectional Generative Adversarial Networks (BiGAN).}
+\label{fig:concept}
+\end{figure}
+

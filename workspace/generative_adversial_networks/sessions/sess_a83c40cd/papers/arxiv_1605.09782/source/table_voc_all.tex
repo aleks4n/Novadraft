@@ -1,0 +1,43 @@
+\begin{table}
+\small
+\centering
+\begin{tabular}{rlccccc}
+\toprule
+& & \multicolumn{3}{c}{} & \textit{FRCN} & \textit{FCN} \\
+& & \multicolumn{3}{c}{Classification} & Detection & Segmentation \\
+& & \multicolumn{3}{c}{(\% mAP)} & (\% mAP) & (\% mIU) \\
+
+& trained layers & fc8 & fc6-8 & all & all & all \\
+\midrule
+\multirow{1}{*}{ sup. }
+& ImageNet \citep{supervision}       & \bf{77.0} & \bf{78.8} & \bf{78.3} & \bf{56.8} & \bf{48.0} \\
+\midrule
+\multirow{4}{*}{ self-sup. }
+& \citet{pulkit}                     & 31.2 & 31.0 & 54.2 & 43.9 &  -   \\
+& \citet{deepak}                     & 30.5 & 34.6 & 56.5 & 44.5 & \bf{30.0} \\
+& \citet{xiaolong}                   & 28.4 & \bf{55.6} & 63.1 & 47.4 &  -   \\
+& \citet{carl}                       & \bf{44.7} & 55.1 & \bf{65.3} & \bf{51.1} &  -   \\
+\midrule
+\multirow{7}{*}{ unsup. }
+& $k$-means \citep{datadep}          & 32.0 & 39.2 & 56.6 & 45.6 & 32.6 \\
+& Discriminator ($D$)                & 30.7 & 40.5 & 56.4 &  -   & - \\
+& Latent Regressor (LR)              & 36.9 & 47.9 & 57.1 &  -   & - \\
+& Joint LR                           & 37.1 & 47.9 & 56.5 &  -   & - \\
+& Autoencoder ($\ell_2$)             & 24.8 & 16.0 & 53.8 & 41.9 & - \\
+& BiGAN (ours)                       & 37.5 & 48.7 & 58.9 & 46.2 & 34.9 \\
+& BiGAN, $112\times112$ $E$ (ours)  & \bf{41.7} & \bf{52.5} & \bf{60.3} & \bf{46.9} & \bf{35.2} \\
+\bottomrule
+\end{tabular}
+\caption{
+Classification and Fast R-CNN~\citep{fastrcnn} detection results for the PASCAL VOC 2007~\citep{pascal} test set, and FCN~\citep{fcn} segmentation results on the PASCAL VOC 2012 validation set,
+under the standard mean average precision (mAP) or mean intersection over union (mIU) metrics for each task.
+Classification models are trained with various portions of the \textit{AlexNet}~\citep{supervision} model frozen.
+In the \textit{fc8} column, only the linear classifier (a multinomial logistic regression) is learned -- in the case of BiGAN, on top of randomly initialized fully connected (FC) layers \textit{fc6} and \textit{fc7}.
+In the \textit{fc6-8} column, all three FC layers are trained fully supervised with all convolution layers frozen.
+Finally, in the \textit{all} column, the entire network is ``fine-tuned''.
+BiGAN outperforms other unsupervised (\textit{unsup.}) feature learning approaches, including the GAN-based baselines described in \refsec{baselines},
+and despite its generality, is competitive with contemporary self-supervised (\textit{self-sup.}) feature learning approaches specific to the visual domain.
+}
+\lbltbl{vocclass}
+\lbltbl{vocloc}
+\end{table}

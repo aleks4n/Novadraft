@@ -1,0 +1,165 @@
+\begin{thebibliography}{24}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Che et~al.(2017)Che, Li, Jacob, Bengio, and Li]{Che2017ModeRG}
+Che, Tong, Li, Yanran, Jacob, Athul~Paul, Bengio, Yoshua, and Li, Wenjie.
+\newblock Mode regularized generative adversarial networks.
+\newblock In \emph{International Conference on Learning Representations
+  (ICLR)}, volume abs/1612.02136, 2017.
+
+\bibitem[Cover \& Thomas(2012)Cover and Thomas]{cover:thomas}
+Cover, Thomas~M and Thomas, Joy~A.
+\newblock \emph{Elements of information theory}.
+\newblock John Wiley \& Sons, 2012.
+
+\bibitem[Diggle \& Gratton(1984)Diggle and Gratton]{diggle:gratton}
+Diggle, Peter~J. and Gratton, Richard~J.
+\newblock Monte carlo methods of inference for implicit statistical models.
+\newblock \emph{Journal of the Royal Statistical Society. Series B
+  (Methodological)}, 46\penalty0 (2):\penalty0 193--227, 1984.
+\newblock ISSN 00359246.
+\newblock URL \url{http://www.jstor.org/stable/2345504}.
+
+\bibitem[Donahue et~al.(2017)Donahue, Kr{\"a}henb{\"u}hl, and
+  Darrell]{donahue2016adversarial}
+Donahue, Jeff, Kr{\"a}henb{\"u}hl, Philipp, and Darrell, Trevor.
+\newblock Adversarial feature learning.
+\newblock In \emph{International Conference on Learning Representations
+  (ICLR)}, 2017.
+
+\bibitem[Dumoulin et~al.(2017)Dumoulin, Belghazi, Poole, Mastropietro, Lamb,
+  Arjovsky, and Courville]{ali2016}
+Dumoulin, Vincent, Belghazi, Ishmael, Poole, Ben, Mastropietro, Olivier, Lamb,
+  Alex, Arjovsky, Martin, and Courville, Aaron.
+\newblock Adversarially learned inference.
+\newblock In \emph{International Conference on Learning Representations
+  (ICLR)}, 2017.
+
+\bibitem[Dutta et~al.(2016)Dutta, Corander, Kaski, and Gutmann]{1611.10242}
+Dutta, Ritabrata, Corander, Jukka, Kaski, Samuel, and Gutmann, Michael~U.
+\newblock Likelihood-free inference by ratio estimation.
+\newblock 2016.
+
+\bibitem[Goodfellow et~al.(2014)Goodfellow, Pouget{-}Abadie, Mirza, Xu,
+  Warde{-}Farley, Ozair, Courville, and Bengio]{gan}
+Goodfellow, Ian~J., Pouget{-}Abadie, Jean, Mirza, Mehdi, Xu, Bing,
+  Warde{-}Farley, David, Ozair, Sherjil, Courville, Aaron~C., and Bengio,
+  Yoshua.
+\newblock Generative adversarial nets.
+\newblock In \emph{Advances in Neural Information Processing Systems}, pp.\
+  2672--2680, 2014.
+
+\bibitem[Gutmann \& Hyvarinen(2012)Gutmann and Hyvarinen]{gutmann12}
+Gutmann, Michael~U. and Hyvarinen, Aapo.
+\newblock Noise-contrastive estimation of unnormalized statistical models, with
+  applications to natural image statistics.
+\newblock \emph{Journal of Machine Learning Research}, 13:\penalty0 307--361,
+  2012.
+
+\bibitem[Gutmann \& Hirayama(2011)Gutmann and Hirayama]{Gutmann2011b}
+Gutmann, M.U. and Hirayama, J.
+\newblock {B}regman divergence as general framework to estimate unnormalized
+  statistical models.
+\newblock In \emph{Proc. Conf. on Uncertainty in Artificial Intelligence
+  (UAI)}, pp.\  283--290, Corvallis, Oregon, 2011. AUAI Press.
+
+\bibitem[Gutmann et~al.(2014)Gutmann, Dutta, Kaski, and Corander]{Gutmann2014}
+Gutmann, M.U., Dutta, R., Kaski, S., and Corander, J.
+\newblock Likelihood-free inference via classification.
+\newblock \emph{arXiv:1407.4981}, 2014.
+
+\bibitem[Kingma \& Welling(2013)Kingma and Welling]{kingma2013auto}
+Kingma, Diederik~P and Welling, Max.
+\newblock Auto-encoding variational bayes.
+\newblock \emph{arXiv preprint arXiv:1312.6114}, 2013.
+
+\bibitem[Kingma \& Welling(2014)Kingma and Welling]{kingma14}
+Kingma, D.P. and Welling, M.
+\newblock Auto-encoding variational bayes.
+\newblock In \emph{International Conference on Learning Representations
+  (ICLR)}, 2014.
+
+\bibitem[Larsen et~al.(2016)Larsen, S{\o}nderby, Larochelle, and
+  Winther]{larsen2015autoencoding}
+Larsen, Anders Boesen~Lindbo, S{\o}nderby, S{\o}ren~Kaae, Larochelle, Hugo, and
+  Winther, Ole.
+\newblock Autoencoding beyond pixels using a learned similarity metric.
+\newblock In \emph{International Conference on Machine Learning (ICML)}, 2016.
+
+\bibitem[Liu et~al.(2015)Liu, Luo, Wang, and Tang]{liu2015faceattributes}
+Liu, Ziwei, Luo, Ping, Wang, Xiaogang, and Tang, Xiaoou.
+\newblock Deep learning face attributes in the wild.
+\newblock In \emph{Proceedings of International Conference on Computer Vision
+  (ICCV)}, 2015.
+
+\bibitem[Makhzani et~al.(2015)Makhzani, Shlens, Jaitly, and
+  Goodfellow]{makhzani2015adversarial}
+Makhzani, Alireza, Shlens, Jonathon, Jaitly, Navdeep, and Goodfellow, Ian~J.
+\newblock Adversarial autoencoders.
+\newblock Arxiv preprint 1511.05644, 2015.
+\newblock URL \url{http://arxiv.org/abs/1511.05644}.
+
+\bibitem[Mescheder et~al.(2017)Mescheder, Nowozin, and Geiger]{avb}
+Mescheder, Lars~M., Nowozin, Sebastian, and Geiger, Andreas.
+\newblock Adversarial variational bayes: Unifying variational autoencoders and
+  generative adversarial networks.
+\newblock \emph{ArXiv}, abs/1701.04722, 2017.
+\newblock URL \url{http://arxiv.org/abs/1701.04722}.
+
+\bibitem[Metz et~al.(2016)Metz, Poole, Pfau, and
+  Sohl-Dickstein]{metz2016unrolled}
+Metz, Luke, Poole, Ben, Pfau, David, and Sohl-Dickstein, Jascha.
+\newblock Unrolled generative adversarial networks.
+\newblock \emph{arXiv preprint arXiv:1611.02163}, 2016.
+
+\bibitem[Radford et~al.(2015)Radford, Metz, and
+  Chintala]{radford2015unsupervised}
+Radford, Alec, Metz, Luke, and Chintala, Soumith.
+\newblock Unsupervised representation learning with deep convolutional
+  generative adversarial networks.
+\newblock \emph{arXiv preprint arXiv:1511.06434}, 2015.
+
+\bibitem[Rezende et~al.(2014)Rezende, Mohamed, and
+  Wierstra]{rezende2014stochastic}
+Rezende, Danilo~Jimenez, Mohamed, Shakir, and Wierstra, Daan.
+\newblock Stochastic backpropagation and approximate inference in deep
+  generative models.
+\newblock In \emph{Proceedings of The 31st International Conference on Machine
+  Learning}, pp.\  1278--1286, 2014.
+
+\bibitem[Salimans et~al.(2016)Salimans, Goodfellow, Zaremba, Cheung, Radford,
+  and Chen]{salimans16improved}
+Salimans, Tim, Goodfellow, Ian~J., Zaremba, Wojciech, Cheung, Vicki, Radford,
+  Alec, and Chen, Xi.
+\newblock Improved techniques for training gans.
+\newblock \emph{CoRR}, abs/1606.03498, 2016.
+\newblock URL \url{http://arxiv.org/abs/1606.03498}.
+
+\bibitem[S{\o}nderby et~al.(2016)S{\o}nderby, Caballero, Theis, Shi, and
+  Husz{\'a}r]{sonderby2016amortised}
+S{\o}nderby, Casper~Kaae, Caballero, Jose, Theis, Lucas, Shi, Wenzhe, and
+  Husz{\'a}r, Ferenc.
+\newblock Amortised map inference for image super-resolution.
+\newblock \emph{arXiv preprint arXiv:1610.04490}, 2016.
+
+\bibitem[Sugiyama et~al.(2012)Sugiyama, Suzuki, and Kanamori]{sugiyama:book}
+Sugiyama, M., Suzuki, T., and Kanamori, T.
+\newblock \emph{Density ratio estimation in machine learning}.
+\newblock Cambridge University Press, 2012.
+
+\bibitem[{Tran} et~al.(2017){Tran}, {Ranganath}, and {Blei}]{tran17dim}
+{Tran}, D., {Ranganath}, R., and {Blei}, D.~M.
+\newblock {Deep and Hierarchical Implicit Models}.
+\newblock \emph{ArXiv e-prints}, 2017.
+
+\bibitem[Zhu et~al.(2017)Zhu, Park, Isola, and Efros]{CycleGAN2017}
+Zhu, Jun-Yan, Park, Taesung, Isola, Phillip, and Efros, Alexei~A.
+\newblock Unpaired image-to-image translation using cycle-consistent
+  adversarial networks.
+\newblock \emph{arXiv preprint arXiv:1703.10593}, 2017.
+
+\end{thebibliography}
